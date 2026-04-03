@@ -1,200 +1,152 @@
-# \# Al Toro Gastrobar — Sistema Integral
+# Al Toro Gastrobar — Sistema Integral de Gestión
 
-# 
+> Sistema web multiplataforma para la gestión operativa del restaurante Al Toro Gastrobar.
+> Desarrollado por el equipo **ARYA** — Ingeniería de Sistemas, Universidad del Cauca.
 
-# Sistema web multiplataforma para la gestión operativa del restaurante Al Toro Gastrobar,
+---
 
-# desarrollado por el equipo ARYA como proyecto de Ingeniería de Sistemas — Universidad del Cauca.
+## Tabla de contenidos
 
-# 
+- [Descripción](#descripción)
+- [Tecnologías](#tecnologías)
+- [Arquitectura](#arquitectura)
+- [Módulos del sistema](#módulos-del-sistema)
+- [Estructura del repositorio](#estructura-del-repositorio)
+- [Equipo](#equipo)
+- [Flujo de trabajo Git](#flujo-de-trabajo-git)
 
-# \---
+---
 
-# 
+## Descripción
 
-# \## Tecnologías
+Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real los cuatro nodos operativos del restaurante: **servicio** (meseros), **producción** (cocina y barra), **caja** (cajeros) y **portal del cliente**. El sistema elimina la gestión manual en papel, reduce errores en la transmisión de pedidos y centraliza la información operativa y administrativa.
 
-# 
+---
 
-# | Capa | Tecnología |
+## Tecnologías
 
-# |------|------------|
+| Capa | Tecnología |
+|------|------------|
+| Frontend | Angular 17 (TypeScript) |
+| Backend | Java 17 + Spring Boot |
+| Base de datos | PostgreSQL |
+| Control de versiones | Git + GitHub |
+| Gestión de tareas | Jira — proyecto |
 
-# | Frontend | Angular (TypeScript) |
+---
 
-# | Backend | Java 17 + Spring Boot |
+## Arquitectura
 
-# | Base de datos | PostgreSQL |
+El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. Ambas capas se despliegan de forma independiente.
 
-# | Gestión de tareas | Jira (proyecto `PA`) |
+```
+Frontend (Angular)  ──HTTP/JSON──▶  Backend (Spring Boot)  ──▶  PostgreSQL
+```
 
-# | Control de versiones | Git + GitHub |
+---
 
-# 
+## Módulos del sistema
 
-# \---
+| Épica | Módulo | Actores principales |
+|-------|--------|---------------------|
+| HE-01 | Autenticación y perfiles | Todos los roles |
+| HE-02 | Reservas y consumo | Cliente |
+| HE-03 | Mesas y comandas | Mesero, Cajero |
+| HE-04 | Producción | Cocinero, Bartender |
+| HE-05 | Pagos y caja | Cajero |
+| HE-06 | Histórico y reportes | Administrador |
+| HE-07 | Inventario y decoraciones | Administrador |
+| HE-08 | Personal y clientes | Administrador |
 
-# 
+### Roles del sistema
 
-# \## Estructura del repositorio
+| Rol | Acceso |
+|-----|--------|
+| Administrador | Acceso total: configuración, reportes, inventario y personal |
+| Mesero | Mesas asignadas, comandas y notificaciones |
+| Cocinero / Bartender | Comandas por estación |
+| Cajero | Reservas, pagos, cierre de caja y mapa de mesas |
+| Cliente | Reservas, pre-orden, historial de visitas y puntos de fidelización |
 
-# 
+---
 
-# ```
+## Estructura del repositorio
 
-# al\_toro\_gastrobar/
+```
+al_toro_gastrobar/
+├── frontend/                  # Aplicación Angular
+├── backend/                   # API REST con Spring Boot
+├── docs/                      # Documentación del proyecto
+├── .github/
+│   └── workflows/
+│       └── validar-rama.yml   # GitHub Action: valida nombres de rama en PRs
+├── .gitignore
+└── README.md
+```
 
-# ├── frontend/          # Aplicación Angular
+---
 
-# ├── backend/           # API REST con Spring Boot
+## Equipo
 
-# ├── docs/              # Documentación del proyecto
+| Nombre | Rol en Scrum |
+|--------|--------------|
+| Paula Andrea Muñoz Delgado | Scrum Master · Desarrollador · Analista · Tester |
+| Adrián Camilo Bergaño Ortega | Desarrollador |
+| Yeixón Julián Gembuel Ciclos | Tester |
+| Rubeiro Romero | Desarrollador · Analista |
 
-# ├── .github/
+---
 
-# │   └── workflows/
+## Flujo de trabajo Git
 
-# │       └── validar-rama.yml   # Valida nombres de rama en PRs
+### Ramas permanentes
 
-# ├── .gitignore
+| Rama | Propósito | Protección |
+|------|-----------|------------|
+| `main` | Código estable — producción | Requiere PR + aprobación |
+| `develop` | Integración continua del equipo | Requiere PR + aprobación |
 
-# └── README.md
+### Convención de nombres de ramas
 
-# ```
+Cada rama de trabajo corresponde a una **subtarea de Jira**. El formato es validado automáticamente por el workflow `validar-rama.yml` al abrir un Pull Request.
 
-# 
+```
+PA-{numero}-{descripcion-con-guiones}
+```
 
-# \---
+**Ejemplos:**
 
-# 
+```
+PA-11-ingresar-al-sistema-back
+PA-12-ingresar-al-sistema-front
+PA-27-crear-cuenta-cliente-back
+PA-28-crear-cuenta-cliente-front
+```
 
-# \## Módulos del sistema
+### Flujo de una tarea
 
-# 
+```
+develop  ──▶  PA-XX-descripcion  ──▶  develop  ──▶  main
+              (desarrollo)            (PR)           (PR)
+```
 
-# | Módulo | Épica | Actores principales |
+1. Crear la rama desde `develop` usando el número de la subtarea en Jira
+2. Desarrollar y hacer commits con la convención establecida
+3. Abrir Pull Request hacia `develop`
+4. Al cierre del sprint, `develop` se integra a `main` por PR
 
-# |--------|-------|---------------------|
+### Convención de commits
 
-# | Autenticación y perfiles | HE-01 | Todos los roles |
+```
+tipo(scope): descripción corta en minúsculas
 
-# | Reservas y consumo | HE-02 | Cliente |
+feat      → nueva funcionalidad
+fix       → corrección de error
+docs      → cambios en documentación
+style     → formato sin cambio de lógica
+refactor  → reestructuración de código
+test      → agregar o modificar pruebas
+chore     → configuración o tareas de build
+```
 
-# | Mesas y comandas | HE-03 | Mesero, Cajero |
-
-# | Producción | HE-04 | Cocinero, Bartender |
-
-# | Pagos y caja | HE-05 | Cajero |
-
-# | Histórico y reportes | HE-06 | Administrador |
-
-# | Inventario y decoraciones | HE-07 | Administrador |
-
-# | Personal y clientes | HE-08 | Administrador |
-
-# 
-
-# \---
-
-# 
-
-# \## Equipo ARYA
-
-# 
-
-# | Nombre | Rol en Scrum |
-
-# |--------|--------------|
-
-# | Paula Andrea Muñoz Delgado | Scrum Master, Desarrollador, Analista, Tester |
-
-# | Adrián Camilo Bergaño Ortega | Desarrollador |
-
-# | Yeixón Julián Gembuel Ciclos | Tester |
-
-# | Rubeiro Romero | Desarrollador, Analista |
-
-# 
-
-# \---
-
-# 
-
-# \## Flujo de trabajo Git
-
-# 
-
-# \### Ramas permanentes
-
-# 
-
-# | Rama | Propósito |
-
-# |------|-----------|
-
-# | `main` | Código estable y aprobado — protegida |
-
-# | `develop` | Integración continua del equipo — protegida |
-
-# 
-
-# \### Convención de nombres de ramas
-
-# 
-
-# ```
-
-# PA-{numero}-{descripcion-con-guiones}
-
-# ```
-
-# 
-
-# El número corresponde al issue de la subtarea asignada en Jira (proyecto `PA`).
-
-# El formato es validado automáticamente por GitHub Actions al abrir un Pull Request.
-
-# 
-
-# \*\*Ejemplos:\*\*
-
-# ```
-
-# PA-11-ingresar-al-sistema-back
-
-# PA-12-ingresar-al-sistema-front
-
-# PA-26-crear-cuenta-cliente
-
-# ```
-
-# 
-
-# \### Convención de commits
-
-# 
-
-# ```
-
-# tipo(scope): descripción corta
-
-# 
-
-# Tipos: feat | fix | docs | style | refactor | test | chore
-
-# ```
-
-# 
-
-# \---
-
-# 
-
-# \## Gestión del proyecto
-
-# 
-
-# Las historias de usuario y subtareas se gestionan en Jira bajo el proyecto `PA`.
-
-# El sistema cuenta con 8 épicas distribuidas en sprints de 2 semanas bajo metodología Scrum.
-
+---
