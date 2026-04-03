@@ -1,0 +1,42 @@
+name: Validar nombre de rama
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+
+jobs:
+  check-branch-name:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Verificar nombre de rama
+        run: |
+          BRANCH="${{ github.head_ref }}"
+          echo "Rama: $BRANCH"
+
+          # Patrón: PA-123-descripcion-con-guiones
+          # PA- seguido de números, guion, y texto en minúsculas
+          PATTERN="^PA-[0-9]+-[a-z0-9]+(-[a-z0-9]+)*$"
+
+          if [[ "$BRANCH" =~ $PATTERN ]]; then
+            echo "Nombre de rama correcto: $BRANCH"
+          else
+            echo ""
+            echo "============================================="
+            echo "ERROR: nombre de rama incorrecto"
+            echo "============================================="
+            echo ""
+            echo "Rama recibida: '$BRANCH'"
+            echo ""
+            echo "Formato requerido:"
+            echo "  PA-{numero}-{descripcion-con-guiones}"
+            echo ""
+            echo "Pasos para corregirlo:"
+            echo "  1. Busca el numero de tu subtarea en Jira"
+            echo "  2. Renombra tu rama localmente:"
+            echo "     git branch -m nombre-actual PA-XX-descripcion"
+            echo "  3. Sube la rama renombrada:"
+            echo "     git push origin PA-XX-descripcion"
+            echo "  4. Cierra este PR y abre uno nuevo desde la rama corregida"
+            echo "============================================="
+            exit 1
+          fi
