@@ -11,6 +11,7 @@
 - [Tecnologías](#tecnologías)
 - [Arquitectura](#arquitectura)
 - [Módulos del sistema](#módulos-del-sistema)
+- [Roles del sistema](#roles-del-sistema)
 - [Estructura del repositorio](#estructura-del-repositorio)
 - [Equipo](#equipo)
 - [Flujo de trabajo Git](#flujo-de-trabajo-git)
@@ -31,7 +32,7 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 | Backend | Java 17 + Spring Boot |
 | Base de datos | PostgreSQL |
 | Control de versiones | Git + GitHub |
-| Gestión de tareas | Jira — proyecto |
+| Gestión de tareas | Jira |
 
 ---
 
@@ -40,7 +41,7 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. Ambas capas se despliegan de forma independiente.
 
 ```
-Frontend (Angular)  ──HTTP/JSON──▶  Backend (Spring Boot)  ──▶  PostgreSQL
+Frontend (Angular) ──HTTP/JSON──▶ Backend (Spring Boot) ──▶ PostgreSQL
 ```
 
 ---
@@ -58,7 +59,9 @@ Frontend (Angular)  ──HTTP/JSON──▶  Backend (Spring Boot)  ──▶  
 | HE-07 | Inventario y decoraciones | Administrador |
 | HE-08 | Personal y clientes | Administrador |
 
-### Roles del sistema
+---
+
+## Roles del sistema
 
 | Rol | Acceso |
 |-----|--------|
@@ -74,14 +77,15 @@ Frontend (Angular)  ──HTTP/JSON──▶  Backend (Spring Boot)  ──▶  
 
 ```
 al_toro_gastrobar/
-├── frontend/                  # Aplicación Angular
-├── backend/                   # API REST con Spring Boot
-├── docs/                      # Documentación del proyecto
+├── frontend/               # Aplicación Angular
+├── backend/                # API REST con Spring Boot
+├── docs/                   # Documentación del proyecto
 ├── .github/
 │   └── workflows/
-│       └── validar-rama.yml   # GitHub Action: valida nombres de rama en PRs
+│       └── validar-rama.yml  # GitHub Action: valida nombres de rama en PRs
 ├── .gitignore
-└── README.md
+├── README.md
+└── CONTRIBUTING.md         # Reglas de Git y flujo de trabajo
 ```
 
 ---
@@ -99,54 +103,7 @@ al_toro_gastrobar/
 
 ## Flujo de trabajo Git
 
-### Ramas permanentes
+Todas las reglas operativas de Git —nombres de ramas, formato de commits, protección de ramas y procedimiento para Pull Requests— están documentadas en:
+[`CONTRIBUTING.md`](./CONTRIBUTING.md)
 
-| Rama | Propósito | Protección |
-|------|-----------|------------|
-| `main` | Código estable — producción | Requiere PR + aprobación |
-| `develop` | Integración continua del equipo | Requiere PR + aprobación |
-
-### Convención de nombres de ramas
-
-Cada rama de trabajo corresponde a una **subtarea de Jira**. El formato es validado automáticamente por el workflow `validar-rama.yml` al abrir un Pull Request.
-
-```
-PA-{numero}-{descripcion-con-guiones}
-```
-
-**Ejemplos:**
-
-```
-PA-11-ingresar-al-sistema-back
-PA-12-ingresar-al-sistema-front
-PA-27-crear-cuenta-cliente-back
-PA-28-crear-cuenta-cliente-front
-```
-
-### Flujo de una tarea
-
-```
-develop  ──▶  PA-XX-descripcion  ──▶  develop  ──▶  main
-              (desarrollo)            (PR)           (PR)
-```
-
-1. Crear la rama desde `develop` usando el número de la subtarea en Jira
-2. Desarrollar y hacer commits con la convención establecida
-3. Abrir Pull Request hacia `develop`
-4. Al cierre del sprint, `develop` se integra a `main` por PR
-
-### Convención de commits
-
-```
-tipo(scope): descripción corta en minúsculas
-
-feat      → nueva funcionalidad
-fix       → corrección de error
-docs      → cambios en documentación
-style     → formato sin cambio de lógica
-refactor  → reestructuración de código
-test      → agregar o modificar pruebas
-chore     → configuración o tareas de build
-```
-
----
+Antes de realizar el primer commit, cada miembro del equipo debe leer y seguir ese documento.
