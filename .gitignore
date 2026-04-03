@@ -1,16 +1,10 @@
-# Compiled class file
+gitignore# ========================
+# JAVA (ya tenías esto)
+# ========================
 *.class
-
-# Log file
 *.log
-
-# BlueJ files
 *.ctxt
-
-# Mobile Tools for Java (J2ME)
 .mtj.tmp/
-
-# Package Files #
 *.jar
 *.war
 *.nar
@@ -18,7 +12,45 @@
 *.zip
 *.tar.gz
 *.rar
-
-# virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# ========================
+# FRONTEND - Angular
+# ========================
+frontend/node_modules/
+frontend/dist/
+frontend/.angular/
+frontend/.env
+frontend/*.env.local
+
+# ========================
+# BACKEND - Spring Boot
+# ========================
+backend/target/
+backend/.env
+backend/src/main/resources/application-local.properties
+backend/src/main/resources/application-prod.properties
+
+# ========================
+# IDEs y editores
+# ========================
+.idea/
+*.iml
+.vscode/
+*.suo
+*.user
+
+# ========================
+# Sistema operativo
+# ========================
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# ========================
+# Logs y temporales
+# ========================
+*.tmp
+*.bak
+logs/
