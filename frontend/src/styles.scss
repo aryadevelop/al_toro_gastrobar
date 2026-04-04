@@ -1,0 +1,101 @@
+:root {
+  --bg: #f2f2f2;
+  --surface: #f2f2f2;
+  --surface-alt: #a4a5a6;
+  --primary: #f23535;
+  --primary-strong: #0d0d0d;
+  --accent: #a4a5a6;
+  --text: #0d0d0d;
+  --muted: #6f7071;
+  --danger: #f23535;
+  --success: #0d0d0d;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 8px 24px rgba(13, 13, 13, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at 10% 10%, #ffffff, var(--bg) 65%);
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(13, 13, 13, 0.12);
+}
+
+.page-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(13, 13, 13, 0.2);
+  background: #fff;
+}
+
+.error-text {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--primary-strong);
+  color: var(--surface);
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.2rem;
+}

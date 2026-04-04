@@ -1,0 +1,17 @@
+import { Component } from '@angular/core';
+import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+
+@Component({
+  selector: 'app-orden-actual-page',
+  standalone: true,
+  imports: [PageHeaderComponent],
+  template: `
+    <section class="page-grid">
+      <app-page-header title="OrdenActualPage" subtitle="Vista base en construccion"></app-page-header>
+      <article class="card" style="padding: 1rem;">
+        <p>Contenido inicial de orden-actual-page.</p>
+      </article>
+    </section>
+  `
+})
+export class OrdenActualPageComponent {}

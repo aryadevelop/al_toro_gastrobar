@@ -1,0 +1,37 @@
+.app-layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  min-height: 100vh;
+}
+
+.content-wrapper {
+  padding: 1rem;
+}
+
+.page-container {
+  display: grid;
+  gap: 1rem;
+}
+
+.mobile-menu {
+  display: none;
+}
+
+@media (max-width: 960px) {
+  .app-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .desktop-sidebar {
+    display: none;
+  }
+
+  .mobile-menu {
+    display: block;
+    margin-bottom: 1rem;
+
+    app-sidebar {
+      display: block;
+    }
+  }
+}
