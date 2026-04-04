@@ -13,8 +13,8 @@ import { Role } from '../../../core/models/domain.models';
         font-weight: 700;
         border-radius: 999px;
         padding: 0.2rem 0.55rem;
-        background: #edf3ef;
-        color: #0b3f2f;
+        background: #a4a5a6;
+        color: #0d0d0d;
       }
     `
   ]

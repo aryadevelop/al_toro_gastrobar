@@ -1,17 +1,17 @@
 :root {
-  --bg: #f4f1ea;
-  --surface: #fffdfa;
-  --surface-alt: #f0e8dc;
-  --primary: #0f4c3a;
-  --primary-strong: #083326;
-  --accent: #c9852d;
-  --text: #1f2523;
-  --muted: #5d6663;
-  --danger: #b73a3a;
-  --success: #2b7a4b;
+  --bg: #f2f2f2;
+  --surface: #f2f2f2;
+  --surface-alt: #a4a5a6;
+  --primary: #f23535;
+  --primary-strong: #0d0d0d;
+  --accent: #a4a5a6;
+  --text: #0d0d0d;
+  --muted: #6f7071;
+  --danger: #f23535;
+  --success: #0d0d0d;
   --radius-md: 12px;
   --radius-lg: 18px;
-  --shadow-sm: 0 8px 24px rgba(20, 34, 29, 0.08);
+  --shadow-sm: 0 8px 24px rgba(13, 13, 13, 0.1);
 }
 
 * {
@@ -23,7 +23,7 @@ body {
   margin: 0;
   padding: 0;
   font-family: 'Manrope', 'Segoe UI', sans-serif;
-  background: radial-gradient(circle at 20% 20%, #fff, var(--bg));
+  background: radial-gradient(circle at 10% 10%, #ffffff, var(--bg) 65%);
   color: var(--text);
 }
 
@@ -43,7 +43,7 @@ a {
   background: var(--surface);
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(15, 76, 58, 0.08);
+  border: 1px solid rgba(13, 13, 13, 0.12);
 }
 
 .page-grid {
@@ -60,7 +60,7 @@ a {
   width: 100%;
   padding: 0.65rem 0.85rem;
   border-radius: 10px;
-  border: 1px solid rgba(15, 76, 58, 0.2);
+  border: 1px solid rgba(13, 13, 13, 0.2);
   background: #fff;
 }
 
@@ -91,8 +91,8 @@ a {
 }
 
 .btn-danger {
-  background: var(--danger);
-  color: #fff;
+  background: var(--primary-strong);
+  color: var(--surface);
 }
 
 .section-title {

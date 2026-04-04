@@ -15,20 +15,20 @@ import { Mesa } from '../../../core/models/domain.models';
       .table-item {
         border-radius: 12px;
         padding: 0.8rem;
-        border: 1px solid rgba(15, 76, 58, 0.18);
-        background: #fff;
+        border: 1px solid rgba(13, 13, 13, 0.18);
+        background: #f2f2f2;
       }
 
       .available {
-        border-color: #96d3b1;
+        border-color: #a4a5a6;
       }
 
       .occupied {
-        border-color: #ef9e9e;
+        border-color: #f23535;
       }
 
       .reserved {
-        border-color: #f0c98b;
+        border-color: #0d0d0d;
       }
     `
   ]

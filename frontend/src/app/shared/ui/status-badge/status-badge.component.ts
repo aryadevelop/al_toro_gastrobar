@@ -15,17 +15,18 @@ import { Component, Input } from '@angular/core';
       }
 
       .neutral {
-        background: #ece8df;
+        background: #f2f2f2;
+        color: #0d0d0d;
       }
 
       .success {
-        background: #d7f0e1;
-        color: #0b6033;
+        background: #a4a5a6;
+        color: #0d0d0d;
       }
 
       .danger {
-        background: #f5d8d8;
-        color: #8d1c1c;
+        background: #f23535;
+        color: #f2f2f2;
       }
     `
   ]

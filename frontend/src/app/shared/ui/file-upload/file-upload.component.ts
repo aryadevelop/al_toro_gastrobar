@@ -15,7 +15,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
         display: grid;
         gap: 0.5rem;
         padding: 1rem;
-        border: 2px dashed rgba(15, 76, 58, 0.4);
+        border: 2px dashed rgba(242, 53, 53, 0.55);
       }
     `
   ]

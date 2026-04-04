@@ -44,7 +44,7 @@ export interface DataColumn {
       td {
         text-align: left;
         padding: 0.75rem;
-        border-bottom: 1px solid rgba(15, 76, 58, 0.12);
+        border-bottom: 1px solid rgba(13, 13, 13, 0.12);
       }
     `
   ]

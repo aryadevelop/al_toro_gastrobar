@@ -11,7 +11,7 @@ import { Component, Input } from '@angular/core';
       .skeleton {
         width: 100%;
         border-radius: 8px;
-        background: linear-gradient(90deg, #ece7de 25%, #f4f2ec 50%, #ece7de 75%);
+        background: linear-gradient(90deg, #a4a5a6 25%, #f2f2f2 50%, #a4a5a6 75%);
         background-size: 200% 100%;
         animation: shimmer 1.2s infinite;
       }
