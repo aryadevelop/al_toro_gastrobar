@@ -1,0 +1,101 @@
+:root {
+  --bg: #f4f1ea;
+  --surface: #fffdfa;
+  --surface-alt: #f0e8dc;
+  --primary: #0f4c3a;
+  --primary-strong: #083326;
+  --accent: #c9852d;
+  --text: #1f2523;
+  --muted: #5d6663;
+  --danger: #b73a3a;
+  --success: #2b7a4b;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --shadow-sm: 0 8px 24px rgba(20, 34, 29, 0.08);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  background: radial-gradient(circle at 20% 20%, #fff, var(--bg));
+  color: var(--text);
+}
+
+button,
+input,
+select,
+textarea {
+  font: inherit;
+}
+
+a {
+  color: inherit;
+  text-decoration: none;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--radius-md);
+  box-shadow: var(--shadow-sm);
+  border: 1px solid rgba(15, 76, 58, 0.08);
+}
+
+.page-grid {
+  display: grid;
+  gap: 1rem;
+}
+
+.form-grid {
+  display: grid;
+  gap: 0.8rem;
+}
+
+.input-field {
+  width: 100%;
+  padding: 0.65rem 0.85rem;
+  border-radius: 10px;
+  border: 1px solid rgba(15, 76, 58, 0.2);
+  background: #fff;
+}
+
+.error-text {
+  margin: 0;
+  color: var(--danger);
+  font-size: 0.8rem;
+}
+
+.btn-primary,
+.btn-secondary,
+.btn-danger {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+.btn-primary {
+  background: var(--primary);
+  color: #fff;
+}
+
+.btn-secondary {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.btn-danger {
+  background: var(--danger);
+  color: #fff;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.2rem;
+}

@@ -1,0 +1,14 @@
+# See https://docs.github.com/get-started/getting-started-with-git/ignoring-files
+
+/dist
+/tmp
+/out-tsc
+/bazel-out
+
+/node_modules
+npm-debug.log
+yarn-error.log
+
+/.angular/cache
+/.sass-cache
+/coverage
