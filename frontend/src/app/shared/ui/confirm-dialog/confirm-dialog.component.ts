@@ -11,8 +11,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         <h3>{{ title }}</h3>
         <p>{{ message }}</p>
         <div class="actions">
-          <button type="button" class="btn-secondary" (click)="cancel.emit()">Cancelar</button>
-          <button type="button" class="btn-danger" (click)="confirm.emit()">Confirmar</button>
+          <button type="button" class="btn-secondary" (click)="cancel.emit()">{{ cancelLabel }}</button>
+          <button type="button" class="btn-danger" (click)="confirm.emit()">{{ confirmLabel }}</button>
         </div>
       </div>
     </section>
@@ -42,8 +42,10 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 })
 export class ConfirmDialogComponent {
   @Input() open = false;
-  @Input() title = 'Confirmacin';
-  @Input() message = 'Deseas continuar?';
+  @Input() title = 'Confirmación';
+  @Input() message = '¿Deseas continuar?';
+  @Input() cancelLabel = 'Cancelar';
+  @Input() confirmLabel = 'Confirmar';
   @Output() readonly confirm = new EventEmitter<void>();
   @Output() readonly cancel = new EventEmitter<void>();
 }

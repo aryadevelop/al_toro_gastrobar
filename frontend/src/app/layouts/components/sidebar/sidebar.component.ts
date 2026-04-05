@@ -21,8 +21,8 @@ import { MenuService } from '../../../core/services/menu.service';
           routerLinkActive="active"
           class="menu-item"
         >
-          <span class="icon">{{ item.icon }}</span>
-          <span>{{ item.label }}</span>
+          <span class="icon" aria-hidden="true">{{ getIconSymbol(item.icon) }}</span>
+          <span class="menu-label">{{ item.label }}</span>
         </a>
       </nav>
     </aside>
@@ -30,5 +30,19 @@ import { MenuService } from '../../../core/services/menu.service';
   styleUrls: ['./sidebar.component.scss']
 })
 export class SidebarComponent {
+  private readonly iconSymbolByName: Record<string, string> = {
+    home: '⌂',
+    person: '◉',
+    restaurant: '◌',
+    kitchen: '◍',
+    payments: '$',
+    shield: '⛨',
+    badge: '★'
+  };
+
   constructor(public readonly menuService: MenuService) {}
+
+  getIconSymbol(iconName: string): string {
+    return this.iconSymbolByName[iconName] ?? '•';
+  }
 }

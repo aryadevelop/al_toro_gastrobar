@@ -14,6 +14,15 @@ export interface RegisterRequest {
     password: string;
 }
 
+export interface UpdateProfileRequest {
+    fullName: string;
+    email: string;
+    phone: string;
+    currentPassword?: string;
+    newPassword?: string;
+    confirmNewPassword?: string;
+}
+
 export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
