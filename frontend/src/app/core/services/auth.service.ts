@@ -6,7 +6,7 @@ import { API_PATHS } from '../config/api-paths';
 import { ROLE_LANDING_ROUTE } from '../config/role-routes';
 import { StorageService } from './storage.service';
 import { Role, User } from '../models/domain.models';
-import { AuthResponse, LoginCredentials, RegisterRequest } from '../models/auth.models';
+import { AuthResponse, LoginCredentials, RegisterRequest, UpdateProfileRequest } from '../models/auth.models';
 
 @Injectable({ providedIn: 'root' })
 export class AuthService {
@@ -73,9 +73,7 @@ export class AuthService {
       );
   }
 
-  updateProfile(
-    payload: Partial<Pick<User, 'fullName' | 'phone' | 'avatarUrl'>>
-  ): Observable<User> {
+  updateProfile(payload: UpdateProfileRequest): Observable<User> {
     return this.http.patch<User>(API_PATHS.users.me, payload).pipe(
       map((user) => {
         this.currentUserState.set(user);

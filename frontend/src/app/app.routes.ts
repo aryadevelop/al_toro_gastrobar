@@ -1,5 +1,6 @@
 import { Routes } from '@angular/router';
 import { authGuard } from './core/guards/auth.guard';
+import { pendingProfileGuard } from './core/guards/pending-profile.guard';
 import { roleGuard } from './core/guards/role.guard';
 import { AppLayoutComponent } from './layouts/app-layout/app-layout.component';
 import { AuthLayoutComponent } from './layouts/auth-layout/auth-layout.component';
@@ -22,6 +23,7 @@ export const appRoutes: Routes = [
       },
       {
         path: 'profile',
+        canDeactivate: [pendingProfileGuard],
         loadComponent: () => import('./features/auth/pages/profile-page/profile-page.component').then((m) => m.ProfilePageComponent)
       },
       {

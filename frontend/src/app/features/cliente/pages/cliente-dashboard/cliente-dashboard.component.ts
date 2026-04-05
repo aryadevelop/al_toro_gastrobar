@@ -1,8 +1,8 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
-import { Router } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { DashboardMetric, Reserva } from '../../../../core/models/domain.models';
-import { DashboardService } from '../../../../core/services/dashboard.service';
+import { AuthService } from '../../../../core/services/auth.service';
 import { ReservationService } from '../../../../core/services/reservation.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 import { ReservationCardComponent } from '../../../../shared/ui/reservation-card/reservation-card.component';
@@ -11,22 +11,26 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
 @Component({
   selector: 'app-cliente-dashboard',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, StatCardComponent, ReservationCardComponent],
+  imports: [CommonModule, RouterLink, PageHeaderComponent, StatCardComponent, ReservationCardComponent],
   template: `
     <section class="page-grid">
       <article class="flash-toast card" *ngIf="showFlash()">
         {{ flashMessage() }}
       </article>
 
-      <app-page-header title="Panel de cliente" subtitle="Resumen de tus reservas y actividad"></app-page-header>
+      <section class="dashboard-header-row">
+        <app-page-header title="Panel de cliente" subtitle="Resumen de tus reservas y actividad"></app-page-header>
+        <a class="btn-secondary profile-shortcut" routerLink="/app/profile">Modificar mis datos</a>
+      </section>
 
       <section style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem;">
         <app-stat-card *ngFor="let metric of metrics" [label]="metric.label" [value]="metric.value" [trend]="metric.trend ?? null"></app-stat-card>
       </section>
 
       <section class="page-grid">
-        <h2 class="section-title">Proximas reservas</h2>
+        <h2 class="section-title">Próximas reservas</h2>
         <app-reservation-card *ngFor="let reservation of reservas" [reservation]="reservation"></app-reservation-card>
+        <p *ngIf="reservas.length === 0" class="empty-state">No tienes reservas programadas.</p>
       </section>
     </section>
   `,
@@ -39,6 +43,25 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
         padding: 0.7rem 0.9rem;
         font-weight: 700;
       }
+
+      .dashboard-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .profile-shortcut {
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .empty-state {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.9rem;
+      }
     `
   ]
 })
@@ -50,7 +73,7 @@ export class ClienteDashboardComponent implements OnInit {
   reservas: Reserva[] = [];
 
   constructor(
-    private readonly dashboardService: DashboardService,
+    private readonly authService: AuthService,
     private readonly reservationService: ReservationService,
     private readonly router: Router
   ) {}
@@ -65,13 +88,34 @@ export class ClienteDashboardComponent implements OnInit {
       history.replaceState({}, document.title, this.router.url);
     }
 
-    this.dashboardService.getMetrics().subscribe((metrics) => {
-      this.metrics = metrics;
-    });
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.metrics = [];
+      this.reservas = [];
+      return;
+    }
 
-    this.reservationService.list().subscribe((reservas) => {
-      this.reservas = reservas;
+    this.reservationService.listByCliente(currentUser.id).subscribe((reservas) => {
+      const sorted = [...reservas].sort((a, b) => this.toDateTime(a).getTime() - this.toDateTime(b).getTime());
+      this.reservas = sorted;
+      this.metrics = this.buildMetrics(sorted);
     });
+  }
+
+  private buildMetrics(reservas: Reserva[]): DashboardMetric[] {
+    const pending = reservas.filter((item) => item.status === 'PENDING').length;
+    const confirmed = reservas.filter((item) => item.status === 'CONFIRMED').length;
+    const attended = reservas.filter((item) => item.status === 'ARRIVED' || item.status === 'COMPLETED').length;
+
+    return [
+      { id: 'cm-1', label: 'Mis reservas', value: reservas.length, tone: 'neutral' },
+      { id: 'cm-2', label: 'Pendientes', value: pending, tone: pending > 0 ? 'success' : 'neutral' },
+      { id: 'cm-3', label: 'Confirmadas / atendidas', value: confirmed + attended, tone: 'neutral' }
+    ];
+  }
+
+  private toDateTime(reserva: Reserva): Date {
+    return new Date(`${reserva.date}T${reserva.time}:00`);
   }
 }
 
