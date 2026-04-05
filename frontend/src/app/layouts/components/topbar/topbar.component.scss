@@ -1,15 +1,65 @@
-.topbar {
+﻿.topbar {
   padding: 1rem;
   margin-bottom: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
+  gap: 0.8rem;
+  border-bottom: 2px solid rgba(168, 24, 47, 0.28);
+
+  .topbar__left {
+    display: flex;
+    align-items: center;
+    gap: 0.65rem;
+    min-width: 0;
+  }
+
+  .topbar-logo {
+    display: block;
+    width: clamp(86px, 25vw, 132px);
+    height: auto;
+    flex-shrink: 0;
+  }
 
   h3 {
     margin: 0;
+    font-size: 1rem;
+    color: #A8182F;
   }
 
   small {
-    color: var(--muted);
+    color: rgba(168, 24, 47, 0.78);
+    display: block;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 38vw;
+  }
+}
+
+@media (max-width: 960px) {
+  .topbar {
+    .topbar-logo {
+      display: none;
+    }
+
+    .topbar__left {
+      gap: 0;
+    }
+  }
+}
+
+@media (max-width: 640px) {
+  .topbar {
+    padding: 0.75rem;
+
+    h3 {
+      font-size: 0.92rem;
+    }
+
+    .btn-secondary {
+      padding: 0.5rem 0.65rem;
+      font-size: 0.8rem;
+    }
   }
 }

@@ -11,7 +11,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
     <section class="page-grid">
       <app-page-header title="Formulario de preparacion" subtitle="Crear o editar recetas base"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 760px;">
-        <form class="form-grid" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <form class="form-grid form-compact" [formGroup]="form" (ngSubmit)="onSubmit()">
           <label><span>Nombre</span><input class="input-field" formControlName="name" /></label>
           <label><span>Minutos estimados</span><input class="input-field" type="number" min="1" formControlName="estimatedMinutes" /></label>
           <label><span>Ingredientes (coma separada)</span><textarea class="input-field" rows="3" formControlName="ingredients"></textarea></label>

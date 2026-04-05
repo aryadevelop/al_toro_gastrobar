@@ -11,7 +11,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
     <section class="page-grid">
       <app-page-header title="Formulario de insumo" subtitle="Control de inventario base"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 760px;">
-        <form class="form-grid" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <form class="form-grid form-compact" [formGroup]="form" (ngSubmit)="onSubmit()">
           <label><span>Nombre</span><input class="input-field" formControlName="name" /></label>
           <label><span>Unidad</span><input class="input-field" formControlName="unit" /></label>
           <label><span>Stock actual</span><input class="input-field" type="number" min="0" formControlName="currentStock" /></label>

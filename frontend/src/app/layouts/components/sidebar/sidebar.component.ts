@@ -10,8 +10,8 @@ import { MenuService } from '../../../core/services/menu.service';
   template: `
     <aside class="sidebar">
       <div class="brand">
-        <h2>Al Toro</h2>
-        <small>Gastrobar</small>
+        <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="brand-logo" />
+        <small>Panel operativo</small>
       </div>
 
       <nav class="menu">

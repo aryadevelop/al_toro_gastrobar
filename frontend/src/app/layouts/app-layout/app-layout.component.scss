@@ -1,4 +1,4 @@
-.app-layout {
+﻿.app-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
@@ -29,6 +29,8 @@
   .mobile-menu {
     display: block;
     margin-bottom: 1rem;
+    border-left: 3px solid rgba(168, 24, 47, 0.55);
+    padding-left: 0.35rem;
 
     app-sidebar {
       display: block;

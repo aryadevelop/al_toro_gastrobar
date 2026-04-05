@@ -13,7 +13,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
     <section class="page-grid">
       <app-page-header title="Detalle de cliente" subtitle="Actualizar estado y datos principales"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 760px;">
-        <form class="form-grid" [formGroup]="form" (ngSubmit)="onSubmit()">
+        <form class="form-grid form-compact" [formGroup]="form" (ngSubmit)="onSubmit()">
           <label><span>Nombre completo</span><input class="input-field" formControlName="fullName" /></label>
           <label><span>Correo</span><input class="input-field" type="email" formControlName="email" /></label>
           <label><span>Telefono</span><input class="input-field" formControlName="phone" /></label>

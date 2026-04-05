@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+﻿import { Component, Input } from '@angular/core';
 import { Mesa } from '../../../core/models/domain.models';
 
 @Component({
@@ -15,20 +15,20 @@ import { Mesa } from '../../../core/models/domain.models';
       .table-item {
         border-radius: 12px;
         padding: 0.8rem;
-        border: 1px solid rgba(13, 13, 13, 0.18);
-        background: #f2f2f2;
+        border: 1px solid rgba(10, 10, 10, 0.18);
+        background: #FFFFFF;
       }
 
       .available {
-        border-color: #a4a5a6;
+        border-color: #A0A0A0;
       }
 
       .occupied {
-        border-color: #f23535;
+        border-color: #A8182F;
       }
 
       .reserved {
-        border-color: #0d0d0d;
+        border-color: #0A0A0A;
       }
     `
   ]

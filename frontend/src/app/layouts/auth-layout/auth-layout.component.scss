@@ -1,20 +1,27 @@
-.auth-layout {
-  min-height: 100vh;
+﻿.auth-layout {
+  min-height: 100dvh;
   display: grid;
-  grid-template-columns: 1fr 1.1fr;
+  grid-template-columns: 1fr;
 }
 
-/* ── Left panel: dark branded section ── */
-
 .auth-panel {
-  background: linear-gradient(160deg, #0d0d0d 0%, #1a1a1a 50%, #0d0d0d 100%);
-  color: #f2f2f2;
-  display: flex;
+  display: none;
+  background: linear-gradient(160deg, #0A0A0A 0%, #1A1A1A 58%, #0A0A0A 100%);
+  color: #FFFFFF;
   flex-direction: column;
   justify-content: center;
   align-items: center;
   padding: 3rem 2rem;
   position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0 2px, rgba(255, 255, 255, 0) 2px 10px);
+    opacity: 0.28;
+    pointer-events: none;
+  }
 
   &::after {
     content: '';
@@ -23,71 +30,37 @@
     top: 15%;
     height: 70%;
     width: 3px;
-    background: linear-gradient(180deg, transparent, #f23535 50%, transparent);
+    background: linear-gradient(180deg, transparent, #A8182F 50%, transparent);
     border-radius: 2px;
   }
 }
 
 .auth-panel__content {
   text-align: center;
+  position: relative;
+  z-index: 1;
 }
 
-/* ── Logo placeholder ── */
-
-.logo-placeholder {
-  width: 110px;
-  height: 110px;
-  border-radius: 50%;
-  border: 2px solid rgba(242, 53, 53, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 2rem;
-  background: rgba(242, 53, 53, 0.06);
-  transition: border-color 0.3s ease;
-
-  &:hover {
-    border-color: rgba(242, 53, 53, 0.7);
-  }
-}
-
-.logo-initials {
-  font-size: 2.2rem;
-  font-weight: 800;
-  color: #f23535;
-  letter-spacing: 3px;
-}
-
-/* Cuando se agregue el logo real, usar esta clase en el <img> */
 .logo-img {
-  max-width: 80px;
-  max-height: 80px;
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
   object-fit: contain;
 }
 
-/* ── Brand text ── */
-
-.brand-name {
-  margin: 0;
-  font-size: 2.8rem;
-  font-weight: 800;
-  letter-spacing: 1px;
-  line-height: 1;
+.logo-img--desktop {
+  margin: 0 auto 1.4rem;
 }
 
-.brand-label {
-  display: block;
-  font-size: 1rem;
-  letter-spacing: 8px;
-  text-transform: uppercase;
-  color: #f23535;
-  margin-top: 0.5rem;
-  font-weight: 600;
+.logo-img--mobile {
+  max-width: 190px;
+  margin: 0 auto;
 }
 
 .brand-tagline {
-  margin-top: 1.8rem;
-  color: rgba(242, 242, 242, 0.5);
+  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.5);
   font-size: 0.9rem;
   max-width: 28ch;
 }
@@ -96,117 +69,51 @@
   position: absolute;
   bottom: 1.5rem;
   font-size: 0.72rem;
-  color: rgba(242, 242, 242, 0.25);
+  color: rgba(255, 255, 255, 0.25);
   margin: 0;
+  z-index: 1;
 }
-
-/* ── Right panel: form area ── */
 
 .auth-content {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 2rem;
-  background: radial-gradient(circle at 70% 30%, #ffffff, #f2f2f2 60%);
+  padding: 1rem;
+  background: radial-gradient(circle at 70% 30%, #ffffff, #FFFFFF 60%);
 }
 
 .auth-form-wrapper {
   width: 100%;
-  max-width: 440px;
+  max-width: 410px;
 }
 
-/* ── Mobile Brand Header ── */
 .mobile-brand {
-  display: none;
+  display: block;
   text-align: center;
-  margin-bottom: 2rem;
+  margin-bottom: 1.25rem;
 }
 
-.logo-placeholder-small {
-  width: 65px;
-  height: 65px;
-  border-radius: 50%;
-  border: 2px solid rgba(242, 53, 53, 0.4);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  margin: 0 auto 0.8rem;
-  background: rgba(242, 53, 53, 0.06);
-}
-
-.logo-initials-small {
-  font-size: 1.4rem;
-  font-weight: 800;
-  color: #f23535;
-  letter-spacing: 1px;
-}
-
-.mobile-brand-name {
-  margin: 0;
-  font-size: 1.5rem;
-  font-weight: 800;
-  color: var(--text);
-  
-  span {
-    color: #f23535;
-    font-size: 0.9rem;
-    letter-spacing: 2px;
-    text-transform: uppercase;
-    display: block;
-    margin-top: 0.15rem;
-  }
-}
-
-/* ── Responsive: 768px (tablet) ── */
-
-@media (max-width: 768px) {
+@media (min-width: 769px) {
   .auth-layout {
-    grid-template-columns: 1fr;
+    grid-template-columns: 1fr 1.1fr;
   }
 
   .auth-panel {
-    display: none;
-  }
-
-  .auth-panel__footer {
-    position: static;
-    margin-top: 1.5rem;
-  }
-
-  .brand-name {
-    font-size: 2rem;
-  }
-
-  .logo-placeholder {
-    width: 80px;
-    height: 80px;
-    margin-bottom: 1.2rem;
-  }
-
-  .logo-initials {
-    font-size: 1.6rem;
+    display: flex;
   }
 
   .mobile-brand {
-    display: block;
+    display: none;
   }
 
   .auth-content {
-    padding: 1.5rem;
-    align-items: flex-start;
-    padding-top: 10vh; /* Baja el contenedor sutilmente de la parte central absoluta */
+    padding: 2rem;
   }
 }
 
-/* ── Responsive: 375px (mobile small) ── */
-
 @media (max-width: 375px) {
-  .auth-panel {
-    padding: 2rem 1rem 1rem;
-  }
-
   .auth-content {
-    padding: 1rem;
+    padding: 0.8rem;
   }
 
   .auth-form-wrapper {
