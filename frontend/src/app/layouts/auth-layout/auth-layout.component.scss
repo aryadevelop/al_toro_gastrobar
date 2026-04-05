@@ -1,44 +1,215 @@
 .auth-layout {
   min-height: 100vh;
   display: grid;
-  grid-template-columns: 1.1fr 1fr;
-  background: linear-gradient(135deg, #f2f2f2 0%, #a4a5a6 45%, #f2f2f2 100%);
+  grid-template-columns: 1fr 1.1fr;
 }
 
+/* ── Left panel: dark branded section ── */
+
 .auth-panel {
-  padding: 3rem;
+  background: linear-gradient(160deg, #0d0d0d 0%, #1a1a1a 50%, #0d0d0d 100%);
+  color: #f2f2f2;
   display: flex;
   flex-direction: column;
   justify-content: center;
+  align-items: center;
+  padding: 3rem 2rem;
+  position: relative;
 
-  h1 {
-    margin: 0;
-    font-size: 2.4rem;
-  }
-
-  p {
-    margin-top: 0.8rem;
-    color: var(--muted);
-    max-width: 34ch;
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 15%;
+    height: 70%;
+    width: 3px;
+    background: linear-gradient(180deg, transparent, #f23535 50%, transparent);
+    border-radius: 2px;
   }
 }
+
+.auth-panel__content {
+  text-align: center;
+}
+
+/* ── Logo placeholder ── */
+
+.logo-placeholder {
+  width: 110px;
+  height: 110px;
+  border-radius: 50%;
+  border: 2px solid rgba(242, 53, 53, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 2rem;
+  background: rgba(242, 53, 53, 0.06);
+  transition: border-color 0.3s ease;
+
+  &:hover {
+    border-color: rgba(242, 53, 53, 0.7);
+  }
+}
+
+.logo-initials {
+  font-size: 2.2rem;
+  font-weight: 800;
+  color: #f23535;
+  letter-spacing: 3px;
+}
+
+/* Cuando se agregue el logo real, usar esta clase en el <img> */
+.logo-img {
+  max-width: 80px;
+  max-height: 80px;
+  object-fit: contain;
+}
+
+/* ── Brand text ── */
+
+.brand-name {
+  margin: 0;
+  font-size: 2.8rem;
+  font-weight: 800;
+  letter-spacing: 1px;
+  line-height: 1;
+}
+
+.brand-label {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: 8px;
+  text-transform: uppercase;
+  color: #f23535;
+  margin-top: 0.5rem;
+  font-weight: 600;
+}
+
+.brand-tagline {
+  margin-top: 1.8rem;
+  color: rgba(242, 242, 242, 0.5);
+  font-size: 0.9rem;
+  max-width: 28ch;
+}
+
+.auth-panel__footer {
+  position: absolute;
+  bottom: 1.5rem;
+  font-size: 0.72rem;
+  color: rgba(242, 242, 242, 0.25);
+  margin: 0;
+}
+
+/* ── Right panel: form area ── */
 
 .auth-content {
-  margin: 2rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
   padding: 2rem;
-  align-self: center;
+  background: radial-gradient(circle at 70% 30%, #ffffff, #f2f2f2 60%);
 }
 
-@media (max-width: 960px) {
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 440px;
+}
+
+/* ── Mobile Brand Header ── */
+.mobile-brand {
+  display: none;
+  text-align: center;
+  margin-bottom: 2rem;
+}
+
+.logo-placeholder-small {
+  width: 65px;
+  height: 65px;
+  border-radius: 50%;
+  border: 2px solid rgba(242, 53, 53, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 0.8rem;
+  background: rgba(242, 53, 53, 0.06);
+}
+
+.logo-initials-small {
+  font-size: 1.4rem;
+  font-weight: 800;
+  color: #f23535;
+  letter-spacing: 1px;
+}
+
+.mobile-brand-name {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 800;
+  color: var(--text);
+  
+  span {
+    color: #f23535;
+    font-size: 0.9rem;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    display: block;
+    margin-top: 0.15rem;
+  }
+}
+
+/* ── Responsive: 768px (tablet) ── */
+
+@media (max-width: 768px) {
   .auth-layout {
     grid-template-columns: 1fr;
   }
 
   .auth-panel {
-    padding: 2rem 1.2rem 0;
+    display: none;
+  }
+
+  .auth-panel__footer {
+    position: static;
+    margin-top: 1.5rem;
+  }
+
+  .brand-name {
+    font-size: 2rem;
+  }
+
+  .logo-placeholder {
+    width: 80px;
+    height: 80px;
+    margin-bottom: 1.2rem;
+  }
+
+  .logo-initials {
+    font-size: 1.6rem;
+  }
+
+  .mobile-brand {
+    display: block;
   }
 
   .auth-content {
-    margin: 1rem;
+    padding: 1.5rem;
+    align-items: flex-start;
+    padding-top: 10vh; /* Baja el contenedor sutilmente de la parte central absoluta */
+  }
+}
+
+/* ── Responsive: 375px (mobile small) ── */
+
+@media (max-width: 375px) {
+  .auth-panel {
+    padding: 2rem 1rem 1rem;
+  }
+
+  .auth-content {
+    padding: 1rem;
+  }
+
+  .auth-form-wrapper {
+    max-width: 100%;
   }
 }

@@ -26,7 +26,9 @@ export class TopbarComponent {
   ) {}
 
   onLogout(): void {
-    this.authService.logout();
-    void this.router.navigateByUrl('/auth/login');
+    this.authService.logout().subscribe({
+      next: () => void this.router.navigateByUrl('/auth/login'),
+      error: () => void this.router.navigateByUrl('/auth/login')
+    });
   }
 }
