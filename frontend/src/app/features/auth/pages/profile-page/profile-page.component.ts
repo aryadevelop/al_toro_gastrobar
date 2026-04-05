@@ -11,18 +11,18 @@ import { RoleChipComponent } from '../../../../shared/ui/role-chip/role-chip.com
   imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent, RoleChipComponent],
   template: `
     <section class="page-grid">
-      <app-page-header title="Mi perfil" subtitle="Informacion de usuario en sesion"></app-page-header>
+      <app-page-header title="Mi perfil" subtitle="Información de usuario en sesión"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 680px;">
         <app-role-chip [role]="authService.currentUser()?.role ?? 'CLIENTE'"></app-role-chip>
 
-        <form class="form-grid" [formGroup]="profileForm" (ngSubmit)="onSubmit()" style="margin-top: .8rem;">
+        <form class="form-grid form-compact" [formGroup]="profileForm" (ngSubmit)="onSubmit()" style="margin-top: .8rem;">
           <label>
             <span>Nombre completo</span>
             <input class="input-field" formControlName="fullName" />
           </label>
 
           <label>
-            <span>Telefono</span>
+            <span>Teléfono</span>
             <input class="input-field" formControlName="phone" />
           </label>
 
@@ -32,7 +32,7 @@ import { RoleChipComponent } from '../../../../shared/ui/role-chip/role-chip.com
           </label>
 
           <button class="btn-primary" type="submit">Guardar cambios</button>
-          <p *ngIf="saved()" style="color: var(--success); margin: 0;">Cambios guardados con exito.</p>
+          <p *ngIf="saved()" style="color: var(--success); margin: 0;">Cambios guardados con éxito.</p>
         </form>
       </article>
     </section>

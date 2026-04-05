@@ -11,9 +11,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
   imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent],
   template: `
     <section class="page-grid">
-      <app-page-header title="Modificar reserva" subtitle="Actualiza fecha, hora o numero de invitados"></app-page-header>
+      <app-page-header title="Modificar reserva" subtitle="Actualiza fecha, hora o número de invitados"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 760px;">
-        <form class="form-grid" [formGroup]="reservaForm" (ngSubmit)="onSubmit()">
+        <form class="form-grid form-compact" [formGroup]="reservaForm" (ngSubmit)="onSubmit()">
           <label>
             <span>Nombre</span>
             <input class="input-field" formControlName="guestName" />

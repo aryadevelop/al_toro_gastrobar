@@ -1,12 +1,12 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+﻿import { Component, EventEmitter, Output } from '@angular/core';
 
 @Component({
   selector: 'app-mobile-header',
   standalone: true,
   template: `
     <header class="mobile-header card">
-      <h2>Al Toro</h2>
-      <button type="button" class="btn-secondary" (click)="menuToggle.emit()">Men</button>
+      <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="mobile-logo" />
+      <button type="button" class="btn-secondary" (click)="menuToggle.emit()">Menu</button>
     </header>
   `,
   styles: [
@@ -17,10 +17,14 @@ import { Component, EventEmitter, Output } from '@angular/core';
         align-items: center;
         padding: 0.8rem;
         margin-bottom: 1rem;
+        border-bottom: 2px solid rgba(168, 24, 47, 0.26);
+        background-image: linear-gradient(90deg, rgba(168, 24, 47, 0.07) 0 3px, transparent 3px);
       }
 
-      h2 {
-        margin: 0;
+      .mobile-logo {
+        display: block;
+        width: min(132px, 52vw);
+        height: auto;
       }
 
       @media (max-width: 960px) {

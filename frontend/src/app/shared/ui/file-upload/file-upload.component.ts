@@ -1,4 +1,4 @@
-import { Component, EventEmitter, Output } from '@angular/core';
+﻿import { Component, EventEmitter, Output } from '@angular/core';
 
 @Component({
   selector: 'app-file-upload',
@@ -15,7 +15,7 @@ import { Component, EventEmitter, Output } from '@angular/core';
         display: grid;
         gap: 0.5rem;
         padding: 1rem;
-        border: 2px dashed rgba(242, 53, 53, 0.55);
+        border: 2px dashed rgba(168, 24, 47, 0.55);
       }
     `
   ]

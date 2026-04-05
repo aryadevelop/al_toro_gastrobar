@@ -13,7 +13,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
     <section class="page-grid">
       <app-page-header title="Crear reserva" subtitle="Reserva una mesa en pocos pasos"></app-page-header>
       <article class="card" style="padding: 1rem; max-width: 760px;">
-        <form class="form-grid" [formGroup]="reservaForm" (ngSubmit)="onSubmit()">
+        <form class="form-grid form-compact" [formGroup]="reservaForm" (ngSubmit)="onSubmit()">
           <label>
             <span>Nombre de contacto</span>
             <input class="input-field" formControlName="guestName" />
@@ -41,7 +41,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
           <p class="error-text" *ngIf="reservaForm.invalid && reservaForm.touched">Completa los campos requeridos.</p>
           <button class="btn-primary" type="submit">Guardar reserva</button>
-          <p style="margin: 0; color: var(--success);" *ngIf="success()">Reserva registrada con exito.</p>
+          <p style="margin: 0; color: var(--success);" *ngIf="success()">Reserva registrada con éxito.</p>
         </form>
       </article>
     </section>

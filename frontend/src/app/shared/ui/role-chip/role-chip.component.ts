@@ -13,8 +13,9 @@ import { Role } from '../../../core/models/domain.models';
         font-weight: 700;
         border-radius: 999px;
         padding: 0.2rem 0.55rem;
-        background: #a4a5a6;
-        color: #0d0d0d;
+        background: #A0A0A0;
+        color: #333333;
+        border: 1px solid rgba(232, 213, 183, 0.75);
       }
     `
   ]

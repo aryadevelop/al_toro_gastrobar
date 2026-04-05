@@ -1,4 +1,4 @@
-import { Component, Input } from '@angular/core';
+﻿import { Component, Input } from '@angular/core';
 
 @Component({
   selector: 'app-status-badge',
@@ -15,18 +15,18 @@ import { Component, Input } from '@angular/core';
       }
 
       .neutral {
-        background: #f2f2f2;
-        color: #0d0d0d;
+        background: #FFFFFF;
+        color: #333333;
       }
 
       .success {
-        background: #a4a5a6;
-        color: #0d0d0d;
+        background: #A0A0A0;
+        color: #333333;
       }
 
       .danger {
-        background: #f23535;
-        color: #f2f2f2;
+        background: #A8182F;
+        color: #FFFFFF;
       }
     `
   ]
