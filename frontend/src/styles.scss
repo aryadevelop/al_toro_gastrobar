@@ -99,3 +99,8 @@ a {
   margin: 0;
   font-size: 1.2rem;
 }
+
+.input-error {
+  border-color: var(--danger) !important;
+  box-shadow: 0 0 0 3px rgba(242, 53, 53, 0.1);
+}

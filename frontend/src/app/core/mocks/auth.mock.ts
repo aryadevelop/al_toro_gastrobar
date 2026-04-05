@@ -1,17 +1,4 @@
-import { Role, User } from '../models/domain.models';
-
-export interface LoginCredentials {
-  email: string;
-  password: string;
-}
-
-export const ROLE_LANDING_ROUTE: Record<Role, string> = {
-  ADMIN: '/app/admin',
-  CLIENTE: '/app/cliente',
-  MESERO: '/app/mesero',
-  PRODUCCION: '/app/produccion',
-  CAJERO: '/app/cajero'
-};
+import { User } from '../models/domain.models';
 
 export const MOCK_USERS: User[] = [
   {
@@ -58,5 +45,14 @@ export const MOCK_USERS: User[] = [
     status: 'ACTIVE',
     password: 'Cajero123*',
     createdAt: '2026-01-04'
+  },
+  {
+    id: 'u-6',
+    fullName: 'Luis Suspendido',
+    email: 'suspendido@altoro.local',
+    role: 'MESERO',
+    status: 'INACTIVE',
+    password: 'Susp123*',
+    createdAt: '2026-01-05'
   }
 ];
