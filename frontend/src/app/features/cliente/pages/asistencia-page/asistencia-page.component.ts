@@ -6,7 +6,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
   standalone: true,
   imports: [PageHeaderComponent],
   template: `
-    <section class="page-grid">
+    <section class="page-grid cliente-compact">
       <app-page-header title="AsistenciaPage" subtitle="Vista base en construccion"></app-page-header>
       <article class="card" style="padding: 1rem;">
         <p>Contenido inicial de asistencia-page.</p>

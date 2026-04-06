@@ -23,7 +23,7 @@
 
       .mobile-logo {
         display: block;
-        width: min(132px, 52vw);
+        width: min(146px, 56vw);
         height: auto;
       }
 
