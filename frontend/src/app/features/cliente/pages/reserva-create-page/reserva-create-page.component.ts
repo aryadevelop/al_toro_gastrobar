@@ -24,19 +24,29 @@ interface ZoneOption {
   decorationIds: string[];
 }
 
-interface PreorderSelection {
+interface CartaModification {
+  id: string;
+  text: string;
+  quantity: number;
+}
+
+interface CartaItemState {
   productId: string;
   productName: string;
+  category: 'Platos' | 'Bebidas';
+  description: string;
   unitPrice: number;
-  selected: boolean;
   quantity: number;
+  modificationDraft: string;
+  modifications: CartaModification[];
 }
 
 interface SpecialMenuOption {
   id: string;
   name: string;
   description: string;
-  price: number;
+  pricePerPerson: number;
+  customizationOptions: string[];
 }
 
 const ROMANTIC_ZONE_ID = 'zona-romantica';
@@ -45,7 +55,20 @@ const ROMANTIC_ADDON_LABEL = 'Agregar pétalos y velas';
 const ROMANTIC_ADDON_COST = 20000;
 const WHATSAPP_COMPANY_NUMBER = '573001112233';
 const SPECIAL_MENU_HINT_MESSAGE = '¡Para más de 10 personas puedes pedir un mismo menú para todo el grupo! Revisa las opciones en la sección de Pre-orden';
+const MAX_QTY_PER_ITEM = 250;
+const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
+
+const PRODUCT_DETAILS: Record<string, { description: string; category: 'Platos' | 'Bebidas' }> = {
+  'p-1': {
+    description: 'Carne premium a la parrilla con sal de mar y mantequilla.',
+    category: 'Platos'
+  },
+  'p-2': {
+    description: 'Bebida artesanal preparada al momento.',
+    category: 'Bebidas'
+  }
+};
 
 const DECORATION_OPTIONS: DecorationOption[] = [
   {
@@ -100,14 +123,16 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [
   {
     id: 'menu-especial-parrilla',
     name: 'Menú Especial Parrilla',
-    description: 'Entrada + plato fuerte + bebida para todo el grupo',
-    price: 180000
+    description: 'Chorizo santarrosano + bife ancho + bebida para todo el grupo.',
+    pricePerPerson: 45000,
+    customizationOptions: ['Sin chorizo', 'Sin picante', 'Ensalada adicional']
   },
   {
     id: 'menu-especial-premium',
     name: 'Menú Especial Premium',
-    description: 'Parrilla premium + postre + bebida para todo el grupo',
-    price: 240000
+    description: 'Entrada premium + corte especial + postre + bebida.',
+    pricePerPerson: 62000,
+    customizationOptions: ['Sin postre', 'Punto de cocción medio', 'Sin lactosa']
   }
 ];
 
@@ -167,12 +192,7 @@ const FULLY_BOOKED_SLOTS = [
               <span class="section-label">Decoraciones disponibles (opcional)</span>
               <div class="card-grid" *ngIf="availableDecorations().length > 0">
                 <label class="option-card" *ngFor="let decoration of availableDecorations()">
-                  <input
-                    type="radio"
-                    name="decoration"
-                    [value]="decoration.id"
-                    formControlName="decorationId"
-                  />
+                  <input type="radio" name="decoration" [value]="decoration.id" formControlName="decorationId" />
                   <img [src]="decoration.imageUrl" [alt]="decoration.name" />
                   <strong>{{ decoration.name }}</strong>
                 </label>
@@ -186,7 +206,13 @@ const FULLY_BOOKED_SLOTS = [
               </p>
               <div class="card-grid" *ngIf="availableZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
                 <label class="option-card" *ngFor="let zone of availableZones()">
-                  <input type="radio" name="zone" [value]="zone.id" formControlName="zoneId" [disabled]="isZoneSelectionLocked()" />
+                  <input
+                    type="radio"
+                    name="zone"
+                    [value]="zone.id"
+                    formControlName="zoneId"
+                    [disabled]="isZoneSelectionLocked()"
+                  />
                   <img [src]="zone.imageUrl" [alt]="zone.name" />
                   <strong>{{ zone.name }}</strong>
                 </label>
@@ -201,60 +227,178 @@ const FULLY_BOOKED_SLOTS = [
             </section>
 
             <section class="form-section">
-              <span class="section-label">Pre-ordenar (opcional)</span>
+              <div class="preorder-head">
+                <span class="section-label">Pre-ordenar</span>
+                <strong class="preorder-total">Total aproximado: {{ preorderTotal() | currency:'COP':'symbol':'1.0-0' }}</strong>
+              </div>
 
-              <p class="special-menu-hint" *ngIf="showSpecialMenuOption()">{{ specialMenuHintMessage }}</p>
-
-              <div class="preorder-tabs" *ngIf="showSpecialMenuOption()">
+              <div class="preorder-tabs">
                 <button
                   type="button"
                   class="tab-btn"
                   [class.active]="activePreorderTab() === 'carta'"
                   (click)="setPreorderTab('carta')"
                 >
-                  Carta
+                  A la carta
                 </button>
                 <button
                   type="button"
                   class="tab-btn"
                   [class.active]="activePreorderTab() === 'especial'"
+                  [disabled]="!showSpecialMenuOption()"
                   (click)="setPreorderTab('especial')"
                 >
-                  Menú Especial
+                  Menú especial
                 </button>
               </div>
 
-              <div class="preorder-grid" *ngIf="activePreorderTab() === 'carta'">
-                <article class="preorder-item" *ngFor="let item of preorderSelections; let i = index">
-                  <label>
-                    <input
-                      type="checkbox"
-                      [checked]="item.selected"
-                      (change)="togglePreorder(i, $any($event.target).checked)"
-                    />
-                    {{ item.productName }} - {{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}
-                  </label>
-                  <input
-                    class="input-field preorder-qty"
-                    type="number"
-                    min="1"
-                    [disabled]="!item.selected"
-                    [value]="item.quantity"
-                    (input)="setPreorderQuantity(i, $any($event.target).value)"
-                  />
-                </article>
-              </div>
+              <p class="special-menu-hint" *ngIf="!showSpecialMenuOption()">
+                Menú especial se habilita con más de 10 personas.
+              </p>
 
-              <div class="special-menu-grid" *ngIf="showSpecialMenuOption() && activePreorderTab() === 'especial'">
-                <label class="special-menu-card" *ngFor="let menu of specialMenus">
-                  <input type="radio" name="special-menu" [value]="menu.id" formControlName="specialMenuId" />
-                  <div class="special-menu-copy">
-                    <strong>{{ menu.name }}</strong>
-                    <small>{{ menu.description }}</small>
-                  </div>
-                  <span>{{ menu.price | currency:'COP':'symbol':'1.0-0' }}</span>
-                </label>
-              </div>
+              <ng-container *ngIf="activePreorderTab() === 'carta'; else specialMenuTab">
+                <section class="menu-category">
+                  <h4>Platos</h4>
+                  <article class="preorder-item-card" *ngFor="let item of cartaItemsByCategory('Platos')">
+                    <div class="item-head">
+                      <strong>{{ item.productName }}</strong>
+                      <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
+                    </div>
+                    <p>{{ item.description }}</p>
+
+                    <div class="qty-controls">
+                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
+                      <input
+                        class="input-field qty-input"
+                        type="number"
+                        min="0"
+                        max="250"
+                        [value]="item.quantity"
+                        (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
+                      />
+                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
+                    </div>
+
+                    <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
+
+                    <div class="modification-editor">
+                      <input
+                        class="input-field"
+                        type="text"
+                        [value]="item.modificationDraft"
+                        placeholder="modificaciones (opcional)"
+                        (input)="setCartaModificationDraft(item.productId, $any($event.target).value)"
+                      />
+                      <button type="button" class="btn-secondary" (click)="addCartaModification(item.productId)">Añadir</button>
+                    </div>
+
+                    <div class="modification-list" *ngIf="item.modifications.length > 0">
+                      <article class="modification-item" *ngFor="let mod of item.modifications">
+                        <div>
+                          <strong>{{ mod.text }}</strong>
+                          <small>Costo por definir por el cajero al cerrar la cuenta</small>
+                        </div>
+                        <div class="qty-controls">
+                          <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, -1)">-</button>
+                          <input
+                            class="input-field qty-input"
+                            type="number"
+                            min="0"
+                            max="250"
+                            [value]="mod.quantity"
+                            (input)="setCartaModificationQuantity(item.productId, mod.id, $any($event.target).value)"
+                          />
+                          <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, 1)">+</button>
+                        </div>
+                      </article>
+                    </div>
+                  </article>
+                </section>
+
+                <section class="menu-category">
+                  <h4>Bebidas</h4>
+                  <article class="preorder-item-card" *ngFor="let item of cartaItemsByCategory('Bebidas')">
+                    <div class="item-head">
+                      <strong>{{ item.productName }}</strong>
+                      <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
+                    </div>
+                    <p>{{ item.description }}</p>
+
+                    <div class="qty-controls">
+                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
+                      <input
+                        class="input-field qty-input"
+                        type="number"
+                        min="0"
+                        max="250"
+                        [value]="item.quantity"
+                        (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
+                      />
+                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
+                    </div>
+
+                    <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
+                  </article>
+                </section>
+              </ng-container>
+
+              <ng-template #specialMenuTab>
+                <p class="special-menu-hint" *ngIf="showSpecialMenuOption()">
+                  Solo puedes seleccionar un menú especial por reserva
+                </p>
+
+                <div class="special-menu-grid" *ngIf="showSpecialMenuOption()">
+                  <article class="special-menu-card" *ngFor="let menu of specialMenus">
+                    <label class="special-menu-select">
+                      <input
+                        type="radio"
+                        name="special-menu"
+                        [value]="menu.id"
+                        [checked]="reservaForm.controls.specialMenuId.value === menu.id"
+                        (change)="onSpecialMenuSelected(menu.id)"
+                      />
+                      <div class="special-menu-copy">
+                        <strong>{{ menu.name }}</strong>
+                        <small>{{ menu.description }}</small>
+                      </div>
+                    </label>
+
+                    <span class="special-menu-price">{{ menu.pricePerPerson | currency:'COP':'symbol':'1.0-0' }} por persona</span>
+
+                    <div class="special-menu-actions">
+                      <button type="button" class="btn-secondary" (click)="toggleSpecialMenuCustomization(menu.id)">Modificar</button>
+                    </div>
+
+                    <div class="special-menu-qty" *ngIf="reservaForm.controls.specialMenuId.value === menu.id">
+                      <span>Cantidad de platos</span>
+                      <div class="qty-controls">
+                        <button type="button" class="qty-btn" (click)="changeSpecialMenuQuantity(-1)">-</button>
+                        <input
+                          class="input-field qty-input"
+                          type="number"
+                          min="1"
+                          max="250"
+                          [value]="reservaForm.controls.specialMenuQty.value"
+                          (input)="setSpecialMenuQuantity($any($event.target).value)"
+                        />
+                        <button type="button" class="qty-btn" (click)="changeSpecialMenuQuantity(1)">+</button>
+                      </div>
+                      <small class="subtotal">Subtotal: {{ specialMenuSubtotal() | currency:'COP':'symbol':'1.0-0' }}</small>
+                    </div>
+
+                    <div class="special-menu-mods" *ngIf="expandedSpecialMenuId() === menu.id && reservaForm.controls.specialMenuId.value === menu.id">
+                      <label *ngFor="let option of menu.customizationOptions">
+                        <input
+                          type="checkbox"
+                          [checked]="isSpecialMenuCustomizationSelected(option)"
+                          (change)="toggleSpecialMenuCustomizationOption(option, $any($event.target).checked)"
+                        />
+                        {{ option }}
+                      </label>
+                    </div>
+                  </article>
+                </div>
+              </ng-template>
             </section>
 
             <label class="form-label">
@@ -279,6 +423,8 @@ const FULLY_BOOKED_SLOTS = [
             <p><strong>Número de personas:</strong> {{ reservaForm.controls.guests.value }}</p>
             <p *ngIf="selectedDecorationName()"><strong>Decoración:</strong> {{ selectedDecorationName() }}</p>
             <p *ngIf="selectedZoneName()"><strong>Zona:</strong> {{ selectedZoneName() }}</p>
+            <p><strong>Pre-orden:</strong> {{ preorderSummaryText() }}</p>
+            <p><strong>Total pre-orden aproximado:</strong> {{ preorderTotal() | currency:'COP':'symbol':'1.0-0' }}</p>
             <p><strong>Extras:</strong> {{ summaryExtrasText() }}</p>
 
             <ul class="summary-costs">
@@ -292,7 +438,7 @@ const FULLY_BOOKED_SLOTS = [
               </li>
               <li *ngIf="selectedSpecialMenu() as menu">
                 <span>{{ menu.name }}</span>
-                <strong>{{ menu.price | currency:'COP':'symbol':'1.0-0' }}</strong>
+                <strong>{{ menu.pricePerPerson | currency:'COP':'symbol':'1.0-0' }}</strong>
               </li>
               <li class="summary-total">
                 <span>Total extras</span>
@@ -421,14 +567,17 @@ const FULLY_BOOKED_SLOTS = [
         font-weight: 600;
       }
 
-      .special-menu-hint {
-        margin: 0;
-        padding: 0.5rem 0.6rem;
-        border-radius: 8px;
-        border: 1px solid rgba(168, 24, 47, 0.35);
-        background: rgba(168, 24, 47, 0.08);
+      .preorder-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 0.5rem;
+        flex-wrap: wrap;
+      }
+
+      .preorder-total {
+        font-size: 0.84rem;
         color: #6b1111;
-        font-size: 0.82rem;
       }
 
       .preorder-tabs {
@@ -451,24 +600,122 @@ const FULLY_BOOKED_SLOTS = [
         color: #ffffff;
       }
 
-      .preorder-grid {
-        display: grid;
-        gap: 0.55rem;
+      .tab-btn:disabled {
+        opacity: 0.55;
+        cursor: not-allowed;
       }
 
-      .preorder-item {
+      .special-menu-hint {
+        margin: 0;
+        padding: 0.5rem 0.6rem;
+        border-radius: 8px;
+        border: 1px solid rgba(168, 24, 47, 0.35);
+        background: rgba(168, 24, 47, 0.08);
+        color: #6b1111;
+        font-size: 0.82rem;
+      }
+
+      .menu-category {
         display: grid;
-        grid-template-columns: 1fr 76px;
-        gap: 0.5rem;
+        gap: 0.4rem;
+      }
+
+      .menu-category h4 {
+        margin: 0;
+        font-size: 0.9rem;
+      }
+
+      .preorder-item-card {
+        display: grid;
+        gap: 0.35rem;
+        border: 1px solid rgba(10, 10, 10, 0.18);
+        border-radius: 10px;
+        padding: 0.55rem;
+        background: #ffffff;
+      }
+
+      .item-head {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.45rem;
         align-items: center;
       }
 
-      .preorder-item label {
+      .item-head strong {
         font-size: 0.84rem;
       }
 
-      .preorder-qty {
+      .item-head span {
+        font-size: 0.8rem;
+        font-weight: 700;
+        color: #6b1111;
+      }
+
+      .preorder-item-card p {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.78rem;
+      }
+
+      .qty-controls {
+        display: grid;
+        grid-template-columns: 30px 1fr 30px;
+        gap: 0.35rem;
+        align-items: center;
+        max-width: 210px;
+      }
+
+      .qty-btn {
+        border: 1px solid rgba(168, 24, 47, 0.5);
+        border-radius: 8px;
+        background: #ffffff;
+        color: #6b1111;
+        min-height: 30px;
+        cursor: pointer;
+      }
+
+      .qty-input {
         text-align: center;
+        padding: 0.35rem 0.45rem;
+      }
+
+      .subtotal {
+        color: var(--muted);
+        font-size: 0.76rem;
+      }
+
+      .modification-editor {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.35rem;
+      }
+
+      .modification-list {
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .modification-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.45rem;
+        border: 1px dashed rgba(10, 10, 10, 0.2);
+        border-radius: 8px;
+        padding: 0.42rem;
+      }
+
+      .modification-item strong,
+      .modification-item small {
+        display: block;
+      }
+
+      .modification-item strong {
+        font-size: 0.78rem;
+      }
+
+      .modification-item small {
+        font-size: 0.7rem;
+        color: var(--muted);
       }
 
       .special-menu-grid {
@@ -478,18 +725,23 @@ const FULLY_BOOKED_SLOTS = [
 
       .special-menu-card {
         display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 0.5rem;
-        align-items: start;
+        gap: 0.45rem;
         border: 1px solid rgba(10, 10, 10, 0.2);
         border-radius: 10px;
         padding: 0.5rem;
         background: #ffffff;
       }
 
+      .special-menu-select {
+        display: grid;
+        grid-template-columns: auto 1fr;
+        gap: 0.45rem;
+        align-items: start;
+      }
+
       .special-menu-copy {
         display: grid;
-        gap: 0.2rem;
+        gap: 0.15rem;
       }
 
       .special-menu-copy strong {
@@ -501,10 +753,35 @@ const FULLY_BOOKED_SLOTS = [
         color: var(--muted);
       }
 
-      .special-menu-card span {
+      .special-menu-price {
         font-size: 0.8rem;
         font-weight: 700;
         color: #6b1111;
+      }
+
+      .special-menu-actions {
+        display: flex;
+      }
+
+      .special-menu-qty {
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .special-menu-qty span {
+        font-size: 0.8rem;
+      }
+
+      .special-menu-mods {
+        display: grid;
+        gap: 0.28rem;
+      }
+
+      .special-menu-mods label {
+        display: flex;
+        gap: 0.35rem;
+        align-items: center;
+        font-size: 0.78rem;
       }
 
       .summary-box {
@@ -568,10 +845,10 @@ const FULLY_BOOKED_SLOTS = [
 
         .schedule-grid,
         .card-grid,
-        .preorder-grid,
         .form-section,
+        .summary-box,
         .special-menu-grid,
-        .summary-box {
+        .menu-category {
           gap: 0.4rem;
         }
 
@@ -591,25 +868,35 @@ const FULLY_BOOKED_SLOTS = [
         }
 
         .option-card strong,
-        .preorder-item label,
         .section-label,
         .addon-check,
+        .item-head strong,
         .special-menu-copy strong,
         .summary-costs li {
           font-size: 0.76rem;
         }
 
-        .special-menu-copy small,
-        .special-menu-card span,
-        .summary-note,
+        .zone-lock-message,
         .special-menu-hint,
-        .zone-lock-message {
+        .special-menu-copy small,
+        .special-menu-price,
+        .summary-note,
+        .preorder-total,
+        .preorder-item-card p,
+        .special-menu-qty span,
+        .modification-item strong,
+        .modification-item small,
+        .special-menu-mods label {
           font-size: 0.72rem;
         }
 
-        .preorder-item {
-          grid-template-columns: 1fr 62px;
-          gap: 0.35rem;
+        .qty-controls {
+          max-width: 176px;
+          grid-template-columns: 28px 1fr 28px;
+        }
+
+        .qty-btn {
+          min-height: 28px;
         }
 
         .guest-stepper {
@@ -620,6 +907,10 @@ const FULLY_BOOKED_SLOTS = [
         .stepper-btn {
           min-width: 30px;
           min-height: 30px;
+        }
+
+        .modification-editor {
+          grid-template-columns: 1fr;
         }
 
         .action-row {
@@ -638,6 +929,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly availableZones = signal<ZoneOption[]>([]);
   readonly showSummary = signal(false);
   readonly activePreorderTab = signal<'carta' | 'especial'>('carta');
+  readonly expandedSpecialMenuId = signal<string | null>(null);
 
   readonly romanticAddonCost = ROMANTIC_ADDON_COST;
   readonly romanticAddonLabel = ROMANTIC_ADDON_LABEL;
@@ -653,16 +945,12 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     zoneId: [''],
     romanticAddon: [false],
     specialMenuId: [''],
+    specialMenuQty: [1, [Validators.required, Validators.min(1), Validators.max(MAX_QTY_PER_ITEM)]],
     notes: ['']
   });
 
-  preorderSelections: PreorderSelection[] = MOCK_PRODUCTOS.filter((item) => item.status === 'ACTIVE').map((item) => ({
-    productId: item.id,
-    productName: item.name,
-    unitPrice: item.price,
-    selected: false,
-    quantity: 1
-  }));
+  cartaItems: CartaItemState[] = this.buildCartaItems();
+  specialMenuCustomizationSelection: string[] = [];
 
   private readonly destroy$ = new Subject<void>();
   private existingReservations: Reserva[] = [];
@@ -704,7 +992,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       }
 
       if (value <= 10) {
-        this.reservaForm.controls.specialMenuId.setValue('');
+        this.clearSpecialMenuSelection();
         if (this.activePreorderTab() === 'especial') {
           this.activePreorderTab.set('carta');
         }
@@ -727,8 +1015,181 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return this.reservaForm.controls.guests.value > 10;
   }
 
+  isZoneSelectionLocked(): boolean {
+    return Boolean(this.selectedDecoration()?.fixedZoneId);
+  }
+
+  zoneRestrictionMessage(): string {
+    const fixedZone = this.getFixedZoneForDecoration();
+    if (!fixedZone) {
+      return '';
+    }
+
+    return `Esta decoración no permite seleccionar zona. La zona es [${fixedZone.name}]`;
+  }
+
   setPreorderTab(tab: 'carta' | 'especial'): void {
+    if (tab === 'especial' && !this.showSpecialMenuOption()) {
+      this.showFloating('Menú especial solo está habilitado para más de 10 personas');
+      return;
+    }
+
+    if (tab === this.activePreorderTab()) {
+      return;
+    }
+
+    if (tab === 'carta') {
+      this.clearSpecialMenuSelection();
+    } else {
+      this.clearCartaSelection();
+    }
+
     this.activePreorderTab.set(tab);
+  }
+
+  onSpecialMenuSelected(menuId: string): void {
+    const current = this.reservaForm.controls.specialMenuId.value;
+
+    if (current !== menuId) {
+      this.specialMenuCustomizationSelection = [];
+      this.expandedSpecialMenuId.set(null);
+      this.reservaForm.controls.specialMenuQty.setValue(1);
+    }
+
+    this.reservaForm.controls.specialMenuId.setValue(menuId);
+  }
+
+  toggleSpecialMenuCustomization(menuId: string): void {
+    if (this.reservaForm.controls.specialMenuId.value !== menuId) {
+      this.onSpecialMenuSelected(menuId);
+    }
+
+    const current = this.expandedSpecialMenuId();
+    this.expandedSpecialMenuId.set(current === menuId ? null : menuId);
+  }
+
+  isSpecialMenuCustomizationSelected(option: string): boolean {
+    return this.specialMenuCustomizationSelection.includes(option);
+  }
+
+  toggleSpecialMenuCustomizationOption(option: string, checked: boolean): void {
+    if (checked) {
+      if (!this.specialMenuCustomizationSelection.includes(option)) {
+        this.specialMenuCustomizationSelection = [...this.specialMenuCustomizationSelection, option];
+      }
+      return;
+    }
+
+    this.specialMenuCustomizationSelection = this.specialMenuCustomizationSelection.filter((item) => item !== option);
+  }
+
+  changeSpecialMenuQuantity(delta: number): void {
+    if (!this.selectedSpecialMenu()) {
+      return;
+    }
+
+    const current = this.reservaForm.controls.specialMenuQty.value;
+    const next = this.normalizeQuantity(current + delta, false);
+    this.reservaForm.controls.specialMenuQty.setValue(Math.max(1, next));
+  }
+
+  setSpecialMenuQuantity(rawValue: string): void {
+    if (!this.selectedSpecialMenu()) {
+      return;
+    }
+
+    const next = this.normalizeQuantity(rawValue, false);
+    this.reservaForm.controls.specialMenuQty.setValue(Math.max(1, next));
+  }
+
+  cartaItemsByCategory(category: 'Platos' | 'Bebidas'): CartaItemState[] {
+    return this.cartaItems.filter((item) => item.category === category);
+  }
+
+  changeCartaItemQuantity(productId: string, delta: number): void {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    if (!item) {
+      return;
+    }
+
+    const next = this.normalizeQuantity(item.quantity + delta, true);
+    item.quantity = next;
+  }
+
+  setCartaItemQuantity(productId: string, rawValue: string): void {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    if (!item) {
+      return;
+    }
+
+    item.quantity = this.normalizeQuantity(rawValue, true);
+  }
+
+  setCartaModificationDraft(productId: string, value: string): void {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    if (!item) {
+      return;
+    }
+
+    item.modificationDraft = value;
+  }
+
+  addCartaModification(productId: string): void {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    if (!item) {
+      return;
+    }
+
+    const text = item.modificationDraft.trim();
+    if (!text) {
+      return;
+    }
+
+    item.modifications.push({
+      id: `${productId}-mod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      text,
+      quantity: 1
+    });
+
+    item.modificationDraft = '';
+  }
+
+  changeCartaModificationQuantity(productId: string, modId: string, delta: number): void {
+    const modification = this.findCartaModification(productId, modId);
+    if (!modification) {
+      return;
+    }
+
+    const next = this.normalizeQuantity(modification.quantity + delta, true);
+    if (next <= 0) {
+      this.removeCartaModification(productId, modId);
+      return;
+    }
+
+    modification.quantity = next;
+  }
+
+  setCartaModificationQuantity(productId: string, modId: string, rawValue: string): void {
+    const modification = this.findCartaModification(productId, modId);
+    if (!modification) {
+      return;
+    }
+
+    const next = this.normalizeQuantity(rawValue, true);
+    if (next <= 0) {
+      this.removeCartaModification(productId, modId);
+      return;
+    }
+
+    modification.quantity = next;
+  }
+
+  getCartaItemSubtotal(item: CartaItemState): number {
+    return item.unitPrice * item.quantity;
+  }
+
+  cartaTotal(): number {
+    return this.cartaItems.reduce((total, item) => total + this.getCartaItemSubtotal(item), 0);
   }
 
   selectedSpecialMenu(): SpecialMenuOption | null {
@@ -736,14 +1197,51 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return this.specialMenus.find((item) => item.id === menuId) ?? null;
   }
 
+  specialMenuSubtotal(): number {
+    const selectedMenu = this.selectedSpecialMenu();
+    if (!selectedMenu || this.activePreorderTab() !== 'especial') {
+      return 0;
+    }
+
+    return selectedMenu.pricePerPerson * this.reservaForm.controls.specialMenuQty.value;
+  }
+
+  preorderTotal(): number {
+    if (this.activePreorderTab() === 'especial') {
+      return this.specialMenuSubtotal();
+    }
+
+    return this.cartaTotal();
+  }
+
   selectedDecorationName(): string {
-    const selected = this.selectedDecoration();
-    return selected?.name ?? '';
+    return this.selectedDecoration()?.name ?? '';
   }
 
   selectedZoneName(): string {
-    const selected = this.getZoneById(this.getEffectiveZoneId());
-    return selected?.name ?? '';
+    return this.getZoneById(this.getEffectiveZoneId())?.name ?? '';
+  }
+
+  preorderSummaryText(): string {
+    if (this.activePreorderTab() === 'especial') {
+      const special = this.selectedSpecialMenu();
+      if (!special) {
+        return 'Sin pre-orden';
+      }
+
+      const customizations = this.specialMenuCustomizationSelection.length > 0
+        ? ` (${this.specialMenuCustomizationSelection.join(', ')})`
+        : '';
+
+      return `${special.name} x ${this.reservaForm.controls.specialMenuQty.value}${customizations}`;
+    }
+
+    const itemCount = this.cartaItems.reduce((total, item) => total + item.quantity, 0);
+    if (itemCount === 0) {
+      return 'Sin pre-orden';
+    }
+
+    return `A la carta: ${itemCount} ítems`;
   }
 
   isZoneSelectionLocked(): boolean {
@@ -767,7 +1265,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     const menu = this.selectedSpecialMenu();
-    if (menu) {
+    if (menu && this.activePreorderTab() === 'especial') {
       extras.push(menu.name);
     }
 
@@ -775,46 +1273,19 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   hasExtraServices(): boolean {
-    return this.reservaForm.controls.romanticAddon.value || !!this.selectedSpecialMenu();
+    return this.reservaForm.controls.romanticAddon.value || (this.activePreorderTab() === 'especial' && !!this.selectedSpecialMenu());
   }
 
   totalExtraCost(): number {
-    const menuCost = this.selectedSpecialMenu()?.price ?? 0;
     const romanticCost = this.reservaForm.controls.romanticAddon.value ? this.romanticAddonCost : 0;
-    return menuCost + romanticCost;
+    const specialCost = this.activePreorderTab() === 'especial' ? this.specialMenuSubtotal() : 0;
+    return romanticCost + specialCost;
   }
 
   changeGuests(delta: number): void {
     const control = this.reservaForm.controls.guests;
     const next = Math.min(20, Math.max(1, control.value + delta));
     control.setValue(next);
-  }
-
-  togglePreorder(index: number, checked: boolean): void {
-    const item = this.preorderSelections[index];
-    if (!item) {
-      return;
-    }
-
-    item.selected = checked;
-    if (!checked) {
-      item.quantity = 1;
-    }
-  }
-
-  setPreorderQuantity(index: number, rawValue: string): void {
-    const item = this.preorderSelections[index];
-    if (!item) {
-      return;
-    }
-
-    const parsed = Number(rawValue);
-    if (!Number.isFinite(parsed) || parsed < 1) {
-      item.quantity = 1;
-      return;
-    }
-
-    item.quantity = Math.floor(parsed);
   }
 
   showPastDateError(): boolean {
@@ -865,6 +1336,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     if (this.showNoAvailabilityWarning()) {
       this.showFloating('Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. Por favor elija otra fecha u hora');
+      return;
+    }
+
+    if (this.activePreorderTab() === 'especial' && !this.selectedSpecialMenu()) {
+      this.showFloating('Selecciona un menú especial o cambia a A la carta');
       return;
     }
 
@@ -944,21 +1420,12 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     const selectedDecoration = DECORATION_OPTIONS.find((item) => item.id === formValue.decorationId);
     const selectedZone = this.getZoneById(effectiveZoneId);
 
-    const preorderItems = this.getSelectedPreorders();
+    const preorderItems = this.buildPreorderItems();
 
     if (formValue.romanticAddon) {
       preorderItems.push({
         productId: ROMANTIC_ADDON_ID,
         productName: ROMANTIC_ADDON_LABEL,
-        quantity: 1
-      });
-    }
-
-    const specialMenu = this.selectedSpecialMenu();
-    if (specialMenu) {
-      preorderItems.push({
-        productId: specialMenu.id,
-        productName: specialMenu.name,
         quantity: 1
       });
     }
@@ -979,31 +1446,67 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     };
   }
 
-  private buildNotes(userNotes: string): string {
-    const extras: string[] = [];
+  private buildPreorderItems(): ReservaPreorderItem[] {
+    if (this.activePreorderTab() === 'especial') {
+      const selectedMenu = this.selectedSpecialMenu();
+      if (!selectedMenu) {
+        return [];
+      }
 
-    if (this.reservaForm.controls.romanticAddon.value) {
-      extras.push(`${this.romanticAddonLabel} (+$20.000)`);
+      const menuName = this.specialMenuCustomizationSelection.length > 0
+        ? `${selectedMenu.name} (${this.specialMenuCustomizationSelection.join(', ')})`
+        : selectedMenu.name;
+
+      return [
+        {
+          productId: selectedMenu.id,
+          productName: menuName,
+          quantity: this.reservaForm.controls.specialMenuQty.value
+        }
+      ];
     }
 
-    const specialMenu = this.selectedSpecialMenu();
-    if (specialMenu) {
-      extras.push(`${specialMenu.name} (${this.formatCurrency(specialMenu.price)})`);
-    }
+    const items: ReservaPreorderItem[] = [];
 
-    const extrasText = extras.length > 0 ? `Extras: ${extras.join(', ')}` : '';
+    this.cartaItems.forEach((item) => {
+      if (item.quantity > 0) {
+        items.push({
+          productId: item.productId,
+          productName: item.productName,
+          quantity: item.quantity
+        });
+      }
 
-    return [userNotes, extrasText].filter(Boolean).join(' | ');
+      item.modifications.forEach((modification) => {
+        if (modification.quantity > 0) {
+          items.push({
+            productId: `${item.productId}-${modification.id}`,
+            productName: `Modificación ${item.productName}: ${modification.text}`,
+            quantity: modification.quantity
+          });
+        }
+      });
+    });
+
+    return items;
   }
 
-  private getSelectedPreorders(): ReservaPreorderItem[] {
-    return this.preorderSelections
-      .filter((item) => item.selected)
-      .map((item) => ({
-        productId: item.productId,
-        productName: item.productName,
-        quantity: item.quantity
-      }));
+  private buildNotes(userNotes: string): string {
+    const notes: string[] = [];
+
+    if (userNotes) {
+      notes.push(userNotes);
+    }
+
+    if (this.activePreorderTab() === 'especial' && this.specialMenuCustomizationSelection.length > 0) {
+      notes.push(`Modificaciones menú: ${this.specialMenuCustomizationSelection.join(', ')}`);
+    }
+
+    if (this.reservaForm.controls.romanticAddon.value) {
+      notes.push(`${this.romanticAddonLabel} (+$20.000)`);
+    }
+
+    return notes.join(' | ');
   }
 
   private updateAvailability(): void {
@@ -1081,6 +1584,21 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
   }
 
+  private clearSpecialMenuSelection(): void {
+    this.reservaForm.controls.specialMenuId.setValue('');
+    this.reservaForm.controls.specialMenuQty.setValue(1);
+    this.specialMenuCustomizationSelection = [];
+    this.expandedSpecialMenuId.set(null);
+  }
+
+  private clearCartaSelection(): void {
+    this.cartaItems.forEach((item) => {
+      item.quantity = 0;
+      item.modificationDraft = '';
+      item.modifications = [];
+    });
+  }
+
   private getDecorationsForDate(date: string): DecorationOption[] {
     const day = new Date(`${date}T00:00:00`).getDay();
     return DECORATION_OPTIONS.filter((item) => item.availableDays.includes(day));
@@ -1101,9 +1619,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return fixedZone ? [fixedZone] : [];
     }
 
-    return ZONE_OPTIONS.filter((zone) => {
-      return zone.decorationIds.includes(selectedDecorationId);
-    });
+    return ZONE_OPTIONS.filter((zone) => zone.decorationIds.includes(selectedDecorationId));
   }
 
   private isSelectionStillAvailable(date: string, time: string, decorationId: string, zoneId: string): boolean {
@@ -1117,7 +1633,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     const zones = this.getZonesForSelection(decorationId);
-
     if (zoneId && !zones.some((item) => item.id === zoneId)) {
       return false;
     }
@@ -1152,14 +1667,14 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   private redirectToWhatsapp(): void {
     const formValue = this.reservaForm.getRawValue();
-    const extras = this.summaryExtrasText();
 
     const message = [
       'Hola, quiero confirmar una reserva especial en Al Toro Gastrobar.',
       `Fecha: ${formValue.date}`,
       `Hora: ${formValue.time}`,
       `Número de personas: ${formValue.guests}`,
-      `Extras: ${extras}`,
+      `Extras: ${this.summaryExtrasText()}`,
+      `Pre-orden aproximada: ${this.formatCurrency(this.preorderTotal())}`,
       WHATSAPP_NOTE
     ].join('\n');
 
@@ -1199,6 +1714,84 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       currency: 'COP',
       maximumFractionDigits: 0
     }).format(value);
+  }
+
+  private selectedDecoration(): DecorationOption | undefined {
+    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
+  }
+
+  private getFixedZoneForDecoration(): ZoneOption | undefined {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (!fixedZoneId) {
+      return undefined;
+    }
+
+    return this.getZoneById(fixedZoneId);
+  }
+
+  private getZoneById(zoneId: string): ZoneOption | undefined {
+    return ZONE_OPTIONS.find((item) => item.id === zoneId);
+  }
+
+  private getEffectiveZoneId(): string {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (fixedZoneId) {
+      return fixedZoneId;
+    }
+
+    return this.reservaForm.controls.zoneId.value;
+  }
+
+  private findCartaModification(productId: string, modId: string): CartaModification | undefined {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    return item?.modifications.find((entry) => entry.id === modId);
+  }
+
+  private removeCartaModification(productId: string, modId: string): void {
+    const item = this.cartaItems.find((entry) => entry.productId === productId);
+    if (!item) {
+      return;
+    }
+
+    item.modifications = item.modifications.filter((entry) => entry.id !== modId);
+  }
+
+  private normalizeQuantity(rawValue: string | number, allowZero: boolean): number {
+    const parsed = typeof rawValue === 'number' ? rawValue : Number(String(rawValue).trim());
+
+    if (!Number.isFinite(parsed)) {
+      return allowZero ? 0 : 1;
+    }
+
+    const floored = Math.floor(parsed);
+    if (floored > MAX_QTY_PER_ITEM) {
+      this.showFloating(MAX_QTY_MESSAGE);
+      return MAX_QTY_PER_ITEM;
+    }
+
+    if (floored < 0) {
+      return allowZero ? 0 : 1;
+    }
+
+    return floored;
+  }
+
+  private buildCartaItems(): CartaItemState[] {
+    return MOCK_PRODUCTOS
+      .filter((item) => item.status === 'ACTIVE')
+      .map((item) => {
+        const detail = PRODUCT_DETAILS[item.id];
+        return {
+          productId: item.id,
+          productName: item.name,
+          category: detail?.category ?? (item.type === 'PREPARATION' ? 'Platos' : 'Bebidas'),
+          description: detail?.description ?? 'Preparación disponible en la carta del día.',
+          unitPrice: item.price,
+          quantity: 0,
+          modificationDraft: '',
+          modifications: []
+        };
+      });
   }
 
   private showFloating(message: string): void {
