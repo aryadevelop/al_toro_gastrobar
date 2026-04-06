@@ -13,7 +13,7 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
   standalone: true,
   imports: [CommonModule, RouterLink, PageHeaderComponent, StatCardComponent, ReservationCardComponent],
   template: `
-    <section class="page-grid">
+    <section class="page-grid cliente-compact">
       <article class="flash-toast card" *ngIf="showFlash()">
         {{ flashMessage() }}
       </article>
@@ -27,12 +27,12 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
       </section>
 
       <section style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem;">
-        <app-stat-card *ngFor="let metric of metrics" [label]="metric.label" [value]="metric.value" [trend]="metric.trend ?? null"></app-stat-card>
+        <app-stat-card *ngFor="let metric of metrics" [label]="metric.label" [value]="metric.value" [trend]="metric.trend ?? null" [compact]="true"></app-stat-card>
       </section>
 
       <section class="page-grid">
         <h2 class="section-title">Próximas reservas</h2>
-        <app-reservation-card *ngFor="let reservation of reservas" [reservation]="reservation"></app-reservation-card>
+        <app-reservation-card *ngFor="let reservation of reservas" [reservation]="reservation" [compact]="true"></app-reservation-card>
         <p *ngIf="reservas.length === 0" class="empty-state">No tienes reservas programadas.</p>
       </section>
     </section>
@@ -63,7 +63,15 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
       .header-actions {
         display: flex;
         flex-wrap: wrap;
-        gap: 0.5rem;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .header-actions .btn-primary,
+      .header-actions .btn-secondary {
+        padding: 0.64rem 0.94rem;
+        font-size: 0.92rem;
+        border-radius: 10px;
       }
 
       .empty-state {

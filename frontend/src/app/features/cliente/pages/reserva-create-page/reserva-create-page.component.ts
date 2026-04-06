@@ -83,7 +83,7 @@ const FULLY_BOOKED_SLOTS = [
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent],
   template: `
-    <section class="page-grid">
+    <section class="page-grid cliente-compact">
       <app-page-header title="Nueva reserva"></app-page-header>
 
       <article class="floating-warning card" *ngIf="showFloatingWarning()">

@@ -10,7 +10,7 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
   standalone: true,
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
-    <header class="topbar card">
+    <header class="topbar card" [class.topbar--cliente]="isClienteRole">
       <div class="topbar__left">
         <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="topbar-logo" />
         <span class="topbar-user" *ngIf="authService.currentUser()?.fullName as fullName">{{ fullName }}</span>
@@ -50,6 +50,10 @@ export class TopbarComponent {
     private readonly router: Router,
     private readonly pendingChangesService: PendingProfileChangesService
   ) {}
+
+  get isClienteRole(): boolean {
+    return this.authService.currentUser()?.role === 'CLIENTE';
+  }
 
   onLogout(): void {
     if (this.router.url.startsWith('/app/profile') && this.pendingChangesService.hasUnsavedChanges()) {
