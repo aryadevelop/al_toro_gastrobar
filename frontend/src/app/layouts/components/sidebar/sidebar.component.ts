@@ -11,7 +11,6 @@ import { MenuService } from '../../../core/services/menu.service';
     <aside class="sidebar">
       <div class="brand">
         <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="brand-logo" />
-        <small>Panel operativo</small>
       </div>
 
       <nav class="menu">

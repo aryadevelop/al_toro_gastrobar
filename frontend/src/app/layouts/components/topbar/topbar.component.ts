@@ -13,10 +13,7 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
     <header class="topbar card">
       <div class="topbar__left">
         <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="topbar-logo" />
-        <div>
-          <h3>Panel operativo</h3>
-          <small>Bienvenido: {{ authService.currentUser()?.fullName }}</small>
-        </div>
+        <span class="topbar-user" *ngIf="authService.currentUser()?.fullName as fullName">{{ fullName }}</span>
       </div>
 
       <button type="button" class="btn-secondary" (click)="onLogout()">Cerrar sesión</button>
