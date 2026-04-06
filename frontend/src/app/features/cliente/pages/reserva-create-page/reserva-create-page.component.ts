@@ -14,6 +14,7 @@ interface DecorationOption {
   name: string;
   imageUrl: string;
   availableDays: number[];
+  fixedZoneId?: string;
 }
 
 interface ZoneOption {
@@ -57,7 +58,8 @@ const DECORATION_OPTIONS: DecorationOption[] = [
     id: 'decor-romantica',
     name: 'Decoración Romántica',
     imageUrl: 'https://picsum.photos/seed/decor-romantica/360/220',
-    availableDays: [1, 2, 3, 4, 5]
+    availableDays: [1, 2, 3, 4, 5],
+    fixedZoneId: ROMANTIC_ZONE_ID
   },
   {
     id: 'decor-celebracion',
@@ -178,10 +180,13 @@ const FULLY_BOOKED_SLOTS = [
             </section>
 
             <section class="form-section">
-              <span class="section-label">Zonas disponibles</span>
-              <div class="card-grid" *ngIf="availableZones().length > 0">
+              <span class="section-label">Zonas disponibles (dependen de la decoración)</span>
+              <p class="zone-lock-message" *ngIf="isZoneSelectionLocked()">
+                {{ zoneRestrictionMessage() }}
+              </p>
+              <div class="card-grid" *ngIf="availableZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
                 <label class="option-card" *ngFor="let zone of availableZones()">
-                  <input type="radio" name="zone" [value]="zone.id" formControlName="zoneId" />
+                  <input type="radio" name="zone" [value]="zone.id" formControlName="zoneId" [disabled]="isZoneSelectionLocked()" />
                   <img [src]="zone.imageUrl" [alt]="zone.name" />
                   <strong>{{ zone.name }}</strong>
                 </label>
@@ -393,6 +398,21 @@ const FULLY_BOOKED_SLOTS = [
         font-size: 0.84rem;
       }
 
+      .zone-lock-message {
+        margin: 0;
+        border: 1px solid rgba(168, 24, 47, 0.35);
+        border-radius: 8px;
+        padding: 0.45rem 0.55rem;
+        background: rgba(168, 24, 47, 0.08);
+        color: #6b1111;
+        font-size: 0.82rem;
+      }
+
+      .disabled-grid {
+        opacity: 0.72;
+        pointer-events: none;
+      }
+
       .addon-check {
         display: flex;
         align-items: center;
@@ -582,7 +602,8 @@ const FULLY_BOOKED_SLOTS = [
         .special-menu-copy small,
         .special-menu-card span,
         .summary-note,
-        .special-menu-hint {
+        .special-menu-hint,
+        .zone-lock-message {
           font-size: 0.72rem;
         }
 
@@ -716,13 +737,26 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   selectedDecorationName(): string {
-    const selected = DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
+    const selected = this.selectedDecoration();
     return selected?.name ?? '';
   }
 
   selectedZoneName(): string {
-    const selected = ZONE_OPTIONS.find((item) => item.id === this.reservaForm.controls.zoneId.value);
+    const selected = this.getZoneById(this.getEffectiveZoneId());
     return selected?.name ?? '';
+  }
+
+  isZoneSelectionLocked(): boolean {
+    return Boolean(this.selectedDecoration()?.fixedZoneId);
+  }
+
+  zoneRestrictionMessage(): string {
+    const fixedZone = this.getFixedZoneForDecoration();
+    if (!fixedZone) {
+      return '';
+    }
+
+    return `Esta decoración no permite seleccionar zona. La zona es [${fixedZone.name}]`;
   }
 
   summaryExtrasText(): string {
@@ -851,7 +885,8 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const { date, time, decorationId, zoneId } = this.reservaForm.getRawValue();
+    const { date, time, decorationId } = this.reservaForm.getRawValue();
+    const effectiveZoneId = this.getEffectiveZoneId();
 
     if (!date || !time) {
       this.showSummary.set(false);
@@ -865,7 +900,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       next: (items) => {
         this.existingReservations = items;
 
-        if (!this.isSelectionStillAvailable(date, time, decorationId, zoneId)) {
+        if (!this.isSelectionStillAvailable(date, time, decorationId, effectiveZoneId)) {
           this.loading.set(false);
           this.showSummary.set(false);
           this.showFloating('Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.');
@@ -904,9 +939,10 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   private buildReservationPayload(): Omit<Reserva, 'id' | 'status'> & { status?: Reserva['status'] } {
     const formValue = this.reservaForm.getRawValue();
     const currentUser = this.authService.currentUser();
+    const effectiveZoneId = this.getEffectiveZoneId();
 
     const selectedDecoration = DECORATION_OPTIONS.find((item) => item.id === formValue.decorationId);
-    const selectedZone = ZONE_OPTIONS.find((item) => item.id === formValue.zoneId);
+    const selectedZone = this.getZoneById(effectiveZoneId);
 
     const preorderItems = this.getSelectedPreorders();
 
@@ -1018,17 +1054,21 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private updateAvailableZones(): void {
-    const activeDecorationIds = this.availableDecorations().map((item) => item.id);
-    if (activeDecorationIds.length === 0) {
+    if (this.availableDecorations().length === 0) {
       this.availableZones.set([]);
       this.reservaForm.controls.zoneId.setValue('');
       return;
     }
 
     const selectedDecorationId = this.reservaForm.controls.decorationId.value;
-    const zones = this.getZonesForSelection(activeDecorationIds, selectedDecorationId);
+    const zones = this.getZonesForSelection(selectedDecorationId);
 
     this.availableZones.set(zones);
+
+    if (this.isZoneSelectionLocked()) {
+      this.reservaForm.controls.zoneId.setValue('');
+      return;
+    }
 
     if (!zones.some((zone) => zone.id === this.reservaForm.controls.zoneId.value)) {
       this.reservaForm.controls.zoneId.setValue('');
@@ -1046,17 +1086,23 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return DECORATION_OPTIONS.filter((item) => item.availableDays.includes(day));
   }
 
-  private getZonesForSelection(activeDecorationIds: string[], selectedDecorationId: string): ZoneOption[] {
+  private getZonesForSelection(selectedDecorationId: string): ZoneOption[] {
+    if (!selectedDecorationId) {
+      return [...ZONE_OPTIONS];
+    }
+
+    const selectedDecoration = DECORATION_OPTIONS.find((item) => item.id === selectedDecorationId);
+    if (!selectedDecoration) {
+      return [];
+    }
+
+    if (selectedDecoration.fixedZoneId) {
+      const fixedZone = this.getZoneById(selectedDecoration.fixedZoneId);
+      return fixedZone ? [fixedZone] : [];
+    }
+
     return ZONE_OPTIONS.filter((zone) => {
-      if (selectedDecorationId) {
-        return zone.decorationIds.includes(selectedDecorationId);
-      }
-
-      if (zone.decorationIds.length === 0) {
-        return true;
-      }
-
-      return zone.decorationIds.some((id) => activeDecorationIds.includes(id));
+      return zone.decorationIds.includes(selectedDecorationId);
     });
   }
 
@@ -1070,10 +1116,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    const zones = this.getZonesForSelection(
-      decorations.map((item) => item.id),
-      decorationId
-    );
+    const zones = this.getZonesForSelection(decorationId);
 
     if (zoneId && !zones.some((item) => item.id === zoneId)) {
       return false;
@@ -1122,6 +1165,32 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
     window.location.href = url;
+  }
+
+  private selectedDecoration(): DecorationOption | undefined {
+    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
+  }
+
+  private getFixedZoneForDecoration(): ZoneOption | undefined {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (!fixedZoneId) {
+      return undefined;
+    }
+
+    return this.getZoneById(fixedZoneId);
+  }
+
+  private getZoneById(zoneId: string): ZoneOption | undefined {
+    return ZONE_OPTIONS.find((item) => item.id === zoneId);
+  }
+
+  private getEffectiveZoneId(): string {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (fixedZoneId) {
+      return fixedZoneId;
+    }
+
+    return this.reservaForm.controls.zoneId.value;
   }
 
   private formatCurrency(value: number): string {
