@@ -1244,6 +1244,19 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return `A la carta: ${itemCount} ítems`;
   }
 
+  isZoneSelectionLocked(): boolean {
+    return Boolean(this.selectedDecoration()?.fixedZoneId);
+  }
+
+  zoneRestrictionMessage(): string {
+    const fixedZone = this.getFixedZoneForDecoration();
+    if (!fixedZone) {
+      return '';
+    }
+
+    return `Esta decoración no permite seleccionar zona. La zona es [${fixedZone.name}]`;
+  }
+
   summaryExtrasText(): string {
     const extras: string[] = [];
 
@@ -1667,6 +1680,32 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
     window.location.href = url;
+  }
+
+  private selectedDecoration(): DecorationOption | undefined {
+    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
+  }
+
+  private getFixedZoneForDecoration(): ZoneOption | undefined {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (!fixedZoneId) {
+      return undefined;
+    }
+
+    return this.getZoneById(fixedZoneId);
+  }
+
+  private getZoneById(zoneId: string): ZoneOption | undefined {
+    return ZONE_OPTIONS.find((item) => item.id === zoneId);
+  }
+
+  private getEffectiveZoneId(): string {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    if (fixedZoneId) {
+      return fixedZoneId;
+    }
+
+    return this.reservaForm.controls.zoneId.value;
   }
 
   private formatCurrency(value: number): string {
