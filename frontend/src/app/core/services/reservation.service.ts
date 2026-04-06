@@ -16,11 +16,12 @@ export class ReservationService {
     return this.list().pipe(map((items) => items.filter((item) => item.clienteId === clienteId)));
   }
 
-  create(payload: Omit<Reserva, 'id' | 'status'>): Observable<Reserva> {
+  create(payload: Omit<Reserva, 'id' | 'status'> & { status?: Reserva['status'] }): Observable<Reserva> {
+    const { status, ...rest } = payload;
     const created: Reserva = {
-      ...payload,
+      ...rest,
       id: `r-${Date.now()}`,
-      status: 'PENDING'
+      status: status ?? 'PENDING'
     };
     MOCK_RESERVAS.unshift(created);
     return this.mockApiService.respond(created, 500);
