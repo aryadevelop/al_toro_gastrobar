@@ -1,7 +1,6 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { RouterOutlet } from '@angular/router';
-import { BreadcrumbsComponent } from '../components/breadcrumbs/breadcrumbs.component';
 import { MobileHeaderComponent } from '../components/mobile-header/mobile-header.component';
 import { SidebarComponent } from '../components/sidebar/sidebar.component';
 import { TopbarComponent } from '../components/topbar/topbar.component';
@@ -9,7 +8,7 @@ import { TopbarComponent } from '../components/topbar/topbar.component';
 @Component({
   selector: 'app-app-layout',
   standalone: true,
-  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, MobileHeaderComponent, BreadcrumbsComponent],
+  imports: [CommonModule, RouterOutlet, SidebarComponent, TopbarComponent, MobileHeaderComponent],
   template: `
     <div class="app-layout">
       <aside class="desktop-sidebar">
@@ -24,7 +23,6 @@ import { TopbarComponent } from '../components/topbar/topbar.component';
         </div>
 
         <app-topbar></app-topbar>
-        <app-breadcrumbs></app-breadcrumbs>
 
         <main class="page-container">
           <router-outlet></router-outlet>

@@ -20,7 +20,10 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
 
       <section class="dashboard-header-row">
         <app-page-header title="Panel de cliente" subtitle="Resumen de tus reservas y actividad"></app-page-header>
-        <a class="btn-secondary profile-shortcut" routerLink="/app/profile">Modificar mis datos</a>
+        <div class="header-actions">
+          <a class="btn-primary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+          <a class="btn-secondary profile-shortcut" routerLink="/app/profile">Modificar mis datos</a>
+        </div>
       </section>
 
       <section style="display:grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: .8rem;">
@@ -55,6 +58,12 @@ import { StatCardComponent } from '../../../../shared/ui/stat-card/stat-card.com
       .profile-shortcut {
         text-align: center;
         white-space: nowrap;
+      }
+
+      .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.5rem;
       }
 
       .empty-state {

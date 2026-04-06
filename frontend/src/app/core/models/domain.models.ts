@@ -37,7 +37,18 @@ export interface Reserva {
   time: string;
   status: 'PENDING' | 'CONFIRMED' | 'ARRIVED' | 'CANCELLED' | 'COMPLETED';
   tableCode?: string;
+  decorationId?: string;
+  decorationName?: string;
+  zoneId?: string;
+  zoneName?: string;
+  preorderItems?: ReservaPreorderItem[];
   notes?: string;
+}
+
+export interface ReservaPreorderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
 }
 
 export interface Mesa {

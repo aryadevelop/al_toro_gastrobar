@@ -35,8 +35,8 @@ export const MOCK_RESERVAS: Reserva[] = [
 
 export const MOCK_MESAS: Mesa[] = [
   { id: 'm-1', code: 'M01', seats: 2, zone: 'Terraza', status: 'AVAILABLE' },
-  { id: 'm-2', code: 'M12', seats: 4, zone: 'Saln principal', status: 'RESERVED' },
-  { id: 'm-3', code: 'M07', seats: 6, zone: 'Saln principal', status: 'OCCUPIED' }
+  { id: 'm-2', code: 'M12', seats: 4, zone: 'Salón principal', status: 'RESERVED' },
+  { id: 'm-3', code: 'M07', seats: 6, zone: 'Salón principal', status: 'OCCUPIED' }
 ];
 
 export const MOCK_COMANDAS: Comanda[] = [
@@ -113,14 +113,14 @@ export const MOCK_NOTIFICACIONES: Notificacion[] = [
 export const MOCK_DECORACIONES: Decoracion[] = [
   {
     id: 'd-1',
-    title: 'Ambientacin Otoo',
+    title: 'Ambientación Otoño',
     imageUrl: 'https://picsum.photos/seed/decor1/600/400',
     status: 'ACTIVE'
   }
 ];
 
 export const MOCK_DASHBOARD_METRICS: DashboardMetric[] = [
-  { id: 'dm-1', label: 'Ventas del da', value: 3200, trend: 8, tone: 'success' },
+  { id: 'dm-1', label: 'Ventas del día', value: 3200, trend: 8, tone: 'success' },
   { id: 'dm-2', label: 'Reservas activas', value: 24, trend: 2, tone: 'neutral' },
   { id: 'dm-3', label: 'Comandas pendientes', value: 7, trend: -1, tone: 'danger' }
 ];
