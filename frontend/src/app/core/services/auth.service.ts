@@ -110,7 +110,21 @@ export class AuthService {
   }
 
   private clearSession(): void {
+    const stateUser = this.currentUserState();
+    const persistedUser = this.storageService.getSessionUser();
+    const tokenUserId = this.extractUserIdFromToken(this.storageService.getAccessToken());
+    const userId = stateUser?.id ?? persistedUser?.id ?? tokenUserId ?? undefined;
+
     this.currentUserState.set(null);
-    this.storageService.clearAuth();
+    this.storageService.clearAuth(userId);
+  }
+
+  private extractUserIdFromToken(token: string | null): string | null {
+    if (!token) {
+      return null;
+    }
+
+    const match = token.match(/mock-token-(u-\d+)/);
+    return match?.[1] ?? null;
   }
 }

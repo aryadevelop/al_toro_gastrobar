@@ -7,6 +7,7 @@ export class StorageService {
   private readonly SESSION_USER_KEY = 'session_user';
   private readonly ACCESS_TOKEN_KEY = 'access_token';
   private readonly REFRESH_TOKEN_KEY = 'refresh_token';
+  private readonly MOCK_ACTIVE_SESSIONS_KEY = 'MOCK_ACTIVE_SESSIONS';
 
   getSessionUser(): User | null {
     const raw = localStorage.getItem(this.SESSION_USER_KEY);
@@ -37,9 +38,18 @@ export class StorageService {
     localStorage.setItem(this.REFRESH_TOKEN_KEY, token);
   }
 
-  clearAuth(): void {
+  clearAuth(userId?: string): void {
     localStorage.removeItem(this.SESSION_USER_KEY);
     localStorage.removeItem(this.ACCESS_TOKEN_KEY);
     localStorage.removeItem(this.REFRESH_TOKEN_KEY);
+
+    if (userId) {
+      const activeSessionsRaw = localStorage.getItem(this.MOCK_ACTIVE_SESSIONS_KEY);
+      if (activeSessionsRaw) {
+        const activeSessions = JSON.parse(activeSessionsRaw) as string[];
+        const updatedSessions = activeSessions.filter((id) => id !== userId);
+        localStorage.setItem(this.MOCK_ACTIVE_SESSIONS_KEY, JSON.stringify(updatedSessions));
+      }
+    }
   }
 }
