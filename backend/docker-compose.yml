@@ -1,0 +1,77 @@
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: altoro_postgres
+    environment:
+      POSTGRES_DB: altoro_db
+      POSTGRES_USER: altoro
+      POSTGRES_PASSWORD: altoro1234
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - altoro_network
+    healthcheck:
+      # $$ se convierte en $ dentro del contenedor (variable de entorno del contenedor, no de Compose)
+      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3.13-management-alpine
+    container_name: altoro_rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    ports:
+      - "5672:5672"    # Puerto AMQP (Spring Boot)
+      - "15672:15672"  # UI de administracion: http://localhost:15672
+    volumes:
+      - rabbitmq_data:/var/lib/rabbitmq
+    networks:
+      - altoro_network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: altoro_api
+    # env_file carga el .env como variables de entorno del contenedor.
+    # La ruta es relativa al docker-compose.yml, no al directorio de ejecucion.
+    env_file:
+      - .env
+    environment:
+      # Estos valores no estan en el .env porque son especificos del entorno Docker
+      SPRING_PROFILES_ACTIVE: prod
+      DB_URL: jdbc:postgresql://postgres:5432/altoro_db
+      DB_USERNAME: altoro
+      DB_PASSWORD: altoro1234
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
+      RABBITMQ_USERNAME: guest
+      RABBITMQ_PASSWORD: guest
+    ports:
+      - "8080:8080"
+    networks:
+      - altoro_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+  rabbitmq_data:
+
+networks:
+  altoro_network:
+    driver: bridge

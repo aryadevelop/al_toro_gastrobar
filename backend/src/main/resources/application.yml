@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: Al-Toro-Gastro-Bar
+
+  profiles:
+    active: dev  # Cambiar a "prod" en produccion o via variable SPRING_PROFILES_ACTIVE
+
+  # Jackson: fechas como ISO-8601 en lugar de timestamps numericos
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: America/Bogota
+
+  # Limite de tamano para subida de archivos
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  # Correo
+  mail:
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+  error:
+    include-message: always        # Muestra el mensaje en la respuesta JSON
+    include-stacktrace: on_param   # Muestra el stacktrace con ?trace=true
+
+# Actuator: endpoints expuestos para monitoreo y health checks
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+
+# Swagger / OpenAPI
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs

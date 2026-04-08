@@ -1,0 +1,60 @@
+spring:
+
+  # Base de datos: PostgreSQL con credenciales desde variables de entorno
+  datasource:
+    url: ${DB_URL}
+    driver-class-name: org.postgresql.Driver
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    hibernate:
+      ddl-auto: validate  # Solo valida el esquema, nunca lo modifica en prod
+    show-sql: false
+    open-in-view: false
+
+  h2:
+    console:
+      enabled: false  # Deshabilitar en produccion por seguridad
+
+  rabbitmq:
+    host: ${RABBITMQ_HOST:rabbitmq}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+# JWT: secreto obligatorio desde variable de entorno
+jwt:
+  secret: ${JWT_SECRET}
+  expiration: ${JWT_EXPIRATION:86400000}
+
+server:
+  error:
+    include-message: never       # No exponer detalles de error al exterior
+    include-stacktrace: never
+
+# Actuator: solo /health para los health checks del orquestador
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# Swagger: deshabilitado en produccion
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    co.edu.unicauca: INFO

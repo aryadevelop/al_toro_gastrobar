@@ -1,5 +1,5 @@
 gitignore# ========================
-# JAVA (ya tenías esto)
+# JAVA
 # ========================
 *.class
 *.log
