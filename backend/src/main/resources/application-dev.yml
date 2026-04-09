@@ -1,0 +1,40 @@
+spring:
+
+  # PostgreSQL via Docker; defaults para correr la app localmente sin Docker
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/altoro_db}
+    username: ${DB_USERNAME:altoro}
+    password: ${DB_PASSWORD:altoro1234}
+
+  jpa:
+    hibernate:
+      ddl-auto: update  # Crea y actualiza el esquema automaticamente en dev
+    show-sql: true      # Muestra las queries SQL en consola
+    properties:
+      hibernate:
+        format_sql: true
+
+  # RabbitMQ via Docker; defaults para correr localmente
+  rabbitmq:
+    host: ${RABBITMQ_HOST:localhost}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME:guest}
+    password: ${RABBITMQ_PASSWORD:guest}
+
+  # Mailtrap: intercepta emails sin enviarlos realmente
+  mail:
+    host: smtp.mailtrap.io
+    port: 587
+    username: tu_usuario_mailtrap
+    password: tu_password_mailtrap
+
+# Secret fijo para dev; nunca usar en prod
+jwt:
+  secret: altoro-gastrobar-super-secret-key-dev-only-change-in-prod
+
+logging:
+  level:
+    root: INFO
+    co.edu.unicauca: DEBUG
+    org.springframework.security: DEBUG
+    org.springframework.amqp: DEBUG

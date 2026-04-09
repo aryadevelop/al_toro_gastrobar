@@ -1,5 +1,12 @@
-gitignore# ========================
-# JAVA (ya tenías esto)
+# ========================
+# VARIABLES DE ENTORNO
+# ========================
+.env
+.env.prod
+.env.local
+
+# ========================
+# JAVA
 # ========================
 *.class
 *.log

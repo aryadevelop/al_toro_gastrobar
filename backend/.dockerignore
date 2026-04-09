@@ -1,0 +1,28 @@
+# Excluir archivos innecesarios del contexto de build de Docker.
+# Esto acelera el build y reduce el tamano de la imagen.
+
+# Carpeta target: se regenera durante el build dentro del contenedor
+target/
+
+# Variables de entorno (contienen credenciales, nunca deben entrar a la imagen)
+.env
+
+# Archivos de datos locales (H2 dev database)
+data/
+
+# Archivos de configuracion del IDE
+.idea/
+*.iml
+.vscode/
+
+# Archivos de git
+.git/
+.gitignore
+
+# Documentacion
+*.md
+HELP.md
+
+# Archivos de sistema operativo
+.DS_Store
+Thumbs.db

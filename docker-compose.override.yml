@@ -1,0 +1,30 @@
+# ============================================================
+# DEV — Docker lo fusiona con docker-compose.yml automaticamente
+# Uso: docker compose up
+# ============================================================
+services:
+
+  postgres:
+    # Puerto expuesto para conectar con clientes locales
+    ports:
+      - "5432:5432"
+
+  rabbitmq:
+    # AMQP expuesto para clientes locales; consola web en http://localhost:15672
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: dev
+      # Secret fijo solo para dev; nunca usar en prod
+      JWT_SECRET: ${JWT_SECRET:-altoro-dev-only-secret-not-for-prod}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      # Mailtrap: intercepta emails en dev sin enviarlos realmente
+      MAIL_HOST:     ${MAIL_HOST:-smtp.mailtrap.io}
+      MAIL_PORT:     ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME:-tu_usuario_mailtrap}
+      MAIL_PASSWORD: ${MAIL_PASSWORD:-tu_password_mailtrap}
+    ports:
+      - "8080:8080"
