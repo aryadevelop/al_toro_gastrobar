@@ -13,6 +13,9 @@
 - [Módulos del sistema](#módulos-del-sistema)
 - [Roles del sistema](#roles-del-sistema)
 - [Estructura del repositorio](#estructura-del-repositorio)
+- [Puesta en marcha](#puesta-en-marcha)
+- [Variables de entorno](#variables-de-entorno)
+- [Perfiles de Spring Boot](#perfiles-de-spring-boot)
 - [Equipo](#equipo)
 - [Flujo de trabajo Git](#flujo-de-trabajo-git)
 
@@ -29,8 +32,10 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 | Capa | Tecnología |
 |------|------------|
 | Frontend | Angular 17 (TypeScript) |
-| Backend | Java 17 + Spring Boot |
-| Base de datos | PostgreSQL |
+| Backend | Java 21 + Spring Boot 3.5 |
+| Base de datos | PostgreSQL 15 |
+| Mensajería | RabbitMQ 3.13 |
+| Orquestación | Docker + Docker Compose |
 | Control de versiones | Git + GitHub |
 | Gestión de tareas | Jira |
 
@@ -38,11 +43,16 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 
 ## Arquitectura
 
-El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. Ambas capas se despliegan de forma independiente.
+El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend usa RabbitMQ para comunicación asíncrona.
 
 ```
 Frontend (Angular) ──HTTP/JSON──▶ Backend (Spring Boot) ──▶ PostgreSQL
+                                          │
+                                          └──────────────▶ RabbitMQ
 ```
+
+Actualmente el backend y la infraestructura (PostgreSQL, RabbitMQ) corren en Docker.
+El frontend corre localmente sin dockerizar.
 
 ---
 
@@ -77,16 +87,136 @@ Frontend (Angular) ──HTTP/JSON──▶ Backend (Spring Boot) ──▶ Post
 
 ```
 al_toro_gastrobar/
-├── frontend/               # Aplicación Angular
-├── backend/                # API REST con Spring Boot
-├── docs/                   # Documentación del proyecto
+├── frontend/                   # Aplicación Angular
+├── backend/                    # API REST con Spring Boot
+│   ├── src/
+│   └── Dockerfile
+├── docs/                       # Documentación del proyecto
 ├── .github/
 │   └── workflows/
-│       └── validar-rama.yml  # GitHub Action: valida nombres de rama en PRs
+│       └── validar-rama.yml    # GitHub Action: valida nombres de rama en PRs
+├── docker-compose.yml          # Orquestación base (api, postgres, rabbitmq)
+├── docker-compose.override.yml # Overrides de desarrollo (puertos expuestos)
+├── docker-compose.prod.yml     # Overrides de producción
+├── .env                        # Variables de entorno dev (no se commitea)
+├── .env.prod.example           # Plantilla de variables de producción
 ├── .gitignore
 ├── README.md
-└── CONTRIBUTING.md         # Reglas de Git y flujo de trabajo
+└── CONTRIBUTING.md             # Reglas de Git y flujo de trabajo
 ```
+
+---
+
+## Puesta en marcha
+
+### Requisitos
+
+| Herramienta | Versión mínima |
+|---|---|
+| Docker | 24+ |
+| Docker Compose | 2.20+ |
+| Node.js (para el frontend) | 18+ |
+| Java (solo sin Docker) | 21 |
+| Maven (solo sin Docker) | 3.9 |
+
+### Backend + infraestructura (Docker)
+
+Todos los comandos se ejecutan desde la **raíz del proyecto**.
+
+**Desarrollo:**
+
+```bash
+docker compose up --build
+```
+
+Docker fusiona `docker-compose.yml` + `docker-compose.override.yml` automáticamente.
+
+| Servicio | URL |
+|---|---|
+| API | http://localhost:8080 |
+| Swagger UI | http://localhost:8080/swagger-ui.html |
+| RabbitMQ consola | http://localhost:15672 (guest / guest) |
+| PostgreSQL | localhost:5432 (altoro / altoro1234) |
+
+Los emails en dev son interceptados por Mailtrap — no se envían realmente.
+Configura las credenciales en `.env` (`MAIL_USERNAME` / `MAIL_PASSWORD`).
+
+**Producción:**
+
+```bash
+# 1. Crear el archivo de secrets a partir de la plantilla
+cp .env.prod.example .env.prod
+
+# 2. Completar todos los valores en .env.prod
+
+# 3. Levantar los servicios
+docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d
+```
+
+En producción: Postgres y RabbitMQ no exponen puertos al exterior. Solo se expone el puerto `8080` de la API. Swagger UI está deshabilitado.
+
+**Comandos útiles:**
+
+```bash
+docker compose logs -f api       # Logs de la API en tiempo real
+docker compose up --build        # Reconstruir imagen tras cambios
+docker compose down              # Detener (conserva volúmenes)
+docker compose down -v           # Detener y borrar volúmenes (borra la BD)
+```
+
+### Frontend (local, sin Docker)
+
+```bash
+cd frontend
+npm install
+npm start
+```
+
+La app queda disponible en http://localhost:4200.
+
+### Backend sin Docker
+
+Requiere PostgreSQL y RabbitMQ corriendo localmente.
+
+```bash
+cd backend
+./mvnw spring-boot:run
+```
+
+---
+
+## Variables de entorno
+
+| Variable | Descripción |
+|---|---|
+| `POSTGRES_DB` | Nombre de la base de datos |
+| `POSTGRES_USER` | Usuario de PostgreSQL |
+| `POSTGRES_PASSWORD` | Contraseña de PostgreSQL |
+| `RABBITMQ_USERNAME` | Usuario de RabbitMQ |
+| `RABBITMQ_PASSWORD` | Contraseña de RabbitMQ |
+| `JWT_SECRET` | Secret para firmar tokens JWT (mín. 32 chars en prod) |
+| `JWT_EXPIRATION` | Expiración del token en ms (default: 86400000 = 24 h) |
+| `MAIL_HOST` | Servidor SMTP |
+| `MAIL_PORT` | Puerto SMTP (default: 587) |
+| `MAIL_USERNAME` | Usuario SMTP |
+| `MAIL_PASSWORD` | Contraseña SMTP |
+| `SPRING_PROFILES_ACTIVE` | Perfil activo: `dev` o `prod` |
+
+Los valores de dev están en [`.env`](.env.prod.example) (no se commitea).
+Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.example) como plantilla.
+
+---
+
+## Perfiles de Spring Boot
+
+| Característica | `dev` | `prod` |
+|---|---|---|
+| `ddl-auto` | `update` | `validate` |
+| Logs SQL | sí | no |
+| Swagger UI | habilitado | deshabilitado |
+| Logs nivel root | INFO/DEBUG | WARN |
+| Mensajes de error | detallados | ocultos |
+| Correo | Mailtrap | SMTP real |
 
 ---
 

@@ -1,0 +1,23 @@
+# ============================================================
+# PROD — se fusiona con docker-compose.yml manualmente
+# Requiere: variables de .env.prod exportadas al entorno o pasadas con --env-file
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d
+# ============================================================
+# Postgres y RabbitMQ no necesitan override:
+#   - La base ya no les expone puertos (solo accesibles dentro de la red Docker)
+#   - Las credenciales vienen de POSTGRES_* y RABBITMQ_* definidas en .env.prod
+# ============================================================
+services:
+
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JWT_SECRET:     ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      MAIL_HOST:     ${MAIL_HOST}
+      MAIL_PORT:     ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+    ports:
+      - "8080:8080"
+    restart: unless-stopped

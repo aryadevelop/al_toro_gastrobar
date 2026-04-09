@@ -1,0 +1,63 @@
+spring:
+  application:
+    name: Al-Toro-Gastro-Bar
+
+  # Perfil por defecto al correr localmente; Docker lo sobreescribe con SPRING_PROFILES_ACTIVE
+  profiles:
+    active: dev
+
+  # Fechas en lugar de timestamps; zona horaria Colombia
+  jackson:
+    serialization:
+      write-dates-as-timestamps: false
+    time-zone: America/Bogota
+
+  # Limite de tamano para subida de archivos
+  servlet:
+    multipart:
+      max-file-size: 5MB
+      max-request-size: 5MB
+
+  # Driver y dialecto PostgreSQL
+  datasource:
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    database-platform: org.hibernate.dialect.PostgreSQLDialect
+    show-sql: false
+    open-in-view: false   # Evita lazy loading fuera de transaccion
+
+  # Propiedades SMTP comunes, host y credenciales las define cada perfil
+  mail:
+    properties:
+      mail:
+        smtp:
+          auth: true
+          starttls:
+            enable: true
+
+server:
+  port: 8080
+  # En dev se expone el mensaje de error; prod lo silencia (ver application-prod.yml)
+  error:
+    include-message: always
+    include-stacktrace: on_param
+
+# Actuator: dev expone health/info/metrics; prod solo health (ver application-prod.yml)
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health, info, metrics
+
+# Swagger habilitado por defecto; prod lo deshabilita (ver application-prod.yml)
+springdoc:
+  swagger-ui:
+    path: /swagger-ui.html
+    tags-sorter: alpha
+    operations-sorter: alpha
+  api-docs:
+    path: /v3/api-docs
+
+# Expiracion JWT comun: 24 horas; el secret lo define cada perfil
+jwt:
+  expiration: 86400000
