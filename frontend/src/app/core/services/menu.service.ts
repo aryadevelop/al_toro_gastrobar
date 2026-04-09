@@ -1,10 +1,11 @@
-import { computed, Injectable } from '@angular/core';
+﻿import { computed, Injectable } from '@angular/core';
 import { MenuItem } from '../models/navigation.models';
 import { AuthService } from './auth.service';
 
 const MENU_ITEMS: MenuItem[] = [
   { label: 'Inicio', path: '/app/dashboard', icon: 'home', roles: ['ADMIN', 'CLIENTE', 'MESERO', 'PRODUCCION', 'CAJERO'] },
   { label: 'Cliente', path: '/app/cliente', icon: 'person', roles: ['CLIENTE'] },
+  { label: 'Historial', path: '/app/cliente/reservas/history', icon: 'history', roles: ['CLIENTE'] },
   { label: 'Mesero', path: '/app/mesero', icon: 'restaurant', roles: ['MESERO'] },
   { label: 'Producción', path: '/app/produccion', icon: 'kitchen', roles: ['PRODUCCION'] },
   { label: 'Cajero', path: '/app/cajero', icon: 'payments', roles: ['CAJERO'] },
