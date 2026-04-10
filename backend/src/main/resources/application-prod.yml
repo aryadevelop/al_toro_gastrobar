@@ -28,6 +28,10 @@ spring:
 jwt:
   secret: ${JWT_SECRET}
 
+# Orígenes permitidos en CORS; obligatorio en prod — debe ser el dominio real del frontend
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
 # No exponer detalles internos en respuestas de error
 server:
   error:
