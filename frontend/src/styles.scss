@@ -1,6 +1,6 @@
 ﻿:root {
-  --bg: #d5b79f;
-  --surface: #fff3e6;
+  --bg: #a77f5f;
+  --surface: #f1dfcd;
   --surface-alt: #c8a27f;
   --primary: #0A0A0A;
   --primary-strong: #1A1A1A;
@@ -10,8 +10,8 @@
   --accent-strong: #6F4E37;
   --accent-soft-bg: #6F4E37;
   --accent-soft: #a0a0a0;
-  --text: #333333;
-  --muted: #7a7a7a;
+  --text: #000000;
+  --muted: #000000;
   --danger: #A8182F;
   --success: #333333;
   --radius-md: 12px;
@@ -30,9 +30,8 @@ body {
   font-family: 'Manrope', 'Segoe UI', sans-serif;
   background-color: var(--bg);
   background-image:
-    radial-gradient(circle at 14% 12%, rgba(111, 78, 55, 0.34) 0%, #8f674a 24%, #b08a6d 50%, #d0b49b 78%, #e4d2bf 100%),
-    radial-gradient(circle at 90% 88%, rgba(111, 78, 55, 0.16) 0%, rgba(111, 78, 55, 0) 58%),
-    repeating-linear-gradient(140deg, rgba(66, 39, 23, 0.018) 0 2px, rgba(66, 39, 23, 0) 2px 9px);
+    radial-gradient(circle at 16% 14%, rgba(89, 57, 39, 0.46) 0%, rgba(111, 78, 55, 0.3) 34%, rgba(154, 116, 86, 0.84) 74%, rgba(196, 166, 139, 0.9) 100%),
+    linear-gradient(162deg, rgba(78, 50, 35, 0.28) 0%, rgba(95, 63, 45, 0.14) 46%, rgba(111, 78, 55, 0) 80%);
   color: var(--text);
 }
 

@@ -48,15 +48,13 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <p><strong>Fecha y hora:</strong> {{ formatDateTime(reservation) }}</p>
           <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
           <p><strong>Estado:</strong> {{ getStatusLabel(reservation.status) }}</p>
+          <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
+            Ya no es posible modificar esta reserva. Solo puedes cancelarla.
+          </p>
 
           <div class="reservation-actions">
             <button type="button" class="btn-secondary" (click)="onViewDetail(reservation.id)">Ver detalle</button>
-            <button
-              type="button"
-              class="btn-secondary"
-              [disabled]="!canModifyReservation(reservation)"
-              (click)="onModifyReservation(reservation.id)"
-            >
+            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
               Modificar
             </button>
             <button
@@ -181,6 +179,11 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         font-size: 0.84rem;
       }
 
+      .modify-warning {
+        color: #6b1111;
+        font-size: 0.78rem;
+      }
+
       .reservation-actions {
         margin-top: 0.2rem;
         display: flex;
@@ -240,7 +243,17 @@ export class ClienteDashboardComponent implements OnInit {
     void this.router.navigate(['/app/cliente/reserva/detail', reservationId]);
   }
 
-  onModifyReservation(reservationId: string): void {
+  onModifyReservation(reservation: Reserva): void {
+    if (!this.canModifyReservation(reservation)) {
+      if (this.isModificationCutoffReached(reservation)) {
+        this.flashMessage.set('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+      }
+      return;
+    }
+
+    const reservationId = reservation.id;
     void this.router.navigate(['/app/cliente/reserva/edit', reservationId]);
   }
 
@@ -262,7 +275,11 @@ export class ClienteDashboardComponent implements OnInit {
   }
 
   canModifyReservation(reservation: Reserva): boolean {
-    return this.isFutureReservation(reservation) && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+    return (
+      this.isFutureReservation(reservation) &&
+      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') &&
+      !this.isModificationCutoffReached(reservation)
+    );
   }
 
   canCancelReservation(reservation: Reserva): boolean {
@@ -331,6 +348,16 @@ export class ClienteDashboardComponent implements OnInit {
 
   private isFutureReservation(reserva: Reserva): boolean {
     return this.toDateTime(reserva).getTime() > Date.now();
+  }
+
+  isModificationCutoffReached(reserva: Reserva): boolean {
+    const sameDate = new Date(`${reserva.date}T00:00:00`).toDateString() === new Date().toDateString();
+    if (!sameDate) {
+      return false;
+    }
+
+    const cutoff = new Date(`${reserva.date}T16:00:00`).getTime();
+    return Date.now() >= cutoff;
   }
 
   private toDateTime(reserva: Reserva): Date {
