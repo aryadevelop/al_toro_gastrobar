@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
@@ -24,10 +24,14 @@ interface VisitHistoryItem {
   imports: [CommonModule, RouterLink, PageHeaderComponent],
   template: `
     <section class="page-grid cliente-compact">
-      <app-page-header title="Historial de visitas" subtitle="Tus visitas reales cerradas por caja"></app-page-header>
+      <article class="flash-toast card" *ngIf="showFlash()">
+        {{ flashMessage() }}
+      </article>
+
+      <app-page-header title="Historial de visitas" subtitle="Tus visitas y reservas futuras"></app-page-header>
 
       <div class="history-tabs">
-        <a class="tab-link" routerLink="/app/cliente">Reservas futuras</a>
+        <a class="tab-link" routerLink="/app/cliente">Dashboard</a>
         <span class="tab-link active">Historial</span>
       </div>
 
@@ -36,6 +40,35 @@ interface VisitHistoryItem {
       </article>
 
       <section class="page-grid">
+        <h2 class="section-title">Reservas futuras</h2>
+
+        <article class="card visit-card" *ngFor="let reservation of reservasFuturas">
+          <p><strong>Fecha y hora:</strong> {{ formatDateTime(toDateTime(reservation)) }}</p>
+          <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
+          <p><strong>Estado:</strong> {{ getReservationStatusLabel(reservation.status) }}</p>
+          <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
+            Ya no es posible modificar esta reserva. Solo puedes cancelarla.
+          </p>
+
+          <div class="visit-actions">
+            <button type="button" class="btn-secondary" (click)="onViewFutureDetail(reservation.id)">Ver detalle</button>
+            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
+              Modificar
+            </button>
+            <button type="button" class="btn-danger" [disabled]="!canCancelReservation(reservation)" (click)="onCancelReservation(reservation)">
+              Cancelar
+            </button>
+          </div>
+        </article>
+
+        <article class="card empty-state-box" *ngIf="reservasFuturas.length === 0">
+          <p class="empty-state">No tienes reservas futuras.</p>
+        </article>
+      </section>
+
+      <section class="page-grid">
+        <h2 class="section-title">Visitas registradas</h2>
+
         <article class="card visit-card" *ngFor="let visit of visitHistory">
           <p><strong>Fecha y hora:</strong> {{ formatDateTime(visit.dateTime) }}</p>
           <p><strong>Número de personas:</strong> {{ visit.guests }}</p>
@@ -43,7 +76,7 @@ interface VisitHistoryItem {
           <p><strong>Total:</strong> {{ visit.total | currency:'COP':'symbol':'1.0-0' }}</p>
 
           <div class="visit-actions">
-            <button type="button" class="btn-secondary" [disabled]="!visit.hasDetail" (click)="onViewDetail(visit)">Ver detalle</button>
+            <button type="button" class="btn-secondary" [disabled]="!visit.hasDetail" (click)="onViewVisitDetail(visit)">Ver detalle</button>
           </div>
         </article>
 
@@ -56,6 +89,14 @@ interface VisitHistoryItem {
   `,
   styles: [
     `
+      .flash-toast {
+        border: 1px solid #6F4E37;
+        background: rgba(111, 78, 55, 0.1);
+        color: #4d3323;
+        padding: 0.7rem 0.9rem;
+        font-weight: 700;
+      }
+
       .history-tabs {
         display: flex;
         gap: 0.45rem;
@@ -97,11 +138,20 @@ interface VisitHistoryItem {
         font-size: 0.84rem;
       }
 
-      .visit-actions {
-        margin-top: 0.2rem;
+      .modify-warning {
+        color: #6b1111;
+        font-size: 0.78rem;
       }
 
-      .visit-actions .btn-secondary {
+      .visit-actions {
+        margin-top: 0.2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .visit-actions .btn-secondary,
+      .visit-actions .btn-danger {
         padding: 0.42rem 0.62rem;
         font-size: 0.78rem;
         border-radius: 8px;
@@ -123,8 +173,11 @@ interface VisitHistoryItem {
 })
 export class ReservasHistoryPageComponent implements OnInit {
   readonly points = signal(0);
+  readonly flashMessage = signal('');
+  readonly showFlash = signal(false);
 
   visitHistory: VisitHistoryItem[] = [];
+  reservasFuturas: Reserva[] = [];
 
   constructor(
     private readonly authService: AuthService,
@@ -135,10 +188,114 @@ export class ReservasHistoryPageComponent implements OnInit {
   ) {}
 
   ngOnInit(): void {
+    this.loadHistoryData();
+  }
+
+  onViewVisitDetail(visit: VisitHistoryItem): void {
+    if (!visit.reservationId) {
+      return;
+    }
+
+    void this.router.navigate(['/app/cliente/reserva/detail', visit.reservationId]);
+  }
+
+  onViewFutureDetail(reservationId: string): void {
+    void this.router.navigate(['/app/cliente/reserva/detail', reservationId]);
+  }
+
+  onModifyReservation(reservation: Reserva): void {
+    if (!this.canModifyReservation(reservation)) {
+      if (this.isModificationCutoffReached(reservation)) {
+        this.flashMessage.set('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+      }
+      return;
+    }
+
+    void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
+  }
+
+  onCancelReservation(reservation: Reserva): void {
+    if (!this.canCancelReservation(reservation)) {
+      return;
+    }
+
+    if (!window.confirm('¿Deseas cancelar esta reserva?')) {
+      return;
+    }
+
+    this.reservationService.update(reservation.id, { status: 'CANCELLED' }).subscribe(() => {
+      this.flashMessage.set('Reserva cancelada correctamente.');
+      this.showFlash.set(true);
+      setTimeout(() => this.showFlash.set(false), 3500);
+      this.loadHistoryData();
+    });
+  }
+
+  canModifyReservation(reservation: Reserva): boolean {
+    return (
+      this.isFutureReservation(reservation) &&
+      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') &&
+      !this.isModificationCutoffReached(reservation)
+    );
+  }
+
+  canCancelReservation(reservation: Reserva): boolean {
+    return this.isFutureReservation(reservation) && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
+  isModificationCutoffReached(reservation: Reserva): boolean {
+    const sameDate = new Date(`${reservation.date}T00:00:00`).toDateString() === new Date().toDateString();
+    if (!sameDate) {
+      return false;
+    }
+
+    const cutoff = new Date(`${reservation.date}T16:00:00`).getTime();
+    return Date.now() >= cutoff;
+  }
+
+  formatDateTime(date: Date): string {
+    return date.toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  getReservationStatusLabel(status: Reserva['status']): string {
+    if (status === 'CONFIRMED') {
+      return 'Confirmada';
+    }
+
+    if (status === 'PENDING') {
+      return 'Pendiente';
+    }
+
+    if (status === 'CANCELLED') {
+      return 'Cancelada';
+    }
+
+    if (status === 'COMPLETED') {
+      return 'Completada';
+    }
+
+    if (status === 'ARRIVED') {
+      return 'Asistió';
+    }
+
+    return status;
+  }
+
+  toDateTime(reservation: Reserva): Date {
+    return new Date(`${reservation.date}T${reservation.time}:00`);
+  }
+
+  private loadHistoryData(): void {
     const currentUser = this.authService.currentUser();
     if (!currentUser) {
       this.points.set(0);
       this.visitHistory = [];
+      this.reservasFuturas = [];
       return;
     }
 
@@ -147,24 +304,13 @@ export class ReservasHistoryPageComponent implements OnInit {
       this.comandaService.list(),
       this.salesService.list()
     ]).subscribe(([reservas, comandas, ventas]) => {
+      this.reservasFuturas = [...reservas]
+        .filter((item) => this.isFutureReservation(item) && (item.status === 'PENDING' || item.status === 'CONFIRMED'))
+        .sort((a, b) => this.toDateTime(a).getTime() - this.toDateTime(b).getTime());
+
       const paidSales = ventas.filter((item) => item.clienteId === currentUser.id && item.paid);
       this.points.set(paidSales.length);
       this.visitHistory = this.mapVisitHistory(paidSales, reservas, comandas);
-    });
-  }
-
-  onViewDetail(visit: VisitHistoryItem): void {
-    if (!visit.reservationId) {
-      return;
-    }
-
-    void this.router.navigate(['/app/cliente/reserva/detail', visit.reservationId]);
-  }
-
-  formatDateTime(date: Date): string {
-    return date.toLocaleString('es-CO', {
-      dateStyle: 'short',
-      timeStyle: 'short'
     });
   }
 
@@ -177,7 +323,7 @@ export class ReservasHistoryPageComponent implements OnInit {
         const comanda = comandaById.get(sale.comandaId);
         const reserva = comanda?.reservaId ? reservaById.get(comanda.reservaId) : undefined;
 
-        const dateTime = reserva ? new Date(`${reserva.date}T${reserva.time}:00`) : new Date(sale.createdAt);
+        const dateTime = reserva ? this.toDateTime(reserva) : new Date(sale.createdAt);
 
         return {
           reservationId: reserva?.id,
@@ -197,7 +343,7 @@ export class ReservasHistoryPageComponent implements OnInit {
     }
 
     if (status === 'ARRIVED') {
-      return 'Asistio';
+      return 'Asistió';
     }
 
     if (status === 'COMPLETED') {
@@ -218,6 +364,8 @@ export class ReservasHistoryPageComponent implements OnInit {
 
     return status;
   }
+
+  private isFutureReservation(reservation: Reserva): boolean {
+    return this.toDateTime(reservation).getTime() > Date.now();
+  }
 }
-
-
