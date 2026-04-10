@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { Router } from '@angular/router';
@@ -468,19 +468,19 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .floating-warning {
-        border: 1px solid #a8182f;
-        background: rgba(168, 24, 47, 0.12);
-        color: #6b1111;
+        border: 1px solid #6F4E37;
+        background: rgba(111, 78, 55, 0.12);
+        color: #4d3323;
         font-weight: 700;
       }
 
       .availability-warning {
         margin: 0 0 0.85rem;
-        border: 1px solid #a8182f;
+        border: 1px solid #6F4E37;
         border-radius: 8px;
         padding: 0.6rem 0.75rem;
-        background: rgba(168, 24, 47, 0.1);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.1);
+        color: #4d3323;
         font-size: 0.86rem;
       }
 
@@ -546,11 +546,11 @@ const FULLY_BOOKED_SLOTS = [
 
       .zone-lock-message {
         margin: 0;
-        border: 1px solid rgba(168, 24, 47, 0.35);
+        border: 1px solid rgba(111, 78, 55, 0.35);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.82rem;
       }
 
@@ -577,7 +577,7 @@ const FULLY_BOOKED_SLOTS = [
 
       .preorder-total {
         font-size: 0.84rem;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .preorder-tabs {
@@ -586,7 +586,7 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn {
-        border: 1px solid rgba(168, 24, 47, 0.4);
+        border: 1px solid rgba(168, 24, 47, 0.6);
         background: #ffffff;
         color: #6b1111;
         border-radius: 8px;
@@ -596,7 +596,7 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn.active {
-        background: #a8182f;
+        background: #A8182F;
         color: #ffffff;
       }
 
@@ -609,9 +609,9 @@ const FULLY_BOOKED_SLOTS = [
         margin: 0;
         padding: 0.5rem 0.6rem;
         border-radius: 8px;
-        border: 1px solid rgba(168, 24, 47, 0.35);
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.82rem;
       }
 
@@ -648,7 +648,7 @@ const FULLY_BOOKED_SLOTS = [
       .item-head span {
         font-size: 0.8rem;
         font-weight: 700;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .preorder-item-card p {
@@ -666,10 +666,10 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .qty-btn {
-        border: 1px solid rgba(168, 24, 47, 0.5);
+        border: 1px solid rgba(168, 24, 47, 0.68);
         border-radius: 8px;
-        background: #ffffff;
-        color: #6b1111;
+        background: #A8182F;
+        color: #ffffff;
         min-height: 30px;
         cursor: pointer;
       }
@@ -756,7 +756,7 @@ const FULLY_BOOKED_SLOTS = [
       .special-menu-price {
         font-size: 0.8rem;
         font-weight: 700;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .special-menu-actions {
@@ -817,11 +817,11 @@ const FULLY_BOOKED_SLOTS = [
 
       .summary-note {
         margin: 0;
-        border: 1px solid rgba(168, 24, 47, 0.36);
+        border: 1px solid rgba(111, 78, 55, 0.36);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.8rem;
       }
 
@@ -1242,19 +1242,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     return `A la carta: ${itemCount} ítems`;
-  }
-
-  isZoneSelectionLocked(): boolean {
-    return Boolean(this.selectedDecoration()?.fixedZoneId);
-  }
-
-  zoneRestrictionMessage(): string {
-    const fixedZone = this.getFixedZoneForDecoration();
-    if (!fixedZone) {
-      return '';
-    }
-
-    return `Esta decoración no permite seleccionar zona. La zona es [${fixedZone.name}]`;
   }
 
   summaryExtrasText(): string {
@@ -1716,32 +1703,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }).format(value);
   }
 
-  private selectedDecoration(): DecorationOption | undefined {
-    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
-  }
-
-  private getFixedZoneForDecoration(): ZoneOption | undefined {
-    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
-    if (!fixedZoneId) {
-      return undefined;
-    }
-
-    return this.getZoneById(fixedZoneId);
-  }
-
-  private getZoneById(zoneId: string): ZoneOption | undefined {
-    return ZONE_OPTIONS.find((item) => item.id === zoneId);
-  }
-
-  private getEffectiveZoneId(): string {
-    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
-    if (fixedZoneId) {
-      return fixedZoneId;
-    }
-
-    return this.reservaForm.controls.zoneId.value;
-  }
-
   private findCartaModification(productId: string, modId: string): CartaModification | undefined {
     const item = this.cartaItems.find((entry) => entry.productId === productId);
     return item?.modifications.find((entry) => entry.id === modId);
@@ -1800,3 +1761,5 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     setTimeout(() => this.showFloatingWarning.set(false), 3500);
   }
 }
+
+

@@ -14,6 +14,10 @@ export const CLIENTE_ROUTES: Routes = [
     loadComponent: () => import('./pages/reserva-edit-page/reserva-edit-page.component').then((m) => m.ReservaEditPageComponent)
   },
   {
+    path: 'reserva/detail/:id',
+    loadComponent: () => import('./pages/reserva-detail-page/reserva-detail-page.component').then((m) => m.ReservaDetailPageComponent)
+  },
+  {
     path: 'reservas/history',
     loadComponent: () => import('./pages/reservas-history-page/reservas-history-page.component').then((m) => m.ReservasHistoryPageComponent)
   },

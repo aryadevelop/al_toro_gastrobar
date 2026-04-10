@@ -25,7 +25,7 @@
       }
 
       .danger {
-        background: #A8182F;
+        background: #6F4E37;
         color: #FFFFFF;
       }
     `
@@ -35,3 +35,4 @@ export class StatusBadgeComponent {
   @Input() label = 'Estado';
   @Input() tone: 'neutral' | 'success' | 'danger' = 'neutral';
 }
+

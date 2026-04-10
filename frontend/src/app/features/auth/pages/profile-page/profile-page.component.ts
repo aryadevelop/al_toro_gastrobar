@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, effect, signal } from '@angular/core';
 import {
@@ -229,9 +229,9 @@ const confirmPasswordMatchValidator: ValidatorFn = (control: AbstractControl): V
       }
 
       .form-error {
-        border: 1px solid #a8182f;
-        background: rgba(168, 24, 47, 0.1);
-        color: #6b1111;
+        border: 1px solid #6F4E37;
+        background: rgba(111, 78, 55, 0.1);
+        color: #4d3323;
       }
 
       @media (max-width: 640px) {
@@ -747,3 +747,5 @@ export class ProfilePageComponent implements OnDestroy {
     return control.touched || control.dirty;
   }
 }
+
+
