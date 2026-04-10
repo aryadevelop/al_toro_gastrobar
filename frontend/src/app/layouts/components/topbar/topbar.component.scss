@@ -5,7 +5,7 @@
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
-  border-bottom: 2px solid rgba(168, 24, 47, 0.28);
+  border-bottom: 2px solid rgba(111, 78, 55, 0.28);
 
   .topbar__left {
     display: flex;
@@ -24,7 +24,7 @@
   .topbar-user {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #A8182F;
+    color: #6F4E37;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -92,3 +92,4 @@
     }
   }
 }
+

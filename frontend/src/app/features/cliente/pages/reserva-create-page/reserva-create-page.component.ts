@@ -1,7 +1,7 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
-import { Router } from '@angular/router';
+import { ActivatedRoute, Router } from '@angular/router';
 import { Subject, take, takeUntil } from 'rxjs';
 import { MOCK_PRODUCTOS } from '../../../../core/mocks/restaurant.mock';
 import { Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
@@ -147,7 +147,7 @@ const FULLY_BOOKED_SLOTS = [
   imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent],
   template: `
     <section class="page-grid cliente-compact">
-      <app-page-header title="Nueva reserva"></app-page-header>
+      <app-page-header [title]="editMode() ? 'Modificar reserva' : 'Nueva reserva'"></app-page-header>
 
       <article class="floating-warning card" *ngIf="showFloatingWarning()">
         {{ floatingWarningMessage() }}
@@ -408,14 +408,14 @@ const FULLY_BOOKED_SLOTS = [
 
             <div class="action-row">
               <button class="btn-secondary" type="button" (click)="onClose()">Cancelar</button>
-              <button class="btn-primary" type="submit">Confirmar reserva</button>
+              <button class="btn-primary" type="submit">{{ editMode() ? 'Confirmar cambios' : 'Confirmar reserva' }}</button>
             </div>
           </form>
         </ng-container>
 
         <ng-template #summaryView>
           <section class="summary-box">
-            <h3>Resumen de reserva</h3>
+            <h3>{{ editMode() ? 'Resumen de cambios' : 'Resumen de reserva' }}</h3>
 
             <p><strong>Cliente:</strong> {{ authService.currentUser()?.fullName ?? 'Cliente' }}</p>
             <p><strong>Fecha:</strong> {{ reservaForm.controls.date.value }}</p>
@@ -468,19 +468,19 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .floating-warning {
-        border: 1px solid #a8182f;
-        background: rgba(168, 24, 47, 0.12);
-        color: #6b1111;
+        border: 1px solid #6F4E37;
+        background: rgba(111, 78, 55, 0.12);
+        color: #4d3323;
         font-weight: 700;
       }
 
       .availability-warning {
         margin: 0 0 0.85rem;
-        border: 1px solid #a8182f;
+        border: 1px solid #6F4E37;
         border-radius: 8px;
         padding: 0.6rem 0.75rem;
-        background: rgba(168, 24, 47, 0.1);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.1);
+        color: #4d3323;
         font-size: 0.86rem;
       }
 
@@ -546,11 +546,11 @@ const FULLY_BOOKED_SLOTS = [
 
       .zone-lock-message {
         margin: 0;
-        border: 1px solid rgba(168, 24, 47, 0.35);
+        border: 1px solid rgba(111, 78, 55, 0.35);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.82rem;
       }
 
@@ -577,7 +577,7 @@ const FULLY_BOOKED_SLOTS = [
 
       .preorder-total {
         font-size: 0.84rem;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .preorder-tabs {
@@ -586,7 +586,7 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn {
-        border: 1px solid rgba(168, 24, 47, 0.4);
+        border: 1px solid rgba(168, 24, 47, 0.6);
         background: #ffffff;
         color: #6b1111;
         border-radius: 8px;
@@ -596,7 +596,7 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn.active {
-        background: #a8182f;
+        background: #A8182F;
         color: #ffffff;
       }
 
@@ -609,9 +609,9 @@ const FULLY_BOOKED_SLOTS = [
         margin: 0;
         padding: 0.5rem 0.6rem;
         border-radius: 8px;
-        border: 1px solid rgba(168, 24, 47, 0.35);
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.82rem;
       }
 
@@ -648,7 +648,7 @@ const FULLY_BOOKED_SLOTS = [
       .item-head span {
         font-size: 0.8rem;
         font-weight: 700;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .preorder-item-card p {
@@ -666,10 +666,10 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .qty-btn {
-        border: 1px solid rgba(168, 24, 47, 0.5);
+        border: 1px solid rgba(168, 24, 47, 0.68);
         border-radius: 8px;
-        background: #ffffff;
-        color: #6b1111;
+        background: #A8182F;
+        color: #ffffff;
         min-height: 30px;
         cursor: pointer;
       }
@@ -756,7 +756,7 @@ const FULLY_BOOKED_SLOTS = [
       .special-menu-price {
         font-size: 0.8rem;
         font-weight: 700;
-        color: #6b1111;
+        color: #4d3323;
       }
 
       .special-menu-actions {
@@ -817,11 +817,11 @@ const FULLY_BOOKED_SLOTS = [
 
       .summary-note {
         margin: 0;
-        border: 1px solid rgba(168, 24, 47, 0.36);
+        border: 1px solid rgba(111, 78, 55, 0.36);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(168, 24, 47, 0.08);
-        color: #6b1111;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
         font-size: 0.8rem;
       }
 
@@ -925,6 +925,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly showNoAvailabilityWarning = signal(false);
   readonly floatingWarningMessage = signal('');
   readonly showFloatingWarning = signal(false);
+  readonly editMode = signal(false);
   readonly availableDecorations = signal<DecorationOption[]>([]);
   readonly availableZones = signal<ZoneOption[]>([]);
   readonly showSummary = signal(false);
@@ -954,18 +955,50 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   private readonly destroy$ = new Subject<void>();
   private existingReservations: Reserva[] = [];
+  private originalReservation: Reserva | null = null;
+  private editingReservationId = '';
+  private hydratedEditForm = false;
   private previousGuests = this.reservaForm.controls.guests.value;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly reservationService: ReservationService,
     public readonly authService: AuthService,
+    private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router
   ) {}
 
   ngOnInit(): void {
+    this.editingReservationId = this.activatedRoute.snapshot.paramMap.get('id') ?? '';
+    this.editMode.set(Boolean(this.editingReservationId));
+
     this.reservationService.list().pipe(takeUntil(this.destroy$)).subscribe((items) => {
       this.existingReservations = items;
+
+      if (this.editMode() && !this.hydratedEditForm) {
+        const currentUser = this.authService.currentUser();
+        const selected = items.find(
+          (reserva) => reserva.id === this.editingReservationId && reserva.clienteId === (currentUser?.id ?? '')
+        );
+
+        if (!selected) {
+          this.showFloating('No se encontró la reserva a modificar.');
+          void this.router.navigateByUrl('/app/cliente/reservas/history');
+          return;
+        }
+
+        if (!this.canEditReservation(selected)) {
+          void this.router.navigateByUrl('/app/cliente', {
+            state: { flashMessage: 'Ya no es posible modificar esta reserva. Solo puedes cancelarla.' }
+          });
+          return;
+        }
+
+        this.originalReservation = selected;
+        this.hydrateEditForm(selected);
+        this.hydratedEditForm = true;
+      }
+
       this.updateAvailability();
     });
 
@@ -1244,19 +1277,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return `A la carta: ${itemCount} ítems`;
   }
 
-  isZoneSelectionLocked(): boolean {
-    return Boolean(this.selectedDecoration()?.fixedZoneId);
-  }
-
-  zoneRestrictionMessage(): string {
-    const fixedZone = this.getFixedZoneForDecoration();
-    if (!fixedZone) {
-      return '';
-    }
-
-    return `Esta decoración no permite seleccionar zona. La zona es [${fixedZone.name}]`;
-  }
-
   summaryExtrasText(): string {
     const extras: string[] = [];
 
@@ -1310,10 +1330,20 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onClose(): void {
+    if (this.editMode()) {
+      void this.router.navigateByUrl('/app/cliente/reservas/history');
+      return;
+    }
+
     void this.router.navigateByUrl('/app/cliente');
   }
 
   onSubmit(): void {
+    if (this.editMode() && this.originalReservation && !this.canEditReservation(this.originalReservation)) {
+      this.showFloating('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+      return;
+    }
+
     const { date, time } = this.reservaForm.getRawValue();
 
     if (!date || !time) {
@@ -1353,6 +1383,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onCancelSummary(): void {
+    if (this.editMode()) {
+      void this.router.navigateByUrl('/app/cliente');
+      return;
+    }
+
     this.showSummary.set(false);
   }
 
@@ -1385,10 +1420,30 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
         const payload = this.buildReservationPayload();
 
-        this.reservationService.create(payload).subscribe({
+        const upsert$ = this.editMode() && this.editingReservationId
+          ? this.reservationService.update(this.editingReservationId, payload)
+          : this.reservationService.create(payload);
+
+        upsert$.subscribe({
           next: () => {
             this.loading.set(false);
             this.showSummary.set(false);
+
+            if (this.editMode()) {
+              const wasSpecial = this.originalReservation ? this.hasExtraServicesFromReservation(this.originalReservation) : false;
+              const isSpecial = this.hasExtraServices();
+              const shouldRedirectWhatsapp = (isSpecial && !wasSpecial) || (!isSpecial && wasSpecial);
+
+              if (shouldRedirectWhatsapp) {
+                this.redirectToWhatsapp();
+                return;
+              }
+
+              void this.router.navigateByUrl('/app/cliente', {
+                state: { flashMessage: 'La reserva ha sido modificada correctamente' }
+              });
+              return;
+            }
 
             if (payload.status === 'PENDING') {
               this.redirectToWhatsapp();
@@ -1659,10 +1714,145 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     const sameSlotReservations = reservations.filter(
-      (item) => item.date === date && item.time === time && item.status !== 'CANCELLED'
+      (item) =>
+        item.date === date &&
+        item.time === time &&
+        item.status !== 'CANCELLED' &&
+        item.id !== this.editingReservationId
     );
 
     return sameSlotReservations.length >= 3;
+  }
+
+  private hydrateEditForm(reservation: Reserva): void {
+    this.clearSpecialMenuSelection();
+    this.clearCartaSelection();
+
+    this.reservaForm.patchValue(
+      {
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests,
+        decorationId: reservation.decorationId ?? '',
+        zoneId: reservation.zoneId ?? '',
+        romanticAddon: false,
+        specialMenuId: '',
+        specialMenuQty: 1,
+        notes: this.extractUserNotes(reservation.notes ?? '')
+      },
+      { emitEvent: false }
+    );
+
+    const specialMenuMods = this.extractSpecialMenuModifications(reservation.notes ?? '');
+    const preorderItems = reservation.preorderItems ?? [];
+
+    const romanticAddon = preorderItems.some((item) => item.productId === ROMANTIC_ADDON_ID);
+    this.reservaForm.controls.romanticAddon.setValue(romanticAddon, { emitEvent: false });
+
+    const specialMenuItem = preorderItems.find((item) => SPECIAL_MENU_OPTIONS.some((menu) => menu.id === item.productId));
+
+    if (specialMenuItem) {
+      this.activePreorderTab.set('especial');
+      this.reservaForm.controls.specialMenuId.setValue(specialMenuItem.productId, { emitEvent: false });
+      this.reservaForm.controls.specialMenuQty.setValue(Math.max(1, specialMenuItem.quantity), { emitEvent: false });
+      this.specialMenuCustomizationSelection = specialMenuMods;
+    } else {
+      this.activePreorderTab.set('carta');
+      this.applyCartaPreorderItems(preorderItems);
+    }
+
+    this.previousGuests = reservation.guests;
+    this.updateAvailableZones();
+    this.syncRomanticAddonState();
+  }
+
+  private applyCartaPreorderItems(preorderItems: ReservaPreorderItem[]): void {
+    preorderItems.forEach((entry) => {
+      if (entry.productId === ROMANTIC_ADDON_ID || SPECIAL_MENU_OPTIONS.some((menu) => menu.id === entry.productId)) {
+        return;
+      }
+
+      const directItem = this.cartaItems.find((item) => item.productId === entry.productId);
+      if (directItem) {
+        directItem.quantity = entry.quantity;
+        return;
+      }
+
+      const directModId = entry.productId.split('-mod-')[0];
+      const byProductId = this.cartaItems.find((item) => item.productId === directModId);
+      const nameMatch = /^Modificación\s+(.+?):\s+(.+)$/.exec(entry.productName);
+
+      if (!byProductId && !nameMatch) {
+        return;
+      }
+
+      const targetItem = byProductId ?? this.cartaItems.find((item) => item.productName === (nameMatch?.[1] ?? ''));
+      if (!targetItem) {
+        return;
+      }
+
+      const text = nameMatch?.[2] ?? entry.productName;
+      targetItem.modifications.push({
+        id: `${targetItem.productId}-mod-edit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+        text,
+        quantity: entry.quantity
+      });
+    });
+  }
+
+  private extractSpecialMenuModifications(notes: string): string[] {
+    const segment = notes
+      .split('|')
+      .map((item) => item.trim())
+      .find((item) => item.startsWith('Modificaciones menú:'));
+
+    if (!segment) {
+      return [];
+    }
+
+    return segment
+      .replace('Modificaciones menú:', '')
+      .split(',')
+      .map((item) => item.trim())
+      .filter(Boolean);
+  }
+
+  private extractUserNotes(notes: string): string {
+    if (!notes) {
+      return '';
+    }
+
+    return notes
+      .split('|')
+      .map((item) => item.trim())
+      .filter((item) => item && item !== `${ROMANTIC_ADDON_LABEL} (+$20.000)` && !item.startsWith('Modificaciones menú:'))
+      .join(' | ');
+  }
+
+  private canEditReservation(reservation: Reserva): boolean {
+    const allowedStatus = reservation.status === 'PENDING' || reservation.status === 'CONFIRMED';
+    if (!allowedStatus) {
+      return false;
+    }
+
+    const reservationDateTime = this.toReservationDateTime(reservation).getTime();
+    if (reservationDateTime <= Date.now()) {
+      return false;
+    }
+
+    const modificationCutoff = new Date(`${reservation.date}T16:00:00`).getTime();
+    return Date.now() < modificationCutoff;
+  }
+
+  private hasExtraServicesFromReservation(reservation: Reserva): boolean {
+    const preorderItems = reservation.preorderItems ?? [];
+    const hasRomanticAddon = preorderItems.some((item) => item.productId === ROMANTIC_ADDON_ID);
+    const hasSpecialMenu = preorderItems.some((item) => SPECIAL_MENU_OPTIONS.some((menu) => menu.id === item.productId));
+    return hasRomanticAddon || hasSpecialMenu;
+  }
+
+  private toReservationDateTime(reservation: Reserva): Date {
+    return new Date(`${reservation.date}T${reservation.time}:00`);
   }
 
   private redirectToWhatsapp(): void {
@@ -1714,32 +1904,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       currency: 'COP',
       maximumFractionDigits: 0
     }).format(value);
-  }
-
-  private selectedDecoration(): DecorationOption | undefined {
-    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
-  }
-
-  private getFixedZoneForDecoration(): ZoneOption | undefined {
-    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
-    if (!fixedZoneId) {
-      return undefined;
-    }
-
-    return this.getZoneById(fixedZoneId);
-  }
-
-  private getZoneById(zoneId: string): ZoneOption | undefined {
-    return ZONE_OPTIONS.find((item) => item.id === zoneId);
-  }
-
-  private getEffectiveZoneId(): string {
-    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
-    if (fixedZoneId) {
-      return fixedZoneId;
-    }
-
-    return this.reservaForm.controls.zoneId.value;
   }
 
   private findCartaModification(productId: string, modId: string): CartaModification | undefined {
@@ -1800,3 +1964,5 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     setTimeout(() => this.showFloatingWarning.set(false), 3500);
   }
 }
+
+

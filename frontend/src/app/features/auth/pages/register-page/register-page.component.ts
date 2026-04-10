@@ -1,4 +1,4 @@
-import { CommonModule } from '@angular/common';
+﻿import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import {
@@ -126,7 +126,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
                 autocomplete="new-password"
               />
               <button type="button" class="btn-eye" (click)="showPassword.set(!showPassword())" aria-label="Ver contraseña">
-                👁
+                Ver
               </button>
             </div>
             <p class="error-text" *ngIf="showPasswordRequiredError()">Este campo no puede estar vacío</p>
@@ -152,7 +152,7 @@ const passwordMatchValidator: ValidatorFn = (control: AbstractControl): Validati
                 (click)="showConfirmPassword.set(!showConfirmPassword())"
                 aria-label="Ver confirmación de contraseña"
               >
-                👁
+                Ver
               </button>
             </div>
             <p class="error-text" *ngIf="showConfirmPasswordRequiredError()">Este campo no puede estar vacío</p>
@@ -494,3 +494,4 @@ export class RegisterPageComponent implements OnInit, OnDestroy {
     this.showConfirmPassword.set(false);
   }
 }
+

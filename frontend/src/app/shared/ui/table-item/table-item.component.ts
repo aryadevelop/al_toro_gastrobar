@@ -24,7 +24,7 @@ import { Mesa } from '../../../core/models/domain.models';
       }
 
       .occupied {
-        border-color: #A8182F;
+        border-color: #6F4E37;
       }
 
       .reserved {
@@ -36,3 +36,4 @@ import { Mesa } from '../../../core/models/domain.models';
 export class TableItemComponent {
   @Input({ required: true }) mesa!: Mesa;
 }
+

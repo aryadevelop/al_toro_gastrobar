@@ -32,6 +32,7 @@ export class SidebarComponent {
   private readonly iconSymbolByName: Record<string, string> = {
     home: '⌂',
     person: '◉',
+    history: '◷',
     restaurant: '◌',
     kitchen: '◍',
     payments: '$',

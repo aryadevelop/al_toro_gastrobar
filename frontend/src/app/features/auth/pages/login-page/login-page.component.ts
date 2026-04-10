@@ -141,8 +141,8 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
         gap: 0.6rem;
         padding: 0.75rem 0.9rem;
         border-radius: 10px;
-        background: rgba(168, 24, 47, 0.07);
-        border: 1px solid rgba(168, 24, 47, 0.2);
+        background: rgba(111, 78, 55, 0.07);
+        border: 1px solid rgba(111, 78, 55, 0.2);
       }
 
       .auth-error__dot {
@@ -271,4 +271,5 @@ export class LoginPageComponent {
     });
   }
 }
+
 
