@@ -122,7 +122,7 @@ a:hover {
 }
 
 .btn-primary {
-  background: linear-gradient(135deg, #6F4E37 0%, #5B3F2C 100%);
+  background: #6F4E37;
   box-shadow: 0 8px 18px rgba(111, 78, 55, 0.3);
   color: #ffffff;
 }
@@ -132,17 +132,17 @@ a:hover {
 }
 
 .btn-secondary {
-  background: linear-gradient(135deg, #8A654A 0%, #6F4E37 100%);
+  background: #8A654A;
   color: #ffffff;
   border: 1px solid rgba(111, 78, 55, 0.72);
 }
 
 .btn-secondary:hover {
-  background: linear-gradient(135deg, #6F4E37 0%, #5B3F2C 100%);
+  background: #6F4E37;
 }
 
 .btn-danger {
-  background: linear-gradient(135deg, #5B3F2C 0%, #4B3324 100%);
+  background: #5B3F2C;
   color: var(--surface);
 }
 
