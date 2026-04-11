@@ -82,7 +82,7 @@ interface VisitHistoryItem {
 
         <article class="card empty-state-box" *ngIf="visitHistory.length === 0">
           <p class="empty-state">Aún no tienes visitas registradas.</p>
-          <a class="btn-primary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+          <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
         </article>
       </section>
     </section>

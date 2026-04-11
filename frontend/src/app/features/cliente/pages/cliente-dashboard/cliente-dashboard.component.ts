@@ -21,8 +21,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       <section class="dashboard-header-row">
         <app-page-header title="Panel de cliente" subtitle="Resumen de tus reservas y actividad"></app-page-header>
         <div class="header-actions">
-          <a class="btn-secondary" routerLink="/app/cliente/reservas/history">Historial</a>
-          <a class="btn-primary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+          <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
           <a class="btn-secondary profile-shortcut" routerLink="/app/profile">Mi perfil</a>
         </div>
       </section>
@@ -70,7 +69,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
         <article class="card empty-state-box" *ngIf="reservasFuturas.length === 0">
           <p class="empty-state">No tienes reservas futuras. ¡Crea una nueva reserva!</p>
-          <a class="btn-primary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+          <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
         </article>
       </section>
     </section>
@@ -107,9 +106,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .header-actions .btn-primary,
       .header-actions .btn-secondary {
-        padding: 0.64rem 0.94rem;
-        font-size: 0.92rem;
-        border-radius: 10px;
+        padding: 0.5rem 0.72rem;
+        font-size: 0.82rem;
+        border-radius: 8px;
       }
 
       .points-card {
