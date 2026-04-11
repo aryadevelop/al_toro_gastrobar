@@ -104,16 +104,16 @@ interface VisitHistoryItem {
       }
 
       .tab-link {
-        border: 1px solid rgba(168, 24, 47, 0.7);
+        border: 1px solid rgba(111, 78, 55, 0.7);
         border-radius: 8px;
         padding: 0.34rem 0.6rem;
         font-size: 0.8rem;
         color: #ffffff;
-        background: #A8182F;
+        background: #6F4E37;
       }
 
       .tab-link.active {
-        background: #A8182F;
+        background: #5b3f2c;
         color: #ffffff;
       }
 
@@ -139,7 +139,7 @@ interface VisitHistoryItem {
       }
 
       .modify-warning {
-        color: #6b1111;
+        color: #5b3f2c;
         font-size: 0.78rem;
       }
 
