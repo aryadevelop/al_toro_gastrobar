@@ -8,8 +8,8 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: update  # Crea y actualiza el esquema automaticamente en dev
-    show-sql: true      # Muestra las queries SQL en consola
+      ddl-auto: none
+    show-sql: true
     properties:
       hibernate:
         format_sql: true

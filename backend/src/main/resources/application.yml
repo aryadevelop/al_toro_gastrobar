@@ -25,6 +25,16 @@ spring:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false
     open-in-view: false   # Evita lazy loading fuera de transaccion
+    properties:
+      hibernate:
+        "[default_schema]": restaurante   # Todas las entidades apuntan al schema restaurante
+
+  # Flyway: ejecuta las migraciones SQL automaticamente al arrancar
+  flyway:
+    enabled: true
+    schemas: restaurante            # Crea el schema si no existe y lo gestiona
+    default-schema: restaurante
+    locations: classpath:db/migration
 
   # Propiedades SMTP comunes, host y credenciales las define cada perfil
   mail:

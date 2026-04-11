@@ -8,7 +8,7 @@ spring:
 
   jpa:
     hibernate:
-      ddl-auto: validate  # Solo valida el esquema contra las entidades; nunca lo modifica
+      ddl-auto: none
       
   # RabbitMQ: host inyectado desde Docker Compose
   rabbitmq:
