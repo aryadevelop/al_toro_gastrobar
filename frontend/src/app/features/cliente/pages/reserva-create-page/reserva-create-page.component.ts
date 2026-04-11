@@ -586,9 +586,9 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn {
-        border: 1px solid rgba(168, 24, 47, 0.6);
+        border: 1px solid rgba(111, 78, 55, 0.6);
         background: #ffffff;
-        color: #6b1111;
+        color: #5b3f2c;
         border-radius: 8px;
         padding: 0.35rem 0.62rem;
         font-size: 0.8rem;
@@ -596,7 +596,7 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .tab-btn.active {
-        background: #A8182F;
+        background: #6F4E37;
         color: #ffffff;
       }
 
@@ -666,9 +666,9 @@ const FULLY_BOOKED_SLOTS = [
       }
 
       .qty-btn {
-        border: 1px solid rgba(168, 24, 47, 0.68);
+        border: 1px solid rgba(111, 78, 55, 0.68);
         border-radius: 8px;
-        background: #A8182F;
+        background: #6F4E37;
         color: #ffffff;
         min-height: 30px;
         cursor: pointer;
