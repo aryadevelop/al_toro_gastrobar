@@ -31,7 +31,7 @@ CREATE TABLE Usuario (
     usuario_id BIGSERIAL PRIMARY KEY,
     usuario_email VARCHAR(150) UNIQUE NOT NULL,
     usuario_password VARCHAR(255) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -62,7 +62,7 @@ CREATE TABLE Cliente (
     cliente_puntos INTEGER NOT NULL DEFAULT 0,
     cliente_acepta_terminos BOOLEAN NOT NULL,
     cliente_fecha_aceptacion TIMESTAMP NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_cliente_usuario FOREIGN KEY (usuario_id)
         REFERENCES Usuario(usuario_id) ON DELETE CASCADE,
@@ -80,7 +80,7 @@ CREATE TABLE Empleado (
     empleado_direccion VARCHAR(255),
     empleado_telefono VARCHAR(10) NOT NULL,
     empleado_fecha_ingreso DATE NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_empleado_usuario FOREIGN KEY (usuario_id) 
         REFERENCES Usuario(usuario_id) ON DELETE CASCADE,
@@ -94,7 +94,7 @@ CREATE TABLE Usuario_Rol (
     usuario_id BIGINT NOT NULL,
     rol_nombre VARCHAR(20) NOT NULL,
     rol_estado VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (usuario_id, rol_nombre),
     CONSTRAINT fk_usuario_rol_usuario FOREIGN KEY (usuario_id)
@@ -110,7 +110,7 @@ CREATE TABLE Zona (
     zona_id BIGSERIAL PRIMARY KEY,
     zona_nombre VARCHAR(100) NOT NULL,
     zona_capacidad_personas INTEGER NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_zona_capacidad CHECK (zona_capacidad_personas > 0)
 );
@@ -123,7 +123,7 @@ CREATE TABLE Decoracion (
     decoracion_nombre VARCHAR(100) NOT NULL,
     decoracion_estado VARCHAR(20) NOT NULL,
     decoracion_costo_adicional DECIMAL(12,2),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_decoracion_estado CHECK (decoracion_estado IN ('ACTIVO', 'INACTIVO')),
     CONSTRAINT chk_decoracion_costo CHECK (decoracion_costo_adicional >= 0)
@@ -157,7 +157,7 @@ CREATE TABLE Reserva (
     reserva_estado VARCHAR(20) NOT NULL,
     reserva_tipo VARCHAR(20) NOT NULL,
     reserva_fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_reserva_cliente FOREIGN KEY (cliente_id)
         REFERENCES Cliente(usuario_id) ON DELETE RESTRICT,
@@ -218,7 +218,7 @@ CREATE TABLE Mesa (
     mesa_identificador VARCHAR(20) NOT NULL,
     mesa_numero_personas INTEGER NOT NULL,
     mesa_estado VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_mesa_visita FOREIGN KEY (visita_id)
         REFERENCES Visita(visita_id) ON DELETE CASCADE,
@@ -279,7 +279,7 @@ CREATE TABLE CategoriaCarta (
     categoria_nombre VARCHAR(100) UNIQUE NOT NULL,
     orden INTEGER NOT NULL DEFAULT 0,
     activo BOOLEAN NOT NULL DEFAULT TRUE,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -296,7 +296,7 @@ CREATE TABLE Producto (
     producto_categoria VARCHAR(20) NOT NULL,
     menu_especial BOOLEAN,
     stock_actual DECIMAL(12,3),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_producto_categoria FOREIGN KEY (categoriacarta_id)
         REFERENCES CategoriaCarta(categoriacarta_id) ON DELETE RESTRICT,
@@ -320,7 +320,7 @@ CREATE TABLE Insumo (
     insumo_unidad VARCHAR(20) NOT NULL,
     insumo_stock_actual DECIMAL(12,3) NOT NULL DEFAULT 0,
     insumo_estado VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_insumo_unidad CHECK (insumo_unidad IN ('KG', 'G', 'L', 'ML', 'UNIDAD', 'DOCENA', 'OTRO')),
     CONSTRAINT chk_insumo_estado CHECK (insumo_estado IN ('ACTIVO', 'INACTIVO')),
@@ -334,7 +334,7 @@ CREATE TABLE Receta (
     insumo_id BIGINT NOT NULL,
     producto_id BIGINT NOT NULL,
     receta_cantidad DECIMAL(12,3) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     PRIMARY KEY (insumo_id, producto_id),
     CONSTRAINT fk_receta_insumo FOREIGN KEY (insumo_id)
@@ -381,7 +381,7 @@ CREATE TABLE Comanda (
     comanda_fecha_hora_listo TIMESTAMP,
     comanda_notas TEXT,
     comanda_estado VARCHAR(20) NOT NULL,
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_comanda_visita FOREIGN KEY (visita_id)
         REFERENCES Visita(visita_id) ON DELETE CASCADE,
