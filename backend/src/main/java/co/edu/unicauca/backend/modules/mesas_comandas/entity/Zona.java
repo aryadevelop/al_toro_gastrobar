@@ -35,6 +35,9 @@ public class Zona extends AuditableEntity {
     @Column(name = "zona_capacidad_personas", nullable = false)
     private Integer zonaCapacidadPersonas;
 
+    @Column(name = "zona_imagen_url", length = 500)
+    private String zonaImagenUrl;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

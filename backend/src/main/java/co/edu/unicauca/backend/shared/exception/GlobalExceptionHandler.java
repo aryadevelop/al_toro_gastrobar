@@ -8,8 +8,10 @@ import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.validation.FieldError;
 import org.springframework.web.bind.MethodArgumentNotValidException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
+import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
 
 import java.util.stream.Collectors;
 
@@ -66,6 +68,28 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(HttpStatus.UNPROCESSABLE_ENTITY)
                 .body(ApiResponse.error(ErrorCode.VALIDATION_ERROR.getCode(), errors));
+    }
+
+    /**
+     * Parámetro de query requerido ausente → {@code 400 BAD_REQUEST}.
+     */
+    @ExceptionHandler(MissingServletRequestParameterException.class)
+    ResponseEntity<ApiResponse<Void>> handleMissingParam(MissingServletRequestParameterException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.VALIDATION_ERROR.getCode(),
+                        "Parámetro requerido faltante: " + ex.getParameterName()));
+    }
+
+    /**
+     * Tipo de parámetro incorrecto (ej. fecha mal formateada) → {@code 400 BAD_REQUEST}.
+     */
+    @ExceptionHandler(MethodArgumentTypeMismatchException.class)
+    ResponseEntity<ApiResponse<Void>> handleTypeMismatch(MethodArgumentTypeMismatchException ex) {
+        return ResponseEntity
+                .status(HttpStatus.BAD_REQUEST)
+                .body(ApiResponse.error(ErrorCode.VALIDATION_ERROR.getCode(),
+                        "Formato de parámetro inválido: " + ex.getName()));
     }
 
     /**

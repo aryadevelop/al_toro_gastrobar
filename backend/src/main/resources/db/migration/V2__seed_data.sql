@@ -41,25 +41,27 @@ INSERT INTO CategoriaCarta (categoria_nombre, orden, activo) VALUES
 -- =====================================================
 -- 2. ZONA
 -- =====================================================
-INSERT INTO Zona (zona_nombre, zona_capacidad_personas) VALUES
-('Salón Principal',  60),
-('Terraza',          30),
-('VIP',              16),
-('Barra',            10),
-('Jardín',           20),
-('Sala Privada',     12);
+INSERT INTO Zona (zona_nombre, zona_capacidad_personas, zona_imagen_url) VALUES
+('Salón Principal',  60, 'https://picsum.photos/seed/zona-salon/360/220'),
+('Terraza',          30, 'https://picsum.photos/seed/zona-terraza/360/220'),
+('VIP',              16, 'https://picsum.photos/seed/zona-vip/360/220'),
+('Barra',            10, 'https://picsum.photos/seed/zona-barra/360/220'),
+('Jardín',           20, 'https://picsum.photos/seed/zona-jardin/360/220'),
+('Sala Privada',     12, 'https://picsum.photos/seed/zona-privada/360/220'),
+('Zona Romántica',    6, 'https://picsum.photos/seed/zona-romantica/360/220');
 
 -- =====================================================
 -- 3. DECORACION
 -- =====================================================
-INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional) VALUES
-('Velas Románticas',        'ACTIVO',   25000.00),
-('Cumpleaños Premium',      'ACTIVO',   0),
-('Decoración Empresarial',  'ACTIVO',   0),
-('Mesa Temática Toro',      'ACTIVO',   0),
-('Minimalista Elegante',    'ACTIVO',   0),
-('Globos y Flores',         'ACTIVO',   0),
-('Rústica Vintage',         'INACTIVO', 0);
+INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url) VALUES
+('Velas Románticas',        'ACTIVO',   25000.00, 'https://picsum.photos/seed/decor-velas/360/220'),
+('Cumpleaños Premium',      'ACTIVO',   0,        'https://picsum.photos/seed/decor-cumple/360/220'),
+('Decoración Empresarial',  'ACTIVO',   0,        'https://picsum.photos/seed/decor-empresa/360/220'),
+('Mesa Temática Toro',      'ACTIVO',   0,        'https://picsum.photos/seed/decor-toro/360/220'),
+('Minimalista Elegante',    'ACTIVO',   0,        'https://picsum.photos/seed/decor-minimal/360/220'),
+('Globos y Flores',         'ACTIVO',   0,        'https://picsum.photos/seed/decor-globos/360/220'),
+('Rústica Vintage',         'INACTIVO', 0,        'https://picsum.photos/seed/decor-rustica/360/220'),
+('Test Zona Fija',          'ACTIVO',   0,        NULL);
 
 -- =====================================================
 -- 4. DECORACION_ZONA
@@ -69,7 +71,8 @@ INSERT INTO Decoracion_Zona (decoracion_id, zona_id) VALUES
 (2, 3),(2, 6),
 (3, 1),(3, 2),(3, 3),(3, 6),
 (4, 3),(4, 6),
-(5, 1),(5, 2);
+(5, 1),(5, 2),
+(8, 4);
 
 -- =====================================================
 -- 5. INSUMO
