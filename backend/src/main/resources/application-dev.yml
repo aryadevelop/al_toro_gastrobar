@@ -4,11 +4,11 @@ spring:
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/altoro_db}
     username: ${DB_USERNAME:altoro}
-    password: ${DB_PASSWORD:altoro1234}
+    password: ${DB_PASSWORD:altoro123}
 
   jpa:
     hibernate:
-      ddl-auto: none
+      ddl-auto: validate
     show-sql: true
     properties:
       hibernate:
@@ -38,7 +38,12 @@ cors:
 
 logging:
   level:
+    org.hibernate.tool.schema: DEBUG
+    org.hibernate.SQL: DEBUG
+    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
+    org.hibernate.mapping: DEBUG
     root: INFO
     co.edu.unicauca: DEBUG
     org.springframework.security: DEBUG
     org.springframework.amqp: DEBUG
+
