@@ -34,6 +34,9 @@ public class JwtTokenProvider {
     /** Tiempo de vida del token en milisegundos, inyectado desde {@code jwt.expiration}. */
     private final long expirationMs;
 
+    /** Tiempo de vida del refresh token en milisegundos, inyectado desde {@code jwt.refresh-expiration}. */
+    private final long refreshExpirationMs;
+
     /**
      * Construye el proveedor derivando la clave HMAC a partir del secreto
      * y almacenando el tiempo de expiración configurado.
@@ -44,9 +47,11 @@ public class JwtTokenProvider {
      */
     public JwtTokenProvider(
             @Value("${jwt.secret}") String secret,
-            @Value("${jwt.expiration}") long expirationMs) {
+            @Value("${jwt.expiration}") long expirationMs,
+            @Value("${jwt.refresh-expiration:604800000}") long refreshExpirationMs) {
         this.key = Keys.hmacShaKeyFor(secret.getBytes(StandardCharsets.UTF_8));
         this.expirationMs = expirationMs;
+        this.refreshExpirationMs = refreshExpirationMs;
     }
 
     /**
@@ -60,11 +65,25 @@ public class JwtTokenProvider {
      * @return token JWT compacto y firmado
      */
     public String generateToken(UserDetails userDetails) {
+        return generateToken(userDetails, expirationMs);
+    }
+
+    /**
+     * Genera un refresh token JWT firmado para el usuario dado.
+     *
+     * @param userDetails detalles del usuario autenticado
+     * @return refresh token JWT compacto y firmado
+     */
+    public String generateRefreshToken(UserDetails userDetails) {
+        return generateToken(userDetails, refreshExpirationMs);
+    }
+
+    private String generateToken(UserDetails userDetails, long tokenExpirationMs) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .issuedAt(now)
-                .expiration(new Date(now.getTime() + expirationMs))
+                .expiration(new Date(now.getTime() + tokenExpirationMs))
                 .signWith(key)
                 .compact();
     }

@@ -43,7 +43,7 @@ class JwtTokenProviderTest {
 
     @BeforeEach
     void setUp() {
-        jwtTokenProvider = new JwtTokenProvider(SECRET, EXPIRACION_24H);
+        jwtTokenProvider = new JwtTokenProvider(SECRET, EXPIRACION_24H, 604_800_000L);
         usuario = User.withUsername("testuser")
                 .password("password")
                 .roles("USER")
@@ -155,7 +155,7 @@ class JwtTokenProviderTest {
         @DisplayName("Token expirado → false (expiracion = 0 ms)")
         void tokenExpirado_retornaFalse() {
             JwtTokenProvider proveedorConExpiracionCero =
-                    new JwtTokenProvider(SECRET, 0L);
+                    new JwtTokenProvider(SECRET, 0L, 604_800_000L);
             String token = proveedorConExpiracionCero.generateToken(usuario);
             assertThat(proveedorConExpiracionCero.isTokenValid(token, usuario)).isFalse();
         }
@@ -170,7 +170,7 @@ class JwtTokenProviderTest {
         @DisplayName("Token firmado con clave diferente → false")
         void tokenFirmadoConOtraClave_retornaFalse() {
             JwtTokenProvider otroProveedor =
-                    new JwtTokenProvider("clave-completamente-diferente-de-32-chars!!", EXPIRACION_24H);
+                    new JwtTokenProvider("clave-completamente-diferente-de-32-chars!!", EXPIRACION_24H, 604_800_000L);
             String tokenDeOtroProveedor = otroProveedor.generateToken(usuario);
             assertThat(jwtTokenProvider.isTokenValid(tokenDeOtroProveedor, usuario)).isFalse();
         }

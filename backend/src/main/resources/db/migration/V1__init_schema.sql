@@ -110,6 +110,7 @@ CREATE TABLE Zona (
     zona_id BIGSERIAL PRIMARY KEY,
     zona_nombre VARCHAR(100) NOT NULL,
     zona_capacidad_personas INTEGER NOT NULL,
+    zona_imagen_url VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_zona_capacidad CHECK (zona_capacidad_personas > 0)
@@ -123,6 +124,7 @@ CREATE TABLE Decoracion (
     decoracion_nombre VARCHAR(100) NOT NULL,
     decoracion_estado VARCHAR(20) NOT NULL,
     decoracion_costo_adicional DECIMAL(12,2),
+    decoracion_imagen_url VARCHAR(500),
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_decoracion_estado CHECK (decoracion_estado IN ('ACTIVO', 'INACTIVO')),

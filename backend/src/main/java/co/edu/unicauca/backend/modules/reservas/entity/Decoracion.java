@@ -40,6 +40,10 @@ public class Decoracion extends AuditableEntity {
     @Column(name = "decoracion_costo_adicional", precision = 12, scale = 2)
     private BigDecimal decoracionCostoAdicional;
 
+    @Size(max = 500)
+    @Column(name = "decoracion_imagen_url", length = 500)
+    private String decoracionImagenUrl;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

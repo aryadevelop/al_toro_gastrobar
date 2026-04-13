@@ -14,29 +14,29 @@ SET search_path TO restaurante, public;
 -- =====================================================
 INSERT INTO Usuario (usuario_email, usuario_password) VALUES
 -- Empleados
-('admin@altoro.com',          '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('cajero1@altoro.com',        '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('cajero2@altoro.com',        '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('mesero1@altoro.com',        '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('mesero2@altoro.com',        '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('mesero3@altoro.com',        '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('cocinero1@altoro.com',      '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('cocinero2@altoro.com',      '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('bartender1@altoro.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('bartender2@altoro.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
+('admin@altoro.com',          '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('cajero1@altoro.com',        '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('cajero2@altoro.com',        '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('mesero1@altoro.com',        '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('mesero2@altoro.com',        '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('mesero3@altoro.com',        '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('cocinero1@altoro.com',      '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('cocinero2@altoro.com',      '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('bartender1@altoro.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('bartender2@altoro.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
 -- Clientes
-('carlos.perez@gmail.com',    '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('laura.gomez@gmail.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('andres.morales@gmail.com',  '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('sofia.ramirez@gmail.com',   '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('juan.torres@gmail.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('valentina.cruz@gmail.com',  '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('miguel.herrera@gmail.com',  '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('diana.lopez@gmail.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('sergio.castillo@gmail.com', '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('paola.rojas@gmail.com',     '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('nicolas.vargas@gmail.com',  '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2'),
-('isabella.rios@gmail.com',   '$2b$12$KlVbmqY3n5QwXzT8L0RdaeK7pHgJsCvfNuMoIwrBtAe1DxEYq3Zm2');
+('carlos.perez@gmail.com',    '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('laura.gomez@gmail.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('andres.morales@gmail.com',  '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('sofia.ramirez@gmail.com',   '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('juan.torres@gmail.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('valentina.cruz@gmail.com',  '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('miguel.herrera@gmail.com',  '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('diana.lopez@gmail.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('sergio.castillo@gmail.com', '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('paola.rojas@gmail.com',     '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('nicolas.vargas@gmail.com',  '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('isabella.rios@gmail.com',   '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK');
 
 -- =====================================================
 -- 2. Empleado  (usuario_id 1-10)
@@ -138,7 +138,7 @@ INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_lleg
 (15, 3, 2,    NOW() - INTERVAL '25 days',  18,  'Cumpleanos de Laura, decoracion VIP', 'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '27 days'),
 (18, 2, 3,    NOW() - INTERVAL '20 days',  16,  'Reunion de negocios',                 'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '22 days'),
 (11, 1, NULL, NOW() - INTERVAL '15 days',  2,  NULL,                                   'ATENDIDA',     'BASICA',   NOW() - INTERVAL '16 days'),
-(20, 6, 1,    NOW() - INTERVAL '10 days',  2, 'Aniversario pareja',                    'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '12 days'),
+(20, 3, 1,    NOW() - INTERVAL '10 days',  2, 'Aniversario pareja',                    'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '12 days'),
 (14, 1, NULL, NOW() - INTERVAL '7 days',   3,  NULL,                                   'CANCELADA',    'BASICA',   NOW() - INTERVAL '9 days'),
 (12, 2, NULL, NOW() - INTERVAL '5 days',   5,  'Mesa exterior preferida',              'INASISTENCIA', 'BASICA',   NOW() - INTERVAL '7 days'),
 (17, 3, 4,    NOW() - INTERVAL '3 days',   98,  'Decoracion toro para evento',         'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '5 days'),
@@ -382,22 +382,3 @@ FROM (VALUES
 ) AS v(nombre, cantidad, proveedor, factura, obs)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
--- =====================================================
--- FIN DEL SCRIPT V3__dev_data.sql
--- Total registros:
---   22  Usuarios (10 empleados + 12 clientes)
---   10  Empleados
---   12  Clientes
---   23  Roles de usuario
---   10  Sesiones
---   15  Reservas
---    7  Abonos
---   12  PreOrden_Detalle
---   12  Visitas
---   12  Mesas
---   17  Comandas
---   33  Comanda_Detalle
---   10  Notificaciones
---    9  Ventas
---   19  Movimientos_Inventario
--- =====================================================

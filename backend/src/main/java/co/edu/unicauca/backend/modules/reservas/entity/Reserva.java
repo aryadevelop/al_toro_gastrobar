@@ -13,7 +13,7 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * Entidad Reserva - Reservas de clientes (básicas y especiales)
+ * Entidad Reserva - Reservas de clientes
  */
 @Entity
 @Table(name = "reserva", schema = "restaurante",
