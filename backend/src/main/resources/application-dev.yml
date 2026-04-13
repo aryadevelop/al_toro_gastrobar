@@ -38,10 +38,6 @@ cors:
 
 logging:
   level:
-    org.hibernate.tool.schema: DEBUG
-    org.hibernate.SQL: DEBUG
-    org.hibernate.type.descriptor.sql.BasicBinder: TRACE
-    org.hibernate.mapping: DEBUG
     root: INFO
     co.edu.unicauca: DEBUG
     org.springframework.security: DEBUG

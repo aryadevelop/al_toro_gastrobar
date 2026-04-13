@@ -138,7 +138,7 @@ INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_lleg
 (15, 3, 2,    NOW() - INTERVAL '25 days',  18,  'Cumpleanos de Laura, decoracion VIP', 'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '27 days'),
 (18, 2, 3,    NOW() - INTERVAL '20 days',  16,  'Reunion de negocios',                 'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '22 days'),
 (11, 1, NULL, NOW() - INTERVAL '15 days',  2,  NULL,                                   'ATENDIDA',     'BASICA',   NOW() - INTERVAL '16 days'),
-(20, 6, 1,    NOW() - INTERVAL '10 days',  2, 'Aniversario pareja',                    'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '12 days'),
+(20, 3, 1,    NOW() - INTERVAL '10 days',  2, 'Aniversario pareja',                    'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '12 days'),
 (14, 1, NULL, NOW() - INTERVAL '7 days',   3,  NULL,                                   'CANCELADA',    'BASICA',   NOW() - INTERVAL '9 days'),
 (12, 2, NULL, NOW() - INTERVAL '5 days',   5,  'Mesa exterior preferida',              'INASISTENCIA', 'BASICA',   NOW() - INTERVAL '7 days'),
 (17, 3, 4,    NOW() - INTERVAL '3 days',   98,  'Decoracion toro para evento',         'ATENDIDA',     'ESPECIAL', NOW() - INTERVAL '5 days'),
@@ -382,22 +382,3 @@ FROM (VALUES
 ) AS v(nombre, cantidad, proveedor, factura, obs)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
--- =====================================================
--- FIN DEL SCRIPT V3__dev_data.sql
--- Total registros:
---   22  Usuarios (10 empleados + 12 clientes)
---   10  Empleados
---   12  Clientes
---   23  Roles de usuario
---   10  Sesiones
---   15  Reservas
---    7  Abonos
---   12  PreOrden_Detalle
---   12  Visitas
---   12  Mesas
---   17  Comandas
---   33  Comanda_Detalle
---   10  Notificaciones
---    9  Ventas
---   19  Movimientos_Inventario
--- =====================================================
