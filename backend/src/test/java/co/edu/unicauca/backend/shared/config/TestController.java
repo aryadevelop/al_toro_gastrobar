@@ -13,8 +13,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Reglas que se verifican con este controlador:
  * <ul>
- *   <li><b>Endpoint público:</b> {@code GET /api/auth/test} cae bajo el patrón
- *       {@code /api/auth/**} incluido en {@code PUBLIC_ENDPOINTS}, por lo que
+ *   <li><b>Endpoint público:</b> {@code GET /api/auth/login} está en la lista
+ *       de endpoints públicos de {@code SecurityConfig}, por lo que
  *       Spring Security aplica {@code permitAll()} y no exige autenticación.</li>
  *   <li><b>Endpoint privado:</b> {@code GET /api/resources/test} no coincide con
  *       ningún patrón de {@code PUBLIC_ENDPOINTS}, por lo que queda cubierto por
@@ -30,12 +30,12 @@ class TestController {
     /**
      * Endpoint público de prueba.
      *
-     * <p>El path {@code /api/auth/test} coincide con el patrón {@code /api/auth/**}
-     * declarado en {@code PUBLIC_ENDPOINTS}, por lo que es accesible sin autenticación.
+    * <p>El path {@code /api/auth/login} está declarado en {@code PUBLIC_ENDPOINTS},
+    * por lo que es accesible sin autenticación.
      *
      * @return cadena literal {@code "Publico"} usada en los tests
      */
-    @GetMapping("/api/auth/test")
+    @GetMapping("/api/auth/login")
     public String endpointPublico() {
         return "Publico";
     }

@@ -100,11 +100,14 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
+        String message = ex.getMessage();
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(
                         ErrorCode.INVALID_CREDENTIALS.getCode(),
-                        ErrorCode.INVALID_CREDENTIALS.getMessage()));
+                        (message == null || message.isBlank())
+                                ? ErrorCode.INVALID_CREDENTIALS.getMessage()
+                                : message));
     }
 
     /**

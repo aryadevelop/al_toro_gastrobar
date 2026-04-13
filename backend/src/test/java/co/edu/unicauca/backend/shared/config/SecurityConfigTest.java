@@ -82,29 +82,29 @@ class SecurityConfigTest {
     UserDetailsService userDetailsService;
 
     /**
-     * Verifica que {@code /api/auth/test} es accesible sin autenticación.
+    * Verifica que {@code /api/auth/login} es accesible sin autenticación.
      *
      * <p>El path referencia {@code /api/auth/**}, incluido en {@code PUBLIC_ENDPOINTS}
      * con {@code permitAll()}, por lo que Spring Security no debe bloquearlo
      * independientemente de si hay o no usuario autenticado.
      */
     @Nested
-    @DisplayName("Endpoint público /api/auth/test")
+    @DisplayName("Endpoint público /api/auth/login")
     class EndpointPublico {
 
         @Test
-        @DisplayName("Sin autenticación → 200 (Security hace permitAll para /api/auth/**)")
+        @DisplayName("Sin autenticación → 200 (Security hace permitAll para /api/auth/login)")
         void sinAuth_retorna200() throws Exception {
-            mockMvc.perform(get("/api/auth/test"))
+            mockMvc.perform(get("/api/auth/login"))
                     .andExpect(status().isOk())
                     .andExpect(content().string("Publico"));
         }
 
         @Test
         @WithMockUser
-        @DisplayName("Con autenticación → 200 (Security hace permitAll para /api/auth/**)")
+        @DisplayName("Con autenticación → 200 (Security hace permitAll para /api/auth/login)")
         void conAuth_retorna200() throws Exception {
-            mockMvc.perform(get("/api/auth/test"))
+            mockMvc.perform(get("/api/auth/login"))
                     .andExpect(status().isOk())
                     .andExpect(content().string("Publico"));
         }
@@ -123,10 +123,10 @@ class SecurityConfigTest {
     class EndpointPrivado {
 
         @Test
-        @DisplayName("Sin autenticación → 403")
+        @DisplayName("Sin autenticación → 401")
         void sinAuth_retorna403() throws Exception {
             mockMvc.perform(get("/api/resources/test"))
-                    .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         }
 
         @Test
@@ -194,7 +194,7 @@ class SecurityConfigTest {
         }
 
         @Test
-        @DisplayName("Bearer expirado en /api/resources/test → isTokenValid false → 403")
+        @DisplayName("Bearer expirado en /api/resources/test → isTokenValid false → 401")
         void jwtExpirado_endpointPrivado_retorna403() throws Exception {
             UserDetails usuario = usuarioMock();
             when(jwtTokenProvider.extractUsername(TOKEN)).thenReturn("testuser");
@@ -203,15 +203,15 @@ class SecurityConfigTest {
 
             mockMvc.perform(get("/api/resources/test")
                             .header("Authorization", "Bearer " + TOKEN))
-                    .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         }
 
         @Test
-        @DisplayName("Header Authorization sin prefijo Bearer → se ignora → 403")
+        @DisplayName("Header Authorization sin prefijo Bearer → se ignora → 401")
         void headerSinBearer_endpointPrivado_retorna403() throws Exception {
             mockMvc.perform(get("/api/resources/test")
                             .header("Authorization", TOKEN))
-                    .andExpect(status().isForbidden());
+                .andExpect(status().isUnauthorized());
         }
 
         @Test
@@ -222,7 +222,7 @@ class SecurityConfigTest {
             when(userDetailsService.loadUserByUsername("testuser")).thenReturn(usuario);
             when(jwtTokenProvider.isTokenValid(TOKEN, usuario)).thenReturn(true);
 
-            mockMvc.perform(get("/api/auth/test")
+                mockMvc.perform(get("/api/auth/login")
                             .header("Authorization", "Bearer " + TOKEN))
                     .andExpect(status().isOk());
         }
@@ -274,7 +274,7 @@ class SecurityConfigTest {
         @Test
         @DisplayName("Respuesta de endpoint público tampoco genera cookie JSESSIONID")
         void respuestaPublica_noGeneraCookieSesion() throws Exception {
-            mockMvc.perform(get("/api/auth/test"))
+                mockMvc.perform(get("/api/auth/login"))
                     .andExpect(status().isOk())
                     .andExpect(cookie().doesNotExist("JSESSIONID"));
         }

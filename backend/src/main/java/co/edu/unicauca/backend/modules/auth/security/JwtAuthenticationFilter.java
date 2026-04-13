@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.auth.security;
 
+import io.jsonwebtoken.JwtException;
 import jakarta.servlet.FilterChain;
 import jakarta.servlet.ServletException;
 import jakarta.servlet.http.HttpServletRequest;
@@ -63,19 +64,23 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                                     @NonNull FilterChain filterChain)
             throws ServletException, IOException {
 
-        String token = extractToken(request);
+        try {
+            String token = extractToken(request);
 
-        if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
-            String username = jwtTokenProvider.extractUsername(token);
-            UserDetails userDetails = userDetailsService.loadUserByUsername(username);
+            if (token != null && SecurityContextHolder.getContext().getAuthentication() == null) {
+                String username = jwtTokenProvider.extractUsername(token);
+                UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-            if (jwtTokenProvider.isTokenValid(token, userDetails)) {
-                UsernamePasswordAuthenticationToken authToken =
-                        new UsernamePasswordAuthenticationToken(
-                                userDetails, null, userDetails.getAuthorities());
-                authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
-                SecurityContextHolder.getContext().setAuthentication(authToken);
+                if (jwtTokenProvider.isTokenValid(token, userDetails)) {
+                    UsernamePasswordAuthenticationToken authToken =
+                            new UsernamePasswordAuthenticationToken(
+                                    userDetails, null, userDetails.getAuthorities());
+                    authToken.setDetails(new WebAuthenticationDetailsSource().buildDetails(request));
+                    SecurityContextHolder.getContext().setAuthentication(authToken);
+                }
             }
+        } catch (JwtException | IllegalArgumentException ex) {
+            SecurityContextHolder.clearContext();
         }
 
         filterChain.doFilter(request, response);

@@ -58,7 +58,8 @@ public class SecurityConfig {
      * el health check de Actuator y el handshake del WebSocket.
      */
     private static final String[] PUBLIC_ENDPOINTS = {
-            "/api/auth/**",
+            "/api/auth/login",
+            "/api/auth/refresh",
             "/api/reservas/disponibilidad",
             "/swagger-ui/**",
             "/swagger-ui.html",
