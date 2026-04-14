@@ -1,14 +1,15 @@
 {
   "info": {
     "name": "Al Toro Gastrobar – Reservas",
-    "description": "Pruebas completas del módulo de reservas (PA-63).\n\n## Setup\n1. Importar el environment `AlToro-local.postman_environment.json` y seleccionarlo.\n2. Correr la colección — no se necesita ningún request de setup previo.\n\n> Las carpetas `GET /api/reservas/cliente` y `POST /api/reservas` incluyen un **pre-request script** que obtiene automáticamente un token CLIENTE (`{{emailCliente}}`) y lo almacena en `{{clienteToken}}`. El login solo ocurre una vez por ejecución (si el token no está en caché). `{{accessToken}}` queda libre para otros roles.\n\n## Datos de referencia (seed)\n\n### Zonas\n| ID | Nombre | Capacidad |\n|---|---|---|\n| 1 | Salón Principal | 60 |\n| 2 | Terraza | 30 |\n| 3 | VIP | 16 |\n| 4 | Barra | 10 |\n| 5 | Jardín | 20 |\n| 6 | Sala Privada | 12 |\n| 7 | Zona Romántica | 6 |\n\n### Decoraciones\n| ID | Nombre | Costo | Zonas compatibles | Exclusiva por fecha |\n|---|---|---|---|---|\n| 1 | Velas Románticas | 25000 | 1, 2, 3 | sí |\n| 2 | Cumpleaños Premium | 0 | 3, 6 | sí |\n| 3 | Decoración Empresarial | 0 | 1, 2, 3, 6 | sí |\n| 4 | Mesa Temática Toro | 0 | 3, 6 | sí |\n| 5 | Minimalista Elegante | 0 | 1, 2 | sí |\n| 6 | Globos y Flores | 0 | (sin restricción) | sí |\n| 7 | Rústica Vintage | — | INACTIVA | — |\n| 8 | Test Zona Fija | 0 | 4 (Barra) – fija | sí |\n\n## Variables de environment\n| Variable | Valor | Usada en |\n|---|---|---|\n| `{{fechaLibre}}` | 2026-12-15T19:00:00 | Tests generales (sin colisión) |\n| `{{fechaCapacidad}}` | 2026-12-16T20:00:00 | Grupo CAP-* |\n| `{{fechaDecoracion}}` | 2026-12-17T18:00:00 | Grupo DECO-OCP-* |\n| `{{idDecoracionZonaFija}}` | 8 | Grupo CA-04 |\n\n> **Importante:** Los grupos CAP-* y DECO-OCP-* son secuenciales.\n> Deben ejecutarse en orden dentro de la misma sesión para que el estado\n> de la base de datos sea coherente.\n\n## Contraseña de todos los usuarios\n`Al.Toro2026!`",
+    "description": "Pruebas completas del módulo de reservas (PA-63).\n\n## Setup\n1. Importar el environment `AlToro-local.postman_environment.json` y seleccionarlo.\n2. Correr la colección — no se necesita ningún request de setup previo.\n\n> Las carpetas `GET /api/reservas/cliente` y `POST /api/reservas` incluyen un **pre-request script** que obtiene automáticamente un token CLIENTE (`{{emailCliente}}`) y lo almacena en `{{clienteToken}}`. El login solo ocurre una vez por ejecución (si el token no está en caché). `{{accessToken}}` queda libre para otros roles.\n\n## Datos de referencia (seed)\n\n### Zonas\n| ID | Nombre | Capacidad |\n|---|---|---|\n| 1 | Salón Principal | 60 |\n| 2 | Terraza | 30 |\n| 3 | VIP | 16 |\n| 4 | Barra | 10 |\n| 5 | Jardín | 20 |\n| 6 | Sala Privada | 12 |\n| 7 | Zona Romántica | 6 |\n\n### Decoraciones\n| ID | Nombre | Costo | Zonas compatibles | Exclusiva por fecha |\n|---|---|---|---|---|\n| 1 | Velas Románticas | 25000 | 1, 2, 3 | sí |\n| 2 | Cumpleaños Premium | 0 | 3, 6 | sí |\n| 3 | Decoración Empresarial | 0 | 1, 2, 3, 6 | sí |\n| 4 | Mesa Temática Toro | 0 | 3, 6 | sí |\n| 5 | Minimalista Elegante | 0 | 1, 2 | sí |\n| 6 | Globos y Flores | 0 | (sin restricción) | sí |\n| 7 | Rústica Vintage | — | INACTIVA | — |\n| 8 | Test Zona Fija | 0 | 4 (Barra) – fija | sí |\n\n## Variables de environment\n| Variable | Valor | Usada en |\n|---|---|---|\n| `{{fechaLibre}}` | 2026-12-15T19:00:00 | Tests generales (sin colisión) |\n| `{{fechaCapacidad}}` | 2026-12-16T20:00:00 | Grupo CAP-* |\n| `{{fechaDecoracion}}` | 2026-12-17T18:00:00 | Grupo DECO-OCP-* |\n| `{{idDecoracionZonaFija}}` | 8 | Grupo CA-04 |\n| `{{fechaTodasOcupadas}}` | 2026-12-20T19:00:00 | Grupo NODISP-* |\n\n> **Importante:** Los grupos CAP-*, DECO-OCP-* y NODISP-* son secuenciales.\n> Deben ejecutarse en orden dentro de la misma sesión para que el estado\n> de la base de datos sea coherente.\n\n## Criterios de aceptación cubiertos\n| CA | Descripción | Tests |\n|---|---|---|\n| CA-02 | Fecha y hora obligatorias | RP-09, RP-21 |\n| CA-03 | Sin disponibilidad para la fecha | NODISP-1, NODISP-2 |\n| CA-04 | Decoración zona fija: respuesta del backend | RD-06, CA-04 (error + éxito) |\n| CA-05 | Decoración zonas específicas: respuesta del backend | RD-07, CA-05 |\n| CA-06 | Sin decoración → todas las zonas disponibles | RD-08, RP-01, RP-02 |\n| CA-07 | Zona Romántica sin extras → BASICA | RP-18 |\n| CA-08 | Número de personas > 10 → ESPECIAL | RP-05 (=10), RP-16 (9=BASICA), RP-17 (11=ESPECIAL) |\n| CA-10 | Guardar reserva especial: campos del response | RP-04, RP-20 |\n| CA-11 | Guardar reserva básica: campos del response | RP-01, RP-19 |\n\n## Contraseña de todos los usuarios\n`Al.Toro2026!`",
     "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
   },
   "variable": [
     { "key": "fechaLibre",          "value": "2026-12-15T19:00:00" },
     { "key": "fechaCapacidad",      "value": "2026-12-16T20:00:00" },
     { "key": "fechaDecoracion",     "value": "2026-12-17T18:00:00" },
-    { "key": "idDecoracionZonaFija","value": "8" }
+    { "key": "idDecoracionZonaFija","value": "8" },
+    { "key": "fechaTodasOcupadas",  "value": "2026-12-20T19:00:00" }
   ],
   "item": [
     {
@@ -193,6 +194,127 @@
                   "host": ["{{baseUrl}}"],
                   "path": ["api", "reservas", "disponibilidad"],
                   "query": [{ "key": "fechaHora", "value": "15-12-2026" }]
+                }
+              }
+            },
+            {
+              "name": "RD-06 CA-04 – Decoración con zona fija muestra puedeSeleccionarZona=false – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const decoFija = decos.find(d => d.decoracionId === 8);",
+                      "",
+                      "pm.test('Decoración zona fija (id=8) aparece en disponibilidad', () => {",
+                      "  pm.expect(decoFija).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('puedeSeleccionarZona = false para decoración de zona fija', () => {",
+                      "  pm.expect(decoFija.puedeSeleccionarZona).to.be.false;",
+                      "});",
+                      "",
+                      "pm.test('zonaIdsCompatibles tiene exactamente 1 elemento (Barra id=4)', () => {",
+                      "  pm.expect(decoFija.zonaIdsCompatibles).to.be.an('array').and.have.lengthOf(1);",
+                      "  pm.expect(decoFija.zonaIdsCompatibles[0]).to.eql(4);",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservas", "disponibilidad"],
+                  "query": [{ "key": "fechaHora", "value": "{{fechaLibre}}" }]
+                }
+              }
+            },
+            {
+              "name": "RD-07 CA-05 – Decoración con zonas específicas muestra zonaIdsCompatibles correctas – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const empresarial = decos.find(d => d.decoracionId === 3);",
+                      "",
+                      "pm.test('Decoración Empresarial (id=3) aparece', () => {",
+                      "  pm.expect(empresarial).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('puedeSeleccionarZona = true para decoración con múltiples zonas', () => {",
+                      "  pm.expect(empresarial.puedeSeleccionarZona).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('zonaIdsCompatibles solo incluye zonas compatibles (1,2,3,6)', () => {",
+                      "  const VALIDAS = [1, 2, 3, 6];",
+                      "  empresarial.zonaIdsCompatibles.forEach(id => {",
+                      "    pm.expect(VALIDAS).to.include(id);",
+                      "  });",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservas", "disponibilidad"],
+                  "query": [{ "key": "fechaHora", "value": "{{fechaLibre}}" }]
+                }
+              }
+            },
+            {
+              "name": "RD-08 CA-06 – Decoración sin restricción de zona tiene zonaIdsCompatibles vacía – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const globos = decos.find(d => d.decoracionId === 6);",
+                      "",
+                      "pm.test('Decoración Globos y Flores (id=6) aparece', () => {",
+                      "  pm.expect(globos).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('puedeSeleccionarZona = true para decoración sin restricción', () => {",
+                      "  pm.expect(globos.puedeSeleccionarZona).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('zonaIdsCompatibles vacía cuando no hay restricción de zona', () => {",
+                      "  pm.expect(globos.zonaIdsCompatibles).to.be.an('array').and.be.empty;",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "reservas", "disponibilidad"],
+                  "query": [{ "key": "fechaHora", "value": "{{fechaLibre}}" }]
                 }
               }
             }
@@ -648,6 +770,218 @@
                       "path": ["api", "reservas"]
                     }
                   }
+                },
+                {
+                  "name": "RP-16 CA-08 – 9 personas, límite inferior del umbral especial → tipo BASICA – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('tipo = BASICA con 9 personas',      () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('estado = CONFIRMADA con 9 personas', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('numeroPersonas = 9',                 () => pm.expect(r.numeroPersonas).to.eql(9));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 9,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-17 CA-08 – 11 personas, supera umbral especial → tipo ESPECIAL – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('tipo = ESPECIAL con 11 personas',   () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('estado = PENDIENTE con 11 personas', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('numeroPersonas = 11',                () => pm.expect(r.numeroPersonas).to.eql(11));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 11,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-18 CA-07 – Zona Romántica sin extras → tipo BASICA – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('tipo = BASICA en Zona Romántica sin extras',    () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('estado = CONFIRMADA en Zona Romántica sin extras', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('zonaId = 7 (Zona Romántica)',  () => pm.expect(r.zonaId).to.eql(7));",
+                          "pm.test('sin decoración',               () => pm.expect(r.decoracionId).to.be.null);"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-19 CA-11 – Reserva básica: verificar todos los campos del response – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const r = body.data;",
+                          "",
+                          "pm.test('success = true', () => pm.expect(body.success).to.be.true);",
+                          "pm.test('message presente', () => pm.expect(body.message).to.be.a('string').and.not.empty);",
+                          "",
+                          "pm.test('response tiene campos obligatorios', () => {",
+                          "  pm.expect(r).to.include.keys([",
+                          "    'reservaId', 'fechaHoraLlegada', 'numeroPersonas',",
+                          "    'estado', 'tipo', 'fechaCreacion', 'clienteId', 'clienteNombre'",
+                          "  ]);",
+                          "});",
+                          "",
+                          "pm.test('reservaId es número positivo', () => pm.expect(r.reservaId).to.be.a('number').and.above(0));",
+                          "pm.test('clienteNombre presente',       () => pm.expect(r.clienteNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('fechaCreacion presente',       () => pm.expect(r.fechaCreacion).to.be.a('string').and.not.empty);",
+                          "pm.test('campo notas presente en response', () => pm.expect(r).to.have.property('notas'));",
+                          "pm.test('notas coincide con lo enviado', () => pm.expect(r.notas).to.eql('Mesa junto a la ventana'));",
+                          "pm.test('tipo = BASICA',    () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('estado = CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"zonaId\": 2,\n  \"notas\": \"Mesa junto a la ventana\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-20 CA-10 – Reserva especial: verificar todos los campos del response – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201', () => pm.response.to.have.status(201));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const r = body.data;",
+                          "",
+                          "pm.test('success = true', () => pm.expect(body.success).to.be.true);",
+                          "pm.test('message presente', () => pm.expect(body.message).to.be.a('string').and.not.empty);",
+                          "",
+                          "pm.test('response tiene campos obligatorios', () => {",
+                          "  pm.expect(r).to.include.keys([",
+                          "    'reservaId', 'fechaHoraLlegada', 'numeroPersonas',",
+                          "    'estado', 'tipo', 'decoracionId', 'decoracionNombre',",
+                          "    'zonaId', 'zonaNombre', 'fechaCreacion', 'clienteId', 'clienteNombre'",
+                          "  ]);",
+                          "});",
+                          "",
+                          "pm.test('tipo = ESPECIAL',    () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('estado = PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('decoracionId = 2',   () => pm.expect(r.decoracionId).to.eql(2));",
+                          "pm.test('decoracionNombre presente', () => pm.expect(r.decoracionNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('zonaNombre presente',       () => pm.expect(r.zonaNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('clienteNombre presente',    () => pm.expect(r.clienteNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('notas coincide con lo enviado', () => pm.expect(r.notas).to.eql('Cumpleaños del equipo'));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 10,\n  \"decoracionId\": 2,\n  \"zonaId\": 3,\n  \"notas\": \"Cumpleaños del equipo\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
                 }
               ]
             },
@@ -858,6 +1192,48 @@
                     "body": {
                       "mode": "raw",
                       "raw": "{}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-21 CA-02 – fechaHoraLlegada null explícito: mensaje menciona 'fecha' – 422 Unprocessable Entity",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "",
+                          "pm.test('success = false', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('mensaje de error menciona fecha', () => {",
+                          "  const msg = (body.message || '').toLowerCase();",
+                          "  pm.expect(msg).to.satisfy(",
+                          "    m => m.includes('fecha') || m.includes('date'),",
+                          "    'El mensaje de error debe mencionar la fecha'",
+                          "  );",
+                          "});"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": null,\n  \"numeroPersonas\": 3\n}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas",
@@ -1130,7 +1506,7 @@
                   ],
                   "request": {
                     "method": "GET",
-                    "header": [],
+                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaCapacidad}}",
                       "host": ["{{baseUrl}}"],
@@ -1266,6 +1642,303 @@
                     "body": {
                       "mode": "raw",
                       "raw": "{\n  \"fechaHoraLlegada\": \"2026-12-16T12:00:00\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Sin Disponibilidad – CA-03 (secuencial: ejecutar en orden)",
+              "description": "Verifica el comportamiento cuando no hay disponibilidad para una fecha.\n\n**Secuencia obligatoria:** NODISP-SETUP-1 a 7 llenan todas las zonas para `{{fechaTodasOcupadas}}`. Ejecutar en orden en la misma sesión.\n\n- NODISP-SETUP-1..7: crean reservas que agotan la capacidad de cada zona.\n- NODISP-1: verifica que GET /disponibilidad retorna `disponible=false` y listas vacías (CA-03).\n- NODISP-2: verifica que POST /reservas rechaza con 422 cuando no hay disponibilidad (CA-10/CA-11).",
+              "item": [
+                {
+                  "name": "NODISP-SETUP-1 Llenar Salón Principal (Zona 1, cap=60) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 1 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 60,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-2 Llenar Terraza (Zona 2, cap=30) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 2 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 30,\n  \"zonaId\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-3 Llenar VIP (Zona 3, cap=16) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 3 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 16,\n  \"zonaId\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-4 Llenar Barra (Zona 4, cap=10) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 4 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 10,\n  \"zonaId\": 4\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-5 Llenar Jardín (Zona 5, cap=20) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 5 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 20,\n  \"zonaId\": 5\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-6 Llenar Sala Privada (Zona 6, cap=12) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 6 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 12,\n  \"zonaId\": 6\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-7 Llenar Zona Romántica (Zona 7, cap=6) – 201 Created",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 201 – Zona 7 llena', () => pm.response.to.have.status(201));"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 6,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-1 CA-03 – Sin disponibilidad: disponible=false y listas vacías – 200 OK",
+                  "description": "Depende de NODISP-SETUP-1..7. Todas las zonas están llenas para {{fechaTodasOcupadas}}. El sistema debe indicar que no hay disponibilidad.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const d = body.data;",
+                          "",
+                          "pm.test('success = true', () => pm.expect(body.success).to.be.true);",
+                          "",
+                          "pm.test('disponible = false cuando todas las zonas están llenas', () => {",
+                          "  pm.expect(d.disponible).to.be.false;",
+                          "});",
+                          "",
+                          "pm.test('zonas retorna lista vacía cuando no hay disponibilidad', () => {",
+                          "  pm.expect(d.zonas).to.be.an('array').and.be.empty;",
+                          "});",
+                          "",
+                          "pm.test('decoraciones retorna lista vacía cuando no hay disponibilidad', () => {",
+                          "  pm.expect(d.decoraciones).to.be.an('array').and.be.empty;",
+                          "});"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaTodasOcupadas}}",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas", "disponibilidad"],
+                      "query": [{ "key": "fechaHora", "value": "{{fechaTodasOcupadas}}" }]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-2 CA-10/CA-11 – Crear reserva sin disponibilidad → mensaje 'disponibilidad cambió' – 422",
+                  "description": "Depende de NODISP-SETUP-1..7. Intenta crear una reserva cuando no hay ninguna zona libre.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "exec": [
+                          "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "",
+                          "pm.test('success = false', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('mensaje menciona disponibilidad', () => {",
+                          "  pm.expect(body.message.toLowerCase()).to.include('disponibilidad');",
+                          "});"
+                        ],
+                        "type": "text/javascript"
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type",  "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 2\n}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas",

@@ -169,13 +169,10 @@ public class AuthService {
             Optional<Cliente> cliente = clienteRepository.findByUsuario_UsuarioEmail(usuario.getUsuarioEmail());
             return cliente.map(value -> AuthUserResponse.builder()
                     .id(String.valueOf(usuario.getUsuarioId()))
-                    .fullName(value.getClienteNombre())
+                    .nombre(value.getClienteNombre())
                     .email(usuario.getUsuarioEmail())
-                    .phone(value.getClienteTelefono())
-                    .role(role)
                     .roles(roles)
                     .status("ACTIVE")
-                    .avatarUrl(null)
                     .createdAt(usuario.getCreatedAt())
                     .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
         }
@@ -183,13 +180,11 @@ public class AuthService {
         Optional<Empleado> empleado = empleadoRepository.findByUsuario_UsuarioEmail(usuario.getUsuarioEmail());
         return empleado.map(value -> AuthUserResponse.builder()
                 .id(String.valueOf(usuario.getUsuarioId()))
-                .fullName(value.getEmpleadoNombre())
+                .nombre(value.getEmpleadoNombre())
                 .email(usuario.getUsuarioEmail())
-                .phone(value.getEmpleadoTelefono())
                 .role(role)
                 .roles(roles)
                 .status("ACTIVE")
-                .avatarUrl(null)
                 .createdAt(usuario.getCreatedAt())
                 .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
     }
@@ -197,13 +192,11 @@ public class AuthService {
     private AuthUserResponse fallbackUser(Usuario usuario, String role, List<String> roles) {
         return AuthUserResponse.builder()
                 .id(String.valueOf(usuario.getUsuarioId()))
-                .fullName(usuario.getUsuarioEmail())
+                .nombre(usuario.getUsuarioEmail())
                 .email(usuario.getUsuarioEmail())
-                .phone(null)
                 .role(role)
                 .roles(roles)
                 .status("ACTIVE")
-                .avatarUrl(null)
                 .createdAt(usuario.getCreatedAt())
                 .build();
     }

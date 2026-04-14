@@ -7,6 +7,7 @@ import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
 import lombok.RequiredArgsConstructor;
 import org.springframework.lang.NonNull;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
 import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -49,6 +50,9 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
     /** Servicio que carga los detalles del usuario desde la fuente de datos. */
     private final UserDetailsService userDetailsService;
 
+    /** Repositorio de sesiones para validar que el access token aún está asociado a una sesión activa. */
+    private final SesionRepository sesionRepository;
+
     /**
      * Procesa el token JWT del request y establece la autenticación en el contexto
      * de seguridad si el token es válido.
@@ -73,7 +77,8 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
                 String username = jwtTokenProvider.extractUsername(token);
                 UserDetails userDetails = userDetailsService.loadUserByUsername(username);
 
-                if (jwtTokenProvider.isTokenValid(token, userDetails)) {
+                if (jwtTokenProvider.isTokenValid(token, userDetails)
+                        && sesionRepository.findBySesionTokenAndSesionActivaTrue(token).isPresent()) {
                     UsernamePasswordAuthenticationToken authToken =
                             new UsernamePasswordAuthenticationToken(
                                     userDetails, null, userDetails.getAuthorities());

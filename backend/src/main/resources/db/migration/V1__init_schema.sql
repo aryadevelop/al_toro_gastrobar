@@ -36,7 +36,7 @@ CREATE TABLE Usuario (
 );
 
 COMMENT ON TABLE Usuario IS 'Tabla principal de autenticación de usuarios';
-COMMENT ON COLUMN Usuario.usuario_password IS 'Password hasheado - usar bcrypt o similar';
+COMMENT ON COLUMN Usuario.usuario_password IS 'Password hasheado';
 
 -- Tabla Sesion
 CREATE TABLE Sesion (

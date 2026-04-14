@@ -11,7 +11,7 @@
       "item": [
         {
           "name": "POST /api/auth/login – Iniciar Sesión",
-          "description": "Inicia sesión y devuelve `accessToken`, `refreshToken` y datos del usuario.\nCA-01 guarda los tokens automáticamente en el environment.\n\n### Body\n```json\n{\n  \"email\": \"string\",\n  \"password\": \"string\",\n  \"forceSessionOverride\": false\n}\n```\n\n### Casos cubiertos\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-01 | Login admin válido (override=true) | 200 |\n| CA-02 | Credenciales incorrectas | 401 |\n| CA-03 | Login con rol CLIENTE | 200 |\n| CA-04 | Email con espacios al inicio/final (trimming) | 200 |\n| CA-05 | Cuenta suspendida/inactiva | 403 |\n| CA-06 | Formato de correo inválido | 422 |\n| CA-07 | Campo correo vacío | 422 |\n| CA-08 | Campo contraseña vacío | 422 |\n| CA-09 | Email en mayúsculas (normalización) | 200 |\n| CA-10 | Sesión activa (override=false) | 409 |\n| CA-11 | Inyección SQL / caracteres maliciosos | 401 |",
+          "description": "Inicia sesión y devuelve `accessToken`, `refreshToken` y datos del usuario.\nCA-01 guarda los tokens automáticamente en el environment.\n\n### Body\n```json\n{\n  \"email\": \"string\",\n  \"password\": \"string\",\n  \"forceSessionOverride\": false\n}\n```\n\n### Casos cubiertos\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-01 | Login admin válido (override=true) | 200 |\n| CA-02 | Credenciales incorrectas | 401 |\n| CA-03 | Login con rol CLIENTE | 200 |\n| CA-04 | Email con espacios al inicio/final (trimming) | 200 |\n| CA-05 | Cuenta suspendida/inactiva | 403 |\n| CA-06 | Formato de correo inválido | 422 |\n| CA-07 | Campo correo vacío | 422 |\n| CA-08 | Campo contraseña vacío | 422 |\n| CA-09 | Email en mayúsculas (normalización) | 200 |\n| CA-10 | Sesión activa (override=false) | 409 |\n| CA-11 | Inyección SQL / caracteres maliciosos | 401 |\n| CA-HU09 | Login mesero válido | 200 |\n| CA-HU10 | Login cocinero válido (rol primario PRODUCCION) | 200 |\n| CA-HU10b | Login bartender válido (rol primario PRODUCCION) | 200 |\n| CA-HU12 | Login cajero válido | 200 |\n| CA-HU-MR | Login usuario multi-rol — rol primario por prioridad | 200 |",
           "item": [
             {
               "name": "CA-01 Login admin válido (override=true) – 200 OK",
@@ -111,10 +111,10 @@
                       "  pm.expect(body).to.have.property('user');",
                       "});",
                       "",
-                      "pm.test('Rol de usuario CLIENTE', () => pm.expect(body.user.role).to.eql('CLIENTE'));",
+                      "pm.test('Rol de usuario CLIENTE en roles', () => pm.expect(body.user.roles).to.include('CLIENTE'));",
                       "",
-                      "pm.test('fullName presente en respuesta de CLIENTE', () => {",
-                      "  pm.expect(body.user.fullName).to.be.a('string').and.not.empty;",
+                      "pm.test('Nombre presente en respuesta de CLIENTE', () => {",
+                      "  pm.expect(body.user.nombre).to.be.a('string').and.not.empty;",
                       "});",
                       "",
                       "pm.environment.set('clienteAccessToken', body.accessToken);",
@@ -403,12 +403,213 @@
                   "path": ["api", "auth", "login"]
                 }
               }
+            },
+            {
+              "name": "CA-HU09 Login mesero válido (override=true) – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario MESERO', () => pm.expect(body.user.role).to.eql('MESERO'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+                      "",
+                      "pm.environment.set('meseroAccessToken', body.accessToken);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailMesero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU10 Login cocinero válido (override=true) – 200 OK",
+              "description": "El rol COCINERO se mapea a 'PRODUCCION' en la respuesta del API (RoleMapper). cocinero2 tiene COCINERO activo y MESERO inactivo.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol primario es PRODUCCION (COCINERO mapeado)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailCocinero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU10b Login bartender válido (override=true) – 200 OK",
+              "description": "El rol BARTENDER también se mapea a 'PRODUCCION' en la respuesta del API (RoleMapper). Ambas sub-interfaces de producción (cocina y barra) deben obtener el mismo rol frontend.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol primario es PRODUCCION (BARTENDER mapeado)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailBartender}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU12 Login cajero válido (override=true) – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario CAJERO', () => pm.expect(body.user.role).to.eql('CAJERO'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailCajero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU-MR Login usuario multi-rol — rol primario correcto – 200 OK",
+              "description": "cajero1@altoro.com tiene CAJERO+MESERO+BARTENDER activos y ADM inactivo. Verifica que resolvePrimaryRole() retorna CAJERO (mayor prioridad entre los roles activos) y que los roles inactivos no aparecen en la lista.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Rol primario es CAJERO (mayor prioridad activa)', () => pm.expect(body.user.role).to.eql('CAJERO'));",
+                      "",
+                      "pm.test('Roles activos incluyen CAJERO, MESERO y PRODUCCION', () => {",
+                      "  pm.expect(body.user.roles).to.include('CAJERO');",
+                      "  pm.expect(body.user.roles).to.include('MESERO');",
+                      "  pm.expect(body.user.roles).to.include('PRODUCCION');",
+                      "});",
+                      "",
+                      "pm.test('Roles NO incluyen ADMIN (ADM está inactivo)', () =>",
+                      "  pm.expect(body.user.roles).to.not.include('ADMIN'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailMultiRol}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
             }
           ]
         },
         {
           "name": "POST /api/auth/refresh – Renovar Token",
-          "description": "Renueva el access token usando el refresh token guardado en el environment.\nActualiza `accessToken` y `refreshToken` en el environment al completarse.\n\n### Body\n```json\n{ \"refreshToken\": \"string\" }\n```\n\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-12 | Refresh token inválido | 401 |\n| CA-13 | Refresh token válido (con rotación) | 200 |\n| CA-14 | Body vacío (sin campo refreshToken) | 422 |\n| CA-15 | Reutilización de refresh token ya rotado | 401 |\n| CA-16 | Refresh token usado como access token en /me | 401 |",
+          "description": "Renueva el access token usando el refresh token guardado en el environment.\nActualiza `accessToken` y `refreshToken` en el environment al completarse.\n\n### Body\n```json\n{ \"refreshToken\": \"string\" }\n```\n\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-12 | Refresh token inválido | 401 |\n| CA-13 | Refresh token válido (con rotación) | 200 |\n| CA-14 | Body vacío (sin campo refreshToken) | 422 |\n| CA-15 | Reutilización de refresh token ya rotado | 401 |\n| CA-16 | Refresh token usado como access token en /me | 401 |\n| CA-17 | Access token enviado a /refresh | 401 |",
           "item": [
             {
               "name": "CA-12 Refresh token inválido – 401 Unauthorized",
@@ -581,6 +782,37 @@
                   "path": ["api", "auth", "me"]
                 }
               }
+            },
+            {
+              "name": "CA-17 Access token enviado a /refresh – 401 Unauthorized",
+              "description": "El endpoint /refresh exige un token con claim type='refresh'. Enviar el access token activo (type='access') debe retornar 401 (BadCredentialsException en AuthService.refresh). Requiere que CA-01 o CA-09 hayan corrido antes (guarda accessToken).",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401 — access token no es válido en /refresh', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.test('Código AUTH-001', () =>",
+                      "  pm.expect(pm.response.json().code).to.eql('AUTH-001'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{accessToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
             }
           ]
         },
@@ -665,7 +897,7 @@
                       "});",
                       "",
                       "pm.test('Contiene campos requeridos por el frontend', () => {",
-                      "  pm.expect(body).to.include.all.keys('id', 'fullName', 'email', 'role', 'roles', 'status', 'createdAt');",
+                      "  pm.expect(body).to.include.all.keys('id', 'nombre', 'email', 'role', 'roles', 'status', 'createdAt');",
                       "});"
                     ],
                     "type": "text/javascript"
@@ -684,7 +916,7 @@
             },
             {
               "name": "CB-03 Con token CLIENTE – 200 OK",
-              "description": "Verifica que /me con el token de un CLIENTE devuelve role=CLIENTE y los datos del perfil del cliente (nombre, teléfono). Requiere que CA-03 haya corrido antes.",
+              "description": "Verifica que /me con el token de un CLIENTE devuelve roles que incluyen CLIENTE y los datos del perfil del cliente (nombre). Requiere que CA-03 haya corrido antes.",
               "event": [
                 {
                   "listen": "test",
@@ -694,9 +926,9 @@
                       "",
                       "const body = pm.response.json();",
                       "",
-                      "pm.test('Rol es CLIENTE', () => pm.expect(body.role).to.eql('CLIENTE'));",
+                      "pm.test('Roles incluyen CLIENTE', () => pm.expect(body.roles).to.include('CLIENTE'));",
                       "",
-                      "pm.test('fullName no es vacío', () => pm.expect(body.fullName).to.be.a('string').and.not.empty);",
+                      "pm.test('Nombre no es vacío', () => pm.expect(body.nombre).to.be.a('string').and.not.empty);",
                       "",
                       "pm.test('Email presente', () => pm.expect(body.email).to.be.a('string').and.not.empty);"
                     ],

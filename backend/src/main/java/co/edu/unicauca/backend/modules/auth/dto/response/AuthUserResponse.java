@@ -22,14 +22,10 @@ import java.util.List;
 public class AuthUserResponse {
 
     private String id;
-    private String fullName;
+    private String nombre;
     private String email;
-    private String phone;
-    /** Rol activo principal (mayor prioridad). */
     private String role;
-    /** Todos los roles activos del usuario. */
     private List<String> roles;
     private String status;
-    private String avatarUrl;
     private LocalDateTime createdAt;
 }

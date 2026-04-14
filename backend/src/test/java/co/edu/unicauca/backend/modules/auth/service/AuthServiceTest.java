@@ -112,7 +112,7 @@ class AuthServiceTest {
             assertThat(response.getAccessToken()).isEqualTo("access-token");
             assertThat(response.getRefreshToken()).isEqualTo("refresh-token");
             assertThat(response.getUser().getRole()).isEqualTo("ADMIN");
-            assertThat(response.getUser().getFullName()).isEqualTo("Admin Principal");
+            assertThat(response.getUser().getNombre()).isEqualTo("Admin Principal");
 
             verify(sesionRepository).saveAll(anyList());
             verify(sesionRepository).save(any(Sesion.class));
