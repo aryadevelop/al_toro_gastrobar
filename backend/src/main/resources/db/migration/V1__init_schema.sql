@@ -42,7 +42,8 @@ COMMENT ON COLUMN Usuario.usuario_password IS 'Password hasheado - usar bcrypt o
 CREATE TABLE Sesion (
     sesion_id BIGSERIAL PRIMARY KEY,
     usuario_id BIGINT NOT NULL,
-    sesion_token VARCHAR(512) UNIQUE NOT NULL,
+    sesion_token VARCHAR(1024) UNIQUE NOT NULL,
+    sesion_refresh_token VARCHAR(1024) UNIQUE NOT NULL,
     sesion_fecha_creacion TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     sesion_activa BOOLEAN NOT NULL DEFAULT TRUE,
     CONSTRAINT fk_sesion_usuario FOREIGN KEY (usuario_id)
@@ -50,7 +51,8 @@ CREATE TABLE Sesion (
 );
 
 COMMENT ON TABLE Sesion IS 'Gestión de sesiones activas de usuarios';
-COMMENT ON COLUMN Sesion.sesion_token IS 'Token JWT o similar para autenticación';
+COMMENT ON COLUMN Sesion.sesion_token IS 'Access token JWT de la sesión activa';
+COMMENT ON COLUMN Sesion.sesion_refresh_token IS 'Refresh token JWT; se invalida al hacer logout o al renovar el token';
 
 -- Tabla Cliente
 CREATE TABLE Cliente (
@@ -438,6 +440,7 @@ CREATE INDEX idx_usuario_email ON Usuario(usuario_email);
 
 CREATE INDEX idx_sesion_usuario_id ON Sesion(usuario_id);
 CREATE INDEX idx_sesion_token ON Sesion(sesion_token);
+CREATE INDEX idx_sesion_refresh_token ON Sesion(sesion_refresh_token) WHERE sesion_refresh_token IS NOT NULL;
 CREATE INDEX idx_sesion_activa ON Sesion(sesion_activa) WHERE sesion_activa = TRUE;
 CREATE INDEX idx_sesion_fecha_creacion ON Sesion(sesion_fecha_creacion DESC);
 

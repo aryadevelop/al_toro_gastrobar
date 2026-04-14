@@ -39,7 +39,7 @@ import java.util.Optional;
 @Transactional
 public class AuthService {
 
-    private static final String LOGIN_CREDENTIALS_MESSAGE = "Credenciales incorrectas por favor veirfique su correo y/o contraseña";
+    private static final String LOGIN_CREDENTIALS_MESSAGE = "Credenciales incorrectas por favor verifique su correo y/o contraseña";
     private static final String ACCOUNT_SUSPENDED_MESSAGE = "Tu cuenta se encuentra suspendida. Por favor contacta al administrador";
     private static final String ACTIVE_SESSION_MESSAGE = "Ya tienes una sesión activa. ¿Deseas cerrar la otra sesión y continuar?";
 
@@ -85,6 +85,7 @@ public class AuthService {
         sesionRepository.save(Sesion.builder()
                 .usuario(usuario)
                 .sesionToken(accessToken)
+                .sesionRefreshToken(refreshToken)
                 .sesionFechaCreacion(LocalDateTime.now())
                 .sesionActiva(true)
                 .build());
@@ -93,12 +94,16 @@ public class AuthService {
                 .accessToken(accessToken)
                 .refreshToken(refreshToken)
                 .tokenType("Bearer")
-                .expiresIn(86_400L)
-                .user(buildUserResponse(usuario, primaryRol))
+                .expiresIn(jwtTokenProvider.getExpirationSeconds())
+                .user(buildUserResponse(usuario, primaryRol, activeRoles))
                 .build();
     }
 
     public AuthResponse refresh(RefreshTokenRequest request) {
+        if (!jwtTokenProvider.isRefreshToken(request.getRefreshToken())) {
+            throw new BadCredentialsException(LOGIN_CREDENTIALS_MESSAGE);
+        }
+
         String username = jwtTokenProvider.extractUsername(request.getRefreshToken());
         Usuario usuario = usuarioRepository.findByUsuarioEmail(username)
                 .orElseThrow(() -> new BadCredentialsException(LOGIN_CREDENTIALS_MESSAGE));
@@ -113,26 +118,23 @@ public class AuthService {
             throw new BadCredentialsException(LOGIN_CREDENTIALS_MESSAGE);
         }
 
-        List<Sesion> activeSessions = sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(usuario.getUsuarioId());
-        if (activeSessions.isEmpty()) {
-            throw new BusinessException(ErrorCode.INVALID_STATE, LOGIN_CREDENTIALS_MESSAGE, HttpStatus.UNAUTHORIZED);
-        }
+        Sesion sesion = sesionRepository.findBySesionRefreshTokenAndSesionActivaTrue(request.getRefreshToken())
+                .orElseThrow(() -> new BadCredentialsException(LOGIN_CREDENTIALS_MESSAGE));
 
         String accessToken = jwtTokenProvider.generateToken(userDetails);
-        String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
+        String newRefreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
 
-        activeSessions.forEach(session -> {
-            session.setSesionToken(accessToken);
-            session.setSesionFechaCreacion(LocalDateTime.now());
-        });
-        sesionRepository.saveAll(activeSessions);
+        sesion.setSesionToken(accessToken);
+        sesion.setSesionRefreshToken(newRefreshToken);
+        sesion.setSesionFechaCreacion(LocalDateTime.now());
+        sesionRepository.save(sesion);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
-                .refreshToken(refreshToken)
+                .refreshToken(newRefreshToken)
                 .tokenType("Bearer")
-                .expiresIn(86_400L)
-                .user(buildUserResponse(usuario, resolvePrimaryRole(activeRoles)))
+                .expiresIn(jwtTokenProvider.getExpirationSeconds())
+                .user(buildUserResponse(usuario, resolvePrimaryRole(activeRoles), activeRoles))
                 .build();
     }
 
@@ -143,7 +145,7 @@ public class AuthService {
         if (activeRoles.isEmpty()) {
             throw new BusinessException(ErrorCode.INVALID_STATE, ACCOUNT_SUSPENDED_MESSAGE, HttpStatus.FORBIDDEN);
         }
-        return buildUserResponse(usuario, resolvePrimaryRole(activeRoles));
+        return buildUserResponse(usuario, resolvePrimaryRole(activeRoles), activeRoles);
     }
 
     public void logout(String email) {
@@ -154,8 +156,14 @@ public class AuthService {
         sesionRepository.saveAll(activeSessions);
     }
 
-    private AuthUserResponse buildUserResponse(Usuario usuario, RolNombre primaryRole) {
+    private AuthUserResponse buildUserResponse(Usuario usuario, RolNombre primaryRole, List<UsuarioRol> activeRoles) {
         String role = RoleMapper.toFrontendRole(primaryRole);
+        List<String> roles = activeRoles.stream()
+                .map(UsuarioRol::getRolNombre)
+                .map(RoleMapper::toFrontendRole)
+                .distinct()
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
 
         if (primaryRole == RolNombre.CLIENTE) {
             Optional<Cliente> cliente = clienteRepository.findByUsuario_UsuarioEmail(usuario.getUsuarioEmail());
@@ -165,10 +173,11 @@ public class AuthService {
                     .email(usuario.getUsuarioEmail())
                     .phone(value.getClienteTelefono())
                     .role(role)
+                    .roles(roles)
                     .status("ACTIVE")
                     .avatarUrl(null)
                     .createdAt(usuario.getCreatedAt())
-                    .build()).orElseGet(() -> fallbackUser(usuario, role));
+                    .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
         }
 
         Optional<Empleado> empleado = empleadoRepository.findByUsuario_UsuarioEmail(usuario.getUsuarioEmail());
@@ -178,19 +187,21 @@ public class AuthService {
                 .email(usuario.getUsuarioEmail())
                 .phone(value.getEmpleadoTelefono())
                 .role(role)
+                .roles(roles)
                 .status("ACTIVE")
                 .avatarUrl(null)
                 .createdAt(usuario.getCreatedAt())
-                .build()).orElseGet(() -> fallbackUser(usuario, role));
+                .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
     }
 
-    private AuthUserResponse fallbackUser(Usuario usuario, String role) {
+    private AuthUserResponse fallbackUser(Usuario usuario, String role, List<String> roles) {
         return AuthUserResponse.builder()
                 .id(String.valueOf(usuario.getUsuarioId()))
                 .fullName(usuario.getUsuarioEmail())
                 .email(usuario.getUsuarioEmail())
                 .phone(null)
                 .role(role)
+                .roles(roles)
                 .status("ACTIVE")
                 .avatarUrl(null)
                 .createdAt(usuario.getCreatedAt())

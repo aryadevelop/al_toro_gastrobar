@@ -17,6 +17,7 @@
 - [Variables de entorno](#variables-de-entorno)
 - [Perfiles de Spring Boot](#perfiles-de-spring-boot)
 - [Equipo](#equipo)
+- [Pruebas de API](#pruebas-de-api)
 - [Flujo de trabajo Git](#flujo-de-trabajo-git)
 
 ---
@@ -230,6 +231,26 @@ Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.
 | Rubeiro Romero | Desarrollador · Analista |
 
 ---
+
+## Pruebas de API
+
+Las colecciones de pruebas están en `backend/postman/`:
+
+```
+backend/postman/
+├── environment/
+│   └── AlToro-local.postman_environment.json   # variables compartidas (baseUrl, credenciales)
+├── collections/
+│   ├── Auth-PA-11.postman_collection.json
+│   └── Reservas-PA-63.postman_collection.json 
+```
+
+### Desde la app de Postman
+
+1. Importar `environment/AlToro-local.postman_environment.json` en Postman.
+2. Importar los archivos de `collections/`.
+3. Seleccionar el environment **Al Toro – Local** en la esquina superior derecha.
+4. Ejecutar primero la colección **Auth** (escribe el `accessToken` en el environment), luego las demás.
 
 ## Flujo de trabajo Git
 

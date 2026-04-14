@@ -28,6 +28,13 @@ import java.util.Date;
 @Component
 public class JwtTokenProvider {
 
+    /** Nombre del claim que identifica el tipo de token (access o refresh). */
+    private static final String CLAIM_TOKEN_TYPE  = "type";
+    /** Valor del claim para tokens de acceso. */
+    private static final String TOKEN_TYPE_ACCESS  = "access";
+    /** Valor del claim para tokens de refresco. */
+    private static final String TOKEN_TYPE_REFRESH = "refresh";
+
     /** Clave HMAC derivada del secreto configurado; usada para firmar y verificar tokens. */
     private final SecretKey key;
 
@@ -64,8 +71,13 @@ public class JwtTokenProvider {
      * @param userDetails detalles del usuario autenticado
      * @return token JWT compacto y firmado
      */
+    /** Devuelve el tiempo de vida del access token en segundos (para el campo {@code expiresIn} de la respuesta). */
+    public long getExpirationSeconds() {
+        return expirationMs / 1000;
+    }
+
     public String generateToken(UserDetails userDetails) {
-        return generateToken(userDetails, expirationMs);
+        return buildToken(userDetails, expirationMs, TOKEN_TYPE_ACCESS);
     }
 
     /**
@@ -75,17 +87,38 @@ public class JwtTokenProvider {
      * @return refresh token JWT compacto y firmado
      */
     public String generateRefreshToken(UserDetails userDetails) {
-        return generateToken(userDetails, refreshExpirationMs);
+        return buildToken(userDetails, refreshExpirationMs, TOKEN_TYPE_REFRESH);
     }
 
-    private String generateToken(UserDetails userDetails, long tokenExpirationMs) {
+    private String buildToken(UserDetails userDetails, long tokenExpirationMs, String tokenType) {
         Date now = new Date();
         return Jwts.builder()
                 .subject(userDetails.getUsername())
+                .claim(CLAIM_TOKEN_TYPE, tokenType)
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + tokenExpirationMs))
                 .signWith(key)
                 .compact();
+    }
+
+    /**
+     * Comprueba si el token es un access token.
+     *
+     * @param token token JWT a comprobar
+     * @return {@code true} si el claim {@code type} es {@code "access"}
+     */
+    public boolean isAccessToken(String token) {
+        return TOKEN_TYPE_ACCESS.equals(parseClaims(token).get(CLAIM_TOKEN_TYPE, String.class));
+    }
+
+    /**
+     * Comprueba si el token es un refresh token.
+     *
+     * @param token token JWT a comprobar
+     * @return {@code true} si el claim {@code type} es {@code "refresh"}
+     */
+    public boolean isRefreshToken(String token) {
+        return TOKEN_TYPE_REFRESH.equals(parseClaims(token).get(CLAIM_TOKEN_TYPE, String.class));
     }
 
     /**
