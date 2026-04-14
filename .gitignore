@@ -47,6 +47,7 @@ backend/src/main/resources/application-prod.properties
 .vscode/
 *.suo
 *.user
+.claude/
 
 # ========================
 # Sistema operativo
@@ -61,3 +62,4 @@ desktop.ini
 *.tmp
 *.bak
 logs/
+backend/postman/.tmp-env-runtime.json

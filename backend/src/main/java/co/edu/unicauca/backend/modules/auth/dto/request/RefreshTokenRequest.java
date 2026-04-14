@@ -17,6 +17,6 @@ import lombok.NoArgsConstructor;
 public class RefreshTokenRequest {
 
     @NotBlank(message = "El refresh token es obligatorio")
-    @Size(max = 512, message = "El refresh token no debe exceder 512 caracteres")
+    @Size(max = 1024, message = "El refresh token no debe exceder 1024 caracteres")
     private String refreshToken;
 }

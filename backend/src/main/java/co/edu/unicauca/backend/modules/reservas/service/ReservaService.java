@@ -138,7 +138,28 @@ public class ReservaService {
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cliente", "email", emailCliente));
 
-        // Verificar disponibilidad 
+        // Verificar existencia de decoración y zona en BD (→ 404 si no existe)
+        Decoracion decoracion = null;
+        if (request.getDecoracionId() != null) {
+            final Long decId = request.getDecoracionId();
+            decoracion = decoracionRepository.findById(decId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decId));
+        }
+
+        Zona zona = null;
+        if (request.getZonaId() != null) {
+            final Long zonaId = request.getZonaId();
+            zona = zonaRepository.findById(zonaId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Zona", zonaId));
+        }
+
+        // Validar compatibilidad decoración ↔ zona ANTES de verificar disponibilidad:
+        // es una regla dura de negocio (zona asignada fija) que no depende del estado actual de reservas.
+        if (decoracion != null && zona != null) {
+            validarCompatibilidadDecoracionZona(decoracion, zona);
+        }
+
+        // Verificar disponibilidad
         DisponibilidadResponse disponibilidad =
                 consultarDisponibilidad(request.getFechaHoraLlegada());
 
@@ -147,13 +168,9 @@ public class ReservaService {
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        Decoracion decoracion = null;
-        if (request.getDecoracionId() != null) {
-            final Long decId = request.getDecoracionId();
-            // Verificar existencia en BD primero (→ 404 si no existe)
-            decoracion = decoracionRepository.findById(decId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decId));
-            // Luego verificar disponibilidad en el momento actual (→ 422 si ya está ocupada)
+        // Verificar disponibilidad de la decoración en el momento actual (→ 422 si ya está ocupada)
+        if (decoracion != null) {
+            final Long decId = decoracion.getDecoracionId();
             boolean decoracionLibre = disponibilidad.getDecoraciones().stream()
                     .anyMatch(d -> d.getDecoracionId().equals(decId));
             if (!decoracionLibre) {
@@ -163,13 +180,9 @@ public class ReservaService {
         }
 
         // Validar que la zona pedida sigue con capacidad
-        Zona zona = null;
-        if (request.getZonaId() != null) {
-            final Long zonaId = request.getZonaId();
-            // Verificar existencia en BD primero (→ 404 si no existe)
-            zona = zonaRepository.findById(zonaId)
-                    .orElseThrow(() -> new ResourceNotFoundException("Zona", zonaId));
-            // Luego verificar disponibilidad en el momento actual (→ 422 si no hay capacidad)
+        if (zona != null) {
+            final Long zonaId = zona.getZonaId();
+            // Verificar disponibilidad en el momento actual (→ 422 si no hay capacidad)
             boolean zonaLibre = disponibilidad.getZonas().stream()
                     .anyMatch(z -> z.getZonaId().equals(zonaId));
             if (!zonaLibre) {
@@ -188,11 +201,6 @@ public class ReservaService {
                         request.getNumeroPersonas() + " personas en ese día.",
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
-        }
-
-        // Validar compatibilidad decoración ↔ zona
-        if (decoracion != null && zona != null) {
-            validarCompatibilidadDecoracionZona(decoracion, zona);
         }
 
         // Una reserva es especial si la decoración elegida tiene costo adicional > 0 o si se elige un menú especial

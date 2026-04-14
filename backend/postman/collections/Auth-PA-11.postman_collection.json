@@ -1,0 +1,1109 @@
+{
+  "info": {
+    "name": "Al Toro Gastrobar – Autenticación",
+    "description": "Pruebas del módulo de autenticación (HE-01 / HU-01 Ingresar al sistema).\n\n## Endpoints cubiertos\n| Endpoint | Descripción |\n|---|---|\n| POST /api/auth/login | Iniciar sesión, obtener tokens |\n| POST /api/auth/refresh | Renovar access token |\n| GET  /api/auth/me | Obtener usuario autenticado |\n| POST /api/auth/logout | Cerrar sesión |\n\n## Setup\n1. Importar el environment `AlToro-local.postman_environment.json` y seleccionarlo.\n2. Ejecutar **CA-01 Login admin válido** primero — guarda `accessToken` y `refreshToken` en el environment.\n\n## Usuarios de prueba\n| Variable | Email | Rol | Estado |\n|---|---|---|---|\n| `{{emailAdmin}}` | admin@altoro.com | ADMIN | activo |\n| `{{emailCliente}}` | andres.morales@gmail.com | CLIENTE | activo |\n| `{{emailSuspendido}}` | carlos.perez@gmail.com | — | suspendido/inactivo |\n\n## Contraseña\nTodos los usuarios usan la contraseña almacenada en `{{passwordValida}}`.\n\n## Mensajes de error\nTodas las respuestas de error siguen el formato `{ success, code, message }` definido en `ErrorCode`.\nLas credenciales incorrectas retornan `AUTH-001 – Credenciales inválidas.`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Módulo de Autenticación",
+      "description": "Agrupa todos los endpoints del módulo de autenticación. Ejecutar en orden para que los tokens queden disponibles en el environment.",
+      "item": [
+        {
+          "name": "POST /api/auth/login – Iniciar Sesión",
+          "description": "Inicia sesión y devuelve `accessToken`, `refreshToken` y datos del usuario.\nCA-01 guarda los tokens automáticamente en el environment.\n\n### Body\n```json\n{\n  \"email\": \"string\",\n  \"password\": \"string\",\n  \"forceSessionOverride\": false\n}\n```\n\n### Casos cubiertos\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-01 | Login admin válido (override=true) | 200 |\n| CA-02 | Credenciales incorrectas | 401 |\n| CA-03 | Login con rol CLIENTE | 200 |\n| CA-04 | Email con espacios al inicio/final (trimming) | 200 |\n| CA-05 | Cuenta suspendida/inactiva | 403 |\n| CA-06 | Formato de correo inválido | 422 |\n| CA-07 | Campo correo vacío | 422 |\n| CA-08 | Campo contraseña vacío | 422 |\n| CA-09 | Email en mayúsculas (normalización) | 200 |\n| CA-10 | Sesión activa (override=false) | 409 |\n| CA-11 | Inyección SQL / caracteres maliciosos | 401 |\n| CA-HU09 | Login mesero válido | 200 |\n| CA-HU10 | Login cocinero válido (rol primario PRODUCCION) | 200 |\n| CA-HU10b | Login bartender válido (rol primario PRODUCCION) | 200 |\n| CA-HU12 | Login cajero válido | 200 |\n| CA-HU-MR | Login usuario multi-rol — rol primario por prioridad | 200 |",
+          "item": [
+            {
+              "name": "CA-01 Login admin válido (override=true) – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario ADMIN', () => pm.expect(body.user.role).to.eql('ADMIN'));",
+                      "",
+                      "pm.test('Respuesta incluye lista de roles', () => pm.expect(body.user.roles).to.be.an('array').and.not.empty);",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+                      "",
+                      "pm.test('expiresIn es número positivo', () => pm.expect(body.expiresIn).to.be.a('number').and.above(0));",
+                      "",
+                      "pm.environment.set('accessToken', body.accessToken);",
+                      "pm.environment.set('refreshToken', body.refreshToken);",
+                      "pm.environment.set('loginExpiresIn', body.expiresIn);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailAdmin}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-02 Credenciales incorrectas – 401 Unauthorized",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Código AUTH-001 y mensaje de credenciales', () => {",
+                      "  pm.expect(body.code).to.eql('AUTH-001');",
+                      "  pm.expect(body.message).to.eql('Credenciales inválidas.');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailAdmin}}\",\n  \"password\": \"incorrecta\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-03 Login con rol CLIENTE – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario CLIENTE en roles', () => pm.expect(body.user.roles).to.include('CLIENTE'));",
+                      "",
+                      "pm.test('Nombre presente en respuesta de CLIENTE', () => {",
+                      "  pm.expect(body.user.nombre).to.be.a('string').and.not.empty;",
+                      "});",
+                      "",
+                      "pm.environment.set('clienteAccessToken', body.accessToken);",
+                      "pm.environment.set('clienteRefreshToken', body.refreshToken);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailCliente}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-04 Email con espacios al inicio/final – 422 Unprocessable Entity",
+              "description": "El backend delega el trimming al frontend (Angular valida con Validators.email antes de enviar). Un email con espacios enviado directamente a la API debe ser rechazado por @Email con 422.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Código VAL-001 y mensaje de formato', () => {",
+                      "  pm.expect(body.code).to.eql('VAL-001');",
+                      "  pm.expect(body.message).to.include('Por favor ingresa un correo electrónico válido');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"  {{emailAdmin}}  \",\n  \"password\": \"{{passwordValida}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-05 Cuenta suspendida/inactiva – 403 Forbidden",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 403', () => pm.response.to.have.status(403));",
+                      "",
+                      "pm.test('Mensaje de cuenta suspendida', () =>",
+                      "  pm.expect(pm.response.json().message).to.eql('Tu cuenta se encuentra suspendida. Por favor contacta al administrador'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailSuspendido}}\",\n  \"password\": \"{{passwordValida}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-06 Formato de correo inválido – 422 Unprocessable Entity",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Código VAL-001 y mensaje de formato', () => {",
+                      "  pm.expect(body.code).to.eql('VAL-001');",
+                      "  pm.expect(body.message).to.include('Por favor ingresa un correo electrónico válido');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"correo.com\",\n  \"password\": \"{{passwordValida}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-07 Campo correo vacío – 422 Unprocessable Entity",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                      "",
+                      "pm.test('Mensaje de correo requerido', () =>",
+                      "  pm.expect(pm.response.json().message).to.include('Por favor ingresa tu correo electronico'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"\",\n  \"password\": \"{{passwordValida}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-08 Campo contraseña vacío – 422 Unprocessable Entity",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                      "",
+                      "pm.test('Mensaje de contraseña requerida', () =>",
+                      "  pm.expect(pm.response.json().message).to.include('Por favor, ingresa tu contraseña'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailAdmin}}\",\n  \"password\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-09 Login con email en mayúsculas (normalización) – 200 OK",
+              "description": "Verifica que el backend normaliza el email a minúsculas antes de buscar en la BD. ADMIN@ALTORO.COM debe ser equivalente a admin@altoro.com.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Devuelve tokens y usuario', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body.user.role).to.eql('ADMIN');",
+                      "});",
+                      "",
+                      "pm.test('Email en respuesta es en minúsculas', () =>",
+                      "  pm.expect(body.user.email).to.eql(body.user.email.toLowerCase()));",
+                      "",
+                      "// CA-09 usa forceSessionOverride=true: desactiva la sesión de CA-01 y crea una nueva.",
+                      "// Guardar los nuevos tokens para que CA-13, CB-02 y CC-02 usen la sesión activa.",
+                      "if (pm.response.code === 200) {",
+                      "  pm.environment.set('accessToken', body.accessToken);",
+                      "  pm.environment.set('refreshToken', body.refreshToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"ADMIN@ALTORO.COM\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-10 Sesión activa en otro dispositivo (override=false) – 409 Conflict",
+              "description": "Usa forceSessionOverride=false para simular el caso en que ya hay una sesión activa (creada por CA-01) y el usuario no quiere forzar el cierre.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 409', () => pm.response.to.have.status(409));",
+                      "",
+                      "pm.test('Mensaje de sesión activa', () =>",
+                      "  pm.expect(pm.response.json().message).to.eql('Ya tienes una sesión activa. ¿Deseas cerrar la otra sesión y continuar?'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailAdmin}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": false\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-11 Inyección SQL o caracteres maliciosos – 401 Unauthorized",
+              "description": "Verifica que el backend no sea vulnerable a inyección SQL en el campo password. Debe retornar el mensaje genérico de credenciales incorrectas.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.test('Mensaje genérico de credenciales', () =>",
+                      "  pm.expect(pm.response.json().message).to.eql('Credenciales inválidas.'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailAdmin}}\",\n  \"password\": \"admin' --\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU09 Login mesero válido (override=true) – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario MESERO', () => pm.expect(body.user.role).to.eql('MESERO'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+                      "",
+                      "pm.environment.set('meseroAccessToken', body.accessToken);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailMesero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU10 Login cocinero válido (override=true) – 200 OK",
+              "description": "El rol COCINERO se mapea a 'PRODUCCION' en la respuesta del API (RoleMapper). cocinero2 tiene COCINERO activo y MESERO inactivo.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol primario es PRODUCCION (COCINERO mapeado)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailCocinero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU10b Login bartender válido (override=true) – 200 OK",
+              "description": "El rol BARTENDER también se mapea a 'PRODUCCION' en la respuesta del API (RoleMapper). Ambas sub-interfaces de producción (cocina y barra) deben obtener el mismo rol frontend.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol primario es PRODUCCION (BARTENDER mapeado)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailBartender}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU12 Login cajero válido (override=true) – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Respuesta incluye tokens y user', () => {",
+                      "  pm.expect(body).to.have.property('accessToken');",
+                      "  pm.expect(body).to.have.property('refreshToken');",
+                      "  pm.expect(body).to.have.property('user');",
+                      "});",
+                      "",
+                      "pm.test('Rol de usuario CAJERO', () => pm.expect(body.user.role).to.eql('CAJERO'));",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailCajero}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            },
+            {
+              "name": "CA-HU-MR Login usuario multi-rol — rol primario correcto – 200 OK",
+              "description": "cajero1@altoro.com tiene CAJERO+MESERO+BARTENDER activos y ADM inactivo. Verifica que resolvePrimaryRole() retorna CAJERO (mayor prioridad entre los roles activos) y que los roles inactivos no aparecen en la lista.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Rol primario es CAJERO (mayor prioridad activa)', () => pm.expect(body.user.role).to.eql('CAJERO'));",
+                      "",
+                      "pm.test('Roles activos incluyen CAJERO, MESERO y PRODUCCION', () => {",
+                      "  pm.expect(body.user.roles).to.include('CAJERO');",
+                      "  pm.expect(body.user.roles).to.include('MESERO');",
+                      "  pm.expect(body.user.roles).to.include('PRODUCCION');",
+                      "});",
+                      "",
+                      "pm.test('Roles NO incluyen ADMIN (ADM está inactivo)', () =>",
+                      "  pm.expect(body.user.roles).to.not.include('ADMIN'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"email\": \"{{emailMultiRol}}\",\n  \"password\": \"{{passwordValida}}\",\n  \"forceSessionOverride\": true\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/login",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "login"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/auth/refresh – Renovar Token",
+          "description": "Renueva el access token usando el refresh token guardado en el environment.\nActualiza `accessToken` y `refreshToken` en el environment al completarse.\n\n### Body\n```json\n{ \"refreshToken\": \"string\" }\n```\n\n| Código | Escenario | HTTP |\n|---|---|---|\n| CA-12 | Refresh token inválido | 401 |\n| CA-13 | Refresh token válido (con rotación) | 200 |\n| CA-14 | Body vacío (sin campo refreshToken) | 422 |\n| CA-15 | Reutilización de refresh token ya rotado | 401 |\n| CA-16 | Refresh token usado como access token en /me | 401 |\n| CA-17 | Access token enviado a /refresh | 401 |",
+          "item": [
+            {
+              "name": "CA-12 Refresh token inválido – 401 Unauthorized",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.test('Código AUTH-001', () =>",
+                      "  pm.expect(pm.response.json().code).to.eql('AUTH-001'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"token.invalido.jwt\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            },
+            {
+              "name": "CA-13 Refresh token válido – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Retorna nuevo access token', () => pm.expect(body.accessToken).to.be.a('string').and.not.empty);",
+                      "",
+                      "pm.test('Retorna nuevo refresh token distinto al anterior', () => {",
+                      "  pm.expect(body.refreshToken).to.be.a('string').and.not.empty;",
+                      "  pm.expect(body.refreshToken).to.not.eql(pm.environment.get('refreshToken'));",
+                      "});",
+                      "",
+                      "pm.test('tokenType es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));",
+                      "",
+                      "pm.test('expiresIn coincide con el valor del login (viene de config)', () =>",
+                      "  pm.expect(body.expiresIn).to.eql(pm.environment.get('loginExpiresIn')));",
+                      "",
+                      "// Guardar RT anterior antes de reemplazarlo (usado en CA-15) y actualizar tokens.",
+                      "// Solo se actualiza si la respuesta es exitosa para evitar sobreescribir con undefined.",
+                      "if (pm.response.code === 200) {",
+                      "  pm.environment.set('oldRefreshToken', pm.environment.get('refreshToken'));",
+                      "  pm.environment.set('accessToken', body.accessToken);",
+                      "  pm.environment.set('refreshToken', body.refreshToken);",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{refreshToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            },
+            {
+              "name": "CA-14 Body vacío (sin refreshToken) – 422 Unprocessable Entity",
+              "description": "El campo refreshToken es @NotBlank. Enviar body vacío debe retornar 422.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 422', () => pm.response.to.have.status(422));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Código VAL-001', () => pm.expect(body.code).to.eql('VAL-001'));",
+                      "",
+                      "pm.test('Mensaje incluye refreshToken obligatorio', () =>",
+                      "  pm.expect(body.message).to.include('El refresh token es obligatorio'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            },
+            {
+              "name": "CA-15 Reutilización de refresh token ya rotado – 401 Unauthorized",
+              "description": "Al hacer refresh, el backend rota el refresh token: el RT anterior queda eliminado de la BD y el nuevo queda activo. Intentar reutilizar el RT viejo debe retornar 401 (token rotation). Requiere que CA-13 haya corrido antes (guarda oldRefreshToken).",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401 — refresh token ya rotado no es válido', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.test('Código AUTH-001', () =>",
+                      "  pm.expect(pm.response.json().code).to.eql('AUTH-001'));",
+                      "",
+                      "pm.environment.unset('oldRefreshToken');",
+                      "pm.environment.unset('loginExpiresIn');"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{oldRefreshToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            },
+            {
+              "name": "CA-16 Refresh token usado como access token en /me – 401 Unauthorized",
+              "description": "El filtro JWT rechaza tokens con claim type='refresh' en el header Authorization. Un refresh token no debe autenticar llamadas a endpoints protegidos.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401 — refresh token no es válido como Bearer', () => pm.response.to.have.status(401));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{refreshToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            },
+            {
+              "name": "CA-17 Access token enviado a /refresh – 401 Unauthorized",
+              "description": "El endpoint /refresh exige un token con claim type='refresh'. Enviar el access token activo (type='access') debe retornar 401 (BadCredentialsException en AuthService.refresh). Requiere que CA-01 o CA-09 hayan corrido antes (guarda accessToken).",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401 — access token no es válido en /refresh', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.test('Código AUTH-001', () =>",
+                      "  pm.expect(pm.response.json().code).to.eql('AUTH-001'));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{accessToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/auth/me – Obtener Usuario Autenticado",
+          "description": "Requiere header `Authorization: Bearer {{accessToken}}`.\nDevuelve email, rol principal y lista de roles del usuario en sesión.\n\n| Código | Escenario | HTTP |\n|---|---|---|\n| CB-01 | Sin token JWT | 401 |\n| CB-02 | Con token válido (ADMIN) | 200 |\n| CB-03 | Con token de CLIENTE | 200 |\n| CB-04 | Token con firma inválida | 401 |",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Login fresco ADMIN – garante token válido sin depender de CA-xx",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailAdmin'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) {",
+                  "    pm.environment.set('accessToken', res.json().accessToken);",
+                  "    pm.environment.set('refreshToken', res.json().refreshToken);",
+                  "  }",
+                  "});",
+                  "",
+                  "// Login CLIENTE (cacheado) para CB-03",
+                  "if (!pm.environment.get('clienteAccessToken')) {",
+                  "  pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "    method: 'POST',",
+                  "    header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "    body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCliente'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "  }, function(err, res) {",
+                  "    if (!err && res.code === 200) {",
+                  "      pm.environment.set('clienteAccessToken', res.json().accessToken);",
+                  "    }",
+                  "  });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "item": [
+            {
+              "name": "CB-01 Sin token JWT – 401 Unauthorized",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            },
+            {
+              "name": "CB-02 Con token ADMIN – 200 OK",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Retorna usuario autenticado con roles', () => {",
+                      "  pm.expect(body).to.have.property('email');",
+                      "  pm.expect(body).to.have.property('role');",
+                      "  pm.expect(body.roles).to.be.an('array').and.not.empty;",
+                      "});",
+                      "",
+                      "pm.test('Contiene campos requeridos por el frontend', () => {",
+                      "  pm.expect(body).to.include.all.keys('id', 'nombre', 'email', 'role', 'roles', 'status', 'createdAt');",
+                      "});"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            },
+            {
+              "name": "CB-03 Con token CLIENTE – 200 OK",
+              "description": "Verifica que /me con el token de un CLIENTE devuelve roles que incluyen CLIENTE y los datos del perfil del cliente (nombre). Requiere que CA-03 haya corrido antes.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 200', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('Roles incluyen CLIENTE', () => pm.expect(body.roles).to.include('CLIENTE'));",
+                      "",
+                      "pm.test('Nombre no es vacío', () => pm.expect(body.nombre).to.be.a('string').and.not.empty);",
+                      "",
+                      "pm.test('Email presente', () => pm.expect(body.email).to.be.a('string').and.not.empty);"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{clienteAccessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            },
+            {
+              "name": "CB-04 Token con firma inválida – 401 Unauthorized",
+              "description": "Un JWT con firma adulterada (último carácter cambiado) no debe ser aceptado por el filtro.",
+              "event": [
+                {
+                  "listen": "prerequest",
+                  "script": {
+                    "exec": [
+                      "// Tomamos el accessToken del environment y corrompemos su firma",
+                      "const token = pm.environment.get('accessToken') || '';",
+                      "if (token) {",
+                      "  const parts = token.split('.');",
+                      "  // Cambiar el último carácter de la firma",
+                      "  const sig = parts[2];",
+                      "  parts[2] = sig.slice(0, -1) + (sig.slice(-1) === 'A' ? 'B' : 'A');",
+                      "  pm.environment.set('tamperedToken', parts.join('.'));",
+                      "} else {",
+                      "  pm.environment.set('tamperedToken', 'header.payload.invalidsignature');",
+                      "}"
+                    ],
+                    "type": "text/javascript"
+                  }
+                },
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.environment.unset('tamperedToken');"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [{ "key": "Authorization", "value": "Bearer {{tamperedToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/me",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "me"]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/auth/logout – Cerrar Sesión",
+          "description": "Requiere header `Authorization: Bearer {{accessToken}}`.\nInvalida la sesión activa. Al completarse con éxito limpia `accessToken` y `refreshToken` del environment.\n\n| Código | Escenario | HTTP |\n|---|---|---|\n| CC-01 | Sin token JWT | 401 |\n| CC-02 | Con token válido | 204 |\n| CC-03 | Refresh después de logout (sesión inactiva) | 401 |",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// Login fresco ADMIN – CC-02 → CC-03 siguen siendo secuenciales (lógica intencional)",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailAdmin'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) {",
+                  "    pm.environment.set('accessToken', res.json().accessToken);",
+                  "    pm.environment.set('refreshToken', res.json().refreshToken);",
+                  "  }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "item": [
+            {
+              "name": "CC-01 Sin token JWT – 401 Unauthorized",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401', () => pm.response.to.have.status(401));"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/logout",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "logout"]
+                }
+              }
+            },
+            {
+              "name": "CC-02 Logout con token válido – 204 No Content",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 204', () => pm.response.to.have.status(204));",
+                      "",
+                      "// Guardar el refreshToken para el test CC-03 antes de limpiarlo",
+                      "pm.environment.set('savedRefreshToken', pm.environment.get('refreshToken'));",
+                      "",
+                      "pm.environment.unset('accessToken');",
+                      "pm.environment.unset('refreshToken');"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Authorization", "value": "Bearer {{accessToken}}" }],
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/logout",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "logout"]
+                }
+              }
+            },
+            {
+              "name": "CC-03 Refresh después de logout (sesión inactiva) – 401 Unauthorized",
+              "description": "Después de hacer logout, la sesión queda marcada como inactiva en la BD. El endpoint /refresh verifica que exista sesión activa, por lo que debe retornar 401. Requiere que CC-02 haya corrido antes (guarda savedRefreshToken).",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "exec": [
+                      "pm.test('Status 401 — sesión cerrada impide renovar token', () => pm.response.to.have.status(401));",
+                      "",
+                      "pm.environment.unset('savedRefreshToken');"
+                    ],
+                    "type": "text/javascript"
+                  }
+                }
+              ],
+              "request": {
+                "method": "POST",
+                "header": [{ "key": "Content-Type", "value": "application/json" }],
+                "body": {
+                  "mode": "raw",
+                  "raw": "{\n  \"refreshToken\": \"{{savedRefreshToken}}\"\n}"
+                },
+                "url": {
+                  "raw": "{{baseUrl}}/api/auth/refresh",
+                  "host": ["{{baseUrl}}"],
+                  "path": ["api", "auth", "refresh"]
+                }
+              }
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

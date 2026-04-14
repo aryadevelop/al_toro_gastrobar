@@ -113,17 +113,17 @@ INSERT INTO Usuario_Rol (usuario_id, rol_nombre, rol_estado) VALUES
 -- =====================================================
 -- 5. Sesion
 -- =====================================================
-INSERT INTO Sesion (usuario_id, sesion_token, sesion_fecha_creacion, sesion_activa) VALUES
-(1,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.admin001',   NOW() - INTERVAL '2 hours',   TRUE),
-(4,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mesero001',  NOW() - INTERVAL '1 hour',    TRUE),
-(5,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mesero002',  NOW() - INTERVAL '90 minutes',TRUE),
-(9,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bartend001', NOW() - INTERVAL '45 minutes',TRUE),
-(7,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cocinero01', NOW() - INTERVAL '3 hours',   TRUE),
-(2,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cajero0001', NOW() - INTERVAL '30 minutes',TRUE),
-(11, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente011', NOW() - INTERVAL '5 days',    FALSE),
-(12, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente012', NOW() - INTERVAL '2 days',    FALSE),
-(13, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente013', NOW() - INTERVAL '10 hours',  FALSE),
-(15, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente015', NOW() - INTERVAL '1 day',     FALSE);
+INSERT INTO Sesion (usuario_id, sesion_token, sesion_refresh_token, sesion_fecha_creacion, sesion_activa) VALUES
+(1,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.admin001',   'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.admin001',   NOW() - INTERVAL '2 hours',   TRUE),
+(4,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mesero001',  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.mesero001',  NOW() - INTERVAL '1 hour',    TRUE),
+(5,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.mesero002',  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.mesero002',  NOW() - INTERVAL '90 minutes',TRUE),
+(9,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.bartend001', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.bartend001', NOW() - INTERVAL '45 minutes',TRUE),
+(7,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cocinero01', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cocinero01', NOW() - INTERVAL '3 hours',   TRUE),
+(2,  'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cajero0001', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cajero0001', NOW() - INTERVAL '30 minutes',TRUE),
+(11, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente011', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cliente011', NOW() - INTERVAL '5 days',    FALSE),
+(12, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente012', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cliente012', NOW() - INTERVAL '2 days',    FALSE),
+(13, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente013', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cliente013', NOW() - INTERVAL '10 hours',  FALSE),
+(15, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente015', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cliente015', NOW() - INTERVAL '1 day',     FALSE);
 
 -- =====================================================
 -- 6. Reserva

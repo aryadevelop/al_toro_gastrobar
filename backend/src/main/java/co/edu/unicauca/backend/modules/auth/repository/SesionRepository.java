@@ -10,4 +10,6 @@ public interface SesionRepository extends JpaRepository<Sesion, Long> {
     List<Sesion> findByUsuarioUsuarioIdAndSesionActivaTrue(Long usuarioId);
 
     Optional<Sesion> findBySesionTokenAndSesionActivaTrue(String sesionToken);
+
+    Optional<Sesion> findBySesionRefreshTokenAndSesionActivaTrue(String sesionRefreshToken);
 }

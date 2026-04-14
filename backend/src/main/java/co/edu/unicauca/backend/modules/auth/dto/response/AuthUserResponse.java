@@ -6,9 +6,14 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Representación del usuario autenticado que consume el frontend.
+ *
+ * <p>{@code role} es el rol activo principal (el de mayor prioridad).
+ * {@code roles} contiene todos los roles activos del usuario, para que
+ * el frontend pueda mostrar los módulos correspondientes a cada uno.
  */
 @Getter
 @Builder
@@ -17,11 +22,10 @@ import java.time.LocalDateTime;
 public class AuthUserResponse {
 
     private String id;
-    private String fullName;
+    private String nombre;
     private String email;
-    private String phone;
     private String role;
+    private List<String> roles;
     private String status;
-    private String avatarUrl;
     private LocalDateTime createdAt;
 }

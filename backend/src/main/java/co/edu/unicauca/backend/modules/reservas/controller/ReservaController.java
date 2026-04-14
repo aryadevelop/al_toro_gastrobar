@@ -12,6 +12,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
@@ -31,9 +32,10 @@ public class ReservaController {
 
     /**
      * Consulta disponibilidad y retorna decoraciones y zonas libres para una fecha/hora dada.
-     * Endpoint público: no requiere autenticación para facilitar la precarga del formulario.
+     * Solo accesible por usuarios con rol CLIENTE.
      */
     @GetMapping("/disponibilidad")
+    @PreAuthorize("hasRole('CLIENTE')")
     @Operation(summary = "Consultar disponibilidad para una fecha y hora")
     public ResponseEntity<ApiResponse<DisponibilidadResponse>> consultarDisponibilidad(
             @RequestParam @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME) LocalDateTime fechaHora) {
@@ -43,41 +45,32 @@ public class ReservaController {
     }
 
     /**
-     * Crea una nueva reserva.
-     *
-     * <p><b>DEV:</b> mientras el módulo de auth no está implementado, el email se toma
-     * del campo {@code emailCliente} del body. Cuando auth esté listo, eliminar ese campo
-     * y usar únicamente {@code userDetails.getUsername()}.
+     * Crea una nueva reserva para el cliente autenticado.
+     * Solo accesible por usuarios con rol CLIENTE.
      */
     @PostMapping
+    @PreAuthorize("hasRole('CLIENTE')")
     @Operation(summary = "Crear nueva reserva")
     public ResponseEntity<ApiResponse<ReservaResponse>> crearReserva(
             @Valid @RequestBody CrearReservaRequest request,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        // DEV: fallback al campo del body cuando no hay token JWT
-        String email = (userDetails != null) ? userDetails.getUsername() : request.getEmailCliente();
-        ReservaResponse response = reservaService.crearReserva(email, request);
+        ReservaResponse response = reservaService.crearReserva(userDetails.getUsername(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Reserva creada exitosamente", response));
     }
 
     /**
-     * Retorna el historial de reservas del cliente.
-     *
-     * <p><b>DEV:</b> mientras el módulo de auth no está implementado, el email se toma
-     * del query param {@code emailCliente}. Cuando auth esté listo, usar únicamente
-     * {@code userDetails.getUsername()} y eliminar el parámetro.
+     * Retorna el historial de reservas del cliente autenticado.
+     * Solo accesible por usuarios con rol CLIENTE.
      */
     @GetMapping("/cliente")
+    @PreAuthorize("hasRole('CLIENTE')")
     @Operation(summary = "Obtener reservas del cliente autenticado")
     public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerMisReservas(
-            @RequestParam(required = false) String emailCliente,
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        // DEV: fallback al query param cuando no hay token JWT
-        String email = (userDetails != null) ? userDetails.getUsername() : emailCliente;
-        List<ReservaResponse> response = reservaService.obtenerReservasCliente(email);
+        List<ReservaResponse> response = reservaService.obtenerReservasCliente(userDetails.getUsername());
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }
