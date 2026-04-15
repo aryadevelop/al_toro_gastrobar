@@ -70,3 +70,4 @@ volumes:
 networks:
   altoro_network:
     driver: bridge
+    name: altoro_network
