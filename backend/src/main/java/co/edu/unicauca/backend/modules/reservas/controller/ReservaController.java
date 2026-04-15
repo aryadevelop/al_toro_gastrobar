@@ -21,7 +21,6 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
-
 @RestController
 @RequestMapping("/api/reservas")
 @RequiredArgsConstructor
@@ -32,6 +31,8 @@ public class ReservaController {
 
     /**
      * Consulta disponibilidad y retorna decoraciones y zonas libres para una fecha/hora dada.
+     * Retorna {@code disponible=false} si la hora está fuera del horario de atención
+     * (lunes–domingo 5 PM–10 PM) o si existe un bloqueo activo del administrador.
      * Solo accesible por usuarios con rol CLIENTE.
      */
     @GetMapping("/disponibilidad")
@@ -61,16 +62,23 @@ public class ReservaController {
     }
 
     /**
-     * Retorna el historial de reservas del cliente autenticado.
-     * Solo accesible por usuarios con rol CLIENTE.
+     * Retorna el historial de reservas.
+     * - CLIENTE: sus propias reservas.
+     * - CAJERO, ADM, MESERO: todas las reservas del sistema.
      */
     @GetMapping("/cliente")
-    @PreAuthorize("hasRole('CLIENTE')")
-    @Operation(summary = "Obtener reservas del cliente autenticado")
-    public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerMisReservas(
+    @PreAuthorize("hasAnyRole('CLIENTE', 'CAJERO', 'ADMIN', 'MESERO')")
+    @Operation(summary = "Obtener historial de reservas")
+    public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerHistorial(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        List<ReservaResponse> response = reservaService.obtenerReservasCliente(userDetails.getUsername());
+        boolean esCliente = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+
+        List<ReservaResponse> response = esCliente
+                ? reservaService.obtenerReservasCliente(userDetails.getUsername())
+                : reservaService.obtenerTodasLasReservas();
+
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

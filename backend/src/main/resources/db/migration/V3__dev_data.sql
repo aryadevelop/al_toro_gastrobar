@@ -382,3 +382,27 @@ FROM (VALUES
 ) AS v(nombre, cantidad, proveedor, factura, obs)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
+-- =====================================================
+-- N. Bloqueos de disponibilidad (datos de prueba)
+--
+-- Fechas usadas en las pruebas de Postman:
+--   fechaLibre          2026-12-15  → NO bloqueada  (pruebas normales)
+--   fechaCapacidad      2026-12-16  → NO bloqueada  (pruebas de capacidad)
+--   fechaDecoracion     2026-12-17  → NO bloqueada  (pruebas de decoración)
+--   fechaTodasOcupadas  2026-12-20  → NO bloqueada  (pruebas sin disponibilidad)
+--   fechaBloqueadaDia   2026-12-25  → BLOQUEADA día completo (Navidad)
+--   fechaBloqueadaFranja 2026-12-22 → BLOQUEADA 19:00–21:00 (mantenimiento)
+-- =====================================================
+INSERT INTO Bloque_Disponibilidad (bloque_fecha_inicio, bloque_fecha_fin, bloque_hora_inicio, bloque_hora_fin, bloque_motivo, admin_id) VALUES
+-- Bloqueo 1: Navidad — día completo bloqueado
+('2026-12-25', '2026-12-25', NULL, NULL,
+ 'Cierre por festividad de Navidad', 1),
+
+-- Bloqueo 2: Mantenimiento de salón — solo franja 7 PM a 9 PM el 22 de diciembre
+('2026-12-22', '2026-12-22', '19:00', '21:00',
+ 'Mantenimiento de equipos de sonido en horario nocturno', 1),
+
+-- Bloqueo 3: Cierre por inventario de fin de año — 30 y 31 de diciembre todo el día
+('2026-12-30', '2026-12-31', NULL, NULL,
+ 'Cierre por inventario de fin de año', 1);
+
