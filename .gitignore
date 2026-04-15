@@ -62,4 +62,4 @@ desktop.ini
 *.tmp
 *.bak
 logs/
-backend/postman/.tmp-env-runtime.json
+.claude/
