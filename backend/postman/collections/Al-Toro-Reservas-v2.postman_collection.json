@@ -1,0 +1,2997 @@
+{
+  "info": {
+    "name": "Al Toro Gastrobar – Reservas [v2.0]",
+    "description": "# Módulo de Reservas — Al Toro Gastrobar\n\n## Propósito\nEsta colección centraliza los casos de prueba del módulo de reservas del sistema Al Toro Gastrobar, correspondiente a la Historia Épica HE-02 (PA-63). Su objetivo es verificar el comportamiento funcional y de control de acceso de los endpoints de gestión de reservas bajo los criterios de aceptación establecidos en la documentación de requisitos del proyecto.\n\n## Cobertura de Endpoints\n| Método | Endpoint | Descripción |\n|--------|----------|-------------|\n| GET | /api/reservas/disponibilidad | Consultar zonas y decoraciones disponibles para una fecha |\n| GET | /api/reservas/cliente | Obtener el historial de reservas del cliente autenticado |\n| POST | /api/reservas | Crear una nueva reserva para el cliente autenticado |\n\n## Convención de Identificadores de Casos de Prueba\n| Prefijo | Endpoint | Descripción |\n|---------|----------|-------------|\n| RD-xx | GET /api/reservas/disponibilidad | Casos de consulta de disponibilidad |\n| RC-xx | GET /api/reservas/cliente | Casos de historial del cliente |\n| RP-xx | POST /api/reservas | Casos de creación de reserva |\n| CAP-x | POST /api/reservas | Casos secuenciales de capacidad de zona |\n| DECO-OCP-x | POST /api/reservas | Casos secuenciales de decoración exclusiva |\n| NODISP-x | GET y POST | Casos secuenciales sin disponibilidad (CA-03) |\n\n## Instrucciones de Configuración\n1. Importar el archivo de entorno `AlToro-local.postman_environment.json` y seleccionarlo como entorno activo.\n2. No es necesario ejecutar ningún request de setup previo. Cada carpeta de endpoint gestiona su login automáticamente mediante pre-request scripts a nivel de grupo.\n3. Los grupos CAP-*, DECO-OCP-* y NODISP-* son secuenciales. Ejecutar en el orden indicado dentro de la misma sesión de pruebas.\n\n## Variables de Entorno Requeridas\n| Variable | Valor | Propósito |\n|----------|-------|-----------|\n| `{{baseUrl}}` | http://localhost:8080 | URL base del servidor |\n| `{{emailAdmin}}` | admin@altoro.com | Correo del administrador (para casos de rol no permitido) |\n| `{{emailCliente}}` | andres.morales@gmail.com | Correo del cliente de prueba |\n| `{{passwordValida}}` | Al.Toro2026! | Contraseña compartida de todos los usuarios de prueba |\n| `{{fechaLibre}}` | 2026-12-15T19:00:00 | Fecha sin reservas previas (casos generales) |\n| `{{fechaCapacidad}}` | 2026-12-16T20:00:00 | Fecha para el grupo secuencial CAP-* |\n| `{{fechaDecoracion}}` | 2026-12-17T18:00:00 | Fecha para el grupo secuencial DECO-OCP-* |\n| `{{idDecoracionZonaFija}}` | 8 | ID de la decoración Test Zona Fija (zona fija: Barra id=4) |\n| `{{fechaTodasOcupadas}}` | 2026-12-20T19:00:00 | Fecha para el grupo secuencial NODISP-* |\n\n## Usuarios de Prueba Registrados\n| Variable de Entorno | Correo Electrónico | Rol | Estado |\n|---------------------|--------------------|-----|--------|\n| `{{emailCliente}}` | andres.morales@gmail.com | CLIENTE | Activo |\n| `{{emailAdmin}}` | admin@altoro.com | ADMIN | Activo |\n\n## Formato Estándar de Errores\nTodas las respuestas de error del sistema siguen el esquema:\n```json\n{\n  \"success\": false,\n  \"code\": \"VAL-001\",\n  \"message\": \"Descripción legible del error.\"\n}\n```\n\n## Convención de Nomenclatura de Requests\n`[ID_CASO] [Descripción del escenario] – [HTTP_STATUS] [Nombre del estado]`\n\n**Ejemplo:** `RP-01 Reserva mínima sin zona ni decoración – 201 Created`",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "fechaLibre",
+      "value": "2026-12-15T19:00:00"
+    },
+    {
+      "key": "fechaCapacidad",
+      "value": "2026-12-16T20:00:00"
+    },
+    {
+      "key": "fechaDecoracion",
+      "value": "2026-12-17T18:00:00"
+    },
+    {
+      "key": "idDecoracionZonaFija",
+      "value": "8"
+    },
+    {
+      "key": "fechaTodasOcupadas",
+      "value": "2026-12-20T19:00:00"
+    },
+    {
+      "key": "fechaBloqueadaDia",
+      "value": "2026-12-25T19:00:00",
+      "_comment": "Navidad – bloqueado día completo en V3"
+    },
+    {
+      "key": "fechaBloqueadaFranja",
+      "value": "2026-12-22T20:00:00",
+      "_comment": "Bloqueado franja 19:00–21:00 en V3. Esta hora (20:00) cae dentro del bloqueo"
+    },
+    {
+      "key": "fechaBloqueadaFranjaFuera",
+      "value": "2026-12-22T17:00:00",
+      "_comment": "Misma fecha que fechaBloqueadaFranja pero hora 17:00 está FUERA del bloqueo (19-21)"
+    }
+  ],
+  "item": [
+    {
+      "name": "Módulo de Reservas — HE-02 (PA-63)",
+      "description": "Agrupa los tres endpoints del módulo de reservas. Se recomienda ejecutar los grupos en el siguiente orden:\n\n1. **GET /api/reservas/disponibilidad** — casos independientes, ejecutar primero\n2. **GET /api/reservas/cliente** — casos independientes\n3. **POST /api/reservas** — ejecutar por sub-grupo en orden: Casos Exitosos → Errores de Validación → Errores de Negocio\n\n> Los grupos CAP-*, DECO-OCP-* y NODISP-* dentro de Errores de Negocio son secuenciales y deben ejecutarse en el orden listado dentro de la misma sesión.",
+      "item": [
+        {
+          "name": "GET /api/reservas/disponibilidad – Consultar Disponibilidad",
+          "description": "## Descripción\nEndpoint de consulta que retorna las zonas y decoraciones disponibles para una fecha y hora específicas. El sistema evalúa la capacidad acumulada por zona en la fecha indicada y excluye las decoraciones exclusivas ya reservadas, las decoraciones inactivas y las zonas que han alcanzado su límite de capacidad.\n\n## Parámetro de Consulta Requerido\n```\nGET /api/reservas/disponibilidad?fechaHora=yyyy-MM-dd'T'HH:mm:ss\n```\nEl parámetro `fechaHora` es obligatorio. Formato aceptado: `yyyy-MM-dd'T'HH:mm:ss`.\n\n## Encabezado Requerido\n```\nAuthorization: Bearer {{clienteToken}}\n```\nEste endpoint es de acceso exclusivo para usuarios con rol CLIENTE. El pre-request script de este grupo gestiona el login automático.\n\n## Estructura de la Respuesta Exitosa (200)\n```json\n{\n  \"success\": true,\n  \"data\": {\n    \"disponible\": true,\n    \"zonas\": [ { \"zonaId\": 1, \"nombre\": \"string\", \"imagenUrl\": \"string\", \"capacidad\": 60 } ],\n    \"decoraciones\": [ { \"decoracionId\": 1, \"nombre\": \"string\", \"puedeSeleccionarZona\": true, \"zonaIdsCompatibles\": [1,2,3] } ]\n  }\n}\n```\n\n## Datos de Referencia — Zonas del Sistema\n| ID | Nombre | Capacidad |\n|----|--------|-----------|\n| 1 | Salón Principal | 60 |\n| 2 | Terraza | 30 |\n| 3 | VIP | 16 |\n| 4 | Barra | 10 |\n| 5 | Jardín | 20 |\n| 6 | Sala Privada | 12 |\n| 7 | Zona Romántica | 6 |\n\n## Datos de Referencia — Decoraciones del Sistema\n| ID | Nombre | Costo | Zonas Compatibles | Exclusiva por Fecha |\n|----|--------|-------|-------------------|---------------------|\n| 1 | Velas Románticas | 25.000 | 1, 2, 3 | Sí |\n| 2 | Cumpleaños Premium | 0 | 3, 6 | Sí |\n| 3 | Decoración Empresarial | 0 | 1, 2, 3, 6 | Sí |\n| 4 | Mesa Temática Toro | 0 | 3, 6 | Sí |\n| 5 | Minimalista Elegante | 0 | 1, 2 | Sí |\n| 6 | Globos y Flores | 0 | Sin restricción | Sí |\n| 7 | Rústica Vintage | — | INACTIVA | — |\n| 8 | Test Zona Fija | 0 | 4 (Barra, fija) | Sí |\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RD-01 | Sin token JWT | 401 |\n| RD-02 | Fecha libre: zonas y decoraciones disponibles | 200 |\n| RD-03 | Decoración inactiva excluida del resultado | 200 |\n| RD-04 | Parámetro fechaHora ausente | 400 |\n| RD-05 | Formato de fecha inválido (dd-MM-yyyy) | 400 |\n| RD-06 | CA-04: decoración con zona fija muestra puedeSeleccionarZona=false | 200 |\n| RD-07 | CA-05: decoración con zonas específicas muestra zonaIdsCompatibles correctas | 200 |\n| RD-08 | CA-06: decoración sin restricción de zona tiene zonaIdsCompatibles vacía | 200 |",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Login autónomo como CLIENTE — garantiza token fresco sin depender de ejecuciones anteriores",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: {",
+                  "    mode: 'raw',",
+                  "    raw: JSON.stringify({",
+                  "      email: pm.environment.get('emailCliente'),",
+                  "      password: pm.environment.get('passwordValida'),",
+                  "      forceSessionOverride: true",
+                  "    })",
+                  "  }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) {",
+                  "    pm.environment.set('clienteToken', res.json().accessToken);",
+                  "  }",
+                  "});",
+                  "",
+                  "// Login ADMIN (solo si no está en caché) — requerido para casos de acceso denegado (403)",
+                  "if (!pm.environment.get('accessToken')) {",
+                  "  pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "    method: 'POST',",
+                  "    header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "    body: {",
+                  "      mode: 'raw',",
+                  "      raw: JSON.stringify({",
+                  "        email: pm.environment.get('emailAdmin'),",
+                  "        password: pm.environment.get('passwordValida'),",
+                  "        forceSessionOverride: true",
+                  "      })",
+                  "    }",
+                  "  }, function(err, res) {",
+                  "    if (!err && res.code === 200) {",
+                  "      pm.environment.set('accessToken', res.json().accessToken);",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "item": [
+            {
+              "name": "RD-01 Solicitud sin token JWT – 401 Unauthorized",
+              "description": "**Criterio de Aceptación:** RD-01\n**Objetivo:** Verificar que el endpoint de disponibilidad rechaza solicitudes que no incluyen token de autorización.\n**Pre-condición:** Ninguna sesión activa requerida.\n**Resultado esperado:** HTTP 401.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 – Acceso denegado sin token JWT', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-02 Fecha libre: zonas y decoraciones disponibles – 200 OK",
+              "description": "**Criterio de Aceptación:** RD-02\n**Objetivo:** Verificar que para una fecha sin reservas previas, el sistema retorna disponible=true, un listado no vacío de zonas con sus campos requeridos y un listado no vacío de decoraciones sin campos de zona fija expuestos innecesariamente.\n**Pre-condición:** La fecha {{fechaLibre}} no debe tener reservas que agoten la capacidad de las zonas.\n**Resultado esperado:** HTTP 200. `data.disponible` es `true`. `data.zonas` y `data.decoraciones` son arrays no vacíos. Las zonas incluyen `zonaId`, `nombre`, `imagenUrl` y `capacidad`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const d = pm.response.json().data;",
+                      "",
+                      "pm.test('El campo disponible es true para fecha sin reservas', () => pm.expect(d.disponible).to.be.true);",
+                      "",
+                      "pm.test('El listado de zonas disponibles no está vacío', () => pm.expect(d.zonas).to.be.an('array').and.not.empty);",
+                      "",
+                      "pm.test('El listado de decoraciones disponibles no está vacío', () => pm.expect(d.decoraciones).to.be.an('array').and.not.empty);",
+                      "",
+                      "const zona = d.zonas[0];",
+                      "pm.test('Cada zona incluye los campos zonaId, nombre, imagenUrl y capacidad', () => {",
+                      "  pm.expect(zona).to.have.all.keys(['zonaId', 'nombre', 'imagenUrl', 'capacidad']);",
+                      "});",
+                      "",
+                      "const deco = d.decoraciones[0];",
+                      "pm.test('Las decoraciones no exponen zonaFijaId ni zonaFijaNombre directamente', () => {",
+                      "  pm.expect(deco).to.not.have.property('zonaFijaId');",
+                      "  pm.expect(deco).to.not.have.property('zonaFijaNombre');",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-03 Decoración inactiva excluida del resultado – 200 OK",
+              "description": "**Criterio de Aceptación:** RD-03\n**Objetivo:** Verificar que el sistema no incluye en la respuesta las decoraciones marcadas como inactivas (estado INACTIVA). En los datos de referencia, la decoración 7 (Rústica Vintage) está inactiva.\n**Pre-condición:** La decoración 7 debe estar registrada como INACTIVA en la base de datos.\n**Resultado esperado:** HTTP 200. La decoración con `decoracionId=7` no aparece en `data.decoraciones`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const rustica = decos.find(d => d.decoracionId === 7);",
+                      "",
+                      "pm.test('La decoración Rústica Vintage (INACTIVA, id=7) no aparece en el resultado', () => pm.expect(rustica).to.be.undefined);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-04 Parámetro fechaHora ausente – 400 Bad Request",
+              "description": "**Criterio de Aceptación:** CA-02\n**Objetivo:** Verificar que el sistema retorna un error cuando el parámetro de consulta obligatorio `fechaHora` no es enviado en la solicitud.\n**Pre-condición:** Token de CLIENTE disponible en el entorno.\n**Resultado esperado:** HTTP 400 con `success=false`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 – Parámetro fechaHora ausente', () => pm.response.to.have.status(400));",
+                      "",
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-05 Formato de fecha inválido (dd-MM-yyyy) – 400 Bad Request",
+              "description": "**Criterio de Aceptación:** RD-05\n**Objetivo:** Verificar que el sistema rechaza valores de `fechaHora` con formato inválido. El formato aceptado es `yyyy-MM-dd'T'HH:mm:ss`; un valor en formato `dd-MM-yyyy` debe ser rechazado.\n**Pre-condición:** Token de CLIENTE disponible en el entorno.\n**Resultado esperado:** HTTP 400 con `success=false`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 400 – Formato de fecha inválido', () => pm.response.to.have.status(400));",
+                      "",
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=15-12-2026",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "15-12-2026"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-06 CA-04 – Decoración con zona fija: puedeSeleccionarZona=false – 200 OK",
+              "description": "**Criterio de Aceptación:** CA-04\n**Objetivo:** Verificar que las decoraciones con zona fija asignada (id=8, Barra zona 4) se presentan con `puedeSeleccionarZona=false` y con exactamente un elemento en `zonaIdsCompatibles` correspondiente a su zona fija. Esto guía al frontend para bloquear la selección manual de zona.\n**Pre-condición:** La decoración id=8 debe existir con zona fija configurada a la Barra (id=4).\n**Resultado esperado:** HTTP 200. `decoFija.puedeSeleccionarZona` es `false`. `decoFija.zonaIdsCompatibles` tiene exactamente un elemento: `[4]`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const decoFija = decos.find(d => d.decoracionId === 8);",
+                      "",
+                      "pm.test('La decoración con zona fija (id=8) aparece en el resultado de disponibilidad', () => {",
+                      "  pm.expect(decoFija).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('El campo puedeSeleccionarZona es false para decoración con zona fija', () => {",
+                      "  pm.expect(decoFija.puedeSeleccionarZona).to.be.false;",
+                      "});",
+                      "",
+                      "pm.test('zonaIdsCompatibles contiene exactamente la zona fija asignada (Barra, id=4)', () => {",
+                      "  pm.expect(decoFija.zonaIdsCompatibles).to.be.an('array').and.have.lengthOf(1);",
+                      "  pm.expect(decoFija.zonaIdsCompatibles[0]).to.eql(4);",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-07 CA-05 – Decoración con zonas específicas: zonaIdsCompatibles correctas – 200 OK",
+              "description": "**Criterio de Aceptación:** CA-05\n**Objetivo:** Verificar que las decoraciones con restricción de zonas compatibles (múltiples) presentan `puedeSeleccionarZona=true` y que `zonaIdsCompatibles` contiene únicamente los IDs de zonas para las que está habilitada. Se verifica con Decoración Empresarial (id=3) que es compatible con zonas 1, 2, 3 y 6.\n**Pre-condición:** La decoración id=3 debe existir con zonas compatibles 1, 2, 3 y 6.\n**Resultado esperado:** HTTP 200. `empresarial.puedeSeleccionarZona` es `true`. Todos los IDs en `zonaIdsCompatibles` están dentro del conjunto `{1, 2, 3, 6}`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const empresarial = decos.find(d => d.decoracionId === 3);",
+                      "",
+                      "pm.test('La decoración Empresarial (id=3) aparece en el resultado de disponibilidad', () => {",
+                      "  pm.expect(empresarial).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('El campo puedeSeleccionarZona es true para decoración con múltiples zonas compatibles', () => {",
+                      "  pm.expect(empresarial.puedeSeleccionarZona).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('Todos los IDs de zonaIdsCompatibles pertenecen al conjunto válido {1,2,3,6}', () => {",
+                      "  const VALIDAS = [1, 2, 3, 6];",
+                      "  empresarial.zonaIdsCompatibles.forEach(id => {",
+                      "    pm.expect(VALIDAS).to.include(id);",
+                      "  });",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-08 CA-06 – Decoración sin restricción de zona: zonaIdsCompatibles vacía – 200 OK",
+              "description": "**Criterio de Aceptación:** CA-06\n**Objetivo:** Verificar que las decoraciones sin restricción de zona (compatibles con todas) presentan `puedeSeleccionarZona=true` y `zonaIdsCompatibles` como array vacío, lo que indica al frontend que puede seleccionarse con cualquier zona disponible. Se verifica con Globos y Flores (id=6).\n**Pre-condición:** La decoración id=6 debe existir sin restricción de zona configurada.\n**Resultado esperado:** HTTP 200. `globos.puedeSeleccionarZona` es `true`. `globos.zonaIdsCompatibles` es un array vacío `[]`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const decos = pm.response.json().data.decoraciones;",
+                      "const globos = decos.find(d => d.decoracionId === 6);",
+                      "",
+                      "pm.test('La decoración Globos y Flores (id=6) aparece en el resultado de disponibilidad', () => {",
+                      "  pm.expect(globos).to.not.be.undefined;",
+                      "});",
+                      "",
+                      "pm.test('El campo puedeSeleccionarZona es true para decoración sin restricción de zona', () => {",
+                      "  pm.expect(globos.puedeSeleccionarZona).to.be.true;",
+                      "});",
+                      "",
+                      "pm.test('El campo zonaIdsCompatibles es un array vacío cuando no hay restricción de zona', () => {",
+                      "  pm.expect(globos.zonaIdsCompatibles).to.be.an('array').and.be.empty;",
+                      "});"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaLibre}}",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "{{fechaLibre}}"
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RD-09 CA-HOR-01 – Hora antes del horario de apertura (14:00) → disponible=false – 200 OK",
+              "description": "**Criterio de Aceptación:** CA-HOR-01\n**Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la hora solicitada es anterior a la apertura (5:00 PM). El horario de atención es de 17:00 a 21:59.\n**Pre-condición:** Token CLIENTE disponible.\n**Resultado esperado:** HTTP 200. `data.disponible=false`, `data.zonas=[]`, `data.decoraciones=[]`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const d = pm.response.json().data;",
+                      "pm.test('disponible=false para hora antes del horario de apertura (14:00)', () => pm.expect(d.disponible).to.be.false);",
+                      "pm.test('zonas está vacío al no haber disponibilidad', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);",
+                      "pm.test('decoraciones está vacío al no haber disponibilidad', () => pm.expect(d.decoraciones).to.be.an('array').and.be.empty);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T14:00:00",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "api", "reservas", "disponibilidad" ],
+                  "query": [ { "key": "fechaHora", "value": "2026-12-15T14:00:00" } ]
+                }
+              }
+            },
+            {
+              "name": "RD-10 CA-HOR-02 – Hora en el cierre o después (22:00) → disponible=false – 200 OK",
+              "description": "**Criterio de Aceptación:** CA-HOR-02\n**Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la hora solicitada es igual o posterior a la hora de cierre (10:00 PM = 22:00). El rango válido es [17:00, 22:00).\n**Pre-condición:** Token CLIENTE disponible.\n**Resultado esperado:** HTTP 200. `data.disponible=false`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const d = pm.response.json().data;",
+                      "pm.test('disponible=false para hora en el límite de cierre (22:00)', () => pm.expect(d.disponible).to.be.false);",
+                      "pm.test('zonas está vacío', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);",
+                      "pm.test('decoraciones está vacío', () => pm.expect(d.decoraciones).to.be.an('array').and.be.empty);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T22:00:00",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "api", "reservas", "disponibilidad" ],
+                  "query": [ { "key": "fechaHora", "value": "2026-12-15T22:00:00" } ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "GET /api/reservas/cliente – Consultar Historial de Reservas",
+          "description": "## Descripción\nEndpoint protegido accesible para CLIENTE, CAJERO, ADM y MESERO.\n- **CLIENTE**: retorna únicamente sus propias reservas.\n- **CAJERO / ADM / MESERO**: retorna el historial completo de todas las reservas del sistema.\nOrdenado por fecha de llegada descendente (la más reciente primero).\n\n## Comportamiento de Control de Acceso\nSolo CLIENTE, CAJERO, ADM y MESERO pueden acceder. Roles como COCINERO retornarán HTTP 403.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RC-01 | Sin token JWT | 401 |\n| RC-02 | Token de rol no permitido (COCINERO) | 403 |\n| RC-03 | Historial con token CLIENTE | 200 |\n| RC-04 | Historial con token CAJERO | 200 |\n| RC-05 | Historial con token MESERO | 200 |\n| RC-06 | Historial con token ADM | 200 |",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Login CLIENTE",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCliente'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('clienteToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login ADM",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailAdmin'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('accessToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login CAJERO",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCajero'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('cajeroToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login MESERO",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailMesero'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('meseroToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login COCINERO — para el caso 403",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCocinero'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('cocineroToken', res.json().accessToken);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "item": [
+            {
+              "name": "RC-01 Solicitud sin token JWT – 401 Unauthorized",
+              "description": "**Criterio de Aceptación:** RC-01\n**Objetivo:** Verificar que el endpoint de historial rechaza solicitudes sin token de autorización.\n**Pre-condición:** Ninguna sesión activa requerida.\n**Resultado esperado:** HTTP 401.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 401 – Acceso denegado sin token JWT', () => pm.response.to.have.status(401));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RC-02 Token de rol no permitido (COCINERO) – 403 Forbidden",
+              "description": "**Criterio de Aceptación:** RC-02\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde a un rol no autorizado (COCINERO/PRODUCCION). Los roles CLIENTE, CAJERO, ADM y MESERO sí tienen acceso; COCINERO no.\n**Pre-condición:** El token de COCINERO debe estar disponible en `{{cocineroToken}}` (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 403 – Rol COCINERO no tiene acceso al historial de reservas', () => pm.response.to.have.status(403));",
+                      "",
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{cocineroToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RC-03 Historial del cliente autenticado – 200 OK",
+              "description": "**Criterio de Aceptación:** RC-03\n**Objetivo:** Verificar que el endpoint retorna exitosamente el historial de reservas del cliente autenticado, que la estructura de cada reserva contiene los campos requeridos y que el ordenamiento es descendente por fecha de llegada.\n**Pre-condición:** El `clienteToken` debe estar disponible en el entorno.\n**Resultado esperado:** HTTP 200 con `success=true`. `data` es un array. Si tiene elementos, cada uno contiene `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado` y `tipo`. El primero es el más reciente.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – Historial de reservas retornado exitosamente', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "",
+                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                      "",
+                      "const lista = body.data;",
+                      "pm.test('El campo data es un array', () => pm.expect(lista).to.be.an('array'));",
+                      "",
+                      "if (lista.length > 0) {",
+                      "  const r = lista[0];",
+                      "  pm.test('Cada reserva contiene los campos requeridos', () => {",
+                      "    pm.expect(r).to.include.keys(['reservaId', 'fechaHoraLlegada', 'numeroPersonas', 'estado', 'tipo']);",
+                      "  });",
+                      "  pm.test('El historial está ordenado de forma descendente (primera reserva es la más reciente)', () => {",
+                      "    if (lista.length > 1) {",
+                      "      pm.expect(new Date(lista[0].fechaHoraLlegada) >= new Date(lista[1].fechaHoraLlegada)).to.be.true;",
+                      "    }",
+                      "  });",
+                      "}"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{clienteToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
+                }
+              }
+            },
+            {
+              "name": "RC-04 Historial con token CAJERO – 200 OK (todas las reservas)",
+              "description": "**Criterio de Aceptación:** RC-04\n**Objetivo:** Verificar que un usuario con rol CAJERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema (no solo las del cliente).\n**Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – CAJERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{cajeroToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "api", "reservas", "cliente" ]
+                }
+              }
+            },
+            {
+              "name": "RC-05 Historial con token MESERO – 200 OK (todas las reservas)",
+              "description": "**Criterio de Aceptación:** RC-05\n**Objetivo:** Verificar que un usuario con rol MESERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – MESERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{meseroToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "api", "reservas", "cliente" ]
+                }
+              }
+            },
+            {
+              "name": "RC-06 Historial con token ADM – 200 OK (todas las reservas)",
+              "description": "**Criterio de Aceptación:** RC-06\n**Objetivo:** Verificar que un usuario con rol ADM puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `accessToken` (ADM) disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "event": [
+                {
+                  "listen": "test",
+                  "script": {
+                    "type": "text/javascript",
+                    "exec": [
+                      "pm.test('Status 200 – ADM accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "",
+                      "const body = pm.response.json();",
+                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                    ]
+                  }
+                }
+              ],
+              "request": {
+                "method": "GET",
+                "header": [
+                  {
+                    "key": "Authorization",
+                    "value": "Bearer {{accessToken}}"
+                  }
+                ],
+                "url": {
+                  "raw": "{{baseUrl}}/api/reservas/cliente",
+                  "host": [ "{{baseUrl}}" ],
+                  "path": [ "api", "reservas", "cliente" ]
+                }
+              }
+            }
+          ]
+        },
+        {
+          "name": "POST /api/reservas – Crear Reserva",
+          "description": "## Descripción\nEndpoint de creación de reservas para el cliente autenticado. El sistema clasifica automáticamente la reserva según las reglas de negocio definidas y retorna la reserva creada con todos sus campos.\n\n## Estructura del Cuerpo de la Solicitud\n```json\n{\n  \"fechaHoraLlegada\": \"yyyy-MM-dd'T'HH:mm:ss\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 1,\n  \"decoracionId\": 1,\n  \"notas\": \"string\"\n}\n```\nLos campos `zonaId`, `decoracionId` y `notas` son opcionales.\n\n## Encabezado Requerido\n```\nAuthorization: Bearer {{clienteToken}}\n```\n\n## Regla de Clasificación Automática\n| Condición | tipo | estado |\n|-----------|------|--------|\n| Sin decoración con costo Y personas < 10 | BASICA | CONFIRMADA |\n| Decoración con costo O personas ≥ 10 | ESPECIAL | PENDIENTE |\n\n## Notas sobre Grupos Secuenciales\nLos subgrupos CAP-*, DECO-OCP-* y NODISP-* son secuenciales y deben ejecutarse en orden dentro de la misma sesión para garantizar la coherencia del estado de la base de datos.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RP-01 | Reserva mínima sin zona ni decoración | 201 |\n| RP-02 | Con zona disponible (Salón Principal) | 201 |\n| RP-03 | Decoración sin costo con zona compatible | 201 |\n| RP-04 | Decoración con costo → ESPECIAL | 201 |\n| RP-05 | CA-08: exactamente 10 personas → ESPECIAL | 201 |\n| RP-06 | Decoración sin restricción de zona | 201 |\n| RP-07 | CA-04: decoración con zona fija, zona correcta | 201 |\n| RP-08 | CA-08: 9 personas → BASICA (valor de frontera) | 201 |\n| RP-09 | CA-08: 11 personas → ESPECIAL (valor de frontera) | 201 |\n| RP-10 | CA-07: Zona Romántica sin extras → BASICA | 201 |\n| RP-11 | CA-11: reserva básica, estructura completa del response | 201 |\n| RP-12 | CA-10: reserva especial, estructura completa del response | 201 |\n| RP-13 | Sin token JWT | 401 |\n| RP-14 | Token ADMIN (rol no permitido) | 403 |\n| RP-15 | CA-02: fechaHoraLlegada ausente | 422 |\n| RP-16 | numeroPersonas ausente | 422 |\n| RP-17 | numeroPersonas = 0 | 422 |\n| RP-18 | numeroPersonas negativo | 422 |\n| RP-19 | Cuerpo vacío | 422 |\n| RP-20 | CA-02: fechaHoraLlegada null explícito | 422 |\n| RP-21 | Decoración inexistente (id=999) | 404 |\n| RP-22 | Zona inexistente (id=999) | 404 |\n| RP-23 | CA-04: zona incorrecta para decoración con zona fija | 422 |\n| RP-24 | CA-05: zona incompatible con decoración | 422 |\n| CAP-1..5 | Capacidad acumulada por día (secuencial) | varios |\n| DECO-OCP-1..3 | Decoración exclusiva ya reservada (secuencial) | varios |\n| NODISP-SETUP-1..7 | Setup: llenar todas las zonas (secuencial) | 201 |\n| NODISP-1 | CA-03: disponible=false, listas vacías | 200 |\n| NODISP-2 | CA-03: reserva sin disponibilidad rechazada | 422 |",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "// Login autónomo como CLIENTE — garantiza token fresco sin depender de ejecuciones anteriores",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: {",
+                  "    mode: 'raw',",
+                  "    raw: JSON.stringify({",
+                  "      email: pm.environment.get('emailCliente'),",
+                  "      password: pm.environment.get('passwordValida'),",
+                  "      forceSessionOverride: true",
+                  "    })",
+                  "  }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) {",
+                  "    pm.environment.set('clienteToken', res.json().accessToken);",
+                  "  }",
+                  "});",
+                  "",
+                  "// Login ADMIN (solo si no está en caché) — requerido para casos de acceso denegado (403)",
+                  "if (!pm.environment.get('accessToken')) {",
+                  "  pm.sendRequest({",
+                  "    url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "    method: 'POST',",
+                  "    header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "    body: {",
+                  "      mode: 'raw',",
+                  "      raw: JSON.stringify({",
+                  "        email: pm.environment.get('emailAdmin'),",
+                  "        password: pm.environment.get('passwordValida'),",
+                  "        forceSessionOverride: true",
+                  "      })",
+                  "    }",
+                  "  }, function(err, res) {",
+                  "    if (!err && res.code === 200) {",
+                  "      pm.environment.set('accessToken', res.json().accessToken);",
+                  "    }",
+                  "  });",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "item": [
+            {
+              "name": "Casos Exitosos (201 Created)",
+              "description": "Agrupa los casos de prueba en los que la reserva debe crearse satisfactoriamente (HTTP 201). La mayoría utiliza `{{fechaLibre}}` para evitar colisiones entre casos. Los grupos secuenciales CAP-* usan `{{fechaCapacidad}}` y los grupos DECO-OCP-* usan `{{fechaDecoracion}}`.\n\n## Regla de Clasificación Automática\n| Condición | tipo | estado |\n|-----------|------|--------|\n| Sin decoración con costo Y personas < 10 | BASICA | CONFIRMADA |\n| Decoración con costo O personas ≥ 10 | ESPECIAL | PENDIENTE |",
+              "item": [
+                {
+                  "name": "RP-01 Reserva mínima sin zona ni decoración – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-06, CA-11\n**Objetivo:** Verificar que una reserva puede crearse exitosamente sin especificar zona ni decoración, que se clasifica como BASICA y que los campos `zonaId` y `decoracionId` retornan null.\n**Pre-condición:** `clienteToken` disponible. Fecha {{fechaLibre}} con capacidad disponible.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `zonaId=null`, `decoracionId=null`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva mínima creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva se clasifica como tipo BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado inicial de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('El campo zonaId es null cuando no se especifica zona', () => pm.expect(r.zonaId).to.be.null);",
+                          "pm.test('El campo decoracionId es null cuando no se especifica decoración', () => pm.expect(r.decoracionId).to.be.null);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-02 Reserva con zona disponible (Salón Principal id=1) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-06, CA-11\n**Objetivo:** Verificar que una reserva se crea exitosamente al especificar una zona disponible, que `zonaId` coincide con el solicitado y que la clasificación es BASICA (sin decoración con costo ni ≥10 personas).\n**Pre-condición:** `clienteToken` disponible. Zona 1 (Salón Principal, cap=60) con capacidad disponible para {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `zonaId=1`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con zona creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva se clasifica como tipo BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado inicial de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('El zonaId coincide con el solicitado (Salón Principal, id=1)', () => pm.expect(r.zonaId).to.eql(1));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 5,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-03 Decoración sin costo con zona compatible (Empresarial id=3, Terraza id=2) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-05, CA-11\n**Objetivo:** Verificar que una decoración sin costo con zonas específicas puede combinarse con una zona compatible, que la clasificación resulta BASICA (decoración gratuita, personas < 10) y que se retornan los IDs correctos.\n**Pre-condición:** Decoración id=3 (Empresarial) es compatible con zona id=2 (Terraza). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `decoracionId=3`, `zonaId=2`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con decoración sin costo creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva con decoración gratuita se clasifica como tipo BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado inicial de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('El decoracionId coincide con el solicitado (Empresarial, id=3)', () => pm.expect(r.decoracionId).to.eql(3));",
+                          "pm.test('El zonaId coincide con el solicitado (Terraza, id=2)', () => pm.expect(r.zonaId).to.eql(2));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 4,\n  \"decoracionId\": 3,\n  \"zonaId\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-04 Decoración con costo → clasificación ESPECIAL (Velas id=1, VIP id=3) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-10\n**Objetivo:** Verificar que una reserva con decoración que tiene costo (Velas Románticas, id=1) es clasificada automáticamente como ESPECIAL con estado PENDIENTE, independientemente del número de personas.\n**Pre-condición:** Decoración id=1 (Velas Románticas, costo=25.000) compatible con zona id=3 (VIP). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`, `decoracionId=1`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva especial por decoración con costo creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva con decoración con costo se clasifica como tipo ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado inicial de la reserva especial es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('El decoracionId coincide con el solicitado (Velas Románticas, id=1)', () => pm.expect(r.decoracionId).to.eql(1));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": 1,\n  \"zonaId\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-05 CA-08 – Grupo de exactamente 10 personas → tipo ESPECIAL – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar que el umbral de clasificación ESPECIAL por número de personas es 10 (inclusive). Una reserva de exactamente 10 personas sin decoración con costo debe clasificarse como ESPECIAL.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad suficiente en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva de 10 personas creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('Exactamente 10 personas activa la clasificación ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado inicial de la reserva especial por personas es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 10,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-06 Decoración sin restricción de zona (Globos id=6, Jardín id=5) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-06\n**Objetivo:** Verificar que una decoración sin restricción de zona (compatible con todas) puede combinarse con cualquier zona disponible, y que el campo `notas` se almacena y retorna correctamente.\n**Pre-condición:** Decoración id=6 (Globos y Flores) sin restricción. Zona id=5 (Jardín) disponible en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `decoracionId=6`, `zonaId=5`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con decoración sin restricción creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva con decoración gratuita sin restricción se clasifica como BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El decoracionId coincide con el solicitado (Globos y Flores, id=6)', () => pm.expect(r.decoracionId).to.eql(6));",
+                          "pm.test('El zonaId coincide con el solicitado (Jardín, id=5)', () => pm.expect(r.zonaId).to.eql(5));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 4,\n  \"decoracionId\": 6,\n  \"zonaId\": 5,\n  \"notas\": \"Mesa cerca de la fuente\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-07 CA-04 – Decoración con zona fija, zona correcta (Decoración id=8, Barra id=4) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-04\n**Objetivo:** Verificar que una reserva con decoración de zona fija se crea exitosamente cuando se especifica la zona correcta asignada a dicha decoración (Barra, id=4).\n**Pre-condición:** Decoración id=8 tiene zona fija Barra (id=4). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201. `zonaId=4`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con decoración de zona fija y zona correcta creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "pm.test('El zonaId coincide con la zona fija de la decoración (Barra, id=4)', () => pm.expect(pm.response.json().data.zonaId).to.eql(4));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": \"{{idDecoracionZonaFija}}\",\n  \"zonaId\": 4\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-08 CA-08 – 9 personas: límite inferior al umbral ESPECIAL → tipo BASICA – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar el valor de frontera inferior del umbral de clasificación: 9 personas debe resultar en tipo BASICA (el umbral empieza en 10 inclusive).\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `numeroPersonas=9`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva de 9 personas creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('Con 9 personas la clasificación es BASICA (umbral no alcanzado)', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica de 9 personas es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('El número de personas retornado coincide con el enviado (9)', () => pm.expect(r.numeroPersonas).to.eql(9));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 9,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-09 CA-08 – 11 personas: supera umbral ESPECIAL → tipo ESPECIAL – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar el valor de frontera superior del umbral de clasificación: 11 personas debe resultar en tipo ESPECIAL.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`, `numeroPersonas=11`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva de 11 personas creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('Con 11 personas la clasificación es ESPECIAL (umbral superado)', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado de la reserva especial de 11 personas es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('El número de personas retornado coincide con el enviado (11)', () => pm.expect(r.numeroPersonas).to.eql(11));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 11,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-10 CA-07 – Zona Romántica sin extras → tipo BASICA – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-07\n**Objetivo:** Verificar que la Zona Romántica (id=7) no impone clasificación ESPECIAL por sí misma: una reserva en esa zona sin decoración con costo ni ≥10 personas debe ser BASICA.\n**Pre-condición:** `clienteToken` disponible. Zona id=7 (Zona Romántica, cap=6) con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `zonaId=7`, `decoracionId=null`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva en Zona Romántica sin extras creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La Zona Romántica sin extras no fuerza clasificación ESPECIAL: tipo=BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica en Zona Romántica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
+                          "pm.test('El zonaId coincide con Zona Romántica (id=7)', () => pm.expect(r.zonaId).to.eql(7));",
+                          "pm.test('El campo decoracionId es null (sin decoración)', () => pm.expect(r.decoracionId).to.be.null);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-11 CA-11 – Reserva básica: verificar estructura completa del response – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-11\n**Objetivo:** Verificar que la respuesta de una reserva básica exitosa incluye todos los campos requeridos por el frontend para renderizar el resumen de la reserva, incluyendo datos del cliente y el campo `notas` con el valor exacto enviado.\n**Pre-condición:** `clienteToken` disponible. Zona id=2 (Terraza) con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201 con `success=true`. La respuesta incluye `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`, `fechaCreacion`, `clienteId`, `clienteNombre` y `notas` con valor `Mesa junto a la ventana`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva básica creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const r = body.data;",
+                          "",
+                          "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                          "pm.test('El campo message está presente y no es vacío', () => pm.expect(body.message).to.be.a('string').and.not.empty);",
+                          "",
+                          "pm.test('La respuesta contiene todos los campos obligatorios de una reserva básica', () => {",
+                          "  pm.expect(r).to.include.keys([",
+                          "    'reservaId', 'fechaHoraLlegada', 'numeroPersonas',",
+                          "    'estado', 'tipo', 'fechaCreacion', 'clienteId', 'clienteNombre'",
+                          "  ]);",
+                          "});",
+                          "",
+                          "pm.test('El reservaId es un número positivo', () => pm.expect(r.reservaId).to.be.a('number').and.above(0));",
+                          "pm.test('El campo clienteNombre está presente y no es vacío', () => pm.expect(r.clienteNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('El campo fechaCreacion está presente y no es vacío', () => pm.expect(r.fechaCreacion).to.be.a('string').and.not.empty);",
+                          "pm.test('El campo notas está presente en la respuesta', () => pm.expect(r).to.have.property('notas'));",
+                          "pm.test('El valor de notas coincide con el enviado en el body', () => pm.expect(r.notas).to.eql('Mesa junto a la ventana'));",
+                          "pm.test('La clasificación de la reserva es BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"zonaId\": 2,\n  \"notas\": \"Mesa junto a la ventana\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-12 CA-10 – Reserva especial: verificar estructura completa del response – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-10\n**Objetivo:** Verificar que la respuesta de una reserva especial exitosa incluye todos los campos requeridos adicionales como `decoracionId`, `decoracionNombre`, `zonaId`, `zonaNombre` y que el campo `notas` retorna el valor enviado.\n**Pre-condición:** Decoración id=2 (Cumpleaños Premium) compatible con zona id=3 (VIP). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201 con estructura completa de reserva especial. `tipo=ESPECIAL`, `estado=PENDIENTE`, `decoracionId=2`, campos de nombre de decoración y zona presentes.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva especial creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const r = body.data;",
+                          "",
+                          "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                          "pm.test('El campo message está presente y no es vacío', () => pm.expect(body.message).to.be.a('string').and.not.empty);",
+                          "",
+                          "pm.test('La respuesta contiene todos los campos obligatorios de una reserva especial', () => {",
+                          "  pm.expect(r).to.include.keys([",
+                          "    'reservaId', 'fechaHoraLlegada', 'numeroPersonas',",
+                          "    'estado', 'tipo', 'decoracionId', 'decoracionNombre',",
+                          "    'zonaId', 'zonaNombre', 'fechaCreacion', 'clienteId', 'clienteNombre'",
+                          "  ]);",
+                          "});",
+                          "",
+                          "pm.test('La clasificación de la reserva especial es ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado inicial de la reserva especial es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('El decoracionId coincide con el solicitado (Cumpleaños Premium, id=2)', () => pm.expect(r.decoracionId).to.eql(2));",
+                          "pm.test('El campo decoracionNombre está presente y no es vacío', () => pm.expect(r.decoracionNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('El campo zonaNombre está presente y no es vacío', () => pm.expect(r.zonaNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('El campo clienteNombre está presente y no es vacío', () => pm.expect(r.clienteNombre).to.be.a('string').and.not.empty);",
+                          "pm.test('El valor de notas coincide con el enviado en el body', () => pm.expect(r.notas).to.eql('Cumpleaños del equipo'));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 10,\n  \"decoracionId\": 2,\n  \"zonaId\": 3,\n  \"notas\": \"Cumpleaños del equipo\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Errores de Validación (422 Unprocessable Entity)",
+              "description": "Agrupa los casos en los que el backend debe rechazar la solicitud por incumplimiento de las restricciones de validación de campos (Bean Validation), antes de ejecutar cualquier lógica de negocio. Estos casos son independientes entre sí y del estado de la base de datos.\n\n## Campos Obligatorios del Body\n| Campo | Tipo | Restricción |\n|-------|------|-------------|\n| fechaHoraLlegada | String (ISO-8601) | Requerido, no nulo |\n| numeroPersonas | Integer | Requerido, mínimo 1 |\n| zonaId | Integer | Opcional |\n| decoracionId | Integer | Opcional |\n| notas | String | Opcional |",
+              "item": [
+                {
+                  "name": "RP-13 Solicitud sin token JWT – 401 Unauthorized",
+                  "description": "**Criterio de Aceptación:** RP-13\n**Objetivo:** Verificar que el endpoint de creación rechaza solicitudes sin token de autorización, independientemente del contenido del body.\n**Pre-condición:** Ninguna sesión activa requerida.\n**Resultado esperado:** HTTP 401.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 401 – Acceso denegado sin token JWT', () => pm.response.to.have.status(401));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-14 Token de rol no permitido (ADMIN) – 403 Forbidden",
+                  "description": "**Criterio de Aceptación:** RP-14\n**Objetivo:** Verificar que el sistema deniega la creación de reservas cuando el token corresponde a un rol distinto de CLIENTE (ADMIN), retornando un error de autorización.\n**Pre-condición:** El token de ADMIN debe estar disponible en `{{accessToken}}`.\n**Resultado esperado:** HTTP 403 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 403 – Rol ADMIN no puede crear reservas', () => pm.response.to.have.status(403));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{accessToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-15 CA-02 – Campo fechaHoraLlegada ausente – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-02\n**Objetivo:** Verificar que el campo `fechaHoraLlegada` es obligatorio y que su ausencia resulta en un error de validación.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Campo fechaHoraLlegada ausente', () => pm.response.to.have.status(422));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-16 Campo numeroPersonas ausente – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** RP-16\n**Objetivo:** Verificar que el campo `numeroPersonas` es obligatorio y que su ausencia resulta en un error de validación.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Campo numeroPersonas ausente', () => pm.response.to.have.status(422));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\"\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-17 Campo numeroPersonas = 0 – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** RP-17\n**Objetivo:** Verificar que el sistema rechaza reservas con `numeroPersonas=0` ya que el valor mínimo permitido es 1 (`@Min(1)`).\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – numeroPersonas=0 no es válido (mínimo es 1)', () => pm.response.to.have.status(422));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 0\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-18 Campo numeroPersonas negativo – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** RP-18\n**Objetivo:** Verificar que el sistema rechaza reservas con `numeroPersonas` negativo.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – numeroPersonas negativo no es válido', () => pm.response.to.have.status(422));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": -2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-19 Cuerpo de solicitud vacío – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** RP-19\n**Objetivo:** Verificar que el sistema rechaza un body vacío sin campos requeridos.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Cuerpo de solicitud vacío rechazado', () => pm.response.to.have.status(422));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-20 CA-02 – fechaHoraLlegada con valor null explícito: mensaje menciona 'fecha' – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-02\n**Objetivo:** Verificar que enviar `fechaHoraLlegada: null` explícitamente resulta en un error de validación cuyo mensaje hace referencia al campo fecha, orientando al usuario sobre el error específico.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que incluye la palabra 'fecha' o 'date'.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – fechaHoraLlegada null explícito rechazado', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error hace referencia al campo fecha', () => {",
+                          "  const msg = (body.message || '').toLowerCase();",
+                          "  pm.expect(msg).to.satisfy(",
+                          "    m => m.includes('fecha') || m.includes('date'),",
+                          "    'El mensaje de error debe mencionar la fecha'",
+                          "  );",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": null,\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                }
+              ]
+            },
+            {
+              "name": "Errores de Negocio (4xx)",
+              "description": "Agrupa los casos en los que el backend debe rechazar la solicitud por incumplimiento de reglas de negocio: entidades no encontradas, incompatibilidad entre zona y decoración, exceso de capacidad o decoración ya reservada para la misma fecha.\n\n## Grupos Secuenciales\nLos siguientes subgrupos deben ejecutarse en orden dentro de la misma sesión para que el estado de la base de datos sea coherente:\n- **CAP-1 → CAP-2 → CAP-3 → CAP-4**: ocupan la Zona Romántica (cap=6) en `{{fechaCapacidad}}` y verifican el límite de capacidad.\n- **DECO-OCP-1 → DECO-OCP-2 → DECO-OCP-3**: reservan y luego intentan reservar la misma decoración exclusiva en `{{fechaDecoracion}}`.\n- **NODISP-SETUP-1..7 → NODISP-1 → NODISP-2**: llenan todas las zonas en `{{fechaTodasOcupadas}}` y verifican el comportamiento sin disponibilidad (CA-03).",
+              "item": [
+                {
+                  "name": "RP-21 Decoración inexistente (id=999) – 404 Not Found",
+                  "description": "**Criterio de Aceptación:** RP-21\n**Objetivo:** Verificar que el sistema retorna 404 cuando se solicita una decoración con ID que no existe en la base de datos.\n**Pre-condición:** No debe existir ninguna decoración con id=999.\n**Resultado esperado:** HTTP 404 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 404 – Decoración con id=999 no existe', () => pm.response.to.have.status(404));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": 999\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-22 Zona inexistente (id=999) – 404 Not Found",
+                  "description": "**Criterio de Aceptación:** RP-22\n**Objetivo:** Verificar que el sistema retorna 404 cuando se solicita una zona con ID que no existe en la base de datos.\n**Pre-condición:** No debe existir ninguna zona con id=999.\n**Resultado esperado:** HTTP 404 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 404 – Zona con id=999 no existe', () => pm.response.to.have.status(404));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"zonaId\": 999\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-23 CA-04 – Decoración con zona fija, zona incorrecta (Decoración id=8, Salón id=1) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-04\n**Objetivo:** Verificar que el sistema rechaza una reserva cuando la zona especificada no coincide con la zona fija asignada a la decoración. La decoración id=8 tiene zona fija Barra (id=4); especificar Salón Principal (id=1) debe resultar en error.\n**Pre-condición:** Decoración id=8 con zona fija id=4. La fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona 'asignada'.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Zona incorrecta para decoración con zona fija', () => pm.response.to.have.status(422));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona la zona asignada de la decoración', () => {",
+                          "  pm.expect(pm.response.json().message).to.include('asignada');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": \"{{idDecoracionZonaFija}}\",\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-24 CA-05 – Zona incompatible con la decoración (Minimalista id=5, VIP id=3) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-05\n**Objetivo:** Verificar que el sistema rechaza una reserva cuando la zona solicitada no es compatible con la decoración seleccionada. La decoración Minimalista Elegante (id=5) es compatible solo con zonas 1 y 2; la zona VIP (id=3) no es válida.\n**Pre-condición:** Decoración id=5 compatible únicamente con zonas 1 y 2. Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona 'compatible'.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Zona incompatible con la decoración seleccionada', () => pm.response.to.have.status(422));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona la incompatibilidad entre zona y decoración', () => {",
+                          "  pm.expect(pm.response.json().message).to.include('compatible');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": 5,\n  \"zonaId\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-25 CA-HOR-03 – Hora fuera del horario de atención → 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-HOR-03\n**Objetivo:** Verificar que el sistema rechaza la creación de una reserva cuando la hora de llegada está fuera del horario de atención (5:00 PM a 10:00 PM). El mensaje de error debe mencionar el horario.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona el horario de reservas.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Hora fuera del horario de atención rechazada', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona el horario de reservas', () => {",
+                          "  const msg = (body.message || '').toLowerCase();",
+                          "  pm.expect(msg).to.satisfy(",
+                          "    m => m.includes('horario') || m.includes('disponibilidad') || m.includes('p.m'),",
+                          "    'El mensaje debe mencionar el horario de atención'",
+                          "  );",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"2026-12-15T10:00:00\",\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [ "{{baseUrl}}" ],
+                      "path": [ "api", "reservas" ]
+                    }
+                  }
+                },
+                {
+                  "name": "CAP-1 Primera reserva en Zona Romántica (5 de 6 lugares) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-03 (precondición)\n**Objetivo:** Crear la primera reserva en la Zona Romántica (cap=6) para {{fechaCapacidad}}, ocupando 5 de los 6 lugares disponibles. Este caso es la precondición obligatoria para CAP-2 y CAP-3.\n**Pre-condición:** Zona id=7 (Romántica, cap=6) sin reservas previas en {{fechaCapacidad}}.\n**Resultado esperado:** HTTP 201. `zonaId=7`.\n> **⚠ Dependencia secuencial:** CAP-2 y CAP-3 deben ejecutarse inmediatamente después en la misma sesión.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Primera reserva en Zona Romántica creada (5 personas ocupadas)', () => pm.response.to.have.status(201));",
+                          "",
+                          "pm.test('El zonaId coincide con Zona Romántica (id=7)', () => pm.expect(pm.response.json().data.zonaId).to.eql(7));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaCapacidad}}\",\n  \"numeroPersonas\": 5,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "CAP-2 Segunda reserva excede capacidad acumulada (5+2=7 > cap=6) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que el sistema rechaza la segunda reserva cuando la suma acumulada de personas en la zona supera la capacidad máxima (5 existentes + 2 nuevas = 7 > 6).\n**Pre-condición:** CAP-1 debe haberse ejecutado previamente. La Zona Romántica tiene 5 personas en {{fechaCapacidad}}.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona 'capacidad'.\n> **⚠ Dependencia secuencial:** Requiere CAP-1 ejecutado.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Segunda reserva supera la capacidad acumulada de la zona', () => pm.response.to.have.status(422));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona la capacidad de la zona', () => {",
+                          "  pm.expect(pm.response.json().message).to.include('capacidad');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaCapacidad}}\",\n  \"numeroPersonas\": 2,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "CAP-3 Segunda reserva en el límite exacto de capacidad (5+1=6) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que el sistema acepta una reserva cuando la suma acumulada alcanza exactamente la capacidad máxima de la zona (5 existentes + 1 nueva = 6 = cap).\n**Pre-condición:** CAP-1 debe haberse ejecutado previamente. La Zona Romántica tiene 5 personas en {{fechaCapacidad}}.\n**Resultado esperado:** HTTP 201 (la reserva cabe exactamente).\n> **⚠ Dependencia secuencial:** Requiere CAP-1 ejecutado. Habilita CAP-4.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva en límite exacto de capacidad aceptada (5+1=6=cap)', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaCapacidad}}\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "CAP-4 Zona llena excluida del resultado de disponibilidad – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que una zona que ha alcanzado su capacidad máxima acumulada (6/6) no aparece en el listado de zonas disponibles para esa fecha.\n**Pre-condición:** CAP-1 y CAP-3 deben haberse ejecutado previamente. La Zona Romántica está llena (6/6) en {{fechaCapacidad}}.\n**Resultado esperado:** HTTP 200. La Zona Romántica (zonaId=7) no aparece en `data.zonas`.\n> **⚠ Dependencia secuencial:** Requiere CAP-1 y CAP-3 ejecutados.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const zonas = pm.response.json().data.zonas;",
+                          "const romantica = zonas.find(z => z.zonaId === 7);",
+                          "",
+                          "pm.test('La Zona Romántica (id=7) no aparece en disponibilidad al estar llena (6/6)', () => pm.expect(romantica).to.be.undefined);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaCapacidad}}",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaCapacidad}}"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "CAP-5 Reserva en distinta hora del mismo día con zona llena – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que la capacidad acumulada se calcula por día completo, no por franja horaria. La Zona Romántica está llena el 2026-12-16 ({{fechaCapacidad}}); intentar agregar una persona a las 18:00 del mismo día debe fallar porque la suma diaria sigue siendo 6/6.\n**Pre-condición:** CAP-1 y CAP-3 ejecutados. Zona id=7 con 6/6 personas el 2026-12-16.\n**Resultado esperado:** HTTP 422 (capacidad diaria agotada independientemente de la hora).\n> **⚠ Dependencia secuencial:** Requiere CAP-1 y CAP-3 ejecutados. Nota: la fecha `2026-12-16T18:00:00` coincide con el día de {{fechaCapacidad}} y está dentro del horario de atención.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "// La Zona Romántica (cap=6) quedó llena en fechaCapacidad (CAP-1 + CAP-3).",
+                          "// La capacidad se acumula por día, no por hora. Sumar 1 persona a otra hora del mismo día (6+1=7>6) debe fallar.",
+                          "pm.test('Status 422 – Capacidad diaria agotada independientemente de la hora de llegada', () => pm.response.to.have.status(422));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"2026-12-16T18:00:00\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "DECO-OCP-1 Primera reserva con decoración exclusiva (Velas Románticas id=1) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-03 (precondición)\n**Objetivo:** Crear la primera reserva con las Velas Románticas (id=1, exclusiva por fecha) para {{fechaDecoracion}}. Este caso es la precondición obligatoria para DECO-OCP-2 y DECO-OCP-3.\n**Pre-condición:** Decoración id=1 (Velas Románticas) sin reservas en {{fechaDecoracion}}. Zona id=1 disponible.\n**Resultado esperado:** HTTP 201. `decoracionId=1`.\n> **⚠ Dependencia secuencial:** DECO-OCP-2 y DECO-OCP-3 deben ejecutarse inmediatamente después.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Primera reserva con decoración exclusiva creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "pm.test('El decoracionId coincide con Velas Románticas (id=1)', () => pm.expect(pm.response.json().data.decoracionId).to.eql(1));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaDecoracion}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": 1,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "DECO-OCP-2 Decoración exclusiva ya reservada para la misma fecha – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que el sistema rechaza una segunda reserva con la misma decoración exclusiva (Velas Románticas, id=1) en la misma fecha, ya que este tipo de decoración solo puede asignarse a una reserva por fecha.\n**Pre-condición:** DECO-OCP-1 debe haberse ejecutado previamente. Las Velas Románticas están reservadas para {{fechaDecoracion}}.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona 'disponibilidad'.\n> **⚠ Dependencia secuencial:** Requiere DECO-OCP-1 ejecutado.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Decoración exclusiva ya reservada para la misma fecha', () => pm.response.to.have.status(422));",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona la disponibilidad de la decoración', () => {",
+                          "  pm.expect(pm.response.json().message).to.include('disponibilidad');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaDecoracion}}\",\n  \"numeroPersonas\": 2,\n  \"decoracionId\": 1,\n  \"zonaId\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "DECO-OCP-3 Decoración ocupada excluida del resultado de disponibilidad – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que una decoración exclusiva ya reservada para una fecha no aparece en el listado de decoraciones disponibles para esa misma fecha.\n**Pre-condición:** DECO-OCP-1 debe haberse ejecutado previamente. Las Velas Románticas están reservadas para {{fechaDecoracion}}.\n**Resultado esperado:** HTTP 200. La decoración con `decoracionId=1` no aparece en `data.decoraciones`.\n> **⚠ Dependencia secuencial:** Requiere DECO-OCP-1 ejecutado.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const decos = pm.response.json().data.decoraciones;",
+                          "const velas = decos.find(d => d.decoracionId === 1);",
+                          "",
+                          "pm.test('Las Velas Románticas (id=1) no aparecen en disponibilidad al estar ya reservadas', () => pm.expect(velas).to.be.undefined);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaDecoracion}}",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaDecoracion}}"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-1 Llenar Salón Principal (Zona 1, cap=60) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-03 (precondición)\n**Objetivo:** Reservar toda la capacidad del Salón Principal (60 personas) para {{fechaTodasOcupadas}}, como parte de la secuencia de setup para los casos NODISP-1 y NODISP-2.\n**Pre-condición:** Zona id=1 (Salón Principal, cap=60) sin reservas en {{fechaTodasOcupadas}}.\n**Resultado esperado:** HTTP 201.\n> **⚠ Dependencia secuencial:** Ejecutar en orden NODISP-SETUP-1 a 7 antes de NODISP-1 y NODISP-2.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Salón Principal (Zona 1) llenado exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 60,\n  \"zonaId\": 1\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-2 Llenar Terraza (Zona 2, cap=30) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-03 (precondición)\n**Objetivo:** Reservar toda la capacidad de la Terraza (30 personas) para {{fechaTodasOcupadas}}.\n**Pre-condición:** NODISP-SETUP-1 ejecutado. Zona id=2 (Terraza, cap=30) disponible.\n**Resultado esperado:** HTTP 201.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Terraza (Zona 2) llenada exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 30,\n  \"zonaId\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-3 Llenar VIP (Zona 3, cap=16) – 201 Created",
+                  "description": "**Objetivo:** Reservar toda la capacidad de la Zona VIP (16 personas) para {{fechaTodasOcupadas}}.\n**Pre-condición:** NODISP-SETUP-2 ejecutado. Zona id=3 (VIP, cap=16) disponible.\n**Resultado esperado:** HTTP 201.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – VIP (Zona 3) llenada exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 16,\n  \"zonaId\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-4 Llenar Barra (Zona 4, cap=10) – 201 Created",
+                  "description": "**Objetivo:** Reservar toda la capacidad de la Barra (10 personas) para {{fechaTodasOcupadas}}.\n**Pre-condición:** NODISP-SETUP-3 ejecutado. Zona id=4 (Barra, cap=10) disponible.\n**Resultado esperado:** HTTP 201.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Barra (Zona 4) llenada exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 10,\n  \"zonaId\": 4\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-5 Llenar Jardín (Zona 5, cap=20) – 201 Created",
+                  "description": "**Objetivo:** Reservar toda la capacidad del Jardín (20 personas) para {{fechaTodasOcupadas}}.\n**Pre-condición:** NODISP-SETUP-4 ejecutado. Zona id=5 (Jardín, cap=20) disponible.\n**Resultado esperado:** HTTP 201.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Jardín (Zona 5) llenado exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 20,\n  \"zonaId\": 5\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-6 Llenar Sala Privada (Zona 6, cap=12) – 201 Created",
+                  "description": "**Objetivo:** Reservar toda la capacidad de la Sala Privada (12 personas) para {{fechaTodasOcupadas}}.\n**Pre-condición:** NODISP-SETUP-5 ejecutado. Zona id=6 (Sala Privada, cap=12) disponible.\n**Resultado esperado:** HTTP 201.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Sala Privada (Zona 6) llenada exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 12,\n  \"zonaId\": 6\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-SETUP-7 Llenar Zona Romántica (Zona 7, cap=6) – 201 Created",
+                  "description": "**Objetivo:** Reservar toda la capacidad de la Zona Romántica (6 personas) para {{fechaTodasOcupadas}}, completando el llenado de todas las zonas del sistema.\n**Pre-condición:** NODISP-SETUP-6 ejecutado. Zona id=7 (Zona Romántica, cap=6) disponible.\n**Resultado esperado:** HTTP 201. Habilita NODISP-1 y NODISP-2.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Zona Romántica (Zona 7) llenada exitosamente', () => pm.response.to.have.status(201));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 6,\n  \"zonaId\": 7\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-1 CA-03 – Sin disponibilidad: disponible=false y listas vacías – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que cuando todas las zonas están llenas para una fecha, el sistema retorna `disponible=false` con listas de zonas y decoraciones vacías, informando correctamente al cliente que no hay disponibilidad.\n**Pre-condición:** NODISP-SETUP-1 a 7 ejecutados. Todas las zonas a capacidad máxima en {{fechaTodasOcupadas}}.\n**Resultado esperado:** HTTP 200. `success=true`, `data.disponible=false`, `data.zonas=[]`, `data.decoraciones=[]`.\n> **⚠ Dependencia secuencial:** Requiere todos los NODISP-SETUP ejecutados.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const body = pm.response.json();",
+                          "const d = body.data;",
+                          "",
+                          "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
+                          "",
+                          "pm.test('El campo disponible es false cuando todas las zonas están llenas (CA-03)', () => {",
+                          "  pm.expect(d.disponible).to.be.false;",
+                          "});",
+                          "",
+                          "pm.test('El listado de zonas está vacío cuando no hay disponibilidad', () => {",
+                          "  pm.expect(d.zonas).to.be.an('array').and.be.empty;",
+                          "});",
+                          "",
+                          "pm.test('El listado de decoraciones está vacío cuando no hay disponibilidad', () => {",
+                          "  pm.expect(d.decoraciones).to.be.an('array').and.be.empty;",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaTodasOcupadas}}",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaTodasOcupadas}}"
+                        }
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "BLOQUE-1 CA-BLQ-01 – Disponibilidad en fecha completamente bloqueada (Navidad) → disponible=false – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-BLQ-01\n**Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la fecha solicitada está completamente bloqueada por el administrador (bloqueo sin franja horaria = día completo). En los datos de prueba, el 25 de diciembre de 2026 está bloqueado como 'Cierre por festividad de Navidad'.\n**Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-25. `clienteToken` disponible.\n**Resultado esperado:** HTTP 200. `data.disponible=false`, listas vacías.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const d = pm.response.json().data;",
+                          "pm.test('disponible=false para fecha completamente bloqueada (Navidad 2026-12-25)', () => pm.expect(d.disponible).to.be.false);",
+                          "pm.test('zonas está vacío al estar bloqueada la fecha', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);",
+                          "pm.test('decoraciones está vacío al estar bloqueada la fecha', () => pm.expect(d.decoraciones).to.be.an('array').and.be.empty);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaDia}}",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas", "disponibilidad"],
+                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaDia}}" }]
+                    }
+                  }
+                },
+                {
+                  "name": "BLOQUE-2 CA-BLQ-02 – Crear reserva en fecha bloqueada (día completo) → 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-BLQ-02\n**Objetivo:** Verificar que el sistema rechaza la creación de una reserva en una fecha bloqueada por el administrador. El mensaje de error debe orientar al cliente.\n**Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-25. `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Reserva rechazada en fecha bloqueada (Navidad)', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "pm.test('El mensaje menciona la disponibilidad', () => {",
+                          "  pm.expect(body.message.toLowerCase()).to.include('disponibilidad');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      { "key": "Content-Type", "value": "application/json" },
+                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaBloqueadaDia}}\",\n  \"numeroPersonas\": 3\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas"]
+                    }
+                  }
+                },
+                {
+                  "name": "BLOQUE-3 CA-BLQ-03 – Disponibilidad en franja horaria bloqueada (19:00–21:00) → disponible=false – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-BLQ-03\n**Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la hora solicitada cae dentro de una franja horaria bloqueada por el administrador (no todo el día). En los datos de prueba, el 22 de diciembre de 2026 está bloqueado entre las 19:00 y las 21:00.\n**Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-22 franja 19:00–21:00. `clienteToken` disponible. La variable {{fechaBloqueadaFranja}} es 2026-12-22T20:00:00.\n**Resultado esperado:** HTTP 200. `data.disponible=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const d = pm.response.json().data;",
+                          "pm.test('disponible=false para hora dentro de la franja bloqueada (20:00 en rango 19:00-21:00)', () => pm.expect(d.disponible).to.be.false);",
+                          "pm.test('zonas está vacío al estar bloqueada la franja', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaFranja}}",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas", "disponibilidad"],
+                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaFranja}}" }]
+                    }
+                  }
+                },
+                {
+                  "name": "BLOQUE-4 CA-BLQ-04 – Misma fecha bloqueada pero hora fuera del bloqueo → disponible=true – 200 OK",
+                  "description": "**Criterio de Aceptación:** CA-BLQ-04\n**Objetivo:** Verificar que el bloqueo por franja horaria NO afecta horas del mismo día que están fuera del rango bloqueado. El 22 de diciembre tiene bloqueada la franja 19:00–21:00, pero las 17:00 del mismo día deben estar disponibles.\n**Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-22 franja 19:00–21:00. `clienteToken` disponible. La variable {{fechaBloqueadaFranjaFuera}} es 2026-12-22T17:00:00.\n**Resultado esperado:** HTTP 200. `data.disponible=true`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));",
+                          "",
+                          "const d = pm.response.json().data;",
+                          "pm.test('disponible=true para hora fuera del bloqueo (17:00, bloqueo es 19:00-21:00)', () => pm.expect(d.disponible).to.be.true);",
+                          "pm.test('zonas no está vacío cuando la hora es válida y no está bloqueada', () => pm.expect(d.zonas).to.be.an('array').and.not.empty);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "GET",
+                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaFranjaFuera}}",
+                      "host": ["{{baseUrl}}"],
+                      "path": ["api", "reservas", "disponibilidad"],
+                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaFranjaFuera}}" }]
+                    }
+                  }
+                },
+                {
+                  "name": "NODISP-2 CA-03 – Crear reserva sin disponibilidad: mensaje menciona 'disponibilidad' – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que el sistema rechaza la creación de una reserva cuando no existe ninguna zona con capacidad disponible para la fecha solicitada, retornando un mensaje que orienta al cliente sobre la falta de disponibilidad.\n**Pre-condición:** NODISP-SETUP-1 a 7 ejecutados. No hay zonas disponibles en {{fechaTodasOcupadas}}.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que incluye la palabra 'disponibilidad'.\n> **⚠ Dependencia secuencial:** Requiere todos los NODISP-SETUP ejecutados.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Reserva rechazada por falta de disponibilidad', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "",
+                          "pm.test('El campo success es false en la respuesta de error', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje de error menciona la disponibilidad', () => {",
+                          "  pm.expect(body.message.toLowerCase()).to.include('disponibilidad');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaTodasOcupadas}}\",\n  \"numeroPersonas\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                }
+              ]
+            }
+          ]
+        }
+      ]
+    }
+  ]
+}

@@ -675,5 +675,62 @@ ALTER TABLE Notificacion SET (autovacuum_vacuum_scale_factor = 0.1);
 ALTER TABLE Movimiento_Inventario SET (autovacuum_vacuum_scale_factor = 0.1);
 
 -- =====================================================
+-- BLOQUEOS DE DISPONIBILIDAD
+-- Permite al administrador inhabilitar fechas o franjas horarias.
+-- Si horaInicio/horaFin son NULL, el bloqueo aplica al día completo.
+-- =====================================================
+
+CREATE TABLE Bloque_Disponibilidad (
+    bloque_id              BIGSERIAL PRIMARY KEY,
+    bloque_fecha_inicio    DATE        NOT NULL,
+    bloque_fecha_fin       DATE        NOT NULL,
+    bloque_hora_inicio     TIME,
+    bloque_hora_fin        TIME,
+    bloque_motivo          VARCHAR(255),
+    admin_id               BIGINT      NOT NULL,
+    created_at             TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_bloque_admin FOREIGN KEY (admin_id)
+        REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_bloque_fechas CHECK (bloque_fecha_fin >= bloque_fecha_inicio),
+    CONSTRAINT chk_bloque_horas  CHECK (
+        (bloque_hora_inicio IS NULL AND bloque_hora_fin IS NULL)
+        OR (bloque_hora_inicio IS NOT NULL AND bloque_hora_fin IS NOT NULL AND bloque_hora_fin > bloque_hora_inicio)
+    )
+);
+
+COMMENT ON TABLE Bloque_Disponibilidad IS 'Franjas de tiempo bloqueadas por el administrador para reservas';
+COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_inicio IS 'Hora de inicio del bloqueo (inclusive). NULL = día completo bloqueado';
+COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_fin IS 'Hora de fin del bloqueo (exclusiva). NULL = día completo bloqueado';
+COMMENT ON COLUMN Bloque_Disponibilidad.admin_id IS 'Empleado administrador activo que creó el bloqueo';
+
+CREATE INDEX idx_bloque_fecha_inicio ON Bloque_Disponibilidad(bloque_fecha_inicio);
+CREATE INDEX idx_bloque_fecha_fin    ON Bloque_Disponibilidad(bloque_fecha_fin);
+
+-- Trigger: valida que admin_id corresponda a un empleado con rol ADM activo
+CREATE OR REPLACE FUNCTION validar_bloque_admin()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM Usuario_Rol
+        WHERE usuario_id = NEW.admin_id
+          AND rol_nombre = 'ADM'
+          AND rol_estado = 'ACTIVO'
+    ) THEN
+        RAISE EXCEPTION 'El usuario % no es un administrador activo', NEW.admin_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_bloque_admin_check
+    BEFORE INSERT OR UPDATE ON Bloque_Disponibilidad
+    FOR EACH ROW EXECUTE FUNCTION validar_bloque_admin();
+
+CREATE TRIGGER trg_bloque_updated_at BEFORE UPDATE ON Bloque_Disponibilidad
+    FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+-- =====================================================
 -- FIN DEL SCRIPT
 -- =====================================================

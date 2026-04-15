@@ -10,6 +10,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleRespo
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
@@ -21,12 +22,15 @@ import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
@@ -43,11 +47,22 @@ public class ReservaService {
 
     private static final String MSG_DISPONIBILIDAD_CAMBIO = "Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.";
 
+    /** Hora de apertura del restaurante (5:00 PM, inclusive). */
+    private static final int HORA_APERTURA = 17;
+    /** Hora de cierre del restaurante (10:00 PM, exclusiva). */
+    private static final int HORA_CIERRE = 22;
+
+    private static final String MSG_FUERA_HORARIO =
+            "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. " +
+            "El horario de reservas es de lunes a domingo de 5:00 p.m. a 10:00 p.m. " +
+            "Por favor elija otra fecha u hora.";
+
     private final ReservaRepository reservaRepository;
     private final DecoracionRepository decoracionRepository;
     private final DecoracionZonaRepository decoracionZonaRepository;
     private final ZonaRepository zonaRepository;
     private final ClienteRepository clienteRepository;
+    private final BloqueDisponibilidadRepository bloqueRepository;
 
     // -----------------------------------------------------------------------
     // Disponibilidad
@@ -55,19 +70,28 @@ public class ReservaService {
 
     /**
      * Retorna la disponibilidad para el día de la fecha dada.
-     * Una zona está libre si la suma de personas de sus reservas activas en ese día es menor que su capacidad.
-     * Si ninguna zona tiene capacidad restante, {@code disponible} es {@code false}.
+     * Devuelve {@code disponible=false} si:
+     *  - La hora está fuera del horario de atención (5 PM – 10 PM), o
+     *  - Existe un bloqueo activo creado por el administrador para esa fecha/hora, o
+     *  - Ninguna zona tiene capacidad restante.
      */
     @Transactional(readOnly = true)
     public DisponibilidadResponse consultarDisponibilidad(LocalDateTime fechaHora) {
+
+        // Regla 1: verificar horario de atención
+        if (!esHorarioValido(fechaHora)) {
+            return sinDisponibilidad();
+        }
+
+        // Regla 2: verificar bloqueos de administrador
+        if (estaBloqueda(fechaHora)) {
+            return sinDisponibilidad();
+        }
+
         List<Zona> todasLasZonas = zonaRepository.findAll();
 
         if (todasLasZonas.isEmpty()) {
-            return DisponibilidadResponse.builder()
-                    .disponible(false)
-                    .decoraciones(List.of())
-                    .zonas(List.of())
-                    .build();
+            return sinDisponibilidad();
         }
 
         LocalDateTime inicio = fechaHora.toLocalDate().atStartOfDay();
@@ -92,11 +116,7 @@ public class ReservaService {
                 .collect(Collectors.toList());
 
         if (zonasLibres.isEmpty()) {
-            return DisponibilidadResponse.builder()
-                    .disponible(false)
-                    .decoraciones(List.of())
-                    .zonas(List.of())
-                    .build();
+            return sinDisponibilidad();
         }
 
         List<Decoracion> decoracionesActivas = decoracionRepository
@@ -130,13 +150,26 @@ public class ReservaService {
 
     /**
      * Crea una nueva reserva para el cliente identificado por su email.
-     * Verifica disponibilidad en el momento de guardar.
+     * Verifica horario de atención, bloqueos de administrador y disponibilidad de zona.
      */
     @Transactional
     public ReservaResponse crearReserva(String emailCliente, CrearReservaRequest request) {
         Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cliente", "email", emailCliente));
+
+        // Validar horario de atención antes de cualquier otra verificación
+        if (!esHorarioValido(request.getFechaHoraLlegada())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE, MSG_FUERA_HORARIO,
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Validar bloqueos de administrador
+        if (estaBloqueda(request.getFechaHoraLlegada())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. Por favor elija otra fecha u hora.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
 
         // Verificar existencia de decoración y zona en BD (→ 404 si no existe)
         Decoracion decoracion = null;
@@ -154,7 +187,6 @@ public class ReservaService {
         }
 
         // Validar compatibilidad decoración ↔ zona ANTES de verificar disponibilidad:
-        // es una regla dura de negocio (zona asignada fija) que no depende del estado actual de reservas.
         if (decoracion != null && zona != null) {
             validarCompatibilidadDecoracionZona(decoracion, zona);
         }
@@ -182,7 +214,6 @@ public class ReservaService {
         // Validar que la zona pedida sigue con capacidad
         if (zona != null) {
             final Long zonaId = zona.getZonaId();
-            // Verificar disponibilidad en el momento actual (→ 422 si no hay capacidad)
             boolean zonaLibre = disponibilidad.getZonas().stream()
                     .anyMatch(z -> z.getZonaId().equals(zonaId));
             if (!zonaLibre) {
@@ -190,7 +221,6 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
 
-            // Verificar que la suma total del día + nuevas personas no supere la capacidad
             LocalDateTime inicio = request.getFechaHoraLlegada().toLocalDate().atStartOfDay();
             LocalDateTime fin = request.getFechaHoraLlegada().toLocalDate().atTime(23, 59, 59);
             int personasExistentes = reservaRepository
@@ -208,7 +238,7 @@ public class ReservaService {
                 decoracion.getDecoracionCostoAdicional() != null &&
                 decoracion.getDecoracionCostoAdicional().compareTo(java.math.BigDecimal.ZERO) > 0;
 
-        //OJO cambiar para verificar el menú especial cuando se implemente       
+        //OJO cambiar para verificar el menú especial cuando se implemente
         boolean tieneMenuEspecial = request.getNumeroPersonas() != null && request.getNumeroPersonas() >= 10;
 
         boolean esEspecial = tieneDecoracionConCosto || tieneMenuEspecial;
@@ -232,9 +262,10 @@ public class ReservaService {
     }
 
     // -----------------------------------------------------------------------
-    // Reservas cliente
+    // Historial de reservas
     // -----------------------------------------------------------------------
 
+    /** Retorna el historial del cliente autenticado. */
     @Transactional(readOnly = true)
     public List<ReservaResponse> obtenerReservasCliente(String emailCliente) {
         Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
@@ -248,16 +279,40 @@ public class ReservaService {
                 .collect(Collectors.toList());
     }
 
+    /** Retorna el historial completo de todas las reservas del sistema (acceso de personal). */
+    @Transactional(readOnly = true)
+    public List<ReservaResponse> obtenerTodasLasReservas() {
+        return reservaRepository
+                .findAll(Sort.by(Sort.Direction.DESC, "reservaFechaHoraLlegada"))
+                .stream()
+                .map(this::toResponse)
+                .collect(Collectors.toList());
+    }
+
     // -----------------------------------------------------------------------
     // Validaciones de negocio
     // -----------------------------------------------------------------------
 
     /**
+     * Verifica que la fecha y hora estén dentro del horario de atención del restaurante.
+     * Horario: lunes a domingo, 5:00 PM (17:00) a 10:00 PM (22:00, exclusivo).
+     */
+    private boolean esHorarioValido(LocalDateTime fechaHora) {
+        int hora = fechaHora.getHour();
+        return hora >= HORA_APERTURA && hora < HORA_CIERRE;
+    }
+
+    /**
+     * Verifica si existe un bloqueo de administrador activo para la fecha y hora dada.
+     */
+    private boolean estaBloqueda(LocalDateTime fechaHora) {
+        LocalDate fecha = fechaHora.toLocalDate();
+        LocalTime hora  = fechaHora.toLocalTime();
+        return bloqueRepository.countBloquesParaFechaHora(fecha, hora) > 0;
+    }
+
+    /**
      * Verifica que la decoración sea compatible con la zona elegida.
-     * Reglas:
-     *  - 1 fila en decoracion_zona → zona fija, debe coincidir exactamente.
-     *  - >1 filas → la zona elegida debe estar en la lista compatible.
-     *  - 0 filas → sin restricción de zona.
      */
     private void validarCompatibilidadDecoracionZona(Decoracion decoracion, Zona zona) {
         List<DecoracionZona> links = decoracionZonaRepository
@@ -285,13 +340,19 @@ public class ReservaService {
     // Helpers de mapeo
     // -----------------------------------------------------------------------
 
+    private DisponibilidadResponse sinDisponibilidad() {
+        return DisponibilidadResponse.builder()
+                .disponible(false)
+                .decoraciones(List.of())
+                .zonas(List.of())
+                .build();
+    }
+
     private DecoracionDisponibleResponse buildDecoracionDto(Decoracion d, Set<Long> idsZonasLibres) {
         List<DecoracionZona> links = decoracionZonaRepository.findByDecoracionId(d.getDecoracionId());
 
-        // 1 sola zona = decoración fija 
         boolean puedeSeleccionar = links.size() != 1;
-        
-        // Zonas compatibles libres: si no hay links, lista vacía = sin restricción de zona
+
         List<Long> zonaIdsCompatibles = links.stream()
                 .map(DecoracionZona::getZonaId)
                 .filter(idsZonasLibres::contains)

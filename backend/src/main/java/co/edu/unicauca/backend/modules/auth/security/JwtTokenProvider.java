@@ -95,6 +95,7 @@ public class JwtTokenProvider {
         return Jwts.builder()
                 .subject(userDetails.getUsername())
                 .claim(CLAIM_TOKEN_TYPE, tokenType)
+                .id(java.util.UUID.randomUUID().toString())
                 .issuedAt(now)
                 .expiration(new Date(now.getTime() + tokenExpirationMs))
                 .signWith(key)
