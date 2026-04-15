@@ -36,8 +36,12 @@ public class Sesion {
     private Usuario usuario;
 
     @NotBlank(message = "El token de sesión es obligatorio")
-    @Column(name = "sesion_token", unique = true, nullable = false, length = 512)
+    @Column(name = "sesion_token", unique = true, nullable = false, length = 1024)
     private String sesionToken;
+
+    @NotBlank(message = "El refresh token de sesión es obligatorio")
+    @Column(name = "sesion_refresh_token", unique = true, nullable = false, length = 1024)
+    private String sesionRefreshToken;
 
     @NotNull
     @Column(name = "sesion_fecha_creacion", nullable = false)

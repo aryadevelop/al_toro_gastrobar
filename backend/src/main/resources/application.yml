@@ -68,7 +68,7 @@ springdoc:
   api-docs:
     path: /v3/api-docs
 
-# Expiracion JWT comun: 24 horas; el secret lo define cada perfil
+# Expiracion JWT comun: 30 minutos para access token; el secret lo define cada perfil
 jwt:
-  expiration: 86400000
+  expiration: 1800000
   refresh-expiration: 604800000

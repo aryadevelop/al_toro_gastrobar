@@ -35,3 +35,4 @@ build/
 ### Variables de entorno — nunca commitear secrets de prod ###
 .env.prod
 .env.local
+.claude/

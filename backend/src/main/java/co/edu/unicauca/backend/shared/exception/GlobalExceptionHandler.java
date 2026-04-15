@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.shared.exception;
 
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
+import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -100,14 +101,29 @@ public class GlobalExceptionHandler {
      */
     @ExceptionHandler(BadCredentialsException.class)
     ResponseEntity<ApiResponse<Void>> handleBadCredentials(BadCredentialsException ex) {
-        String message = ex.getMessage();
         return ResponseEntity
                 .status(HttpStatus.UNAUTHORIZED)
                 .body(ApiResponse.error(
                         ErrorCode.INVALID_CREDENTIALS.getCode(),
-                        (message == null || message.isBlank())
-                                ? ErrorCode.INVALID_CREDENTIALS.getMessage()
-                                : message));
+                        ErrorCode.INVALID_CREDENTIALS.getMessage()));
+    }
+
+    /**
+     * Token JWT malformado, expirado o con firma inválida → {@code 401 UNAUTHORIZED}.
+     *
+     * <p>Sin este handler, {@code io.jsonwebtoken.JwtException} caería en el manejador
+     * genérico y retornaría {@code 500 INTERNAL_SERVER_ERROR}.
+     *
+     * @param ex excepción de parseo o validación del token
+     * @return respuesta con código {@link ErrorCode#INVALID_CREDENTIALS}
+     */
+    @ExceptionHandler(JwtException.class)
+    ResponseEntity<ApiResponse<Void>> handleJwtException(JwtException ex) {
+        return ResponseEntity
+                .status(HttpStatus.UNAUTHORIZED)
+                .body(ApiResponse.error(
+                        ErrorCode.INVALID_CREDENTIALS.getCode(),
+                        ErrorCode.INVALID_CREDENTIALS.getMessage()));
     }
 
     /**
