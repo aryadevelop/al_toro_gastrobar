@@ -149,9 +149,11 @@ INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_lleg
 (21, 6, 1,    NOW() + INTERVAL '5 days',   2,  'Cena romantica velas',                 'PENDIENTE',    'ESPECIAL', NOW()),
 (19, 1, NULL, NOW() + INTERVAL '7 days',   3,  NULL,                                   'PENDIENTE',    'BASICA',   NOW()),
 (22, 2, 6,    NOW() + INTERVAL '10 days',  14,  'Primera visita del cliente',          'PENDIENTE',    'ESPECIAL', NOW()),
--- Con devolucion
+-- Con devolucion  (IDs 15 y 16 → referenciados en los Abonos de devolución)
 (16, 3, NULL, NOW() - INTERVAL '2 days',   2,  'Cancelacion con devolucion',           'DEVUELTA',     'BASICA',   NOW() - INTERVAL '10 days'),
-(13, 3, NULL, NOW() - INTERVAL '8 days',   2,  'Cancelacion con devolucion',           'DEVUELTA',     'ESPECIAL',   NOW() - INTERVAL '40 days');
+(13, 3, NULL, NOW() - INTERVAL '8 days',   2,  'Cancelacion con devolucion',           'DEVUELTA',     'ESPECIAL', NOW() - INTERVAL '40 days'),
+-- Reserva 17 → Menu 8d (Cerdo y Res en Vino) — cubre el último menú especial disponible
+(19, 2, 5,    NOW() + INTERVAL '15 days', 11,  'Fiesta de graduacion',               'PENDIENTE',    'ESPECIAL', NOW());
 
 -- =====================================================
 -- 7. Abono
@@ -168,28 +170,97 @@ INSERT INTO Abono (cajero_id, reserva_id, abono_monto, abono_fecha_hora, abono_m
 (2, 16, 800000, NOW() - INTERVAL '8 days',   'TRANSFERENCIA', 'DEVOLUCION');
 
 -- =====================================================
--- 8. PreOrden_Detalle 
+-- 8. PreOrden_Detalle + preorden_menu_modificacion
+--
+--    Regla de negocio: por reserva un solo tipo de menú especial,
+--    con cantidad = total de personas, y las mismas modificaciones
+--    para todo el grupo.
+--
+--    Cobertura de los 6 menús disponibles:
+--      Reserva  2 (18p, ATENDIDA)   → Menu 1  + BEBIDA
+--      Reserva  3 (16p, ATENDIDA)   → Menu 3  + BEBIDA
+--      Reserva  8 (98p, ATENDIDA)   → Menu 8a + SALSA_P1 + SALSA_P2 + ARROZ + BEBIDA
+--      Reserva 10 (12p, CONFIRMADA) → Menu 8b + SALSA_P1 + SALSA_P2 + BEBIDA
+--      Reserva 14 (14p, PENDIENTE)  → Menu 8c + SALSA_P1 + SALSA_P2 + BEBIDA
+--      Reserva 17 (11p, PENDIENTE)  → Menu 8d + SALSA_P1 + SALSA_P2 + BEBIDA
+--
+--    Reserva  5 (2p, ATENDIDA)      → productos regulares (≤10 personas)
+--    Reserva 12 (2p, PENDIENTE)     → productos regulares (≤10 personas)
+--
+--    La columna preorden_detalle_descripcion se usa como clave de correlación
+--    para vincular las modificaciones sin depender de IDs autogenerados.
 -- =====================================================
-INSERT INTO PreOrden_Detalle (reserva_id, producto_id, preorden_detalle_cantidad, preorden_detalle_nombre)
-SELECT v.reserva_id, p.producto_id, v.cantidad, v.nombre
+
+-- ─── Reservas con menú especial (1 fila = 1 reserva = 1 menú = N personas) ────
+INSERT INTO PreOrden_Detalle (reserva_id, producto_id, preorden_detalle_cantidad, preorden_detalle_descripcion)
+SELECT v.reserva_id, p.producto_id, v.cantidad, v.tag
 FROM (VALUES
-    -- Reserva 2 (cumpleaños 8 personas)
-    (2, 'Picada Gran Toro',        2),
-    (2, 'Picanha',                 4),
-    (2, 'Salmon a la Plancha',     2),
-    (2, 'Bambuco',                 8),
-    -- Reserva 10 (evento corporativo 12 personas)
-    (10, 'Meros Nachos',           4),
-    (10, 'Picada Gran Toro',       2),
-    (10, 'Tomahawk',               6),
-    (10, 'Salmon a la Plancha',    3),
-    (10, 'Fettuccine de la Casa',  3),
-    -- Reserva 12 (cena romantica)
-    (12, 'Picanha',                2),
-    (12, 'Salmon a la Marinera',   2),
-    (12, 'Gnomo',                  2)
+    ( 2, 'Menu 1 - Pechuga en Salsa de Uchubas', 18, 'r2'),
+    ( 3, 'Menu 3 - Cerdo BBQ',                   16, 'r3'),
+    ( 8, 'Menu 8a - Doble Proteina con Arroz',   98, 'r8'),
+    (10, 'Menu 8b - Pechuga y Cerdo',            12, 'r10'),
+    (14, 'Menu 8c - Pechuga y Res en Vino',      14, 'r14'),
+    (17, 'Menu 8d - Cerdo y Res en Vino',        11, 'r17')
+) AS v(reserva_id, nombre, cantidad, tag)
+JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- ─── Reservas con productos regulares (≤10 personas, sin menú especial) ──────
+INSERT INTO PreOrden_Detalle (reserva_id, producto_id, preorden_detalle_cantidad)
+SELECT v.reserva_id, p.producto_id, v.cantidad
+FROM (VALUES
+    -- Reserva 5: aniversario (2 personas, ATENDIDA)
+    (5,  'Filet Mignon',         1),
+    (5,  'Salmon a la Marinera', 1),
+    -- Reserva 12: cena romántica (2 personas, PENDIENTE)
+    (12, 'Picanha',              2),
+    (12, 'Salmon a la Marinera', 2),
+    (12, 'Gnomo',                2)
 ) AS v(reserva_id, nombre, cantidad)
 JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- ─────────────────────────────────────────────────────────────────────────────
+-- preorden_menu_modificacion
+--   Un INSERT único resuelve todas las opciones elegidas por reserva.
+--   Cada tag identifica un PreOrden_Detalle; las opciones se resuelven
+--   por JOIN (tipo_componente + opcion_nombre) sin IDs hardcodeados.
+--
+--   Cobertura total de opciones:
+--     BEBIDA:          Maracuya(r2), Lulo(r3), Mango(r8), Fresa(r10,r17)
+--     SALSA_PROTEINA_1: Uchubas(r8,r14), BBQ(r10), Vino(r17)
+--     SALSA_PROTEINA_2: BBQ(r8,r10), Uchubas(r14), Vino(r17)  ← corrección: r14 P2=Vino, r17 P2=BBQ
+--     ARROZ:           Granjero(r8)
+-- ─────────────────────────────────────────────────────────────────────────────
+INSERT INTO preorden_menu_modificacion (preorden_detalle_id, opcion_id)
+SELECT pd.preorden_detalle_id, o.opcion_id
+FROM PreOrden_Detalle pd
+JOIN (VALUES
+    -- r2: Menu 1 × 18 → BEBIDA: Jugo de Maracuya
+    ('r2',  'BEBIDA',           'Jugo de Maracuya'),
+    -- r3: Menu 3 × 16 → BEBIDA: Jugo de Lulo
+    ('r3',  'BEBIDA',           'Jugo de Lulo'),
+    -- r8: Menu 8a × 98 → Salsa Uchubas | Salsa BBQ | Arroz Granjero | Jugo de Mango
+    ('r8',  'SALSA_PROTEINA_1', 'Salsa de Uchubas'),
+    ('r8',  'SALSA_PROTEINA_2', 'Salsa BBQ'),
+    ('r8',  'ARROZ',            'Arroz Granjero'),
+    ('r8',  'BEBIDA',           'Jugo de Mango'),
+    -- r10: Menu 8b × 12 → Salsa BBQ | Salsa Uchubas | Jugo de Fresa
+    ('r10', 'SALSA_PROTEINA_1', 'Salsa BBQ'),
+    ('r10', 'SALSA_PROTEINA_2', 'Salsa de Uchubas'),
+    ('r10', 'BEBIDA',           'Jugo de Fresa'),
+    -- r14: Menu 8c × 14 → Salsa Uchubas | Salsa de Vino Tinto | Jugo de Lulo
+    ('r14', 'SALSA_PROTEINA_1', 'Salsa de Uchubas'),
+    ('r14', 'SALSA_PROTEINA_2', 'Salsa de Vino Tinto'),
+    ('r14', 'BEBIDA',           'Jugo de Lulo'),
+    -- r17: Menu 8d × 11 → Salsa de Vino Tinto | Salsa BBQ | Jugo de Fresa
+    ('r17', 'SALSA_PROTEINA_1', 'Salsa de Vino Tinto'),
+    ('r17', 'SALSA_PROTEINA_2', 'Salsa BBQ'),
+    ('r17', 'BEBIDA',           'Jugo de Fresa')
+) AS v(tag, tipo, nombre)
+  ON pd.preorden_detalle_descripcion = v.tag
+JOIN opcion_modificacion o
+  ON o.tipo_componente = v.tipo
+ AND o.opcion_nombre   = v.nombre
+ AND o.opcion_estado   = 'ACTIVO';
 
 -- =====================================================
 -- 9. Visita

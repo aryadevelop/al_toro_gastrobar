@@ -169,75 +169,75 @@ INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_es
 -- =====================================================
 
 -- ENTRADAS (cat 1) → IDs 1-6
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(1, 'Don Toston',          'ACTIVO', 16000, 'PREPARACION', 'PLATO', FALSE),
-(1, 'Toston Loco',         'ACTIVO', 16000, 'PREPARACION', 'PLATO', FALSE),
-(1, 'Toston Marino',       'ACTIVO', 27000, 'PREPARACION', 'PLATO', FALSE),
-(1, 'Coctel de Camarones', 'ACTIVO', 26000, 'PREPARACION', 'PLATO', FALSE),
-(1, 'Caribe Crunch',       'ACTIVO', 12000, 'PREPARACION', 'PLATO', FALSE),
-(1, 'Apanado Caribeno',    'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(1, 'Don Toston',          'Tostones crujientes con guacamole, suero costeño y hogao',           'ACTIVO', 16000, 'PREPARACION', 'PLATO', FALSE),
+(1, 'Toston Loco',         'Tostones con guacamole, hogao, suero costeño y toppings variados',  'ACTIVO', 16000, 'PREPARACION', 'PLATO', FALSE),
+(1, 'Toston Marino',       'Tostones con camarones, calamar anillado y salsa criolla',           'ACTIVO', 27000, 'PREPARACION', 'PLATO', FALSE),
+(1, 'Coctel de Camarones', 'Coctel de camarones frescos con leche tigre y tostadas',             'ACTIVO', 26000, 'PREPARACION', 'PLATO', FALSE),
+(1, 'Caribe Crunch',       'Bocados crujientes de camaron y platano verde con salsa de coco',             'ACTIVO', 12000, 'PREPARACION', 'PLATO', FALSE),
+(1, 'Apanado Caribeno',    'Camaron, calamar y pescado apanados con papas fritas y salsa criolla', 'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE);
 
 -- PARA COMPARTIR (cat 2) → IDs 7-9
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(2, 'Picada Gran Toro',     'ACTIVO', 70000, 'PREPARACION', 'PLATO', FALSE),
-(2, 'Meros Nachos',         'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
-(2, 'Pinchos Mar y Tierra', 'ACTIVO', 52000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(2, 'Picada Gran Toro',     'Tabla para compartir: lomo fino, pollo, cerdo, chorizo, papa criolla y salsas de la casa', 'ACTIVO', 70000, 'PREPARACION', 'PLATO', FALSE),
+(2, 'Meros Nachos',         'Nachos con carne molida, frijoles refritos, jalapenos, queso y guacamole',                 'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
+(2, 'Pinchos Mar y Tierra', 'Pinchos mixtos de res, pollo y camaron a la parrilla con chimichurri',                     'ACTIVO', 52000, 'PREPARACION', 'PLATO', FALSE);
 
 -- TIERRA (cat 3) → IDs 10-23
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(3, 'Picanha',              'ACTIVO', 42000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Tomahawk',             'ACTIVO', 90000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'T-Bone Steak',         'ACTIVO', 48000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Lomo Fino Fajon',      'ACTIVO', 45000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Costillas BBQ',        'ACTIVO', 28000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Rodeo Tropical',       'ACTIVO', 35000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Rodeo',                'ACTIVO', 33000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Pechuga a la Plancha', 'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'La Taurina',           'ACTIVO', 46000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Taurina Black',        'ACTIVO', 47000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Filet Mignon',         'ACTIVO', 42000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Churrasco',            'ACTIVO', 45000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Lomo de Cerdo',        'ACTIVO', 30000, 'PREPARACION', 'PLATO', FALSE),
-(3, 'Lomo BBQ',             'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(3, 'Picanha',              'Punta de anca asada a la parrilla con chimichurri, papa criolla y aguacate fresco', 'ACTIVO', 42000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Tomahawk',             'Corte de costilla de res de 1kg a la parrilla con papa criolla y chimichurri', 'ACTIVO', 90000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'T-Bone Steak',         'Corte T-Bone a la parrilla con papa francesa y ensalada salada',             'ACTIVO', 48000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Lomo Fino Fajon',      'Filete de lomo fino en salsa strogonoff con papa criolla',                           'ACTIVO', 45000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Costillas BBQ',        'Costillas de cerdo a fuego lento en salsa BBQ con papa francesa',                   'ACTIVO', 28000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Rodeo Tropical',       'Pechuga de pollo con salsa hawaiana, piña asada y papa francesa',                'ACTIVO', 35000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Rodeo',                'Pechuga de pollo a la plancha con salsa de champiñones y papa francesa',            'ACTIVO', 33000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Pechuga a la Plancha', 'Pechuga de pollo a la plancha acompañada de papa francesa',                         'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'La Taurina',           'Churrasco, tocineta crujiente, salsa de champiñones y papa criolla',                'ACTIVO', 46000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Taurina Black',        'Churrasco, tocineta, salsa demiglace y papa criolla',                                'ACTIVO', 47000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Filet Mignon',         'Lomo fino en salsa demiglace con espárragos al vapor',                               'ACTIVO', 42000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Churrasco',            'Churrasco a la parrilla con papa criolla, chimichurri y ensalada',              'ACTIVO', 45000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Lomo de Cerdo',        'Lomo de cerdo a la plancha con papa francesa y ensalada dulce',               'ACTIVO', 30000, 'PREPARACION', 'PLATO', FALSE),
+(3, 'Lomo BBQ',             'Lomo de cerdo en salsa BBQ con papa francesa',                                       'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE);
 
 -- MAR (cat 4) → IDs 24-27
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(4, 'Cazuela de Mariscos',  'ACTIVO', 41000, 'PREPARACION', 'PLATO', FALSE),
-(4, 'Salmon a la Plancha',  'ACTIVO', 49000, 'PREPARACION', 'PLATO', FALSE),
-(4, 'Salmon a la Marinera', 'ACTIVO', 57000, 'PREPARACION', 'PLATO', FALSE),
-(4, 'Ceviche de Pescado',   'ACTIVO', 33000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(4, 'Cazuela de Mariscos',  'Camarones, calamar, pulpo, almejas, mejillones y langostinos en cazuela', 'ACTIVO', 41000, 'PREPARACION', 'PLATO', FALSE),
+(4, 'Salmon a la Plancha',  'Filete de salmón a la plancha con papa criolla',                           'ACTIVO', 49000, 'PREPARACION', 'PLATO', FALSE),
+(4, 'Salmon a la Marinera', 'Salmón en salsa caribeña de coco con camarones',                           'ACTIVO', 57000, 'PREPARACION', 'PLATO', FALSE),
+(4, 'Ceviche de Pescado',   'Pescado blanco marinado con leche tigre, camaron, cebolla morada y tomate cherry', 'ACTIVO', 33000, 'PREPARACION', 'PLATO', FALSE);
 
 -- MAR Y TIERRA (cat 5) → IDs 28-31
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(5, 'Arroz de Mariscos', 'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
-(5, 'Rodeo Marino',      'ACTIVO', 37000, 'PREPARACION', 'PLATO', FALSE),
-(5, 'Risotto de Salmon', 'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE),
-(5, 'Filet Marino',      'ACTIVO', 48000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(5, 'Arroz de Mariscos', 'Arroz con camarones, calamar y mariscos frescos del día', 'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
+(5, 'Rodeo Marino',      'Pechuga a la plancha con camaron saltado, papa francesa y salsa criolla', 'ACTIVO', 37000, 'PREPARACION', 'PLATO', FALSE),
+(5, 'Risotto de Salmon', 'Risotto cremoso con salmon fresco, queso parmesano y tomate cherry',    'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE),
+(5, 'Filet Marino',      'Filet de lomo fino sobre cama de mariscos en salsa criolla',            'ACTIVO', 48000, 'PREPARACION', 'PLATO', FALSE);
 
 -- PASTA (cat 6) → IDs 32-35
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(6, 'Fettuccine de la Casa',        'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE),
-(6, 'Spaghetti al Pomodoro',        'ACTIVO', 24000, 'PREPARACION', 'PLATO', FALSE),
-(6, 'Fettuccine con Salmon',        'ACTIVO', 39000, 'PREPARACION', 'PLATO', FALSE),
-(6, 'Fettuccine en Salsa Alfredo',  'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(6, 'Fettuccine de la Casa',        'Fettuccine con lomo fino, salsa pomodoro y tomate cherry', 'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE),
+(6, 'Spaghetti al Pomodoro',        'Spaghetti con salsa pomodoro artesanal y queso parmesano',          'ACTIVO', 24000, 'PREPARACION', 'PLATO', FALSE),
+(6, 'Fettuccine con Salmon',        'Fettuccine con salmon fresco en salsa alfredo y queso parmesano', 'ACTIVO', 39000, 'PREPARACION', 'PLATO', FALSE),
+(6, 'Fettuccine en Salsa Alfredo',  'Fettuccine en cremosa salsa alfredo con queso parmesano',         'ACTIVO', 38000, 'PREPARACION', 'PLATO', FALSE);
 
 -- RAPIDAS (cat 7) → IDs 36-44
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(7, 'Hamburguesa Al Toro',      'ACTIVO', 25000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Hamburguesa Tropitoro',    'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Hamburguesa Gran Toro',    'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Hamburguesa Toro Burguer', 'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Hamburguesa Toro Chilli',  'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Hamburguesa Master',       'ACTIVO', 36000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Perro Caliente',           'ACTIVO', 20000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Mazorcada Toro',           'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
-(7, 'Mazorcada',                'ACTIVO', 26000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(7, 'Hamburguesa Al Toro',      'Hamburguesa de res 200g con queso doble crema, chorizo y tocineta', 'ACTIVO', 25000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Hamburguesa Tropitoro',    'Hamburguesa de res con piña asada, queso, tocineta y salsa hawaiana',       'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Hamburguesa Gran Toro',    'Hamburguesa de res 250g con doble queso y tocineta',                        'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Hamburguesa Toro Burguer', 'Hamburguesa de res 250g con queso crema, tomate y lechuga',                'ACTIVO', 31000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Hamburguesa Toro Chilli',  'Hamburguesa de res con chilli casero, jalapenos, queso y tocineta',        'ACTIVO', 29000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Hamburguesa Master',       'Doble carne 400g con doble queso, tocineta, chorizo y salsas de la casa', 'ACTIVO', 36000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Perro Caliente',           'Salchicha americana con chorizo, tocineta crujiente, queso y salsas',      'ACTIVO', 20000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Mazorcada Toro',           'Mazorca tierna con carne de res desmenuzada, queso y tocineta crujiente',  'ACTIVO', 32000, 'PREPARACION', 'PLATO', FALSE),
+(7, 'Mazorcada',                'Mazorca tierna a la plancha con mantequilla, queso y tocineta',             'ACTIVO', 26000, 'PREPARACION', 'PLATO', FALSE);
 
 -- MENU INFANTIL (cat 8) → IDs 45-47
-INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
-(8, 'Nuggets de Pollo',      'ACTIVO', 15000, 'PREPARACION', 'PLATO', FALSE),
-(8, 'Choripapa',             'ACTIVO', 13000, 'PREPARACION', 'PLATO', FALSE),
-(8, 'Hamburguesa Ternerita', 'ACTIVO', 18000, 'PREPARACION', 'PLATO', FALSE);
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
+(8, 'Nuggets de Pollo',      'Nuggets de pollo crujientes con salsa BBQ y papa francesa',     'ACTIVO', 15000, 'PREPARACION', 'PLATO', FALSE),
+(8, 'Choripapa',             'Chorizo a la plancha con papas fritas y salsa de la casa',      'ACTIVO', 13000, 'PREPARACION', 'PLATO', FALSE),
+(8, 'Hamburguesa Ternerita', 'Mini hamburguesa de res con queso, tomate y papas fritas',      'ACTIVO', 18000, 'PREPARACION', 'PLATO', FALSE);
 
 -- ACOMPANANTES (cat 9) → IDs 48-54
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
@@ -535,3 +535,213 @@ FROM (VALUES
 ) AS r(insumo_nombre, producto_nombre, cantidad)
 JOIN Insumo   i ON i.insumo_nombre   = r.insumo_nombre
 JOIN Producto p ON p.producto_nombre = r.producto_nombre;
+
+-- =====================================================
+-- 8. INSUMOS SEMIELABORADOS
+--    Preparaciones de cocina que el cocinero registra
+--    como porciones listas mediante MovimientoInventario INGRESO.
+--    No requieren tabla de receta de preparación; el cocinero
+--    ingresa directamente cuántas porciones/kg preparó.
+-- =====================================================
+INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_estado, tipo_insumo) VALUES
+('Salsa de uchubas',        'KG',     3.000, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de vino tinto',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
+('Arroz granjero',          'KG',    10.000, 'ACTIVO', 'SEMIELABORADO'),
+('Tostones preparados',     'UNIDAD', 80,    'ACTIVO', 'SEMIELABORADO'),
+('Chips de platano listos', 'KG',     4.000, 'ACTIVO', 'SEMIELABORADO'),
+('Pure de papa casero',     'KG',     6.000, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de ajo casera',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
+('Hogao casero',            'KG',     5.000, 'ACTIVO', 'SEMIELABORADO'),
+('Crema de aguacate',       'KG',     3.000, 'ACTIVO', 'SEMIELABORADO');
+
+-- =====================================================
+-- 9. CATEGORÍA Y PRODUCTOS MENÚ ESPECIAL ALTERNATIVO
+--    Solo disponibles cuando personas > 10 (CA-05).
+--    Cada variante es un producto independiente con precio fijo.
+--    El cliente elige UNO y luego selecciona el tipo de jugo
+--    mediante checkboxes (opcion_modificacion).
+--
+--    Menús reales de Al Toro Gastrobar:
+--      Menú 1  – Pechuga en Salsa de Uchubas        $32.000
+--      Menú 3  – Cerdo BBQ                           $32.000
+--      Menú 8a – Doble Proteína + Arroz Granjero     $38.000
+--      Menú 8b – Doble Proteína (Pechuga + Cerdo)    $35.000
+--      Menú 8c – Doble Proteína (Pechuga + Res Vino) $37.000
+--      Menú 8d – Doble Proteína (Cerdo + Res Vino)   $37.000
+-- =====================================================
+INSERT INTO CategoriaCarta (categoria_nombre, orden, activo) VALUES
+('MENUS ESPECIALES', 28, TRUE);
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 1 - Pechuga en Salsa de Uchubas',
+       'Pechuga en salsa de uchubas, papa francesa, ensalada dulce y jugo natural a elegir.',
+       'ACTIVO', 32000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 3 - Cerdo BBQ',
+       'Lomo de cerdo en salsa BBQ, papa francesa, ensalada dulce y jugo natural a elegir.',
+       'ACTIVO', 32000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 8a - Doble Proteina con Arroz',
+       'Pechuga en salsa de uchubas y cerdo BBQ, ensalada dulce, papa francesa, arroz granjero y jugo natural a elegir.',
+       'ACTIVO', 38000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 8b - Pechuga y Cerdo',
+       'Pechuga en salsa de uchubas y cerdo BBQ, ensalada dulce, papa francesa y jugo natural a elegir.',
+       'ACTIVO', 35000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 8c - Pechuga y Res en Vino',
+       'Pechuga en salsa de uchubas y res en salsa de vino tinto, ensalada dulce, papa francesa y jugo natural a elegir.',
+       'ACTIVO', 37000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+INSERT INTO Producto
+    (categoriacarta_id, producto_nombre, producto_descripcion,
+     producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT c.categoriacarta_id,
+       'Menu 8d - Cerdo y Res en Vino',
+       'Cerdo BBQ y res en salsa de vino tinto, ensalada dulce, papa francesa y jugo natural a elegir.',
+       'ACTIVO', 37000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENUS ESPECIALES';
+
+-- =====================================================
+-- 10. RECETAS DE MENÚS ESPECIALES
+--     Permite al cocinero saber qué insumos usar.
+--     (Mismo patrón JOIN por nombre que las recetas existentes)
+-- =====================================================
+INSERT INTO Receta (insumo_id, producto_id, receta_cantidad)
+SELECT i.insumo_id, p.producto_id, r.cantidad
+FROM (VALUES
+    -- Menu 1 - Pechuga en Salsa de Uchubas
+    ('Pechuga de Pollo'::text,  'Menu 1 - Pechuga en Salsa de Uchubas'::text, 0.280::numeric(12,3)),
+    ('Salsa de uchubas',        'Menu 1 - Pechuga en Salsa de Uchubas',        0.080),
+    ('Papa Francesa',           'Menu 1 - Pechuga en Salsa de Uchubas',        0.180),
+    -- Menu 3 - Cerdo BBQ
+    ('Lomo de Cerdo',           'Menu 3 - Cerdo BBQ',                          0.280),
+    ('Salsa BBQ',               'Menu 3 - Cerdo BBQ',                          0.080),
+    ('Papa Francesa',           'Menu 3 - Cerdo BBQ',                          0.180),
+    -- Menu 8a - Doble Proteina con Arroz
+    ('Pechuga de Pollo',        'Menu 8a - Doble Proteina con Arroz',          0.200),
+    ('Salsa de uchubas',        'Menu 8a - Doble Proteina con Arroz',          0.060),
+    ('Lomo de Cerdo',           'Menu 8a - Doble Proteina con Arroz',          0.200),
+    ('Salsa BBQ',               'Menu 8a - Doble Proteina con Arroz',          0.060),
+    ('Papa Francesa',           'Menu 8a - Doble Proteina con Arroz',          0.180),
+    ('Arroz granjero',          'Menu 8a - Doble Proteina con Arroz',          0.200),
+    -- Menu 8b - Pechuga y Cerdo
+    ('Pechuga de Pollo',        'Menu 8b - Pechuga y Cerdo',                   0.200),
+    ('Salsa de uchubas',        'Menu 8b - Pechuga y Cerdo',                   0.060),
+    ('Lomo de Cerdo',           'Menu 8b - Pechuga y Cerdo',                   0.200),
+    ('Salsa BBQ',               'Menu 8b - Pechuga y Cerdo',                   0.060),
+    ('Papa Francesa',           'Menu 8b - Pechuga y Cerdo',                   0.180),
+    -- Menu 8c - Pechuga y Res en Vino
+    ('Pechuga de Pollo',        'Menu 8c - Pechuga y Res en Vino',             0.200),
+    ('Salsa de uchubas',        'Menu 8c - Pechuga y Res en Vino',             0.060),
+    ('Lomo Fino de Res',        'Menu 8c - Pechuga y Res en Vino',             0.200),
+    ('Salsa de vino tinto',     'Menu 8c - Pechuga y Res en Vino',             0.080),
+    ('Papa Francesa',           'Menu 8c - Pechuga y Res en Vino',             0.180),
+    -- Menu 8d - Cerdo y Res en Vino
+    ('Lomo de Cerdo',           'Menu 8d - Cerdo y Res en Vino',               0.200),
+    ('Salsa BBQ',               'Menu 8d - Cerdo y Res en Vino',               0.060),
+    ('Lomo Fino de Res',        'Menu 8d - Cerdo y Res en Vino',               0.200),
+    ('Salsa de vino tinto',     'Menu 8d - Cerdo y Res en Vino',               0.080),
+    ('Papa Francesa',           'Menu 8d - Cerdo y Res en Vino',               0.180)
+) AS r(insumo_nombre, producto_nombre, cantidad)
+JOIN Insumo   i ON i.insumo_nombre   = r.insumo_nombre
+JOIN Producto p ON p.producto_nombre = r.producto_nombre;
+
+-- =====================================================
+-- 11. OPCIONES DE MODIFICACIÓN
+--     Cada tipo_componente agrupa una selección en el
+--     formulario de pre-orden (CA-07):
+--       BEBIDA           → tipo de jugo (todos los menús)
+--       SALSA_PROTEINA_1 → salsa de la 1ª proteína (menús doble proteína)
+--       SALSA_PROTEINA_2 → salsa de la 2ª proteína (menús doble proteína)
+--       ARROZ            → tipo de arroz (sólo Menu 8a, que incluye arroz)
+--
+--     Menús de 1 proteína (Menu 1, Menu 3): salsa fija en la descripción,
+--     sólo se elige el jugo.
+--     Menús de 2 proteínas (8a-8d): se presenta la elección de salsa
+--     una vez por proteína.
+--     Menu 8a añade además la elección de tipo de arroz.
+-- =====================================================
+INSERT INTO opcion_modificacion (tipo_componente, opcion_nombre, opcion_estado) VALUES
+-- Bebida (todos los menús)
+('BEBIDA',           'Jugo de Maracuya',    'ACTIVO'),
+('BEBIDA',           'Jugo de Lulo',        'ACTIVO'),
+('BEBIDA',           'Jugo de Mango',       'ACTIVO'),
+('BEBIDA',           'Jugo de Fresa',       'ACTIVO'),
+-- Salsa 1ª proteína (menús 8a, 8b, 8c, 8d)
+('SALSA_PROTEINA_1', 'Salsa de Uchubas',    'ACTIVO'),
+('SALSA_PROTEINA_1', 'Salsa BBQ',           'ACTIVO'),
+('SALSA_PROTEINA_1', 'Salsa de Vino Tinto', 'ACTIVO'),
+-- Salsa 2ª proteína (menús 8a, 8b, 8c, 8d)
+('SALSA_PROTEINA_2', 'Salsa de Uchubas',    'ACTIVO'),
+('SALSA_PROTEINA_2', 'Salsa BBQ',           'ACTIVO'),
+('SALSA_PROTEINA_2', 'Salsa de Vino Tinto', 'ACTIVO'),
+-- Tipo de arroz (sólo Menu 8a)
+('ARROZ',            'Arroz Granjero',      'ACTIVO'),
+('ARROZ',            'Arroz Blanco',        'ACTIVO');
+
+-- =====================================================
+-- 12. VINCULAR MENÚS ESPECIALES CON SUS OPCIONES
+--     Menu 1 y Menu 3 (1 proteína): sólo BEBIDA.
+--     Menus 8b, 8c, 8d (2 proteínas, sin arroz):
+--         SALSA_PROTEINA_1 + SALSA_PROTEINA_2 + BEBIDA.
+--     Menu 8a (2 proteínas, con arroz):
+--         SALSA_PROTEINA_1 + SALSA_PROTEINA_2 + ARROZ + BEBIDA.
+-- =====================================================
+
+-- Todos los menús reciben opciones de bebida
+INSERT INTO producto_opcion_modificacion (producto_id, opcion_id)
+SELECT p.producto_id, o.opcion_id
+FROM Producto p
+CROSS JOIN opcion_modificacion o
+WHERE p.menu_especial = TRUE
+  AND p.producto_estado = 'ACTIVO'
+  AND o.tipo_componente = 'BEBIDA'
+  AND o.opcion_estado = 'ACTIVO';
+
+-- Menús de doble proteína (8a, 8b, 8c, 8d): salsa presentada por proteína
+INSERT INTO producto_opcion_modificacion (producto_id, opcion_id)
+SELECT p.producto_id, o.opcion_id
+FROM Producto p
+CROSS JOIN opcion_modificacion o
+WHERE p.producto_nombre IN (
+      'Menu 8a - Doble Proteina con Arroz',
+      'Menu 8b - Pechuga y Cerdo',
+      'Menu 8c - Pechuga y Res en Vino',
+      'Menu 8d - Cerdo y Res en Vino'
+  )
+  AND o.tipo_componente IN ('SALSA_PROTEINA_1', 'SALSA_PROTEINA_2')
+  AND o.opcion_estado = 'ACTIVO';
+
+-- Menu 8a únicamente: tipo de arroz (incluye arroz granjero en su composición)
+INSERT INTO producto_opcion_modificacion (producto_id, opcion_id)
+SELECT p.producto_id, o.opcion_id
+FROM Producto p
+CROSS JOIN opcion_modificacion o
+WHERE p.producto_nombre = 'Menu 8a - Doble Proteina con Arroz'
+  AND o.tipo_componente = 'ARROZ'
+  AND o.opcion_estado = 'ACTIVO';

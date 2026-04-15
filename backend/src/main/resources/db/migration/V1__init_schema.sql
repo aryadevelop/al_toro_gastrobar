@@ -214,6 +214,50 @@ CREATE TABLE Visita (
 
 COMMENT ON TABLE Visita IS 'Registro de visitas al restaurante - con o sin reserva';
 
+-- Trigger: garantiza coherencia entre Visita.cliente_id y Reserva.cliente_id.
+-- Si cliente_id se omite y hay reserva_id, lo auto-rellena desde la reserva.
+-- Si cliente_id se provee y difiere del de la reserva, lanza excepción.
+CREATE OR REPLACE FUNCTION fn_visita_cliente_consistency()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_reserva_cliente_id BIGINT;
+BEGIN
+    IF NEW.reserva_id IS NOT NULL THEN
+        SELECT cliente_id
+          INTO v_reserva_cliente_id
+          FROM restaurante.Reserva
+         WHERE reserva_id = NEW.reserva_id;
+
+        IF v_reserva_cliente_id IS NULL THEN
+            RAISE EXCEPTION 'La reserva % no tiene cliente asignado.', NEW.reserva_id;
+        END IF;
+
+        IF NEW.cliente_id IS NULL THEN
+            NEW.cliente_id := v_reserva_cliente_id;
+        ELSIF NEW.cliente_id <> v_reserva_cliente_id THEN
+            RAISE EXCEPTION
+                'Inconsistencia: visita.cliente_id=% no coincide con reserva.cliente_id=% (reserva_id=%).',
+                NEW.cliente_id, v_reserva_cliente_id, NEW.reserva_id
+                USING ERRCODE = 'integrity_constraint_violation';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION fn_visita_cliente_consistency() IS
+    'Auto-rellena o valida Visita.cliente_id contra Reserva.cliente_id cuando hay reserva_id.';
+
+CREATE TRIGGER trg_visita_cliente_consistency
+BEFORE INSERT OR UPDATE OF reserva_id, cliente_id
+ON restaurante.Visita
+FOR EACH ROW EXECUTE FUNCTION fn_visita_cliente_consistency();
+
+COMMENT ON TRIGGER trg_visita_cliente_consistency ON restaurante.Visita IS
+    'Garantiza que Visita.cliente_id sea coherente con su Reserva.';
+
 -- Tabla Mesa
 CREATE TABLE Mesa (
     visita_id BIGINT PRIMARY KEY,
@@ -294,6 +338,7 @@ CREATE TABLE Producto (
     producto_id BIGSERIAL PRIMARY KEY,
     categoriacarta_id INTEGER NOT NULL,
     producto_nombre VARCHAR(100) NOT NULL,
+    producto_descripcion VARCHAR(500),
     producto_estado VARCHAR(20) NOT NULL,
     producto_precio DECIMAL(12,2) NOT NULL,
     producto_tipo VARCHAR(20) NOT NULL,
@@ -324,11 +369,13 @@ CREATE TABLE Insumo (
     insumo_unidad VARCHAR(20) NOT NULL,
     insumo_stock_actual DECIMAL(12,3) NOT NULL DEFAULT 0,
     insumo_estado VARCHAR(20) NOT NULL,
+    tipo_insumo   VARCHAR(20) NOT NULL DEFAULT 'MATERIA_PRIMA',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_insumo_unidad CHECK (insumo_unidad IN ('KG', 'G', 'L', 'ML', 'UNIDAD', 'DOCENA', 'OTRO')),
     CONSTRAINT chk_insumo_estado CHECK (insumo_estado IN ('ACTIVO', 'INACTIVO')),
-    CONSTRAINT chk_insumo_stock CHECK (insumo_stock_actual >= 0)
+    CONSTRAINT chk_insumo_tipo   CHECK (tipo_insumo IN ('MATERIA_PRIMA', 'SEMIELABORADO')),
+    CONSTRAINT chk_insumo_stock  CHECK (insumo_stock_actual >= 0)
 );
 
 COMMENT ON TABLE Insumo IS 'Insumos para preparación de productos';
@@ -404,6 +451,7 @@ CREATE TABLE Comanda_Detalle (
     comanda_detalle_cantidad INTEGER NOT NULL,
     comanda_detalle_precio DECIMAL(12,2) NOT NULL,
     comanda_detalle_nombre VARCHAR(500),
+    preorden_detalle_id BIGINT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_comanda_detalle_comanda FOREIGN KEY (comanda_id)
         REFERENCES Comanda(comanda_id) ON DELETE CASCADE,
@@ -421,16 +469,73 @@ CREATE TABLE PreOrden_Detalle (
     reserva_id BIGINT NOT NULL,
     producto_id BIGINT NOT NULL,
     preorden_detalle_cantidad INTEGER NOT NULL,
-    preorden_detalle_nombre VARCHAR(500),
+    preorden_detalle_descripcion VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_preorden_reserva FOREIGN KEY (reserva_id)
         REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
     CONSTRAINT fk_preorden_producto FOREIGN KEY (producto_id)
         REFERENCES Producto(producto_id) ON DELETE RESTRICT,
-    CONSTRAINT chk_preorden_cantidad CHECK (preorden_detalle_cantidad > 0)
+    CONSTRAINT chk_preorden_cantidad CHECK (preorden_detalle_cantidad > 0 AND preorden_detalle_cantidad <= 250)
 );
 
 COMMENT ON TABLE PreOrden_Detalle IS 'Pre-orden de productos asociados a una reserva';
+COMMENT ON COLUMN PreOrden_Detalle.preorden_detalle_descripcion IS 'Null = ítem normal; "Producto - modificación libre" = ítem con ajuste cuyo precio define el cajero al crear la comanda';
+
+-- FK de trazabilidad: cada línea de comanda puede referenciarse con su pre-orden de origen.
+-- Se declara aquí porque PreOrden_Detalle se crea después de Comanda_Detalle.
+ALTER TABLE restaurante.Comanda_Detalle
+    ADD CONSTRAINT fk_comanda_detalle_preorden
+        FOREIGN KEY (preorden_detalle_id)
+        REFERENCES PreOrden_Detalle(preorden_detalle_id)
+        ON DELETE SET NULL;
+
+COMMENT ON COLUMN Comanda_Detalle.preorden_detalle_id IS
+    'FK nullable: presente cuando la línea de comanda proviene de una pre-orden (CA-07). NULL = pedido tomado en mesa sin pre-orden.';
+
+-- Tabla opcion_modificacion
+CREATE TABLE opcion_modificacion (
+    opcion_id       BIGSERIAL    PRIMARY KEY,
+    tipo_componente VARCHAR(30)  NOT NULL,
+    opcion_nombre   VARCHAR(150) NOT NULL,
+    opcion_estado   VARCHAR(20)  NOT NULL DEFAULT 'ACTIVO',
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_opcion_tipo_componente CHECK (tipo_componente IN
+               ('ARROZ','PROTEINA','SALSA','SALSA_PROTEINA_1','SALSA_PROTEINA_2',
+                'ACOMPAÑAMIENTO','BEBIDA','ENSALADA','OTRO')),
+    CONSTRAINT chk_opcion_estado CHECK (opcion_estado IN ('ACTIVO','INACTIVO'))
+);
+
+COMMENT ON TABLE opcion_modificacion IS 'Opciones predefinidas de modificación por componente para menús especiales';
+COMMENT ON COLUMN opcion_modificacion.tipo_componente IS 'Agrupa checkboxes en el formulario de pre-orden (CA-07)';
+
+-- Tabla producto_opcion_modificacion
+CREATE TABLE producto_opcion_modificacion (
+    producto_id BIGINT NOT NULL,
+    opcion_id   BIGINT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (producto_id, opcion_id),
+    CONSTRAINT fk_prod_opcion_producto FOREIGN KEY (producto_id)
+        REFERENCES Producto(producto_id) ON DELETE CASCADE,
+    CONSTRAINT fk_prod_opcion_opcion   FOREIGN KEY (opcion_id)
+        REFERENCES opcion_modificacion(opcion_id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE producto_opcion_modificacion IS 'Define qué opciones de modificación ofrece cada menú especial';
+
+-- Tabla preorden_menu_modificacion
+CREATE TABLE preorden_menu_modificacion (
+    id                  BIGSERIAL PRIMARY KEY,
+    preorden_detalle_id BIGINT    NOT NULL,
+    opcion_id           BIGINT    NOT NULL,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_preorden_menu_mod_detalle FOREIGN KEY (preorden_detalle_id)
+        REFERENCES PreOrden_Detalle(preorden_detalle_id) ON DELETE CASCADE,
+    CONSTRAINT fk_preorden_menu_mod_opcion  FOREIGN KEY (opcion_id)
+        REFERENCES opcion_modificacion(opcion_id) ON DELETE RESTRICT
+);
+
+COMMENT ON TABLE preorden_menu_modificacion IS 'Checkboxes de modificación seleccionados por el cliente para un ítem de menú especial (CA-07)';
 
 -- =====================================================
 -- ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
@@ -521,9 +626,17 @@ CREATE INDEX idx_comanda_pendientes ON Comanda(comanda_estacion, comanda_fecha_h
 
 CREATE INDEX idx_comanda_detalle_comanda_id ON Comanda_Detalle(comanda_id);
 CREATE INDEX idx_comanda_detalle_producto_id ON Comanda_Detalle(producto_id);
+CREATE INDEX idx_comanda_detalle_preorden_id ON Comanda_Detalle(preorden_detalle_id) WHERE preorden_detalle_id IS NOT NULL;
 
 CREATE INDEX idx_preorden_reserva_id ON PreOrden_Detalle(reserva_id);
 CREATE INDEX idx_preorden_producto_id ON PreOrden_Detalle(producto_id);
+
+CREATE INDEX idx_insumo_tipo             ON Insumo(tipo_insumo);
+CREATE INDEX idx_opcion_tipo_componente  ON opcion_modificacion(tipo_componente);
+CREATE INDEX idx_opcion_estado           ON opcion_modificacion(opcion_estado);
+CREATE INDEX idx_prod_opcion_producto_id ON producto_opcion_modificacion(producto_id);
+CREATE INDEX idx_preorden_menu_detalle   ON preorden_menu_modificacion(preorden_detalle_id);
+CREATE INDEX idx_preorden_menu_opcion    ON preorden_menu_modificacion(opcion_id);
 
 -- =====================================================
 -- FUNCIONES Y TRIGGERS PARA AUDITORÍA
@@ -568,6 +681,9 @@ CREATE TRIGGER trg_producto_updated_at BEFORE UPDATE ON Producto
     FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
 CREATE TRIGGER trg_insumo_updated_at BEFORE UPDATE ON Insumo
+    FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+CREATE TRIGGER trg_opcion_modificacion_updated_at BEFORE UPDATE ON opcion_modificacion
     FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
 CREATE TRIGGER trg_receta_updated_at BEFORE UPDATE ON Receta

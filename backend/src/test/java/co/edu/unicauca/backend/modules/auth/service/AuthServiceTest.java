@@ -216,7 +216,8 @@ class AuthServiceTest {
             assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
             assertThat(response.getUser().getRole()).isEqualTo("CAJERO");
 
-            ArgumentCaptor<List<Sesion>> sessionsCaptor = ArgumentCaptor.forClass(List.class);
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<Sesion>> sessionsCaptor = ArgumentCaptor.forClass((Class<List<Sesion>>) (Class<?>) List.class);
             verify(sesionRepository).saveAll(sessionsCaptor.capture());
             assertThat(sessionsCaptor.getValue().get(0).getSesionToken()).isEqualTo("new-access");
         }

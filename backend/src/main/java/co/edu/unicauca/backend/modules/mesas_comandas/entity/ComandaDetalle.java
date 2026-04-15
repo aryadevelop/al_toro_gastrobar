@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.entity;
 
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenDetalle;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -55,6 +56,13 @@ public class ComandaDetalle {
     @Size(max = 500, message = "El nombre no debe exceder 500 caracteres")
     @Column(name = "comanda_detalle_nombre", length = 500)
     private String comandaDetalleNombre;
+
+    /** Origen en pre-orden (nullable). Presente cuando la línea fue generada
+     *  desde una pre-orden de reserva (CA-07). Null = pedido tomado en mesa. */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "preorden_detalle_id",
+                foreignKey = @ForeignKey(name = "fk_comanda_detalle_preorden"))
+    private PreOrdenDetalle preordenDetalle;
 
     @Column(name = "created_at")
     @Builder.Default

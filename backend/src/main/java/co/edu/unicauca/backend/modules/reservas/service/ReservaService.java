@@ -1,18 +1,27 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
+import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.repository.OpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
+import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenDetalle;
+import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenMenuModificacion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
+import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenDetalleRepository;
+import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenMenuModificacionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
@@ -63,6 +72,10 @@ public class ReservaService {
     private final ZonaRepository zonaRepository;
     private final ClienteRepository clienteRepository;
     private final BloqueDisponibilidadRepository bloqueRepository;
+    private final ProductoRepository productoRepository;
+    private final OpcionModificacionRepository opcionModificacionRepository;
+    private final PreOrdenDetalleRepository preOrdenDetalleRepository;
+    private final PreOrdenMenuModificacionRepository preOrdenMenuModificacionRepository;
 
     // -----------------------------------------------------------------------
     // Disponibilidad
@@ -233,13 +246,14 @@ public class ReservaService {
             }
         }
 
-        // Una reserva es especial si la decoración elegida tiene costo adicional > 0 o si se elige un menú especial
+        // Una reserva es especial si la decoración tiene costo adicional > 0 o si incluye un menú especial
         boolean tieneDecoracionConCosto = decoracion != null &&
                 decoracion.getDecoracionCostoAdicional() != null &&
                 decoracion.getDecoracionCostoAdicional().compareTo(java.math.BigDecimal.ZERO) > 0;
 
-        //OJO cambiar para verificar el menú especial cuando se implemente
-        boolean tieneMenuEspecial = request.getNumeroPersonas() != null && request.getNumeroPersonas() >= 10;
+        boolean tieneMenuEspecial = request.getPreOrden() != null &&
+                request.getPreOrden().stream()
+                        .anyMatch(item -> Boolean.TRUE.equals(item.getEsMenuEspecial()));
 
         boolean esEspecial = tieneDecoracionConCosto || tieneMenuEspecial;
 
@@ -258,6 +272,12 @@ public class ReservaService {
                 .build();
 
         Reserva guardada = reservaRepository.save(reserva);
+
+        // Persistir pre-orden si existe
+        if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
+            persistirPreOrden(guardada, request.getPreOrden());
+        }
+
         return toResponse(guardada);
     }
 
@@ -287,6 +307,57 @@ public class ReservaService {
                 .stream()
                 .map(this::toResponse)
                 .collect(Collectors.toList());
+    }
+
+    // -----------------------------------------------------------------------
+    // Pre-orden
+    // -----------------------------------------------------------------------
+
+    /**
+     * Persiste los ítems de pre-orden asociados a una reserva.
+     * Por cada ítem:
+     *  - Valida que el producto exista y esté activo.
+     *  - Crea PreOrdenDetalle con la descripción (null = sin modificación libre).
+     *  - Si esMenuEspecial=true, persiste las selecciones de checkbox en PreOrdenMenuModificacion.
+     */
+    private void persistirPreOrden(Reserva reserva, List<PreOrdenItemRequest> items) {
+        for (PreOrdenItemRequest item : items) {
+            Producto producto = productoRepository.findById(item.getProductoId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Producto", item.getProductoId()));
+
+            if (producto.getProductoEstado() != EstadoGenerico.ACTIVO) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "El producto '" + producto.getProductoNombre() + "' no está disponible.",
+                        HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+
+            PreOrdenDetalle detalle = PreOrdenDetalle.builder()
+                    .reserva(reserva)
+                    .producto(producto)
+                    .preordenDetalleCantidad(item.getCantidad())
+                    .preordenDetalleDescripcion(item.getDescripcion())
+                    .build();
+
+            PreOrdenDetalle detalleGuardado = preOrdenDetalleRepository.save(detalle);
+
+            // Persistir modificaciones de menú especial (checkboxes CA-07)
+            if (Boolean.TRUE.equals(item.getEsMenuEspecial())
+                    && item.getOpcionesModificacion() != null
+                    && !item.getOpcionesModificacion().isEmpty()) {
+
+                for (Long opcionId : item.getOpcionesModificacion()) {
+                    OpcionModificacion opcion = opcionModificacionRepository.findById(opcionId)
+                            .orElseThrow(() -> new ResourceNotFoundException("OpcionModificacion", opcionId));
+
+                    PreOrdenMenuModificacion mod = PreOrdenMenuModificacion.builder()
+                            .preordenDetalle(detalleGuardado)
+                            .opcion(opcion)
+                            .build();
+
+                    preOrdenMenuModificacionRepository.save(mod);
+                }
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
