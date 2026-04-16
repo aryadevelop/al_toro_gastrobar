@@ -23,4 +23,15 @@ public interface ProductoOpcionModificacionRepository
     List<OpcionModificacion> findOpcionesActivasByProductoId(
             @Param("productoId") Long productoId,
             @Param("estado") EstadoGenerico estado);
+
+    /**
+     * Verifica si una opción de modificación está vinculada a un producto específico.
+     * Usado para validar que las opciones enviadas en la pre-orden pertenecen al menú elegido (CA-07).
+     */
+    @Query("SELECT COUNT(pom) > 0 FROM ProductoOpcionModificacion pom " +
+           "WHERE pom.producto.productoId = :productoId " +
+           "AND pom.opcion.opcionId = :opcionId")
+    boolean existsByProductoIdAndOpcionId(
+            @Param("productoId") Long productoId,
+            @Param("opcionId") Long opcionId);
 }

@@ -10,7 +10,7 @@ import java.time.LocalDate;
 import java.time.LocalTime;
 
 /**
- * Bloqueo de disponibilidad creado por un empleado administrador.
+ * Bloqueo de disponibilidad creado por un administrador.
  * Permite inhabilitar franjas de horas o días completos para las reservas.
  * Si horaInicio/horaFin son null, el bloqueo aplica al día completo.
  */

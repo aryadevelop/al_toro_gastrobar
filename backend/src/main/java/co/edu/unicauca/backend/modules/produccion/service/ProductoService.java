@@ -46,12 +46,13 @@ public class ProductoService {
                     return CategoriaCartaResponse.builder()
                             .categoriaId(categoria.getCategoriacartaId())
                             .categoriaNombre(categoria.getCategoriaNombre())
+                            .orden(categoria.getOrden())
                             .productos(grupo.stream()
                                     .map(this::toProductoCartaResponse)
                                     .collect(Collectors.toList()))
                             .build();
                 })
-                .sorted((a, b) -> a.getCategoriaId().compareTo(b.getCategoriaId()))
+                .sorted((a, b) -> a.getOrden().compareTo(b.getOrden()))
                 .collect(Collectors.toList());
     }
 

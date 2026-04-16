@@ -14,5 +14,6 @@ import java.util.List;
 public class CategoriaCartaResponse {
     private Integer categoriaId;
     private String categoriaNombre;
+    private Integer orden;
     private List<ProductoCartaResponse> productos;
 }

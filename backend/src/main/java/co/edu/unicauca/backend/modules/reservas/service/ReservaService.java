@@ -10,6 +10,8 @@ import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResumen;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
@@ -22,6 +24,7 @@ import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenDetalleRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenMenuModificacionRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
@@ -37,6 +40,7 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -76,6 +80,7 @@ public class ReservaService {
     private final OpcionModificacionRepository opcionModificacionRepository;
     private final PreOrdenDetalleRepository preOrdenDetalleRepository;
     private final PreOrdenMenuModificacionRepository preOrdenMenuModificacionRepository;
+    private final ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
 
     // -----------------------------------------------------------------------
     // Disponibilidad
@@ -273,8 +278,9 @@ public class ReservaService {
 
         Reserva guardada = reservaRepository.save(reserva);
 
-        // Persistir pre-orden si existe
+        // Validar reglas de negocio de pre-orden antes de persistir
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
+            validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
             persistirPreOrden(guardada, request.getPreOrden());
         }
 
@@ -314,6 +320,29 @@ public class ReservaService {
     // -----------------------------------------------------------------------
 
     /**
+     * Valida las reglas de negocio de la pre-orden antes de persistirla:
+     *  - CA-01/CA-05: si hay algún ítem de menú especial, el número de personas debe ser > 10.
+     *  - CA-05: solo se permite un ítem de menú especial por reserva.
+     */
+    private void validarPreOrden(List<PreOrdenItemRequest> items, int numeroPersonas) {
+        long menuEspecialCount = items.stream()
+                .filter(i -> Boolean.TRUE.equals(i.getEsMenuEspecial()))
+                .count();
+
+        if (menuEspecialCount > 0 && numeroPersonas <= 10) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "El menú especial solo está disponible para reservas de más de 10 personas.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        if (menuEspecialCount > 1) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo puede seleccionar un menú especial por reserva.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    /**
      * Persiste los ítems de pre-orden asociados a una reserva.
      * Por cada ítem:
      *  - Valida que el producto exista y esté activo.
@@ -349,6 +378,15 @@ public class ReservaService {
                     OpcionModificacion opcion = opcionModificacionRepository.findById(opcionId)
                             .orElseThrow(() -> new ResourceNotFoundException("OpcionModificacion", opcionId));
 
+                    // CA-07: verificar que la opción pertenece al menú seleccionado
+                    if (!productoOpcionModificacionRepository.existsByProductoIdAndOpcionId(
+                            producto.getProductoId(), opcionId)) {
+                        throw new BusinessException(ErrorCode.INVALID_STATE,
+                                "La opción de modificación '" + opcion.getOpcionNombre() +
+                                "' no pertenece al menú seleccionado.",
+                                HttpStatus.UNPROCESSABLE_ENTITY);
+                    }
+
                     PreOrdenMenuModificacion mod = PreOrdenMenuModificacion.builder()
                             .preordenDetalle(detalleGuardado)
                             .opcion(opcion)
@@ -358,6 +396,51 @@ public class ReservaService {
                 }
             }
         }
+    }
+
+    // -----------------------------------------------------------------------
+    // Pre-orden por reserva (endpoint para módulo de comandas)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Retorna el detalle completo de la pre-orden de una reserva.
+     * Accesible por CAJERO y MESERO para pre-cargar la comanda.
+     */
+    @Transactional(readOnly = true)
+    public List<PreOrdenDetalleResponse> obtenerPreOrden(Long reservaId) {
+        if (!reservaRepository.existsById(reservaId)) {
+            throw new ResourceNotFoundException("Reserva", reservaId);
+        }
+
+        List<PreOrdenDetalle> detalles =
+                preOrdenDetalleRepository.findByReserva_ReservaIdOrderByCreatedAtAsc(reservaId);
+
+        return detalles.stream()
+                .map(d -> {
+                    List<PreOrdenMenuModificacion> mods =
+                            preOrdenMenuModificacionRepository
+                                    .findByPreordenDetalle_PreordenDetalleId(d.getPreordenDetalleId());
+
+                    List<PreOrdenDetalleResponse.OpcionModificacionSeleccionada> modificaciones =
+                            mods.stream()
+                                    .map(m -> PreOrdenDetalleResponse.OpcionModificacionSeleccionada.builder()
+                                            .opcionId(m.getOpcion().getOpcionId())
+                                            .opcionNombre(m.getOpcion().getOpcionNombre())
+                                            .tipoComponente(m.getOpcion().getTipoComponente().name())
+                                            .build())
+                                    .collect(Collectors.toList());
+
+                    return PreOrdenDetalleResponse.builder()
+                            .preordenDetalleId(d.getPreordenDetalleId())
+                            .productoId(d.getProducto().getProductoId())
+                            .productoNombre(d.getProducto().getProductoNombre())
+                            .cantidad(d.getPreordenDetalleCantidad())
+                            .precioUnitario(d.getProducto().getProductoPrecio())
+                            .descripcion(d.getPreordenDetalleDescripcion())
+                            .modificaciones(modificaciones.isEmpty() ? null : modificaciones)
+                            .build();
+                })
+                .collect(Collectors.toList());
     }
 
     // -----------------------------------------------------------------------
@@ -448,6 +531,28 @@ public class ReservaService {
     }
 
     private ReservaResponse toResponse(Reserva r) {
+        List<PreOrdenDetalle> detalles =
+                preOrdenDetalleRepository.findByReserva_ReservaIdOrderByCreatedAtAsc(r.getReservaId());
+
+        List<PreOrdenItemResumen> preOrdenItems = detalles.isEmpty() ? null :
+                detalles.stream()
+                        .map(d -> PreOrdenItemResumen.builder()
+                                .productoId(d.getProducto().getProductoId())
+                                .productoNombre(d.getProducto().getProductoNombre())
+                                .cantidad(d.getPreordenDetalleCantidad())
+                                .precioUnitario(d.getProducto().getProductoPrecio())
+                                .descripcion(d.getPreordenDetalleDescripcion())
+                                .build())
+                        .collect(Collectors.toList());
+
+        // Total aproximado: solo ítems normales (descripcion == null); modificaciones libres son TBD
+        BigDecimal preOrdenTotal = detalles.isEmpty() ? null :
+                detalles.stream()
+                        .filter(d -> d.getPreordenDetalleDescripcion() == null)
+                        .map(d -> d.getProducto().getProductoPrecio()
+                                .multiply(BigDecimal.valueOf(d.getPreordenDetalleCantidad())))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
         return ReservaResponse.builder()
                 .reservaId(r.getReservaId())
                 .fechaHoraLlegada(r.getReservaFechaHoraLlegada().format(FORMATTER))
@@ -462,6 +567,8 @@ public class ReservaService {
                 .fechaCreacion(r.getReservaFechaCreacion().format(FORMATTER))
                 .clienteId(r.getCliente().getUsuarioId())
                 .clienteNombre(r.getCliente().getClienteNombre())
+                .preOrdenItems(preOrdenItems)
+                .preOrdenTotal(preOrdenTotal)
                 .build();
     }
 }

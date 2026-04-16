@@ -53,9 +53,9 @@ public class ComandaDetalle {
     @Column(name = "comanda_detalle_precio", nullable = false, precision = 12, scale = 2)
     private BigDecimal comandaDetallePrecio;
 
-    @Size(max = 500, message = "El nombre no debe exceder 500 caracteres")
-    @Column(name = "comanda_detalle_nombre", length = 500)
-    private String comandaDetalleNombre;
+    @Size(max = 500, message = "La descripción no debe exceder 500 caracteres")
+    @Column(name = "comanda_detalle_descripcion", length = 500)
+    private String comandaDetalleDescripcion;
 
     /** Origen en pre-orden (nullable). Presente cuando la línea fue generada
      *  desde una pre-orden de reserva (CA-07). Null = pedido tomado en mesa. */

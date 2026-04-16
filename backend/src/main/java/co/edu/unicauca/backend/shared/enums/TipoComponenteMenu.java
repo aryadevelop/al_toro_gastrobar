@@ -8,6 +8,8 @@ public enum TipoComponenteMenu {
     ARROZ("Arroz"),
     PROTEINA("Proteína"),
     SALSA("Salsa"),
+    SALSA_PROTEINA_1("Salsa Proteína 1"),
+    SALSA_PROTEINA_2("Salsa Proteína 2"),
     ACOMPAÑAMIENTO("Acompañamiento"),
     BEBIDA("Bebida"),
     ENSALADA("Ensalada"),
