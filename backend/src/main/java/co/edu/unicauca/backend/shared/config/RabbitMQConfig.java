@@ -120,8 +120,7 @@ public class RabbitMQConfig {
      */
     @Bean
     Binding bindingComandaProduccion(Queue qComandaProduccion, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qComandaProduccion)
-                .to(altoroExchange).with(RK_COMANDA_NUEVA);
+        return BindingBuilder.bind(qComandaProduccion).to(altoroExchange).with(RK_COMANDA_NUEVA);
     }
 
     /**
@@ -133,8 +132,7 @@ public class RabbitMQConfig {
      */
     @Bean
     Binding bindingImpresionTicket(Queue qImpresionTicket, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qImpresionTicket)
-                .to(altoroExchange).with(RK_IMPRESION_TICKET);
+        return BindingBuilder.bind(qImpresionTicket).to(altoroExchange).with(RK_IMPRESION_TICKET);
     }
 
     /**
@@ -147,9 +145,8 @@ public class RabbitMQConfig {
      */
     @Bean
     Binding bindingNotificacionEmail(Queue qNotificacionEmail, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qNotificacionEmail)
-                .to(altoroExchange).with(RK_NOTIFICACION_EMAIL);
-    }
+        return BindingBuilder.bind(qNotificacionEmail).to(altoroExchange).with(RK_NOTIFICACION_EMAIL);
+    }   
 
     /**
      * Enlaza la cola de notificaciones WebSocket al exchange con la routing key
@@ -161,8 +158,7 @@ public class RabbitMQConfig {
      */
     @Bean
     Binding bindingNotificacionWs(Queue qNotificacionWs, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qNotificacionWs)
-                .to(altoroExchange).with(RK_NOTIFICACION_WS);
+        return BindingBuilder.bind(qNotificacionWs).to(altoroExchange).with(RK_NOTIFICACION_WS);
     }
 
     // ── Message converter & template ──────────────────────────────────────────

@@ -12,9 +12,25 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
-
 import java.util.List;
 
+/**
+ * Controlador REST para la consulta del catálogo de productos del restaurante.
+ *
+ * <p>Expone los endpoints bajo {@code /api/productos} y delega toda la lógica
+ * de negocio en {@link ProductoService}.
+ *
+ * <p>Comportamiento general:
+ * <ul>
+ *   <li><b>Carta:</b> retorna los productos activos (platos y bebidas) agrupados
+ *       por categoría de carta, ordenados según el campo de orden de cada categoría.</li>
+ *   <li><b>Menú especial:</b> retorna los menús especiales activos con sus opciones
+ *       de modificación agrupadas por tipo de componente; disponible solo cuando
+ *       el número de personas supera 10 (restricción validada en el frontend).</li>
+ * </ul>
+ *
+ * @see ProductoService
+ */
 @RestController
 @RequestMapping("/api/productos")
 @RequiredArgsConstructor
@@ -24,20 +40,29 @@ public class ProductoController {
     private final ProductoService productoService;
 
     /**
-     * Retorna los productos activos de la carta (platos y bebidas),
-     * agrupados por categoría de carta.
-     * Accesible por CLIENTE para el formulario de pre-orden (CA-02).
+     * Retorna los productos activos de la carta, agrupados por categoría de carta.
+     *
+     * <p>Solo incluye productos cuyo campo {@code menuEspecial} es {@code false} o {@code null}.
+     * 
+     * @return lista de categorías con sus productos activos
      */
     @GetMapping("/carta")
-    @PreAuthorize("hasRole('CLIENTE')")
+    @PreAuthorize("hasAnyRole('CLIENTE')")
     @Operation(summary = "Obtener carta de platos y bebidas agrupada por categoría")
     public ResponseEntity<ApiResponse<List<CategoriaCartaResponse>>> obtenerCarta() {
         return ResponseEntity.ok(ApiResponse.ok(productoService.obtenerCarta()));
     }
 
     /**
-     * Retorna los menús especiales activos con sus opciones de modificación agrupadas por tipo de componente.
-     * Solo disponible cuando el número de personas es mayor a 10 (validado en frontend).
+     * Retorna los menús especiales activos con sus opciones de modificación agrupadas
+     * por tipo de componente.
+     *
+     * <p>Un menú especial es un Producto cuyo campo {@code menuEspecial} es {@code true}. 
+     * Cada menú incluye los grupos de modificación disponibles, con las opciones
+     * concretas que el cliente puede elegir para personalizar su pedido.
+     *
+     * @return lista de menús especiales activos, cada uno con sus grupos de modificación
+     *         y las opciones disponibles dentro de cada grupo
      */
     @GetMapping("/menu-especial")
     @PreAuthorize("hasRole('CLIENTE')")

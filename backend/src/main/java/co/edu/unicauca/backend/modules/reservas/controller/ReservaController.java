@@ -4,6 +4,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.service.PreOrdenService;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -22,6 +23,25 @@ import java.time.LocalDateTime;
 import java.util.List;
 
 
+/**
+ * Controlador REST para la gestión de reservas de clientes.
+ *
+ * <p>Expone los endpoints bajo {@code /api/reservas} y delega toda la lógica
+ * de negocio en {@link ReservaService}.
+ *
+ * <p>Comportamiento general:
+ * <ul>
+ *   <li><b>Disponibilidad:</b> verifica zonas y decoraciones libres para una
+ *       fecha/hora; respeta el horario de atención y los bloqueos del administrador.</li>
+ *   <li><b>Creación:</b> registra una reserva para el cliente autenticado,
+ *       incluyendo opcionalmente una pre-orden de platos.</li>
+ *   <li><b>Pre-orden:</b> permite a CAJERO, MESERO y ADMIN consultar los ítems
+ *       anticipados por el cliente para pre-cargar la comanda.</li>
+ *   <li><b>Historial:</b> CLIENTE y ADMIN visualizan todas las reservas del sistema.</li>
+ * </ul>
+ *
+ * @see ReservaService
+ */
 @RestController
 @RequestMapping("/api/reservas")
 @RequiredArgsConstructor
@@ -29,12 +49,21 @@ import java.util.List;
 public class ReservaController {
 
     private final ReservaService reservaService;
+    private final PreOrdenService preOrdenService;
 
     /**
-     * Consulta disponibilidad y retorna decoraciones y zonas libres para una fecha/hora dada.
-     * Retorna {@code disponible=false} si la hora está fuera del horario de atención
-     * (lunes–domingo 5 PM–10 PM) o si existe un bloqueo activo del administrador.
-     * Solo accesible por usuarios con rol CLIENTE.
+     * Consulta la disponibilidad de zonas y decoraciones para una fecha y hora dadas.
+     *
+     * <p>Retorna {@code disponible=false} en los siguientes casos:
+     * <ul>
+     *   <li>La hora está fuera del horario de atención (lunes–domingo, 5 PM–10 PM).</li>
+     *   <li>Existe un bloqueo activo registrado por el administrador.</li>
+     * </ul>
+     *
+     * <p>Solo accesible por usuarios con rol {@code CLIENTE}.
+     *
+     * @param fechaHora fecha y hora a consultar en formato ISO-8601
+     * @return respuesta con el detalle de disponibilidad, zonas y decoraciones libres
      */
     @GetMapping("/disponibilidad")
     @PreAuthorize("hasRole('CLIENTE')")
@@ -48,7 +77,15 @@ public class ReservaController {
 
     /**
      * Crea una nueva reserva para el cliente autenticado.
-     * Solo accesible por usuarios con rol CLIENTE.
+     *
+     * <p>El cliente se identifica a partir del {@link UserDetails} del contexto de seguridad,
+     * por lo que no es necesario enviar el identificador de usuario en el cuerpo de la petición.
+     *
+     * <p>Solo accesible por usuarios con rol {@code CLIENTE}.
+     *
+     * @param request    datos de la reserva a crear (fecha, zona, decoración y pre-orden opcional)
+     * @param userDetails principal autenticado del que se extrae el rol y, si aplica, el correo
+     * @return respuesta {@code 201 Created} con el detalle de la reserva registrada
      */
     @PostMapping
     @PreAuthorize("hasRole('CLIENTE')")
@@ -63,36 +100,28 @@ public class ReservaController {
     }
 
     /**
-     * Retorna el detalle completo de la pre-orden de una reserva.
-     * Accesible por CAJERO y MESERO para pre-cargar la comanda al atender al cliente.
-     */
-    @GetMapping("/{id}/preorden")
-    @PreAuthorize("hasAnyRole('CAJERO', 'MESERO', 'ADMIN')")
-    @Operation(summary = "Obtener pre-orden de una reserva")
-    public ResponseEntity<ApiResponse<List<PreOrdenDetalleResponse>>> obtenerPreOrden(
-            @PathVariable Long id) {
-
-        List<PreOrdenDetalleResponse> response = reservaService.obtenerPreOrden(id);
-        return ResponseEntity.ok(ApiResponse.ok(response));
-    }
-
-    /**
      * Retorna el historial de reservas.
-     * - CLIENTE: sus propias reservas.
-     * - CAJERO, ADM, MESERO: todas las reservas del sistema.
+     *
+     * <ul>
+     *   <li><b>CLIENTE:</b> retorna únicamente sus propias reservas.</li>
+     *   <li><b>ADMIN:</b> retorna todas las reservas del sistema.</li>
+     * </ul>
+     *
+     * @param userDetails principal autenticado del que se extrae el rol y correo
+     * @return lista de reservas según el rol del usuario autenticado
      */
     @GetMapping("/cliente")
-    @PreAuthorize("hasAnyRole('CLIENTE', 'CAJERO', 'ADMIN', 'MESERO')")
-    @Operation(summary = "Obtener historial de reservas")
-    public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerHistorial(
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
+    @Operation(summary = "Obtener historial de reservas del cliente")
+    public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerHistorialCliente(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        boolean esCliente = userDetails.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        boolean esAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
 
-        List<ReservaResponse> response = esCliente
-                ? reservaService.obtenerReservasCliente(userDetails.getUsername())
-                : reservaService.obtenerTodasLasReservas();
+        List<ReservaResponse> response = esAdmin
+                ? reservaService.obtenerTodasLasReservas()
+                : reservaService.obtenerReservasCliente(userDetails.getUsername());
 
         return ResponseEntity.ok(ApiResponse.ok(response));
     }

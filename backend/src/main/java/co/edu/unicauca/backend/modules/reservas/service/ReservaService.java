@@ -1,30 +1,20 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
-import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
-import co.edu.unicauca.backend.modules.inventario.repository.OpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
-import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResumen;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenDetalle;
-import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenMenuModificacion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.mapper.ReservaMapper;
 import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
-import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenDetalleRepository;
-import co.edu.unicauca.backend.modules.reservas.repository.PreOrdenMenuModificacionRepository;
-import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
@@ -34,41 +24,60 @@ import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import lombok.RequiredArgsConstructor;
 import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
-import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
-import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+/**
+ * Servicio de negocio para la gestión de reservas del restaurante.
+ *
+ * <p>Centraliza la lógica de creación, consulta y validación de reservas,
+ * incluyendo el cálculo de disponibilidad de zonas y decoraciones y la gestión
+ * de bloqueos administrativos. La lógica de pre-órdenes se delega en
+ * {@link PreOrdenService} y el mapeo a DTOs en {@link ReservaMapper}.
+ *
+ * <p>Responsabilidades principales:
+ * <ul>
+ *   <li>Consultar disponibilidad para una fecha y hora dada.</li>
+ *   <li>Crear una reserva validando horario, bloqueos, capacidad y compatibilidad
+ *       decoración-zona.</li>
+ *   <li>Exponer el historial de reservas por cliente o de todo el sistema.</li>
+ * </ul>
+ *
+ * @see PreOrdenService
+ * @see ReservaMapper
+ * @see co.edu.unicauca.backend.modules.reservas.entity.Reserva
+ */
 @Service
 @RequiredArgsConstructor
 public class ReservaService {
 
+    /** Estados de reserva considerados como ocupación activa para el cálculo de disponibilidad. */
     private static final List<EstadoReserva> ESTADOS_ACTIVOS = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
 
-    private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
-
+    /** Mensaje enviado al cliente cuando la disponibilidad cambió entre la consulta y la creación. */
     private static final String MSG_DISPONIBILIDAD_CAMBIO = "Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.";
 
-    /** Hora de apertura del restaurante (5:00 PM, inclusive). */
-    private static final int HORA_APERTURA = 17;
-    /** Hora de cierre del restaurante (10:00 PM, exclusiva). */
-    private static final int HORA_CIERRE = 22;
-
+    /** Mensaje enviado al cliente cuando la hora solicitada está fuera del horario de atención. */
     private static final String MSG_FUERA_HORARIO =
             "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. " +
-            "El horario de reservas es de lunes a domingo de 5:00 p.m. a 10:00 p.m. " +
             "Por favor elija otra fecha u hora.";
+
+    /** Hora de apertura del restaurante (inclusiva): {@code 17 = 5:00 PM}. */
+    private static final int HORA_APERTURA = 17;
+
+    /** Hora de cierre del restaurante (exclusiva): {@code 22 = 10:00 PM}. */
+    private static final int HORA_CIERRE = 22;
 
     private final ReservaRepository reservaRepository;
     private final DecoracionRepository decoracionRepository;
@@ -76,46 +85,51 @@ public class ReservaService {
     private final ZonaRepository zonaRepository;
     private final ClienteRepository clienteRepository;
     private final BloqueDisponibilidadRepository bloqueRepository;
-    private final ProductoRepository productoRepository;
-    private final OpcionModificacionRepository opcionModificacionRepository;
-    private final PreOrdenDetalleRepository preOrdenDetalleRepository;
-    private final PreOrdenMenuModificacionRepository preOrdenMenuModificacionRepository;
-    private final ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
+    private final PreOrdenService preOrdenService;
+    private final ReservaMapper reservaMapper;
 
     // -----------------------------------------------------------------------
     // Disponibilidad
     // -----------------------------------------------------------------------
 
     /**
-     * Retorna la disponibilidad para el día de la fecha dada.
-     * Devuelve {@code disponible=false} si:
-     *  - La hora está fuera del horario de atención (5 PM – 10 PM), o
-     *  - Existe un bloqueo activo creado por el administrador para esa fecha/hora, o
-     *  - Ninguna zona tiene capacidad restante.
+     * Consulta la disponibilidad del restaurante para una fecha y hora concretas.
+     *
+     * <p>Devuelve {@code disponible = false} si se cumple alguna de estas condiciones:
+     * <ul>
+     *   <li>La hora está fuera del horario de atención (5:00 PM – 10:00 PM).</li>
+     *   <li>Existe un bloqueo administrativo activo para esa fecha/hora.</li>
+     *   <li>Ninguna zona tiene capacidad restante en ese día.</li>
+     * </ul>
+     * Cuando hay disponibilidad, la respuesta incluye las listas de zonas y decoraciones libres.
+     *
+     * @param fechaHora fecha y hora de llegada solicitada por el cliente
+     * @return {@link DisponibilidadResponse} con el estado de disponibilidad y las opciones libres
      */
     @Transactional(readOnly = true)
     public DisponibilidadResponse consultarDisponibilidad(LocalDateTime fechaHora) {
 
-        // Regla 1: verificar horario de atención
+        // Rechaza horas fuera del horario de atención del restaurante
         if (!esHorarioValido(fechaHora)) {
-            return sinDisponibilidad();
+            return reservaMapper.sinDisponibilidad();
         }
 
-        // Regla 2: verificar bloqueos de administrador
+        // Rechaza fechas/horas bloqueadas administrativamente
         if (estaBloqueda(fechaHora)) {
-            return sinDisponibilidad();
+            return reservaMapper.sinDisponibilidad();
         }
 
+        // Sin zonas registradas no hay nada que ofrecer
         List<Zona> todasLasZonas = zonaRepository.findAll();
-
         if (todasLasZonas.isEmpty()) {
-            return sinDisponibilidad();
+            return reservaMapper.sinDisponibilidad();
         }
 
+        // Rango del día completo para consultar reservas existentes
         LocalDateTime inicio = fechaHora.toLocalDate().atStartOfDay();
         LocalDateTime fin = fechaHora.toLocalDate().atTime(23, 59, 59);
 
-        // Personas ya reservadas por zona ese día: {zonaId -> sumaPersonas}
+        // Suma de personas ya reservadas agrupada por zona en ese día
         Map<Long, Integer> personasPorZona = reservaRepository
                 .findPersonasPorZonaEnDia(inicio, fin, ESTADOS_ACTIVOS)
                 .stream()
@@ -124,35 +138,44 @@ public class ReservaService {
                         row -> ((Number) row[1]).intValue()
                 ));
 
+        // IDs de decoraciones ya asignadas a otra reserva en el mismo día
         Set<Long> decoracionesOcupadas = Set.copyOf(
                 reservaRepository.findDecoracionesOcupadasEnDia(inicio, fin, ESTADOS_ACTIVOS));
 
-        // Zona libre = tiene al menos 1 persona de capacidad restante
+        // Filtra zonas que aún tienen capacidad disponible
         List<Zona> zonasLibres = todasLasZonas.stream()
                 .filter(z -> personasPorZona.getOrDefault(z.getZonaId(), 0)
                              < z.getZonaCapacidadPersonas())
                 .collect(Collectors.toList());
 
+        // Si todas las zonas están llenas, no hay disponibilidad
         if (zonasLibres.isEmpty()) {
-            return sinDisponibilidad();
+            return reservaMapper.sinDisponibilidad();
         }
 
+        // Decoraciones activas que no están ocupadas en el día solicitado
         List<Decoracion> decoracionesActivas = decoracionRepository
                 .findByDecoracionEstado(EstadoGenerico.ACTIVO)
                 .stream()
                 .filter(d -> !decoracionesOcupadas.contains(d.getDecoracionId()))
                 .collect(Collectors.toList());
 
+        // IDs de zonas libres para filtrar compatibilidad con decoraciones
         Set<Long> idsZonasLibres = zonasLibres.stream()
                 .map(Zona::getZonaId)
                 .collect(Collectors.toSet());
 
+        // Carga los links de cada decoración y delega la conversión al mapper
         List<DecoracionDisponibleResponse> decoracionesDto = decoracionesActivas.stream()
-                .map(d -> buildDecoracionDto(d, idsZonasLibres))
+                .map(d -> {
+                    List<DecoracionZona> links = decoracionZonaRepository.findByDecoracionId(d.getDecoracionId());
+                    return reservaMapper.toDecoracionDto(d, links, idsZonasLibres);
+                })
                 .collect(Collectors.toList());
 
+        // Convierte las zonas libres a DTOs de respuesta
         List<ZonaDisponibleResponse> zonasDto = zonasLibres.stream()
-                .map(this::buildZonaDto)
+                .map(reservaMapper::toZonaDto)
                 .collect(Collectors.toList());
 
         return DisponibilidadResponse.builder()
@@ -163,33 +186,48 @@ public class ReservaService {
     }
 
     // -----------------------------------------------------------------------
-    // Crear reserva
+    // Creación
     // -----------------------------------------------------------------------
 
     /**
-     * Crea una nueva reserva para el cliente identificado por su email.
-     * Verifica horario de atención, bloqueos de administrador y disponibilidad de zona.
+     * Crea una nueva reserva para el cliente identificado por su correo electrónico.
+     *
+     * <p>El flujo de validación previo a la persistencia es:
+     * <ol>
+     *   <li>Verificar que la hora esté dentro del horario de atención.</li>
+     *   <li>Verificar que no exista un bloqueo administrativo activo.</li>
+     *   <li>Confirmar existencia de decoración y zona en BD (lanza {@code 404} si no existen).</li>
+     *   <li>Validar compatibilidad decoración-zona (si ambas fueron seleccionadas).</li>
+     *   <li>Confirmar disponibilidad general en tiempo real.</li>
+     *   <li>Confirmar disponibilidad específica de decoración y capacidad de zona.</li>
+     * </ol>
+     *
+     * @param emailCliente correo del cliente para quien se crea la reserva
+     * @param request      datos de la reserva a crear
+     * @return {@link ReservaResponse} con los datos completos de la reserva creada
+     * @throws ResourceNotFoundException si el cliente, la decoración o la zona no existen
+     * @throws BusinessException si se incumple cualquier regla de negocio
      */
     @Transactional
     public ReservaResponse crearReserva(String emailCliente, CrearReservaRequest request) {
-        Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
-                .orElseThrow(() -> new ResourceNotFoundException(
-                        "Cliente", "email", emailCliente));
 
-        // Validar horario de atención antes de cualquier otra verificación
+        // Verifica que el cliente exista en la base de datos
+        Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "email", emailCliente));
+
+        // Rechaza la reserva si la hora está fuera del horario de atención
         if (!esHorarioValido(request.getFechaHoraLlegada())) {
             throw new BusinessException(ErrorCode.INVALID_STATE, MSG_FUERA_HORARIO,
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        // Validar bloqueos de administrador
+        // Rechaza la reserva si existe un bloqueo administrativo activo
         if (estaBloqueda(request.getFechaHoraLlegada())) {
-            throw new BusinessException(ErrorCode.INVALID_STATE,
-                    "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. Por favor elija otra fecha u hora.",
+            throw new BusinessException(ErrorCode.INVALID_STATE, MSG_FUERA_HORARIO,
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        // Verificar existencia de decoración y zona en BD (→ 404 si no existe)
+        // Carga la decoración solo si el cliente la seleccionó
         Decoracion decoracion = null;
         if (request.getDecoracionId() != null) {
             final Long decId = request.getDecoracionId();
@@ -197,6 +235,7 @@ public class ReservaService {
                     .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decId));
         }
 
+        // Carga la zona solo si el cliente la seleccionó
         Zona zona = null;
         if (request.getZonaId() != null) {
             final Long zonaId = request.getZonaId();
@@ -204,21 +243,21 @@ public class ReservaService {
                     .orElseThrow(() -> new ResourceNotFoundException("Zona", zonaId));
         }
 
-        // Validar compatibilidad decoración ↔ zona ANTES de verificar disponibilidad:
+        // Valida que decoración y zona sean compatibles entre sí
         if (decoracion != null && zona != null) {
             validarCompatibilidadDecoracionZona(decoracion, zona);
         }
 
-        // Verificar disponibilidad
-        DisponibilidadResponse disponibilidad =
-                consultarDisponibilidad(request.getFechaHoraLlegada());
+        // Consulta disponibilidad en tiempo real para detectar cambios de último momento
+        DisponibilidadResponse disponibilidad = consultarDisponibilidad(request.getFechaHoraLlegada());
 
+        // Si la disponibilidad general cambió, notifica al cliente para que reintente
         if (!disponibilidad.getDisponible()) {
             throw new BusinessException(ErrorCode.INVALID_STATE, MSG_DISPONIBILIDAD_CAMBIO,
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        // Verificar disponibilidad de la decoración en el momento actual (→ 422 si ya está ocupada)
+        // Verifica que la decoración específica siga libre en tiempo real
         if (decoracion != null) {
             final Long decId = decoracion.getDecoracionId();
             boolean decoracionLibre = disponibilidad.getDecoraciones().stream()
@@ -229,8 +268,8 @@ public class ReservaService {
             }
         }
 
-        // Validar que la zona pedida sigue con capacidad
         if (zona != null) {
+            // Verifica que la zona específica siga disponible en tiempo real
             final Long zonaId = zona.getZonaId();
             boolean zonaLibre = disponibilidad.getZonas().stream()
                     .anyMatch(z -> z.getZonaId().equals(zonaId));
@@ -239,6 +278,7 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
 
+            // Comprueba que la zona tenga cupo suficiente para el número de personas solicitado
             LocalDateTime inicio = request.getFechaHoraLlegada().toLocalDate().atStartOfDay();
             LocalDateTime fin = request.getFechaHoraLlegada().toLocalDate().atTime(23, 59, 59);
             int personasExistentes = reservaRepository
@@ -251,7 +291,7 @@ public class ReservaService {
             }
         }
 
-        // Una reserva es especial si la decoración tiene costo adicional > 0 o si incluye un menú especial
+        // La reserva es ESPECIAL si tiene decoración con costo o algún ítem de menú especial
         boolean tieneDecoracionConCosto = decoracion != null &&
                 decoracion.getDecoracionCostoAdicional() != null &&
                 decoracion.getDecoracionCostoAdicional().compareTo(java.math.BigDecimal.ZERO) > 0;
@@ -262,9 +302,16 @@ public class ReservaService {
 
         boolean esEspecial = tieneDecoracionConCosto || tieneMenuEspecial;
 
+        // Las reservas especiales quedan PENDIENTE (requieren confirmación); las básicas se confirman de inmediato
         TipoReserva tipo = esEspecial ? TipoReserva.ESPECIAL : TipoReserva.BASICA;
         EstadoReserva estado = esEspecial ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA;
 
+        // Valida la pre-orden antes de persistir la reserva
+        if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
+            preOrdenService.validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
+        }
+
+        // Construye y persiste la entidad de reserva
         Reserva reserva = Reserva.builder()
                 .cliente(cliente)
                 .zona(zona)
@@ -278,168 +325,59 @@ public class ReservaService {
 
         Reserva guardada = reservaRepository.save(reserva);
 
-        // Validar reglas de negocio de pre-orden antes de persistir
+        // Guarda los ítems de pre-orden vinculados a la reserva recién creada
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
-            validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
-            persistirPreOrden(guardada, request.getPreOrden());
+            preOrdenService.persistirPreOrden(guardada, request.getPreOrden());
         }
 
-        return toResponse(guardada);
+        // Carga los detalles persistidos y delega el mapeo al mapper
+        List<PreOrdenDetalle> detalles = preOrdenService.obtenerDetallesPorReservaId(guardada.getReservaId());
+        return reservaMapper.toResponse(guardada, detalles);
     }
 
     // -----------------------------------------------------------------------
-    // Historial de reservas
+    // Historial
     // -----------------------------------------------------------------------
 
-    /** Retorna el historial del cliente autenticado. */
+    /**
+     * Devuelve el historial de reservas del cliente, ordenadas de más reciente a más antigua.
+     *
+     * @param emailCliente correo del cliente autenticado
+     * @return lista de {@link ReservaResponse} con las reservas del cliente; vacía si no tiene ninguna
+     * @throws ResourceNotFoundException si el cliente no existe
+     */
     @Transactional(readOnly = true)
     public List<ReservaResponse> obtenerReservasCliente(String emailCliente) {
+        // Recupera el cliente por email para obtener su ID
         Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
                 .orElseThrow(() -> new ResourceNotFoundException(
                         "Cliente", "email", emailCliente));
 
+        // Devuelve las reservas del cliente ordenadas de más reciente a más antigua
         return reservaRepository
                 .findByCliente_UsuarioIdOrderByReservaFechaHoraLlegadaDesc(cliente.getUsuarioId())
                 .stream()
-                .map(this::toResponse)
+                .map(r -> reservaMapper.toResponse(r,
+                        preOrdenService.obtenerDetallesPorReservaId(r.getReservaId())))
                 .collect(Collectors.toList());
     }
 
-    /** Retorna el historial completo de todas las reservas del sistema (acceso de personal). */
+    /**
+     * Devuelve el historial completo de todas las reservas del sistema, ordenadas de más reciente
+     * a más antigua.
+     *
+     * <p>Solo accesible por personal del restaurante (cajero, mesero, administrador).
+     *
+     * @return lista de {@link ReservaResponse} con todas las reservas registradas; vacía si no hay ninguna
+     */
     @Transactional(readOnly = true)
     public List<ReservaResponse> obtenerTodasLasReservas() {
+        // Recupera todas las reservas ordenadas de más reciente a más antigua
         return reservaRepository
                 .findAll(Sort.by(Sort.Direction.DESC, "reservaFechaHoraLlegada"))
                 .stream()
-                .map(this::toResponse)
-                .collect(Collectors.toList());
-    }
-
-    // -----------------------------------------------------------------------
-    // Pre-orden
-    // -----------------------------------------------------------------------
-
-    /**
-     * Valida las reglas de negocio de la pre-orden antes de persistirla:
-     *  - CA-01/CA-05: si hay algún ítem de menú especial, el número de personas debe ser > 10.
-     *  - CA-05: solo se permite un ítem de menú especial por reserva.
-     */
-    private void validarPreOrden(List<PreOrdenItemRequest> items, int numeroPersonas) {
-        long menuEspecialCount = items.stream()
-                .filter(i -> Boolean.TRUE.equals(i.getEsMenuEspecial()))
-                .count();
-
-        if (menuEspecialCount > 0 && numeroPersonas <= 10) {
-            throw new BusinessException(ErrorCode.INVALID_STATE,
-                    "El menú especial solo está disponible para reservas de más de 10 personas.",
-                    HttpStatus.UNPROCESSABLE_ENTITY);
-        }
-
-        if (menuEspecialCount > 1) {
-            throw new BusinessException(ErrorCode.INVALID_STATE,
-                    "Solo puede seleccionar un menú especial por reserva.",
-                    HttpStatus.UNPROCESSABLE_ENTITY);
-        }
-    }
-
-    /**
-     * Persiste los ítems de pre-orden asociados a una reserva.
-     * Por cada ítem:
-     *  - Valida que el producto exista y esté activo.
-     *  - Crea PreOrdenDetalle con la descripción (null = sin modificación libre).
-     *  - Si esMenuEspecial=true, persiste las selecciones de checkbox en PreOrdenMenuModificacion.
-     */
-    private void persistirPreOrden(Reserva reserva, List<PreOrdenItemRequest> items) {
-        for (PreOrdenItemRequest item : items) {
-            Producto producto = productoRepository.findById(item.getProductoId())
-                    .orElseThrow(() -> new ResourceNotFoundException("Producto", item.getProductoId()));
-
-            if (producto.getProductoEstado() != EstadoGenerico.ACTIVO) {
-                throw new BusinessException(ErrorCode.INVALID_STATE,
-                        "El producto '" + producto.getProductoNombre() + "' no está disponible.",
-                        HttpStatus.UNPROCESSABLE_ENTITY);
-            }
-
-            PreOrdenDetalle detalle = PreOrdenDetalle.builder()
-                    .reserva(reserva)
-                    .producto(producto)
-                    .preordenDetalleCantidad(item.getCantidad())
-                    .preordenDetalleDescripcion(item.getDescripcion())
-                    .build();
-
-            PreOrdenDetalle detalleGuardado = preOrdenDetalleRepository.save(detalle);
-
-            // Persistir modificaciones de menú especial (checkboxes CA-07)
-            if (Boolean.TRUE.equals(item.getEsMenuEspecial())
-                    && item.getOpcionesModificacion() != null
-                    && !item.getOpcionesModificacion().isEmpty()) {
-
-                for (Long opcionId : item.getOpcionesModificacion()) {
-                    OpcionModificacion opcion = opcionModificacionRepository.findById(opcionId)
-                            .orElseThrow(() -> new ResourceNotFoundException("OpcionModificacion", opcionId));
-
-                    // CA-07: verificar que la opción pertenece al menú seleccionado
-                    if (!productoOpcionModificacionRepository.existsByProductoIdAndOpcionId(
-                            producto.getProductoId(), opcionId)) {
-                        throw new BusinessException(ErrorCode.INVALID_STATE,
-                                "La opción de modificación '" + opcion.getOpcionNombre() +
-                                "' no pertenece al menú seleccionado.",
-                                HttpStatus.UNPROCESSABLE_ENTITY);
-                    }
-
-                    PreOrdenMenuModificacion mod = PreOrdenMenuModificacion.builder()
-                            .preordenDetalle(detalleGuardado)
-                            .opcion(opcion)
-                            .build();
-
-                    preOrdenMenuModificacionRepository.save(mod);
-                }
-            }
-        }
-    }
-
-    // -----------------------------------------------------------------------
-    // Pre-orden por reserva (endpoint para módulo de comandas)
-    // -----------------------------------------------------------------------
-
-    /**
-     * Retorna el detalle completo de la pre-orden de una reserva.
-     * Accesible por CAJERO y MESERO para pre-cargar la comanda.
-     */
-    @Transactional(readOnly = true)
-    public List<PreOrdenDetalleResponse> obtenerPreOrden(Long reservaId) {
-        if (!reservaRepository.existsById(reservaId)) {
-            throw new ResourceNotFoundException("Reserva", reservaId);
-        }
-
-        List<PreOrdenDetalle> detalles =
-                preOrdenDetalleRepository.findByReserva_ReservaIdOrderByCreatedAtAsc(reservaId);
-
-        return detalles.stream()
-                .map(d -> {
-                    List<PreOrdenMenuModificacion> mods =
-                            preOrdenMenuModificacionRepository
-                                    .findByPreordenDetalle_PreordenDetalleId(d.getPreordenDetalleId());
-
-                    List<PreOrdenDetalleResponse.OpcionModificacionSeleccionada> modificaciones =
-                            mods.stream()
-                                    .map(m -> PreOrdenDetalleResponse.OpcionModificacionSeleccionada.builder()
-                                            .opcionId(m.getOpcion().getOpcionId())
-                                            .opcionNombre(m.getOpcion().getOpcionNombre())
-                                            .tipoComponente(m.getOpcion().getTipoComponente().name())
-                                            .build())
-                                    .collect(Collectors.toList());
-
-                    return PreOrdenDetalleResponse.builder()
-                            .preordenDetalleId(d.getPreordenDetalleId())
-                            .productoId(d.getProducto().getProductoId())
-                            .productoNombre(d.getProducto().getProductoNombre())
-                            .cantidad(d.getPreordenDetalleCantidad())
-                            .precioUnitario(d.getProducto().getProductoPrecio())
-                            .descripcion(d.getPreordenDetalleDescripcion())
-                            .modificaciones(modificaciones.isEmpty() ? null : modificaciones)
-                            .build();
-                })
+                .map(r -> reservaMapper.toResponse(r,
+                        preOrdenService.obtenerDetallesPorReservaId(r.getReservaId())))
                 .collect(Collectors.toList());
     }
 
@@ -449,30 +387,46 @@ public class ReservaService {
 
     /**
      * Verifica que la fecha y hora estén dentro del horario de atención del restaurante.
-     * Horario: lunes a domingo, 5:00 PM (17:00) a 10:00 PM (22:00, exclusivo).
+     *
+     * @param fechaHora fecha y hora a verificar
+     * @return {@code true} si la hora cae dentro del horario de atención; {@code false} en caso contrario
      */
     private boolean esHorarioValido(LocalDateTime fechaHora) {
+        // Extrae solo la hora para comparar contra los límites de apertura y cierre
         int hora = fechaHora.getHour();
         return hora >= HORA_APERTURA && hora < HORA_CIERRE;
     }
 
     /**
-     * Verifica si existe un bloqueo de administrador activo para la fecha y hora dada.
+     * Verifica si existe un bloqueo administrativo activo que cubra la fecha y hora indicadas.
+     *
+     * @param fechaHora fecha y hora a verificar
+     * @return {@code true} si hay al menos un bloqueo activo para esa fecha/hora; {@code false} en caso contrario
      */
     private boolean estaBloqueda(LocalDateTime fechaHora) {
+        // Separa fecha y hora para consultar los bloqueos que cubran ese instante
         LocalDate fecha = fechaHora.toLocalDate();
         LocalTime hora  = fechaHora.toLocalTime();
+        
+        // Retorna true si al menos un bloqueo administrativo coincide
         return bloqueRepository.countBloquesParaFechaHora(fecha, hora) > 0;
     }
 
     /**
-     * Verifica que la decoración sea compatible con la zona elegida.
+     * Verifica que la decoración seleccionada sea compatible con la zona elegida.
+     *
+     * @param decoracion decoración seleccionada por el cliente
+     * @param zona       zona elegida por el cliente
+     * @throws BusinessException si la decoración no es compatible con la zona indicada
      */
     private void validarCompatibilidadDecoracionZona(Decoracion decoracion, Zona zona) {
+
+        // Obtiene todas las zonas a las que está vinculada la decoración
         List<DecoracionZona> links = decoracionZonaRepository
                 .findByDecoracionId(decoracion.getDecoracionId());
 
         if (links.size() == 1) {
+            // Decoración exclusiva: solo puede usarse en la única zona asignada
             Long zonaPermitida = links.get(0).getZonaId();
             if (!zonaPermitida.equals(zona.getZonaId())) {
                 throw new BusinessException(ErrorCode.INVALID_STATE,
@@ -480,6 +434,7 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
         } else if (links.size() > 1) {
+            // Decoración compartida: verifica que la zona elegida esté entre las permitidas
             boolean esCompatible = links.stream()
                     .anyMatch(l -> l.getZonaId().equals(zona.getZonaId()));
             if (!esCompatible) {
@@ -488,87 +443,5 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
         }
-    }
-
-    // -----------------------------------------------------------------------
-    // Helpers de mapeo
-    // -----------------------------------------------------------------------
-
-    private DisponibilidadResponse sinDisponibilidad() {
-        return DisponibilidadResponse.builder()
-                .disponible(false)
-                .decoraciones(List.of())
-                .zonas(List.of())
-                .build();
-    }
-
-    private DecoracionDisponibleResponse buildDecoracionDto(Decoracion d, Set<Long> idsZonasLibres) {
-        List<DecoracionZona> links = decoracionZonaRepository.findByDecoracionId(d.getDecoracionId());
-
-        boolean puedeSeleccionar = links.size() != 1;
-
-        List<Long> zonaIdsCompatibles = links.stream()
-                .map(DecoracionZona::getZonaId)
-                .filter(idsZonasLibres::contains)
-                .collect(Collectors.toList());
-
-        return DecoracionDisponibleResponse.builder()
-                .decoracionId(d.getDecoracionId())
-                .nombre(d.getDecoracionNombre())
-                .imagenUrl(d.getDecoracionImagenUrl())
-                .puedeSeleccionarZona(puedeSeleccionar)
-                .zonaIdsCompatibles(zonaIdsCompatibles)
-                .build();
-    }
-
-    private ZonaDisponibleResponse buildZonaDto(Zona z) {
-        return ZonaDisponibleResponse.builder()
-                .zonaId(z.getZonaId())
-                .nombre(z.getZonaNombre())
-                .imagenUrl(z.getZonaImagenUrl())
-                .capacidad(z.getZonaCapacidadPersonas())
-                .build();
-    }
-
-    private ReservaResponse toResponse(Reserva r) {
-        List<PreOrdenDetalle> detalles =
-                preOrdenDetalleRepository.findByReserva_ReservaIdOrderByCreatedAtAsc(r.getReservaId());
-
-        List<PreOrdenItemResumen> preOrdenItems = detalles.isEmpty() ? null :
-                detalles.stream()
-                        .map(d -> PreOrdenItemResumen.builder()
-                                .productoId(d.getProducto().getProductoId())
-                                .productoNombre(d.getProducto().getProductoNombre())
-                                .cantidad(d.getPreordenDetalleCantidad())
-                                .precioUnitario(d.getProducto().getProductoPrecio())
-                                .descripcion(d.getPreordenDetalleDescripcion())
-                                .build())
-                        .collect(Collectors.toList());
-
-        // Total aproximado: solo ítems normales (descripcion == null); modificaciones libres son TBD
-        BigDecimal preOrdenTotal = detalles.isEmpty() ? null :
-                detalles.stream()
-                        .filter(d -> d.getPreordenDetalleDescripcion() == null)
-                        .map(d -> d.getProducto().getProductoPrecio()
-                                .multiply(BigDecimal.valueOf(d.getPreordenDetalleCantidad())))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
-        return ReservaResponse.builder()
-                .reservaId(r.getReservaId())
-                .fechaHoraLlegada(r.getReservaFechaHoraLlegada().format(FORMATTER))
-                .numeroPersonas(r.getReservaNumeroPersonas())
-                .estado(r.getReservaEstado().name())
-                .tipo(r.getReservaTipo().name())
-                .decoracionId(r.getDecoracion() != null ? r.getDecoracion().getDecoracionId() : null)
-                .decoracionNombre(r.getDecoracion() != null ? r.getDecoracion().getDecoracionNombre() : null)
-                .zonaId(r.getZona() != null ? r.getZona().getZonaId() : null)
-                .zonaNombre(r.getZona() != null ? r.getZona().getZonaNombre() : null)
-                .notas(r.getReservaNotas())
-                .fechaCreacion(r.getReservaFechaCreacion().format(FORMATTER))
-                .clienteId(r.getCliente().getUsuarioId())
-                .clienteNombre(r.getCliente().getClienteNombre())
-                .preOrdenItems(preOrdenItems)
-                .preOrdenTotal(preOrdenTotal)
-                .build();
     }
 }

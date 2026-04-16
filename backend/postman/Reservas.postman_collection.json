@@ -39,6 +39,11 @@
       "key": "fechaBloqueadaFranjaFuera",
       "value": "2026-12-22T17:00:00",
       "_comment": "Misma fecha que fechaBloqueadaFranja pero hora 17:00 está FUERA del bloqueo (19-21)"
+    },
+    {
+      "key": "fechaPreorden",
+      "value": "2026-12-18T19:00:00",
+      "_comment": "Fecha libre para los grupos secuenciales RPO-* (Consultar Pre-Orden) y casos de pre-orden en POST"
     }
   ],
   "item": [
@@ -522,9 +527,20 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T14:00:00",
-                  "host": [ "{{baseUrl}}" ],
-                  "path": [ "api", "reservas", "disponibilidad" ],
-                  "query": [ { "key": "fechaHora", "value": "2026-12-15T14:00:00" } ]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "2026-12-15T14:00:00"
+                    }
+                  ]
                 }
               }
             },
@@ -557,9 +573,20 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T22:00:00",
-                  "host": [ "{{baseUrl}}" ],
-                  "path": [ "api", "reservas", "disponibilidad" ],
-                  "query": [ { "key": "fechaHora", "value": "2026-12-15T22:00:00" } ]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "disponibilidad"
+                  ],
+                  "query": [
+                    {
+                      "key": "fechaHora",
+                      "value": "2026-12-15T22:00:00"
+                    }
+                  ]
                 }
               }
             }
@@ -567,7 +594,7 @@
         },
         {
           "name": "GET /api/reservas/cliente – Consultar Historial de Reservas",
-          "description": "## Descripción\nEndpoint protegido accesible para CLIENTE, CAJERO, ADM y MESERO.\n- **CLIENTE**: retorna únicamente sus propias reservas.\n- **CAJERO / ADM / MESERO**: retorna el historial completo de todas las reservas del sistema.\nOrdenado por fecha de llegada descendente (la más reciente primero).\n\n## Comportamiento de Control de Acceso\nSolo CLIENTE, CAJERO, ADM y MESERO pueden acceder. Roles como COCINERO retornarán HTTP 403.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RC-01 | Sin token JWT | 401 |\n| RC-02 | Token de rol no permitido (COCINERO) | 403 |\n| RC-03 | Historial con token CLIENTE | 200 |\n| RC-04 | Historial con token CAJERO | 200 |\n| RC-05 | Historial con token MESERO | 200 |\n| RC-06 | Historial con token ADM | 200 |",
+          "description": "## Descripción\nEndpoint protegido accesible únicamente para CLIENTE y ADMIN.\n- **CLIENTE**: retorna sus propias reservas.\n- **ADMIN**: retorna todas las reservas del sistema.\nOrdenado por fecha de llegada descendente (la más reciente primero).\n\n## Comportamiento de Control de Acceso\nSolo CLIENTE y ADMIN pueden acceder. Roles como CAJERO, MESERO y COCINERO retornarán HTTP 403.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RC-01 | Sin token JWT | 401 |\n| RC-02 | Token de rol no permitido (COCINERO) | 403 |\n| RC-03 | Historial con token CLIENTE | 200 |\n| RC-04 | Token CAJERO – rol no permitido | 403 |\n| RC-05 | Token MESERO – rol no permitido | 403 |\n| RC-06 | Historial con token ADM | 200 |",
           "event": [
             {
               "listen": "prerequest",
@@ -660,7 +687,7 @@
             },
             {
               "name": "RC-02 Token de rol no permitido (COCINERO) – 403 Forbidden",
-              "description": "**Criterio de Aceptación:** RC-02\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde a un rol no autorizado (COCINERO/PRODUCCION). Los roles CLIENTE, CAJERO, ADM y MESERO sí tienen acceso; COCINERO no.\n**Pre-condición:** El token de COCINERO debe estar disponible en `{{cocineroToken}}` (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
+              "description": "**Criterio de Aceptación:** RC-02\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde a un rol no autorizado. Solo CLIENTE y ADMIN tienen acceso; COCINERO, CAJERO y MESERO no.\n**Pre-condición:** El token de COCINERO debe estar disponible en `{{cocineroToken}}` (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
@@ -750,19 +777,17 @@
               }
             },
             {
-              "name": "RC-04 Historial con token CAJERO – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-04\n**Objetivo:** Verificar que un usuario con rol CAJERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema (no solo las del cliente).\n**Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-04 Token CAJERO – 403 Forbidden",
+              "description": "**Criterio de Aceptación:** RC-04\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde al rol CAJERO, ya que este endpoint ahora solo permite CLIENTE y ADMIN.\n**Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Status 200 – CAJERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "pm.test('Status 403 – Rol CAJERO no tiene acceso al historial de reservas', () => pm.response.to.have.status(403));",
                       "",
-                      "const body = pm.response.json();",
-                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
-                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
                     ]
                   }
                 }
@@ -777,25 +802,29 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/reservas/cliente",
-                  "host": [ "{{baseUrl}}" ],
-                  "path": [ "api", "reservas", "cliente" ]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
                 }
               }
             },
             {
-              "name": "RC-05 Historial con token MESERO – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-05\n**Objetivo:** Verificar que un usuario con rol MESERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-05 Token MESERO – 403 Forbidden",
+              "description": "**Criterio de Aceptación:** RC-05\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde al rol MESERO, ya que este endpoint ahora solo permite CLIENTE y ADMIN.\n**Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Status 200 – MESERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "pm.test('Status 403 – Rol MESERO no tiene acceso al historial de reservas', () => pm.response.to.have.status(403));",
                       "",
-                      "const body = pm.response.json();",
-                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
-                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
                     ]
                   }
                 }
@@ -810,14 +839,20 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/reservas/cliente",
-                  "host": [ "{{baseUrl}}" ],
-                  "path": [ "api", "reservas", "cliente" ]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
                 }
               }
             },
             {
-              "name": "RC-06 Historial con token ADM – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-06\n**Objetivo:** Verificar que un usuario con rol ADM puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `accessToken` (ADM) disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-06 Historial con token ADM – 200 OK",
+              "description": "**Criterio de Aceptación:** RC-06\n**Objetivo:** Verificar que un usuario con rol ADMIN puede acceder al historial de reservas y obtiene todas las reservas del sistema.\n**Pre-condición:** `accessToken` (ADM) disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200 con `success=true`. `data` es un array.",
               "event": [
                 {
                   "listen": "test",
@@ -843,8 +878,14 @@
                 ],
                 "url": {
                   "raw": "{{baseUrl}}/api/reservas/cliente",
-                  "host": [ "{{baseUrl}}" ],
-                  "path": [ "api", "reservas", "cliente" ]
+                  "host": [
+                    "{{baseUrl}}"
+                  ],
+                  "path": [
+                    "api",
+                    "reservas",
+                    "cliente"
+                  ]
                 }
               }
             }
@@ -852,7 +893,7 @@
         },
         {
           "name": "POST /api/reservas – Crear Reserva",
-          "description": "## Descripción\nEndpoint de creación de reservas para el cliente autenticado. El sistema clasifica automáticamente la reserva según las reglas de negocio definidas y retorna la reserva creada con todos sus campos.\n\n## Estructura del Cuerpo de la Solicitud\n```json\n{\n  \"fechaHoraLlegada\": \"yyyy-MM-dd'T'HH:mm:ss\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 1,\n  \"decoracionId\": 1,\n  \"notas\": \"string\"\n}\n```\nLos campos `zonaId`, `decoracionId` y `notas` son opcionales.\n\n## Encabezado Requerido\n```\nAuthorization: Bearer {{clienteToken}}\n```\n\n## Regla de Clasificación Automática\n| Condición | tipo | estado |\n|-----------|------|--------|\n| Sin decoración con costo Y personas < 10 | BASICA | CONFIRMADA |\n| Decoración con costo O personas ≥ 10 | ESPECIAL | PENDIENTE |\n\n## Notas sobre Grupos Secuenciales\nLos subgrupos CAP-*, DECO-OCP-* y NODISP-* son secuenciales y deben ejecutarse en orden dentro de la misma sesión para garantizar la coherencia del estado de la base de datos.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RP-01 | Reserva mínima sin zona ni decoración | 201 |\n| RP-02 | Con zona disponible (Salón Principal) | 201 |\n| RP-03 | Decoración sin costo con zona compatible | 201 |\n| RP-04 | Decoración con costo → ESPECIAL | 201 |\n| RP-05 | CA-08: exactamente 10 personas → ESPECIAL | 201 |\n| RP-06 | Decoración sin restricción de zona | 201 |\n| RP-07 | CA-04: decoración con zona fija, zona correcta | 201 |\n| RP-08 | CA-08: 9 personas → BASICA (valor de frontera) | 201 |\n| RP-09 | CA-08: 11 personas → ESPECIAL (valor de frontera) | 201 |\n| RP-10 | CA-07: Zona Romántica sin extras → BASICA | 201 |\n| RP-11 | CA-11: reserva básica, estructura completa del response | 201 |\n| RP-12 | CA-10: reserva especial, estructura completa del response | 201 |\n| RP-13 | Sin token JWT | 401 |\n| RP-14 | Token ADMIN (rol no permitido) | 403 |\n| RP-15 | CA-02: fechaHoraLlegada ausente | 422 |\n| RP-16 | numeroPersonas ausente | 422 |\n| RP-17 | numeroPersonas = 0 | 422 |\n| RP-18 | numeroPersonas negativo | 422 |\n| RP-19 | Cuerpo vacío | 422 |\n| RP-20 | CA-02: fechaHoraLlegada null explícito | 422 |\n| RP-21 | Decoración inexistente (id=999) | 404 |\n| RP-22 | Zona inexistente (id=999) | 404 |\n| RP-23 | CA-04: zona incorrecta para decoración con zona fija | 422 |\n| RP-24 | CA-05: zona incompatible con decoración | 422 |\n| CAP-1..5 | Capacidad acumulada por día (secuencial) | varios |\n| DECO-OCP-1..3 | Decoración exclusiva ya reservada (secuencial) | varios |\n| NODISP-SETUP-1..7 | Setup: llenar todas las zonas (secuencial) | 201 |\n| NODISP-1 | CA-03: disponible=false, listas vacías | 200 |\n| NODISP-2 | CA-03: reserva sin disponibilidad rechazada | 422 |",
+          "description": "## Descripción\nEndpoint de creación de reservas. Accesible por CLIENTE, CAJERO y ADMIN. El sistema clasifica automáticamente la reserva según las reglas de negocio definidas y retorna la reserva creada con todos sus campos.\n\n## Estructura del Cuerpo de la Solicitud\n```json\n{\n  \"emailCliente\": \"cliente@example.com\",\n  \"fechaHoraLlegada\": \"yyyy-MM-dd'T'HH:mm:ss\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 1,\n  \"decoracionId\": 1,\n  \"notas\": \"string\"\n}\n```\nEl campo `emailCliente` es obligatorio para CAJERO y ADMIN (indica el cliente para quien se crea la reserva) e ignorado para CLIENTE. Los campos `zonaId`, `decoracionId` y `notas` son opcionales.\n\n## Control de Acceso\n| Rol | Puede crear | Requiere emailCliente |\n|-----|-------------|----------------------|\n| CLIENTE | Sí | No (usa su propio email) |\n| CAJERO | Sí | Sí |\n| ADMIN | Sí | Sí |\n| MESERO | No | — |\n| COCINERO | No | — |\n\n## Regla de Clasificación Automática\n| Condición | tipo | estado |\n|-----------|------|--------|\n| Sin decoración con costo Y personas < 10 | BASICA | CONFIRMADA |\n| Decoración con costo O personas ≥ 10 | ESPECIAL | PENDIENTE |\n\n## Notas sobre Grupos Secuenciales\nLos subgrupos CAP-*, DECO-OCP-* y NODISP-* son secuenciales y deben ejecutarse en orden dentro de la misma sesión para garantizar la coherencia del estado de la base de datos.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RP-01 | Reserva mínima sin zona ni decoración | 201 |\n| RP-02 | Con zona disponible (Salón Principal) | 201 |\n| RP-03 | Decoración sin costo con zona compatible | 201 |\n| RP-04 | Decoración con costo → ESPECIAL | 201 |\n| RP-05 | CA-08: exactamente 10 personas → ESPECIAL | 201 |\n| RP-06 | Decoración sin restricción de zona | 201 |\n| RP-07 | CA-04: decoración con zona fija, zona correcta | 201 |\n| RP-08 | CA-08: 9 personas → BASICA (valor de frontera) | 201 |\n| RP-09 | CA-08: 11 personas → ESPECIAL (valor de frontera) | 201 |\n| RP-10 | CA-07: Zona Romántica sin extras → BASICA | 201 |\n| RP-11 | CA-11: reserva básica, estructura completa del response | 201 |\n| RP-12 | CA-10: reserva especial, estructura completa del response | 201 |\n| RP-26 | ADMIN crea reserva para un cliente | 201 |\n| RP-27 | CAJERO crea reserva para un cliente | 201 |\n| RP-13 | Sin token JWT | 401 |\n| RP-14 | Token MESERO (rol no permitido) | 403 |\n| RP-15 | CA-02: fechaHoraLlegada ausente | 422 |\n| RP-16 | numeroPersonas ausente | 422 |\n| RP-17 | numeroPersonas = 0 | 422 |\n| RP-18 | numeroPersonas negativo | 422 |\n| RP-19 | Cuerpo vacío | 422 |\n| RP-20 | CA-02: fechaHoraLlegada null explícito | 422 |\n| RP-28 | ADMIN sin emailCliente | 422 |\n| RP-21 | Decoración inexistente (id=999) | 404 |\n| RP-22 | Zona inexistente (id=999) | 404 |\n| RP-23 | CA-04: zona incorrecta para decoración con zona fija | 422 |\n| RP-24 | CA-05: zona incompatible con decoración | 422 |\n| CAP-1..5 | Capacidad acumulada por día (secuencial) | varios |\n| DECO-OCP-1..3 | Decoración exclusiva ya reservada (secuencial) | varios |\n| NODISP-SETUP-1..7 | Setup: llenar todas las zonas (secuencial) | 201 |\n| NODISP-1 | CA-03: disponible=false, listas vacías | 200 |\n| NODISP-2 | CA-03: reserva sin disponibilidad rechazada | 422 |",
           "event": [
             {
               "listen": "prerequest",
@@ -878,26 +919,35 @@
                   "  }",
                   "});",
                   "",
-                  "// Login ADMIN (solo si no está en caché) — requerido para casos de acceso denegado (403)",
-                  "if (!pm.environment.get('accessToken')) {",
-                  "  pm.sendRequest({",
-                  "    url: pm.environment.get('baseUrl') + '/api/auth/login',",
-                  "    method: 'POST',",
-                  "    header: [{ key: 'Content-Type', value: 'application/json' }],",
-                  "    body: {",
-                  "      mode: 'raw',",
-                  "      raw: JSON.stringify({",
-                  "        email: pm.environment.get('emailAdmin'),",
-                  "        password: pm.environment.get('passwordValida'),",
-                  "        forceSessionOverride: true",
-                  "      })",
-                  "    }",
-                  "  }, function(err, res) {",
-                  "    if (!err && res.code === 200) {",
-                  "      pm.environment.set('accessToken', res.json().accessToken);",
-                  "    }",
-                  "  });",
-                  "}"
+                  "// Login ADMIN — requerido para casos de creación por personal y control de acceso",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailAdmin'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('accessToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login CAJERO — requerido para casos de creación por personal",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCajero'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('cajeroToken', res.json().accessToken);",
+                  "});",
+                  "",
+                  "// Login MESERO — requerido para casos de control de acceso (403)",
+                  "pm.sendRequest({",
+                  "  url: pm.environment.get('baseUrl') + '/api/auth/login',",
+                  "  method: 'POST',",
+                  "  header: [{ key: 'Content-Type', value: 'application/json' }],",
+                  "  body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailMesero'), password: pm.environment.get('passwordValida'), forceSessionOverride: true }) }",
+                  "}, function(err, res) {",
+                  "  if (!err && res.code === 200) pm.environment.set('meseroToken', res.json().accessToken);",
+                  "});"
                 ]
               }
             }
@@ -1511,6 +1561,585 @@
                       ]
                     }
                   }
+                },
+                {
+                  "name": "RP-PO-01 Pre-orden: 1 producto regular – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-01 (negativo)\n**Objetivo:** Verificar que una reserva básica se crea exitosamente cuando la pre-orden incluye un único producto regular (sin menú especial). La respuesta debe contener `preOrdenItems` con 1 elemento y `preOrdenTotal` calculado correctamente.\n**Pre-condición:** `clienteToken` disponible. Producto id=1 (Don Tostón, $16.000) activo. Fecha {{fechaPreorden}} con disponibilidad.\n**Resultado esperado:** HTTP 201. `preOrdenItems` no nulo con 1 elemento. `preOrdenTotal` = 32000 (2 × $16.000).",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con pre-orden básica creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('preOrdenItems está presente y contiene 1 elemento', () => {",
+                          "  pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "});",
+                          "",
+                          "pm.test('El ítem incluye productoId, cantidad y precioUnitario', () => {",
+                          "  pm.expect(r.preOrdenItems[0]).to.include.keys(['productoId', 'cantidad', 'precioUnitario']);",
+                          "});",
+                          "",
+                          "pm.test('preOrdenTotal es 32000 (2 × $16.000 Don Tostón)', () => {",
+                          "  pm.expect(r.preOrdenTotal).to.eql(32000);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": 2 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-02 Pre-orden: múltiples productos regulares – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-01 (negativo)\n**Objetivo:** Verificar que la pre-orden acepta varios productos regulares en la misma reserva y que `preOrdenItems` los incluye todos.\n**Pre-condición:** `clienteToken` disponible. Productos id=1 (Don Tostón) e id=36 (Hamburguesa Al Toro) activos. Fecha {{fechaPreorden}} con disponibilidad.\n**Resultado esperado:** HTTP 201. `preOrdenItems` con 2 elementos. `preOrdenTotal` = 57000 (2 × $16.000 + 1 × $25.000).",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con pre-orden de múltiples productos creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('preOrdenItems contiene 2 elementos (un ítem por producto)', () => {",
+                          "  pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(2);",
+                          "});",
+                          "",
+                          "pm.test('preOrdenTotal es 57000 (2×$16.000 Don Tostón + 1×$25.000 Hamburguesa)', () => {",
+                          "  pm.expect(r.preOrdenTotal).to.eql(57000);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 4,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": 2 },\n    { \"productoId\": 36, \"cantidad\": 1 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-03 Pre-orden: ítem con descripción libre (modificación de texto) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-01 (negativo)\n**Objetivo:** Verificar que el sistema acepta ítems de pre-orden con descripción libre (`descripcion` no nulo), que representa la modificación de texto especificada por el cliente. Estos ítems SÍ cuentan para el cálculo de `preOrdenTotal`.\n**Pre-condición:** `clienteToken` disponible. Producto id=1 (Don Tostón, $16.000) activo. Fecha {{fechaPreorden}} con disponibilidad.\n**Resultado esperado:** HTTP 201. `preOrdenItems[0].descripcion` coincide con el texto enviado. `preOrdenTotal` = 16000 (1×$16.000 Don Tostón).",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con ítem de modificación libre creada exitosamente', () => pm.response.to.have.status(201));",
+                          "const r = pm.response.json().data;",
+                          "pm.test('preOrdenItems contiene 1 elemento', () => {",
+                          "    pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "});",
+                          "pm.test('La descripción libre se conserva en el ítem', () => {",
+                          "    pm.expect(r.preOrdenItems[0].descripcion).to.eql('Don Tostón - sin salsa criolla');",
+                          "});",
+                          "pm.test('preOrdenTotal es 16000 (1×$16.000 Don Tostón, incluye ítems con descripción)', () => {",
+                          "    pm.expect(r.preOrdenTotal).to.eql(16000);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 2,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": 1, \"descripcion\": \"Don Tostón - sin salsa criolla\" }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-04 CA-01 – Menú especial simple con 11 personas y opción de bebida → ESPECIAL – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-01\n**Objetivo:** Verificar que una reserva con menú especial (Menú 1, id=132) para más de 10 personas se crea exitosamente, se clasifica como ESPECIAL y la pre-orden incluye la opción de modificación de bebida seleccionada.\n**Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1, $32.000, esMenuEspecial=TRUE) activo. Opción id=1 (BEBIDA Jugo de Maracuyá) vinculada al producto. Zona id=1 con capacidad en {{fechaPreorden}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`. `preOrdenItems` con 1 elemento.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con menú especial creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva con menú especial se clasifica como ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado de una reserva especial es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('preOrdenItems contiene el menú especial seleccionado', () => {",
+                          "  pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "  pm.expect(r.preOrdenItems[0].productoId).to.eql(132);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 11,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 11,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [1]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-05 CA-07 – Menú 8a con todas sus opciones (bebida + salsas + arroz) – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-07\n**Objetivo:** Verificar que el Menú 8a (doble proteína con arroz, id=134) acepta la combinación completa de opciones: bebida (BEBIDA), salsa de la 1ª proteína (SALSA_PROTEINA_1), salsa de la 2ª proteína (SALSA_PROTEINA_2) y tipo de arroz (ARROZ).\n**Pre-condición:** `clienteToken` disponible. Producto id=134 con opciones 1 (bebida), 5 (salsa_p1), 9 (salsa_p2) y 11 (arroz) vinculadas. Zona id=1 con capacidad en {{fechaPreorden}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `preOrdenItems` con 1 elemento.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con Menú 8a y todas sus opciones creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('La reserva con menú 8a se clasifica como ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('preOrdenItems contiene el Menú 8a', () => {",
+                          "  pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "  pm.expect(r.preOrdenItems[0].productoId).to.eql(134);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 12,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 134,\n      \"cantidad\": 12,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [1, 5, 9, 11]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-06 CA-11 – Pre-orden nula: preOrdenItems y preOrdenTotal son null en el response – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-11\n**Objetivo:** Verificar que cuando la reserva se crea sin pre-orden (campo `preOrden` omitido), el response retorna `preOrdenItems=null` y `preOrdenTotal=null`, indicando que la reserva no tiene pre-orden asociada.\n**Pre-condición:** `clienteToken` disponible. Fecha {{fechaPreorden}} con disponibilidad.\n**Resultado esperado:** HTTP 201. `preOrdenItems` es null o ausente. `preOrdenTotal` es null.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva sin pre-orden creada exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('preOrdenItems es null cuando la reserva no tiene pre-orden', () => {",
+                          "  pm.expect(r.preOrdenItems).to.be.null;",
+                          "});",
+                          "",
+                          "pm.test('preOrdenTotal es null cuando la reserva no tiene pre-orden', () => {",
+                          "  pm.expect(r.preOrdenTotal).to.be.null;",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 2\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-07 CA-01 – Menú especial con exactamente 11 personas (frontera superior) → ESPECIAL – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-01 (frontera)\n**Objetivo:** Verificar el valor de frontera superior del umbral del menú especial: 11 personas debe superar el límite de 10 y permitir la creación con menú especial.\n**Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1) activo. Zona id=1 con capacidad en {{fechaPreorden}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`. `numeroPersonas=11`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Menú especial con 11 personas (frontera) creado exitosamente', () => pm.response.to.have.status(201));",
+                          "",
+                          "const r = pm.response.json().data;",
+                          "",
+                          "pm.test('Con 11 personas el menú especial es válido y la reserva es ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El número de personas retornado es 11', () => pm.expect(r.numeroPersonas).to.eql(11));"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 11,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 11,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [2]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-17 Pre-orden vacía []: preOrdenItems y preOrdenTotal son null – 201 Created",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 2,\n  \"preOrden\": []\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con pre-orden vacía creada exitosamente', () => pm.response.to.have.status(201));",
+                          "const r = pm.response.json().data;",
+                          "pm.test('preOrden vacía ([]) equivale a sin pre-orden: preOrdenItems es null', () => {",
+                          "    pm.expect(r.preOrdenItems).to.be.null;",
+                          "});",
+                          "pm.test('preOrdenTotal es null cuando la lista de pre-orden es vacía', () => {",
+                          "    pm.expect(r.preOrdenTotal).to.be.null;",
+                          "});",
+                          "pm.test('La reserva se clasifica como BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "RP-PO-18 Mezcla ítem normal + ítem con descripción: preOrdenTotal incluye ambos – 201 Created",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    {\n      \"productoId\": 1,\n      \"cantidad\": 2\n    },\n    {\n      \"productoId\": 36,\n      \"cantidad\": 1,\n      \"descripcion\": \"Hamburguesa Al Toro - sin cebolla\"\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Reserva con mezcla de ítems creada exitosamente', () => pm.response.to.have.status(201));",
+                          "const r = pm.response.json().data;",
+                          "pm.test('preOrdenItems contiene 2 elementos (ítem normal + ítem con descripción)', () => {",
+                          "    pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(2);",
+                          "});",
+                          "pm.test('La descripción libre se conserva en el ítem correspondiente', () => {",
+                          "    const itemConDesc = r.preOrdenItems.find(i => i.descripcion != null);",
+                          "    pm.expect(itemConDesc).to.not.be.undefined;",
+                          "    pm.expect(itemConDesc.descripcion).to.eql('Hamburguesa Al Toro - sin cebolla');",
+                          "});",
+                          "pm.test('preOrdenTotal es 57000: suma ambos ítems (2×$16.000 Don Tostón + 1×$25.000 Hamburguesa Al Toro)', () => {",
+                          "    pm.expect(r.preOrdenTotal).to.eql(57000);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "RP-PO-19 Menú especial sin opcionesModificacion (campo ausente): aceptado – 201 Created",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 12,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 12,\n      \"esMenuEspecial\": true\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Menú especial sin opciones aceptado', () => pm.response.to.have.status(201));",
+                          "const r = pm.response.json().data;",
+                          "pm.test('La reserva se clasifica como ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('preOrdenItems contiene el menú especial (productoId=132)', () => {",
+                          "    pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "    pm.expect(r.preOrdenItems[0].productoId).to.eql(132);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "RP-PO-20 Menú especial con opcionesModificacion vacías []: aceptado sin opciones – 201 Created",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaPreorden}}\",\n  \"numeroPersonas\": 12,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 133,\n      \"cantidad\": 12,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": []\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 201 – Menú especial con lista de opciones vacía aceptado', () => pm.response.to.have.status(201));",
+                          "const r = pm.response.json().data;",
+                          "pm.test('La reserva se clasifica como ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
+                          "pm.test('El estado es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('preOrdenItems contiene el menú especial (productoId=133)', () => {",
+                          "    pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);",
+                          "    pm.expect(r.preOrdenItems[0].productoId).to.eql(133);",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             },
@@ -1557,15 +2186,15 @@
                   }
                 },
                 {
-                  "name": "RP-14 Token de rol no permitido (ADMIN) – 403 Forbidden",
-                  "description": "**Criterio de Aceptación:** RP-14\n**Objetivo:** Verificar que el sistema deniega la creación de reservas cuando el token corresponde a un rol distinto de CLIENTE (ADMIN), retornando un error de autorización.\n**Pre-condición:** El token de ADMIN debe estar disponible en `{{accessToken}}`.\n**Resultado esperado:** HTTP 403 con `success=false`.",
+                  "name": "RP-14 Token de rol no permitido (MESERO) – 403 Forbidden",
+                  "description": "**Criterio de Aceptación:** RP-14\n**Objetivo:** Verificar que el sistema deniega la creación de reservas cuando el token corresponde a un rol no autorizado (MESERO). Solo CLIENTE, CAJERO y ADMIN pueden crear reservas.\n**Pre-condición:** El token de MESERO debe estar disponible en `{{meseroToken}}`.\n**Resultado esperado:** HTTP 403 con `success=false`.",
                   "event": [
                     {
                       "listen": "test",
                       "script": {
                         "type": "text/javascript",
                         "exec": [
-                          "pm.test('Status 403 – Rol ADMIN no puede crear reservas', () => pm.response.to.have.status(403));",
+                          "pm.test('Status 403 – Rol MESERO no puede crear reservas', () => pm.response.to.have.status(403));",
                           "",
                           "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
                         ]
@@ -1581,7 +2210,7 @@
                       },
                       {
                         "key": "Authorization",
-                        "value": "Bearer {{accessToken}}"
+                        "value": "Bearer {{meseroToken}}"
                       }
                     ],
                     "body": {
@@ -1865,6 +2494,178 @@
                       ]
                     }
                   }
+                },
+                {
+                  "name": "RP-PO-08 Pre-orden: productoId nulo – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** Validación Bean\n**Objetivo:** Verificar que el campo `productoId` dentro de cada ítem de pre-orden es obligatorio; su ausencia debe generar un error de validación antes de ejecutar lógica de negocio.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – productoId nulo en pre-orden rechazado por validación', () => pm.response.to.have.status(422));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": null, \"cantidad\": 2 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-09 Pre-orden: cantidad nula – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** Validación Bean\n**Objetivo:** Verificar que el campo `cantidad` dentro de cada ítem de pre-orden es obligatorio; enviarlo como null debe generar un error de validación.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – cantidad nula en pre-orden rechazado por validación', () => pm.response.to.have.status(422));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": null }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-10 Pre-orden: cantidad = 0 (debajo del mínimo) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** Validación Bean (@Min=1)\n**Objetivo:** Verificar que el campo `cantidad` rechaza el valor 0, ya que el mínimo permitido es 1. Valor de frontera inferior inválido.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – cantidad=0 rechazada (mínimo es 1)', () => pm.response.to.have.status(422));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": 0 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-11 Pre-orden: cantidad = 251 (excede el máximo) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** Validación Bean (@Max=250)\n**Objetivo:** Verificar que el campo `cantidad` rechaza valores superiores a 250. Valor de frontera superior inválido: 251 debe ser rechazado.\n**Pre-condición:** `clienteToken` disponible.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – cantidad=251 rechazada (máximo es 250)', () => pm.response.to.have.status(422));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": 1, \"cantidad\": 251 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
                 }
               ]
             },
@@ -2084,8 +2885,14 @@
                   "request": {
                     "method": "POST",
                     "header": [
-                      { "key": "Content-Type", "value": "application/json" },
-                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
                     ],
                     "body": {
                       "mode": "raw",
@@ -2093,8 +2900,13 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas",
-                      "host": [ "{{baseUrl}}" ],
-                      "path": [ "api", "reservas" ]
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
                     }
                   }
                 },
@@ -2283,6 +3095,22 @@
                   "description": "**Criterio de Aceptación:** CA-03\n**Objetivo:** Verificar que la capacidad acumulada se calcula por día completo, no por franja horaria. La Zona Romántica está llena el 2026-12-16 ({{fechaCapacidad}}); intentar agregar una persona a las 18:00 del mismo día debe fallar porque la suma diaria sigue siendo 6/6.\n**Pre-condición:** CAP-1 y CAP-3 ejecutados. Zona id=7 con 6/6 personas el 2026-12-16.\n**Resultado esperado:** HTTP 422 (capacidad diaria agotada independientemente de la hora).\n> **⚠ Dependencia secuencial:** Requiere CAP-1 y CAP-3 ejecutados. Nota: la fecha `2026-12-16T18:00:00` coincide con el día de {{fechaCapacidad}} y está dentro del horario de atención.",
                   "event": [
                     {
+                      "listen": "prerequest",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "// {{fechaCapacidad}} debe tener formato ISO-8601, ej. 2026-12-16T19:00:00.",
+                          "// Se extrae la parte de fecha y se asigna hora 18:00 para probar que",
+                          "// la capacidad se acumula por día, no por hora.",
+                          "const fechaCapacidad = pm.environment.get('fechaCapacidad');",
+                          "if (fechaCapacidad) {",
+                          "    const datePart = fechaCapacidad.split('T')[0];",
+                          "    pm.environment.set('fechaCapacidadHoraAlternativa', datePart + 'T18:00:00');",
+                          "}"
+                        ]
+                      }
+                    },
+                    {
                       "listen": "test",
                       "script": {
                         "type": "text/javascript",
@@ -2308,7 +3136,7 @@
                     ],
                     "body": {
                       "mode": "raw",
-                      "raw": "{\n  \"fechaHoraLlegada\": \"2026-12-16T18:00:00\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 7\n}"
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaCapacidadHoraAlternativa}}\",\n  \"numeroPersonas\": 1,\n  \"zonaId\": 7\n}"
                     },
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas",
@@ -2833,12 +3661,28 @@
                   ],
                   "request": {
                     "method": "GET",
-                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaDia}}",
-                      "host": ["{{baseUrl}}"],
-                      "path": ["api", "reservas", "disponibilidad"],
-                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaDia}}" }]
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaBloqueadaDia}}"
+                        }
+                      ]
                     }
                   }
                 },
@@ -2865,8 +3709,14 @@
                   "request": {
                     "method": "POST",
                     "header": [
-                      { "key": "Content-Type", "value": "application/json" },
-                      { "key": "Authorization", "value": "Bearer {{clienteToken}}" }
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
                     ],
                     "body": {
                       "mode": "raw",
@@ -2874,8 +3724,13 @@
                     },
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas",
-                      "host": ["{{baseUrl}}"],
-                      "path": ["api", "reservas"]
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
                     }
                   }
                 },
@@ -2899,12 +3754,28 @@
                   ],
                   "request": {
                     "method": "GET",
-                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaFranja}}",
-                      "host": ["{{baseUrl}}"],
-                      "path": ["api", "reservas", "disponibilidad"],
-                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaFranja}}" }]
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaBloqueadaFranja}}"
+                        }
+                      ]
                     }
                   }
                 },
@@ -2928,12 +3799,28 @@
                   ],
                   "request": {
                     "method": "GET",
-                    "header": [{ "key": "Authorization", "value": "Bearer {{clienteToken}}" }],
+                    "header": [
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
                     "url": {
                       "raw": "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaFranjaFuera}}",
-                      "host": ["{{baseUrl}}"],
-                      "path": ["api", "reservas", "disponibilidad"],
-                      "query": [{ "key": "fechaHora", "value": "{{fechaBloqueadaFranjaFuera}}" }]
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas",
+                        "disponibilidad"
+                      ],
+                      "query": [
+                        {
+                          "key": "fechaHora",
+                          "value": "{{fechaBloqueadaFranjaFuera}}"
+                        }
+                      ]
                     }
                   }
                 },
@@ -2986,6 +3873,352 @@
                       ]
                     }
                   }
+                },
+                {
+                  "name": "RP-PO-12 CA-01 – Menú especial con exactamente 10 personas (frontera inválida) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-01\n**Objetivo:** Verificar el valor de frontera del umbral del menú especial: exactamente 10 personas debe ser rechazado porque la regla exige MÁS de 10 (≥11). Es el valor inválido en la frontera.\n**Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1, esMenuEspecial=TRUE) activo.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona el menú especial o el límite de personas.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Menú especial con 10 personas rechazado (CA-01 frontera)', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje menciona el menú especial o el límite de personas', () => {",
+                          "  const msg = body.message.toLowerCase();",
+                          "  pm.expect(msg).to.satisfy(m => m.includes('especial') || m.includes('10'), 'El mensaje debe describir la restricción');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 10,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 10,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [1]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-13 CA-01 – Menú especial con 9 personas (por debajo del umbral) – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-01\n**Objetivo:** Verificar que el sistema rechaza la selección de menú especial cuando el número de personas es 9, claramente por debajo del umbral mínimo de 11.\n**Pre-condición:** `clienteToken` disponible. Producto id=132 activo.\n**Resultado esperado:** HTTP 422 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Menú especial con 9 personas rechazado (CA-01)', () => pm.response.to.have.status(422));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 9,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 9,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [1]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-14 CA-05 – Dos ítems con esMenuEspecial=true en la misma reserva – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-05\n**Objetivo:** Verificar que el sistema rechaza la pre-orden cuando contiene más de un ítem con `esMenuEspecial=true`. Solo se permite un menú especial por reserva.\n**Pre-condición:** `clienteToken` disponible. Productos id=132 (Menú 1) e id=133 (Menú 3) activos. 15 personas (supera el umbral de 10).\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona la restricción de un menú especial.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Dos menús especiales rechazados (CA-05)', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje menciona la restricción de un menú especial por reserva', () => {",
+                          "  pm.expect(body.message.toLowerCase()).to.satisfy(m => m.includes('un') || m.includes('especial'), 'El mensaje debe indicar la restricción');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 15,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 15,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [1]\n    },\n    {\n      \"productoId\": 133,\n      \"cantidad\": 15,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [2]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-15 CA-07 – Opción de modificación que no pertenece al menú seleccionado – 422 Unprocessable Entity",
+                  "description": "**Criterio de Aceptación:** CA-07\n**Objetivo:** Verificar que el sistema rechaza una opción de modificación no vinculada al producto de menú especial seleccionado. El Menú 1 (id=132) solo acepta opciones BEBIDA (ids 1-4); la opción id=5 (SALSA_PROTEINA_1) es exclusiva de los menús de doble proteína (8a-8d).\n**Pre-condición:** `clienteToken` disponible. El par producto_id=132 + opcion_id=5 no existe en `producto_opcion_modificacion`.\n**Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona 'pertenece al menú'.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 422 – Opción inválida para el menú seleccionado rechazada (CA-07)', () => pm.response.to.have.status(422));",
+                          "",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "",
+                          "pm.test('El mensaje menciona que la opción no pertenece al menú', () => {",
+                          "  pm.expect(body.message.toLowerCase()).to.satisfy(m => m.includes('pertenece') || m.includes('menú') || m.includes('opción'), 'El mensaje debe indicar la incompatibilidad');",
+                          "});"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 11,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 11,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [5]\n    }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-16 Pre-orden: producto inexistente (id=9999) – 404 Not Found",
+                  "description": "**Criterio de Aceptación:** CA-01 (negativo)\n**Objetivo:** Verificar que cuando la pre-orden referencia un producto que no existe en la base de datos, el sistema retorna 404 y la transacción completa se revierte (la reserva no queda guardada).\n**Pre-condición:** `clienteToken` disponible. No existe ningún producto con id=9999.\n**Resultado esperado:** HTTP 404 con `success=false`.",
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "pm.test('Status 404 – Producto id=9999 en pre-orden retorna 404', () => pm.response.to.have.status(404));",
+                          "pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);"
+                        ]
+                      }
+                    }
+                  ],
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 3,\n  \"preOrden\": [\n    { \"productoId\": 9999, \"cantidad\": 2 }\n  ]\n}"
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  }
+                },
+                {
+                  "name": "RP-PO-21 Pre-orden: producto inactivo – 422 Unprocessable Entity",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 2,\n  \"preOrden\": [\n    {\n      \"productoId\": {{idProductoInactivo}},\n      \"cantidad\": 1\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "// Requiere {{idProductoInactivo}} en el environment con el ID de un producto INACTIVO.",
+                          "pm.test('Status 422 – Producto inactivo en pre-orden rechazado', () => pm.response.to.have.status(422));",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "pm.test('El mensaje menciona que el producto no está disponible', () => {",
+                          "    pm.expect(body.message.toLowerCase()).to.satisfy(",
+                          "        m => m.includes('disponible') || m.includes('activo'),",
+                          "        'El mensaje debe indicar que el producto no está disponible'",
+                          "    );",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
+                },
+                {
+                  "name": "RP-PO-22 CA-05+CA-01 – Dos menús especiales con 10 personas: error indica “un menú” – 422 Unprocessable Entity",
+                  "request": {
+                    "method": "POST",
+                    "header": [
+                      {
+                        "key": "Content-Type",
+                        "value": "application/json"
+                      },
+                      {
+                        "key": "Authorization",
+                        "value": "Bearer {{clienteToken}}"
+                      }
+                    ],
+                    "body": {
+                      "mode": "raw",
+                      "raw": "{\n  \"fechaHoraLlegada\": \"{{fechaLibre}}\",\n  \"numeroPersonas\": 10,\n  \"zonaId\": 1,\n  \"preOrden\": [\n    {\n      \"productoId\": 132,\n      \"cantidad\": 10,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [\n        1\n      ]\n    },\n    {\n      \"productoId\": 133,\n      \"cantidad\": 10,\n      \"esMenuEspecial\": true,\n      \"opcionesModificacion\": [\n        2\n      ]\n    }\n  ]\n}",
+                      "options": {
+                        "raw": {
+                          "language": "json"
+                        }
+                      }
+                    },
+                    "url": {
+                      "raw": "{{baseUrl}}/api/reservas",
+                      "host": [
+                        "{{baseUrl}}"
+                      ],
+                      "path": [
+                        "api",
+                        "reservas"
+                      ]
+                    }
+                  },
+                  "event": [
+                    {
+                      "listen": "test",
+                      "script": {
+                        "type": "text/javascript",
+                        "exec": [
+                          "// Viola CA-05 (2 menús especiales) y CA-01 (≤10 personas).",
+                          "// La validación de cantidad (CA-05) precede a la de umbral (CA-01),",
+                          "// por lo que el mensaje siempre menciona la restricción de 'un menú'.",
+                          "pm.test('Status 422 – Dos menús especiales con 10 personas rechazado', () => pm.response.to.have.status(422));",
+                          "const body = pm.response.json();",
+                          "pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);",
+                          "pm.test('El mensaje reporta la restricción de CA-05 (un menú por reserva), no la de CA-01', () => {",
+                          "    pm.expect(body.message.toLowerCase()).to.satisfy(",
+                          "        m => m.includes('un') || m.includes('especial'),",
+                          "        'El mensaje debe indicar la restricción de un solo menú especial'",
+                          "    );",
+                          "});"
+                        ]
+                      }
+                    }
+                  ]
                 }
               ]
             }
