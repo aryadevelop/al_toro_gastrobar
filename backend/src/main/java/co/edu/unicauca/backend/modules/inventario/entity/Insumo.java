@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.inventario.entity;
 
 import co.edu.unicauca.backend.shared.entity.AuditableEntity;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
+import co.edu.unicauca.backend.shared.enums.TipoInsumo;
 import co.edu.unicauca.backend.shared.enums.UnidadMedida;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
@@ -52,6 +53,12 @@ public class Insumo extends AuditableEntity {
     @Enumerated(EnumType.STRING)
     @Column(name = "insumo_estado", nullable = false, length = 20)
     private EstadoGenerico insumoEstado;
+
+    @NotNull(message = "El tipo de insumo es obligatorio")
+    @Enumerated(EnumType.STRING)
+    @Column(name = "tipo_insumo", nullable = false, length = 20)
+    @Builder.Default
+    private TipoInsumo tipoInsumo = TipoInsumo.MATERIA_PRIMA;
 
     @Override
     public boolean equals(Object o) {

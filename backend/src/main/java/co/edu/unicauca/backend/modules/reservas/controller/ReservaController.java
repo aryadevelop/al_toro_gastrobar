@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
@@ -59,6 +60,20 @@ public class ReservaController {
         ReservaResponse response = reservaService.crearReserva(userDetails.getUsername(), request);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Reserva creada exitosamente", response));
+    }
+
+    /**
+     * Retorna el detalle completo de la pre-orden de una reserva.
+     * Accesible por CAJERO y MESERO para pre-cargar la comanda al atender al cliente.
+     */
+    @GetMapping("/{id}/preorden")
+    @PreAuthorize("hasAnyRole('CAJERO', 'MESERO', 'ADMIN')")
+    @Operation(summary = "Obtener pre-orden de una reserva")
+    public ResponseEntity<ApiResponse<List<PreOrdenDetalleResponse>>> obtenerPreOrden(
+            @PathVariable Long id) {
+
+        List<PreOrdenDetalleResponse> response = reservaService.obtenerPreOrden(id);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     /**

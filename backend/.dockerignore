@@ -17,6 +17,7 @@ data/
 
 # Archivos de git
 .git/
+.claude/
 .gitignore
 
 # Documentacion

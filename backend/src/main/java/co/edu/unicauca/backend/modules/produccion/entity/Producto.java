@@ -67,6 +67,10 @@ public class Producto extends AuditableEntity {
     @Column(name = "producto_categoria", nullable = false, length = 20)
     private CategoriaProducto productoCategoria;
 
+    @Size(max = 500, message = "La descripción no debe exceder 500 caracteres")
+    @Column(name = "producto_descripcion", length = 500)
+    private String productoDescripcion;
+
     @Column(name = "menu_especial")
     private Boolean menuEspecial;
 

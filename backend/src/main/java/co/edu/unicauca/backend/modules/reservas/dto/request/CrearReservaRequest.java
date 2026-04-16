@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.reservas.dto.request;
 
+import jakarta.validation.Valid;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -7,6 +8,7 @@ import lombok.NoArgsConstructor;
 import lombok.Setter;
 
 import java.time.LocalDateTime;
+import java.util.List;
 
 /**
  * Payload que envía el frontend al crear una nueva reserva.
@@ -31,4 +33,8 @@ public class CrearReservaRequest {
 
     /** Notas adicionales del cliente */
     private String notas;
+
+    /** Ítems de pre-orden opcionales. Null o vacío = sin pre-orden. */
+    @Valid
+    private List<PreOrdenItemRequest> preOrden;
 }

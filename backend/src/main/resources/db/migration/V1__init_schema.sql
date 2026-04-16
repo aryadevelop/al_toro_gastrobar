@@ -118,7 +118,7 @@ CREATE TABLE Zona (
     CONSTRAINT chk_zona_capacidad CHECK (zona_capacidad_personas > 0)
 );
 
-COMMENT ON TABLE Zona IS 'Zonas del restaurante (terraza, salón, VIP, etc.)';
+COMMENT ON TABLE Zona IS 'Zonas del restaurante';
 
 -- Tabla Decoracion
 CREATE TABLE Decoracion (
@@ -135,7 +135,7 @@ CREATE TABLE Decoracion (
 
 COMMENT ON TABLE Decoracion IS 'Tipos de decoración disponibles para reservas especiales';
 
--- Tabla Decoracion_Zona (relación muchos a muchos)
+-- Tabla Decoracion_Zona
 CREATE TABLE Decoracion_Zona (
     decoracion_id BIGINT NOT NULL,
     zona_id BIGINT NOT NULL,
@@ -294,6 +294,7 @@ CREATE TABLE Producto (
     producto_id BIGSERIAL PRIMARY KEY,
     categoriacarta_id INTEGER NOT NULL,
     producto_nombre VARCHAR(100) NOT NULL,
+    producto_descripcion VARCHAR(500),
     producto_estado VARCHAR(20) NOT NULL,
     producto_precio DECIMAL(12,2) NOT NULL,
     producto_tipo VARCHAR(20) NOT NULL,
@@ -324,11 +325,13 @@ CREATE TABLE Insumo (
     insumo_unidad VARCHAR(20) NOT NULL,
     insumo_stock_actual DECIMAL(12,3) NOT NULL DEFAULT 0,
     insumo_estado VARCHAR(20) NOT NULL,
+    tipo_insumo   VARCHAR(20) NOT NULL DEFAULT 'MATERIA_PRIMA',
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_insumo_unidad CHECK (insumo_unidad IN ('KG', 'G', 'L', 'ML', 'UNIDAD', 'DOCENA', 'OTRO')),
     CONSTRAINT chk_insumo_estado CHECK (insumo_estado IN ('ACTIVO', 'INACTIVO')),
-    CONSTRAINT chk_insumo_stock CHECK (insumo_stock_actual >= 0)
+    CONSTRAINT chk_insumo_tipo   CHECK (tipo_insumo IN ('MATERIA_PRIMA', 'SEMIELABORADO')),
+    CONSTRAINT chk_insumo_stock  CHECK (insumo_stock_actual >= 0)
 );
 
 COMMENT ON TABLE Insumo IS 'Insumos para preparación de productos';
@@ -396,6 +399,24 @@ CREATE TABLE Comanda (
 
 COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra';
 
+-- Tabla PreOrden_Detalle
+CREATE TABLE PreOrden_Detalle (
+    preorden_detalle_id BIGSERIAL PRIMARY KEY,
+    reserva_id BIGINT NOT NULL,
+    producto_id BIGINT NOT NULL,
+    preorden_detalle_cantidad INTEGER NOT NULL,
+    preorden_detalle_descripcion VARCHAR(500),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_preorden_reserva FOREIGN KEY (reserva_id)
+        REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
+    CONSTRAINT fk_preorden_producto FOREIGN KEY (producto_id)
+        REFERENCES Producto(producto_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_preorden_cantidad CHECK (preorden_detalle_cantidad > 0 AND preorden_detalle_cantidad <= 250)
+);
+
+COMMENT ON TABLE PreOrden_Detalle IS 'Pre-orden de productos asociados a una reserva';
+COMMENT ON COLUMN PreOrden_Detalle.preorden_detalle_descripcion IS 'Null = ítem normal; "Producto - modificación libre" = ítem con ajuste cuyo precio define el cajero al crear la comanda';
+
 -- Tabla Comanda_Detalle
 CREATE TABLE Comanda_Detalle (
     comanda_detalle_id BIGSERIAL PRIMARY KEY,
@@ -403,34 +424,97 @@ CREATE TABLE Comanda_Detalle (
     producto_id BIGINT NOT NULL,
     comanda_detalle_cantidad INTEGER NOT NULL,
     comanda_detalle_precio DECIMAL(12,2) NOT NULL,
-    comanda_detalle_nombre VARCHAR(500),
+    comanda_detalle_descripcion VARCHAR(500),
+    preorden_detalle_id BIGINT DEFAULT NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_comanda_detalle_comanda FOREIGN KEY (comanda_id)
         REFERENCES Comanda(comanda_id) ON DELETE CASCADE,
     CONSTRAINT fk_comanda_detalle_producto FOREIGN KEY (producto_id)
         REFERENCES Producto(producto_id) ON DELETE RESTRICT,
+    CONSTRAINT fk_comanda_detalle_preorden FOREIGN KEY (preorden_detalle_id)
+        REFERENCES PreOrden_Detalle(preorden_detalle_id) ON DELETE SET NULL,
     CONSTRAINT chk_comanda_detalle_cantidad CHECK (comanda_detalle_cantidad > 0),
     CONSTRAINT chk_comanda_detalle_precio CHECK (comanda_detalle_precio >= 0)
 );
 
+COMMENT ON COLUMN Comanda_Detalle.preorden_detalle_id IS 'FK nullable: presente cuando la línea de comanda proviene de una pre-orden. NULL = pedido tomado en mesa sin pre-orden.';
 COMMENT ON TABLE Comanda_Detalle IS 'Detalle de productos en cada comanda';
 
--- Tabla PreOrden_Detalle
-CREATE TABLE PreOrden_Detalle (
-    preorden_detalle_id BIGSERIAL PRIMARY KEY,
-    reserva_id BIGINT NOT NULL,
-    producto_id BIGINT NOT NULL,
-    preorden_detalle_cantidad INTEGER NOT NULL,
-    preorden_detalle_nombre VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_preorden_reserva FOREIGN KEY (reserva_id)
-        REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
-    CONSTRAINT fk_preorden_producto FOREIGN KEY (producto_id)
-        REFERENCES Producto(producto_id) ON DELETE RESTRICT,
-    CONSTRAINT chk_preorden_cantidad CHECK (preorden_detalle_cantidad > 0)
+-- Tabla opcion_modificacion
+CREATE TABLE opcion_modificacion (
+    opcion_id       BIGSERIAL    PRIMARY KEY,
+    tipo_componente VARCHAR(30)  NOT NULL,
+    opcion_nombre   VARCHAR(150) NOT NULL,
+    opcion_estado   VARCHAR(20)  NOT NULL DEFAULT 'ACTIVO',
+    created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at      TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT chk_opcion_tipo_componente CHECK (tipo_componente IN
+               ('ARROZ','PROTEINA','SALSA','SALSA_PROTEINA_1','SALSA_PROTEINA_2',
+                'ACOMPAÑAMIENTO','BEBIDA','ENSALADA','OTRO')),
+    CONSTRAINT chk_opcion_estado CHECK (opcion_estado IN ('ACTIVO','INACTIVO'))
 );
 
-COMMENT ON TABLE PreOrden_Detalle IS 'Pre-orden de productos asociados a una reserva';
+COMMENT ON TABLE opcion_modificacion IS 'Opciones predefinidas de modificación por componente para menús especiales';
+COMMENT ON COLUMN opcion_modificacion.tipo_componente IS 'Agrupa modificaciones por tipo de componente del plato (ej. proteína, salsa, acompañamiento) para facilitar su asignación a productos y selección en pre-orden';
+
+-- Tabla producto_opcion_modificacion
+CREATE TABLE producto_opcion_modificacion (
+    producto_id BIGINT NOT NULL,
+    opcion_id   BIGINT NOT NULL,
+    created_at  TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (producto_id, opcion_id),
+    CONSTRAINT fk_prod_opcion_producto FOREIGN KEY (producto_id)
+        REFERENCES Producto(producto_id) ON DELETE CASCADE,
+    CONSTRAINT fk_prod_opcion_opcion   FOREIGN KEY (opcion_id)
+        REFERENCES opcion_modificacion(opcion_id) ON DELETE CASCADE
+);
+
+COMMENT ON TABLE producto_opcion_modificacion IS 'Define qué opciones de modificación ofrece cada menú especial';
+
+-- Tabla preorden_menu_modificacion
+CREATE TABLE preorden_menu_modificacion (
+    id                  BIGSERIAL PRIMARY KEY,
+    preorden_detalle_id BIGINT    NOT NULL,
+    opcion_id           BIGINT    NOT NULL,
+    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_preorden_menu_mod_detalle FOREIGN KEY (preorden_detalle_id)
+        REFERENCES PreOrden_Detalle(preorden_detalle_id) ON DELETE CASCADE,
+    CONSTRAINT fk_preorden_menu_mod_opcion  FOREIGN KEY (opcion_id)
+        REFERENCES opcion_modificacion(opcion_id) ON DELETE RESTRICT
+);
+
+COMMENT ON TABLE preorden_menu_modificacion IS 'Modificaciones seleccionadas por el cliente para un ítem de menú especial';
+
+-- =====================================================
+-- BLOQUEOS DE DISPONIBILIDAD
+-- Permite al administrador inhabilitar fechas o franjas horarias.
+-- Si horaInicio/horaFin son NULL, el bloqueo aplica al día completo.
+-- =====================================================
+
+CREATE TABLE Bloque_Disponibilidad (
+    bloque_id              BIGSERIAL PRIMARY KEY,
+    bloque_fecha_inicio    DATE        NOT NULL,
+    bloque_fecha_fin       DATE        NOT NULL,
+    bloque_hora_inicio     TIME,
+    bloque_hora_fin        TIME,
+    bloque_motivo          VARCHAR(255),
+    admin_id               BIGINT      NOT NULL,
+    created_at             TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    updated_at             TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT fk_bloque_admin FOREIGN KEY (admin_id)
+        REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_bloque_fechas CHECK (bloque_fecha_fin >= bloque_fecha_inicio),
+    CONSTRAINT chk_bloque_horas  CHECK (
+        (bloque_hora_inicio IS NULL AND bloque_hora_fin IS NULL)
+        OR (bloque_hora_inicio IS NOT NULL AND bloque_hora_fin IS NOT NULL AND bloque_hora_fin > bloque_hora_inicio)
+    )
+);
+
+COMMENT ON TABLE Bloque_Disponibilidad IS 'Franjas de tiempo bloqueadas por el administrador para reservas';
+COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_inicio IS 'Hora de inicio del bloqueo (inclusive). NULL = día completo bloqueado';
+COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_fin IS 'Hora de fin del bloqueo (exclusiva). NULL = día completo bloqueado';
+COMMENT ON COLUMN Bloque_Disponibilidad.admin_id IS 'Empleado administrador activo que creó el bloqueo';
 
 -- =====================================================
 -- ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
@@ -460,8 +544,7 @@ CREATE INDEX idx_reserva_estado ON Reserva(reserva_estado);
 CREATE INDEX idx_reserva_fecha_creacion ON Reserva(reserva_fecha_creacion DESC);
 CREATE INDEX idx_reserva_zona_id ON Reserva(zona_id);
 CREATE INDEX idx_reserva_fecha_estado ON Reserva(reserva_fecha_hora_llegada, reserva_estado);
-CREATE INDEX idx_reserva_activas_hoy ON Reserva(reserva_fecha_hora_llegada, reserva_estado)
-    WHERE reserva_estado IN ('PENDIENTE', 'CONFIRMADA');
+CREATE INDEX idx_reserva_activas_hoy ON Reserva(reserva_fecha_hora_llegada, reserva_estado) WHERE reserva_estado IN ('PENDIENTE', 'CONFIRMADA');
 
 CREATE INDEX idx_abono_reserva_id ON Abono(reserva_id);
 CREATE INDEX idx_abono_cajero_id ON Abono(cajero_id);
@@ -483,8 +566,7 @@ CREATE INDEX idx_notificacion_mesa_id ON Notificacion(mesa_id);
 CREATE INDEX idx_notificacion_empleado_id ON Notificacion(empleado_id);
 CREATE INDEX idx_notificacion_estado ON Notificacion(notificacion_estado);
 CREATE INDEX idx_notificacion_fecha_hora ON Notificacion(notificacion_fecha_hora DESC);
-CREATE INDEX idx_notificacion_activas ON Notificacion(empleado_id, notificacion_fecha_hora DESC)
-    WHERE notificacion_estado = 'ACTIVA';
+CREATE INDEX idx_notificacion_activas ON Notificacion(empleado_id, notificacion_fecha_hora DESC) WHERE notificacion_estado = 'ACTIVA';
 
 CREATE INDEX idx_venta_cajero_id ON Venta(cajero_id);
 CREATE INDEX idx_venta_fecha_hora ON Venta(venta_fecha_hora DESC);
@@ -496,8 +578,7 @@ CREATE INDEX idx_producto_estado ON Producto(producto_estado);
 CREATE INDEX idx_producto_tipo ON Producto(producto_tipo);
 CREATE INDEX idx_producto_categoria ON Producto(producto_categoria);
 CREATE INDEX idx_producto_nombre ON Producto(producto_nombre);
-CREATE INDEX idx_producto_activos ON Producto(categoriacarta_id, producto_nombre)
-    WHERE producto_estado = 'ACTIVO';
+CREATE INDEX idx_producto_activos ON Producto(categoriacarta_id, producto_nombre) WHERE producto_estado = 'ACTIVO';
 
 CREATE INDEX idx_insumo_nombre ON Insumo(insumo_nombre);
 CREATE INDEX idx_insumo_estado ON Insumo(insumo_estado);
@@ -516,14 +597,24 @@ CREATE INDEX idx_comanda_visita_id ON Comanda(visita_id);
 CREATE INDEX idx_comanda_estacion ON Comanda(comanda_estacion);
 CREATE INDEX idx_comanda_estado ON Comanda(comanda_estado);
 CREATE INDEX idx_comanda_fecha_inicio ON Comanda(comanda_fecha_hora_inicio DESC);
-CREATE INDEX idx_comanda_pendientes ON Comanda(comanda_estacion, comanda_fecha_hora_inicio)
-    WHERE comanda_estado IN ('PENDIENTE', 'EN_PREPARACION');
+CREATE INDEX idx_comanda_pendientes ON Comanda(comanda_estacion, comanda_fecha_hora_inicio) WHERE comanda_estado IN ('PENDIENTE', 'EN_PREPARACION');
 
 CREATE INDEX idx_comanda_detalle_comanda_id ON Comanda_Detalle(comanda_id);
 CREATE INDEX idx_comanda_detalle_producto_id ON Comanda_Detalle(producto_id);
+CREATE INDEX idx_comanda_detalle_preorden_id ON Comanda_Detalle(preorden_detalle_id) WHERE preorden_detalle_id IS NOT NULL;
 
 CREATE INDEX idx_preorden_reserva_id ON PreOrden_Detalle(reserva_id);
 CREATE INDEX idx_preorden_producto_id ON PreOrden_Detalle(producto_id);
+
+CREATE INDEX idx_insumo_tipo             ON Insumo(tipo_insumo);
+CREATE INDEX idx_opcion_tipo_componente  ON opcion_modificacion(tipo_componente);
+CREATE INDEX idx_opcion_estado           ON opcion_modificacion(opcion_estado);
+CREATE INDEX idx_prod_opcion_producto_id ON producto_opcion_modificacion(producto_id);
+CREATE INDEX idx_preorden_menu_detalle   ON preorden_menu_modificacion(preorden_detalle_id);
+CREATE INDEX idx_preorden_menu_opcion    ON preorden_menu_modificacion(opcion_id);
+
+CREATE INDEX idx_bloque_fecha_inicio ON Bloque_Disponibilidad(bloque_fecha_inicio);
+CREATE INDEX idx_bloque_fecha_fin    ON Bloque_Disponibilidad(bloque_fecha_fin);
 
 -- =====================================================
 -- FUNCIONES Y TRIGGERS PARA AUDITORÍA
@@ -570,11 +661,80 @@ CREATE TRIGGER trg_producto_updated_at BEFORE UPDATE ON Producto
 CREATE TRIGGER trg_insumo_updated_at BEFORE UPDATE ON Insumo
     FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
+CREATE TRIGGER trg_opcion_modificacion_updated_at BEFORE UPDATE ON opcion_modificacion
+    FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
 CREATE TRIGGER trg_receta_updated_at BEFORE UPDATE ON Receta
     FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
 
 CREATE TRIGGER trg_comanda_updated_at BEFORE UPDATE ON Comanda
     FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
+-- Garantiza coherencia entre Visita.cliente_id y Reserva.cliente_id.
+-- Si cliente_id se omite y hay reserva_id, lo auto-rellena desde la reserva.
+-- Si cliente_id se provee y difiere del de la reserva, lanza excepción.
+CREATE OR REPLACE FUNCTION fn_visita_cliente_consistency()
+RETURNS TRIGGER
+LANGUAGE plpgsql
+AS $$
+DECLARE
+    v_reserva_cliente_id BIGINT;
+BEGIN
+    IF NEW.reserva_id IS NOT NULL THEN
+        SELECT cliente_id
+          INTO v_reserva_cliente_id
+          FROM restaurante.Reserva
+         WHERE reserva_id = NEW.reserva_id;
+
+        IF v_reserva_cliente_id IS NULL THEN
+            RAISE EXCEPTION 'La reserva % no tiene cliente asignado.', NEW.reserva_id;
+        END IF;
+
+        IF NEW.cliente_id IS NULL THEN
+            NEW.cliente_id := v_reserva_cliente_id;
+        ELSIF NEW.cliente_id <> v_reserva_cliente_id THEN
+            RAISE EXCEPTION
+                'Inconsistencia: visita.cliente_id=% no coincide con reserva.cliente_id=% (reserva_id=%).',
+                NEW.cliente_id, v_reserva_cliente_id, NEW.reserva_id
+                USING ERRCODE = 'integrity_constraint_violation';
+        END IF;
+    END IF;
+    RETURN NEW;
+END;
+$$;
+
+COMMENT ON FUNCTION fn_visita_cliente_consistency() IS 'Valida Visita.cliente_id contra Reserva.cliente_id cuando hay reserva_id.';
+
+CREATE TRIGGER trg_visita_cliente_consistency
+BEFORE INSERT OR UPDATE OF reserva_id, cliente_id
+ON restaurante.Visita
+FOR EACH ROW EXECUTE FUNCTION fn_visita_cliente_consistency();
+
+COMMENT ON TRIGGER trg_visita_cliente_consistency ON restaurante.Visita IS 'Garantiza que Visita.cliente_id sea coherente con su Reserva.';
+
+-- Trigger: valida que admin_id corresponda a un empleado con rol ADM activo
+CREATE OR REPLACE FUNCTION validar_bloque_admin()
+RETURNS TRIGGER AS $$
+BEGIN
+    IF NOT EXISTS (
+        SELECT 1 FROM Usuario_Rol
+        WHERE usuario_id = NEW.admin_id
+          AND rol_nombre = 'ADM'
+          AND rol_estado = 'ACTIVO'
+    ) THEN
+        RAISE EXCEPTION 'El usuario % no es un administrador activo', NEW.admin_id;
+    END IF;
+    RETURN NEW;
+END;
+$$ LANGUAGE plpgsql;
+
+CREATE TRIGGER trg_bloque_admin_check
+    BEFORE INSERT OR UPDATE ON Bloque_Disponibilidad
+    FOR EACH ROW EXECUTE FUNCTION validar_bloque_admin();
+
+CREATE TRIGGER trg_bloque_updated_at BEFORE UPDATE ON Bloque_Disponibilidad
+    FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
+
 
 -- =====================================================
 -- VISTAS ÚTILES
@@ -673,64 +833,3 @@ ALTER TABLE Visita SET (autovacuum_vacuum_scale_factor = 0.1);
 ALTER TABLE Comanda SET (autovacuum_vacuum_scale_factor = 0.1);
 ALTER TABLE Notificacion SET (autovacuum_vacuum_scale_factor = 0.1);
 ALTER TABLE Movimiento_Inventario SET (autovacuum_vacuum_scale_factor = 0.1);
-
--- =====================================================
--- BLOQUEOS DE DISPONIBILIDAD
--- Permite al administrador inhabilitar fechas o franjas horarias.
--- Si horaInicio/horaFin son NULL, el bloqueo aplica al día completo.
--- =====================================================
-
-CREATE TABLE Bloque_Disponibilidad (
-    bloque_id              BIGSERIAL PRIMARY KEY,
-    bloque_fecha_inicio    DATE        NOT NULL,
-    bloque_fecha_fin       DATE        NOT NULL,
-    bloque_hora_inicio     TIME,
-    bloque_hora_fin        TIME,
-    bloque_motivo          VARCHAR(255),
-    admin_id               BIGINT      NOT NULL,
-    created_at             TIMESTAMP   NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    updated_at             TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
-
-    CONSTRAINT fk_bloque_admin FOREIGN KEY (admin_id)
-        REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
-    CONSTRAINT chk_bloque_fechas CHECK (bloque_fecha_fin >= bloque_fecha_inicio),
-    CONSTRAINT chk_bloque_horas  CHECK (
-        (bloque_hora_inicio IS NULL AND bloque_hora_fin IS NULL)
-        OR (bloque_hora_inicio IS NOT NULL AND bloque_hora_fin IS NOT NULL AND bloque_hora_fin > bloque_hora_inicio)
-    )
-);
-
-COMMENT ON TABLE Bloque_Disponibilidad IS 'Franjas de tiempo bloqueadas por el administrador para reservas';
-COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_inicio IS 'Hora de inicio del bloqueo (inclusive). NULL = día completo bloqueado';
-COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_fin IS 'Hora de fin del bloqueo (exclusiva). NULL = día completo bloqueado';
-COMMENT ON COLUMN Bloque_Disponibilidad.admin_id IS 'Empleado administrador activo que creó el bloqueo';
-
-CREATE INDEX idx_bloque_fecha_inicio ON Bloque_Disponibilidad(bloque_fecha_inicio);
-CREATE INDEX idx_bloque_fecha_fin    ON Bloque_Disponibilidad(bloque_fecha_fin);
-
--- Trigger: valida que admin_id corresponda a un empleado con rol ADM activo
-CREATE OR REPLACE FUNCTION validar_bloque_admin()
-RETURNS TRIGGER AS $$
-BEGIN
-    IF NOT EXISTS (
-        SELECT 1 FROM Usuario_Rol
-        WHERE usuario_id = NEW.admin_id
-          AND rol_nombre = 'ADM'
-          AND rol_estado = 'ACTIVO'
-    ) THEN
-        RAISE EXCEPTION 'El usuario % no es un administrador activo', NEW.admin_id;
-    END IF;
-    RETURN NEW;
-END;
-$$ LANGUAGE plpgsql;
-
-CREATE TRIGGER trg_bloque_admin_check
-    BEFORE INSERT OR UPDATE ON Bloque_Disponibilidad
-    FOR EACH ROW EXECUTE FUNCTION validar_bloque_admin();
-
-CREATE TRIGGER trg_bloque_updated_at BEFORE UPDATE ON Bloque_Disponibilidad
-    FOR EACH ROW EXECUTE FUNCTION actualizar_updated_at();
-
--- =====================================================
--- FIN DEL SCRIPT
--- =====================================================

@@ -21,6 +21,8 @@ spring:
   # Driver y dialecto PostgreSQL
   datasource:
     driver-class-name: org.postgresql.Driver
+    hikari:
+      connection-init-sql: "SET client_encoding = 'UTF8'"
   jpa:
     database-platform: org.hibernate.dialect.PostgreSQLDialect
     show-sql: false

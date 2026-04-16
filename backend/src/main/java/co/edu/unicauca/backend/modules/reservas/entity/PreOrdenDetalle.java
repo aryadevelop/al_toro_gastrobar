@@ -1,7 +1,6 @@
-package co.edu.unicauca.backend.modules.mesas_comandas.entity;
+package co.edu.unicauca.backend.modules.reservas.entity;
 
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
@@ -48,9 +47,9 @@ public class PreOrdenDetalle {
     @Column(name = "preorden_detalle_cantidad", nullable = false)
     private Integer preordenDetalleCantidad;
 
-    @Size(max = 500, message = "El nombre no debe exceder 500 caracteres")
-    @Column(name = "preorden_detalle_nombre", length = 500)
-    private String preordenDetalleNombre;
+    @Size(max = 500, message = "La descripción no debe exceder 500 caracteres")
+    @Column(name = "preorden_detalle_descripcion", length = 500)
+    private String preordenDetalleDescripcion;
 
     @Column(name = "created_at")
     @Builder.Default

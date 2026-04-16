@@ -1102,8 +1102,8 @@
                   }
                 },
                 {
-                  "name": "RP-05 CA-08 – Grupo de exactamente 10 personas → tipo ESPECIAL – 201 Created",
-                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar que el umbral de clasificación ESPECIAL por número de personas es 10 (inclusive). Una reserva de exactamente 10 personas sin decoración con costo debe clasificarse como ESPECIAL.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad suficiente en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`.",
+                  "name": "RP-05 CA-08 – Grupo de exactamente 10 personas sin decoración con costo → tipo BASICA – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar que el número de personas por sí solo no determina la clasificación. Una reserva de exactamente 10 personas sin decoración con costo debe clasificarse como BASICA.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad suficiente en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`.",
                   "event": [
                     {
                       "listen": "test",
@@ -1114,8 +1114,8 @@
                           "",
                           "const r = pm.response.json().data;",
                           "",
-                          "pm.test('Exactamente 10 personas activa la clasificación ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
-                          "pm.test('El estado inicial de la reserva especial por personas es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));"
+                          "pm.test('10 personas sin decoración con costo → clasificación BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica de 10 personas es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));"
                         ]
                       }
                     }
@@ -1289,8 +1289,8 @@
                   }
                 },
                 {
-                  "name": "RP-09 CA-08 – 11 personas: supera umbral ESPECIAL → tipo ESPECIAL – 201 Created",
-                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar el valor de frontera superior del umbral de clasificación: 11 personas debe resultar en tipo ESPECIAL.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`, `numeroPersonas=11`.",
+                  "name": "RP-09 CA-08 – 11 personas sin decoración con costo → tipo BASICA – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-08\n**Objetivo:** Verificar que el número de personas por sí solo no determina la clasificación. 11 personas sin decoración con costo debe resultar en tipo BASICA.\n**Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad en {{fechaLibre}}.\n**Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `numeroPersonas=11`.",
                   "event": [
                     {
                       "listen": "test",
@@ -1301,8 +1301,8 @@
                           "",
                           "const r = pm.response.json().data;",
                           "",
-                          "pm.test('Con 11 personas la clasificación es ESPECIAL (umbral superado)', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
-                          "pm.test('El estado de la reserva especial de 11 personas es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('Con 11 personas sin decoración con costo la clasificación es BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica de 11 personas es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
                           "pm.test('El número de personas retornado coincide con el enviado (11)', () => pm.expect(r.numeroPersonas).to.eql(11));"
                         ]
                       }
@@ -1449,15 +1449,15 @@
                   }
                 },
                 {
-                  "name": "RP-12 CA-10 – Reserva especial: verificar estructura completa del response – 201 Created",
-                  "description": "**Criterio de Aceptación:** CA-10\n**Objetivo:** Verificar que la respuesta de una reserva especial exitosa incluye todos los campos requeridos adicionales como `decoracionId`, `decoracionNombre`, `zonaId`, `zonaNombre` y que el campo `notas` retorna el valor enviado.\n**Pre-condición:** Decoración id=2 (Cumpleaños Premium) compatible con zona id=3 (VIP). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201 con estructura completa de reserva especial. `tipo=ESPECIAL`, `estado=PENDIENTE`, `decoracionId=2`, campos de nombre de decoración y zona presentes.",
+                  "name": "RP-12 CA-10 – Reserva con decoración y zona: verificar estructura completa del response – 201 Created",
+                  "description": "**Criterio de Aceptación:** CA-10\n**Objetivo:** Verificar que la respuesta de una reserva exitosa con decoración y zona incluye todos los campos requeridos: `decoracionId`, `decoracionNombre`, `zonaId`, `zonaNombre`, `clienteNombre`, `notas` y los campos de auditoría. La decoración id=2 (Cumpleaños Premium, costo=0) sin menú especial clasifica como BASICA.\n**Pre-condición:** Decoración id=2 (Cumpleaños Premium) compatible con zona id=3 (VIP). Fecha {{fechaLibre}} disponible.\n**Resultado esperado:** HTTP 201 con estructura completa del response. `tipo=BASICA`, `estado=CONFIRMADA`, `decoracionId=2`, campos de nombre de decoración y zona presentes.",
                   "event": [
                     {
                       "listen": "test",
                       "script": {
                         "type": "text/javascript",
                         "exec": [
-                          "pm.test('Status 201 – Reserva especial creada exitosamente', () => pm.response.to.have.status(201));",
+                          "pm.test('Status 201 – Reserva con decoración creada exitosamente', () => pm.response.to.have.status(201));",
                           "",
                           "const body = pm.response.json();",
                           "const r = body.data;",
@@ -1465,7 +1465,7 @@
                           "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
                           "pm.test('El campo message está presente y no es vacío', () => pm.expect(body.message).to.be.a('string').and.not.empty);",
                           "",
-                          "pm.test('La respuesta contiene todos los campos obligatorios de una reserva especial', () => {",
+                          "pm.test('La respuesta contiene todos los campos obligatorios del response', () => {",
                           "  pm.expect(r).to.include.keys([",
                           "    'reservaId', 'fechaHoraLlegada', 'numeroPersonas',",
                           "    'estado', 'tipo', 'decoracionId', 'decoracionNombre',",
@@ -1473,8 +1473,8 @@
                           "  ]);",
                           "});",
                           "",
-                          "pm.test('La clasificación de la reserva especial es ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));",
-                          "pm.test('El estado inicial de la reserva especial es PENDIENTE', () => pm.expect(r.estado).to.eql('PENDIENTE'));",
+                          "pm.test('La clasificación es BASICA (decoración sin costo, sin menú especial)', () => pm.expect(r.tipo).to.eql('BASICA'));",
+                          "pm.test('El estado de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));",
                           "pm.test('El decoracionId coincide con el solicitado (Cumpleaños Premium, id=2)', () => pm.expect(r.decoracionId).to.eql(2));",
                           "pm.test('El campo decoracionNombre está presente y no es vacío', () => pm.expect(r.decoracionNombre).to.be.a('string').and.not.empty);",
                           "pm.test('El campo zonaNombre está presente y no es vacío', () => pm.expect(r.zonaNombre).to.be.a('string').and.not.empty);",
