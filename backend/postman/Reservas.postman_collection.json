@@ -567,7 +567,7 @@
         },
         {
           "name": "GET /api/reservas/cliente – Consultar Historial de Reservas",
-          "description": "## Descripción\nEndpoint protegido accesible para CLIENTE, CAJERO, ADM y MESERO.\n- **CLIENTE**: retorna únicamente sus propias reservas.\n- **CAJERO / ADM / MESERO**: retorna el historial completo de todas las reservas del sistema.\nOrdenado por fecha de llegada descendente (la más reciente primero).\n\n## Comportamiento de Control de Acceso\nSolo CLIENTE, CAJERO, ADM y MESERO pueden acceder. Roles como COCINERO retornarán HTTP 403.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RC-01 | Sin token JWT | 401 |\n| RC-02 | Token de rol no permitido (COCINERO) | 403 |\n| RC-03 | Historial con token CLIENTE | 200 |\n| RC-04 | Historial con token CAJERO | 200 |\n| RC-05 | Historial con token MESERO | 200 |\n| RC-06 | Historial con token ADM | 200 |",
+          "description": "## Descripción\nEndpoint protegido accesible únicamente para CLIENTE y ADMIN.\n- **CLIENTE**: retorna sus propias reservas.\n- **ADMIN**: retorna sus propias reservas registradas en el sistema.\nOrdenado por fecha de llegada descendente (la más reciente primero).\n\n## Comportamiento de Control de Acceso\nSolo CLIENTE y ADMIN pueden acceder. Roles como CAJERO, MESERO y COCINERO retornarán HTTP 403.\n\n## Matriz de Casos de Prueba\n| ID | Escenario | HTTP |\n|----|-----------|------|\n| RC-01 | Sin token JWT | 401 |\n| RC-02 | Token de rol no permitido (COCINERO) | 403 |\n| RC-03 | Historial con token CLIENTE | 200 |\n| RC-04 | Token CAJERO – rol no permitido | 403 |\n| RC-05 | Token MESERO – rol no permitido | 403 |\n| RC-06 | Historial con token ADM | 200 |",
           "event": [
             {
               "listen": "prerequest",
@@ -660,7 +660,7 @@
             },
             {
               "name": "RC-02 Token de rol no permitido (COCINERO) – 403 Forbidden",
-              "description": "**Criterio de Aceptación:** RC-02\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde a un rol no autorizado (COCINERO/PRODUCCION). Los roles CLIENTE, CAJERO, ADM y MESERO sí tienen acceso; COCINERO no.\n**Pre-condición:** El token de COCINERO debe estar disponible en `{{cocineroToken}}` (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
+              "description": "**Criterio de Aceptación:** RC-02\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde a un rol no autorizado. Solo CLIENTE y ADMIN tienen acceso; COCINERO, CAJERO y MESERO no.\n**Pre-condición:** El token de COCINERO debe estar disponible en `{{cocineroToken}}` (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
@@ -750,19 +750,17 @@
               }
             },
             {
-              "name": "RC-04 Historial con token CAJERO – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-04\n**Objetivo:** Verificar que un usuario con rol CAJERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema (no solo las del cliente).\n**Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-04 Token CAJERO – 403 Forbidden",
+              "description": "**Criterio de Aceptación:** RC-04\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde al rol CAJERO, ya que este endpoint ahora solo permite CLIENTE y ADMIN.\n**Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Status 200 – CAJERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "pm.test('Status 403 – Rol CAJERO no tiene acceso al historial de reservas', () => pm.response.to.have.status(403));",
                       "",
-                      "const body = pm.response.json();",
-                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
-                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
                     ]
                   }
                 }
@@ -783,19 +781,17 @@
               }
             },
             {
-              "name": "RC-05 Historial con token MESERO – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-05\n**Objetivo:** Verificar que un usuario con rol MESERO puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-05 Token MESERO – 403 Forbidden",
+              "description": "**Criterio de Aceptación:** RC-05\n**Objetivo:** Verificar que el sistema deniega el acceso al historial de reservas cuando el token corresponde al rol MESERO, ya que este endpoint ahora solo permite CLIENTE y ADMIN.\n**Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 403 con `success=false`.",
               "event": [
                 {
                   "listen": "test",
                   "script": {
                     "type": "text/javascript",
                     "exec": [
-                      "pm.test('Status 200 – MESERO accede al historial de reservas', () => pm.response.to.have.status(200));",
+                      "pm.test('Status 403 – Rol MESERO no tiene acceso al historial de reservas', () => pm.response.to.have.status(403));",
                       "",
-                      "const body = pm.response.json();",
-                      "pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);",
-                      "pm.test('El campo data es un array', () => pm.expect(body.data).to.be.an('array'));"
+                      "pm.test('El campo success es false en la respuesta de error', () => pm.expect(pm.response.json().success).to.be.false);"
                     ]
                   }
                 }
@@ -816,8 +812,8 @@
               }
             },
             {
-              "name": "RC-06 Historial con token ADM – 200 OK (todas las reservas)",
-              "description": "**Criterio de Aceptación:** RC-06\n**Objetivo:** Verificar que un usuario con rol ADM puede acceder al historial de reservas y obtiene la lista completa de todas las reservas del sistema.\n**Pre-condición:** `accessToken` (ADM) disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200. `data` es un array.",
+              "name": "RC-06 Historial con token ADM – 200 OK",
+              "description": "**Criterio de Aceptación:** RC-06\n**Objetivo:** Verificar que un usuario con rol ADMIN puede acceder al historial de reservas y obtiene sus propias reservas registradas.\n**Pre-condición:** `accessToken` (ADM) disponible (gestionado por el pre-request del grupo).\n**Resultado esperado:** HTTP 200 con `success=true`. `data` es un array.",
               "event": [
                 {
                   "listen": "test",
