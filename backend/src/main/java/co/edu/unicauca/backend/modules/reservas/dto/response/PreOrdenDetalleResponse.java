@@ -17,7 +17,7 @@ import java.util.List;
  *       {@code null} o lista vacía para ítems normales.</li>
  * </ul>
  *
- * @see PreOrdenItemResumen
+ * @see PreOrdenItemResumenResponse
  */
 @Getter
 @Builder

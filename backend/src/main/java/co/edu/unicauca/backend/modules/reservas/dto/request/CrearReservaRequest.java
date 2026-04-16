@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.dto.request;
 
 import jakarta.validation.Valid;
+import jakarta.validation.constraints.Email;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -30,6 +31,13 @@ import java.util.List;
 @Setter
 @NoArgsConstructor
 public class CrearReservaRequest {
+
+    /**
+     * Correo del cliente para quien se crea la reserva.
+     * Obligatorio cuando quien crea la reserva es CAJERO o ADMIN; ignorado si es CLIENTE.
+     */
+    @Email(message = "El email del cliente no tiene un formato válido")
+    private String emailCliente;
 
     /**
      * Fecha y hora en que el cliente planea llegar al restaurante.

@@ -8,20 +8,6 @@ import java.util.List;
 /**
  * Respuesta al consultar disponibilidad para una fecha y hora determinadas.
  *
- * <p>Ejemplo de respuesta cuando hay disponibilidad:
- * <pre>
- * {
- *   "disponible": true,
- *   "decoraciones": [ { "decoracionId": 3, "nombre": "Romántica", ... } ],
- *   "zonas":        [ { "zonaId": 1, "nombre": "Terraza", "capacidad": 8, ... } ]
- * }
- * </pre>
- *
- * <p>Ejemplo de respuesta sin disponibilidad:
- * <pre>
- * { "disponible": false, "decoraciones": [], "zonas": [] }
- * </pre>
- *
  * <p>Reglas de uso:
  * <ul>
  *   <li>Si {@code disponible} es {@code false}, las listas {@code decoraciones} y {@code zonas}

@@ -481,3 +481,10 @@ INSERT INTO Bloque_Disponibilidad (bloque_fecha_inicio, bloque_fecha_fin, bloque
 -- Bloqueo 3: Cierre por inventario de fin de año — 30 y 31 de diciembre todo el día
 ('2026-12-30', '2026-12-31', NULL, NULL,
  'Cierre por inventario de fin de año', 1);
+
+-- =====================================================
+-- Producto INACTIVO para pruebas (RP-PO-21)
+-- ID esperado: 138 (último de V2 es 137)
+-- =====================================================
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+VALUES (9, 'Producto de Prueba Inactivo', 'INACTIVO', 10000, 'PREPARACION', 'PLATO', FALSE);

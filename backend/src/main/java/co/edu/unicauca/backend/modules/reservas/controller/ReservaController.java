@@ -4,6 +4,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.service.PreOrdenService;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -47,8 +48,8 @@ import java.util.List;
 @Tag(name = "Reservas", description = "Gestión de reservas de clientes")
 public class ReservaController {
 
-    /** Servicio que contiene la lógica de negocio de reservas. */
     private final ReservaService reservaService;
+    private final PreOrdenService preOrdenService;
 
     /**
      * Consulta la disponibilidad de zonas y decoraciones para una fecha y hora dadas.
@@ -83,7 +84,7 @@ public class ReservaController {
      * <p>Solo accesible por usuarios con rol {@code CLIENTE}.
      *
      * @param request    datos de la reserva a crear (fecha, zona, decoración y pre-orden opcional)
-     * @param userDetails principal autenticado del que se extrae el nombre de usuario
+     * @param userDetails principal autenticado del que se extrae el rol y, si aplica, el correo
      * @return respuesta {@code 201 Created} con el detalle de la reserva registrada
      */
     @PostMapping
@@ -99,35 +100,15 @@ public class ReservaController {
     }
 
     /**
-     * Retorna el detalle completo de la pre-orden asociada a una reserva.
+     * Retorna el historial de reservas.
      *
-     * <p>Permite a CAJERO, MESERO y ADMIN consultar los platos anticipados por
-     * el cliente al momento de reservar, facilitando la pre-carga de la comanda
-     * cuando el cliente llega al establecimiento.
+     * <ul>
+     *   <li><b>CLIENTE:</b> retorna únicamente sus propias reservas.</li>
+     *   <li><b>ADMIN:</b> retorna todas las reservas del sistema.</li>
+     * </ul>
      *
-     * @param id identificador de la reserva cuya pre-orden se desea consultar
-     * @return lista de ítems de la pre-orden con cantidades y detalles de cada plato
-     */
-    @GetMapping("/{id}/preorden")
-    @PreAuthorize("hasAnyRole('CAJERO', 'MESERO', 'ADMIN')")
-    @Operation(summary = "Obtener pre-orden de una reserva")
-    public ResponseEntity<ApiResponse<List<PreOrdenDetalleResponse>>> obtenerPreOrden(
-            @PathVariable Long id) {
-
-        List<PreOrdenDetalleResponse> response = reservaService.obtenerPreOrden(id);
-        return ResponseEntity.ok(ApiResponse.ok(response));
-    }
-
-    /**
-     * Retorna el historial de reservas del cliente autenticado.
-     *
-     * <p>El cliente se identifica a partir del {@link UserDetails} del contexto de seguridad;
-     * el ADMIN puede consultar el historial de cualquier cliente pasando su nombre de usuario.
-     *
-     * <p>Solo accesible por usuarios con rol {@code CLIENTE} o {@code ADMIN}.
-     *
-     * @param userDetails principal autenticado del que se extrae el nombre de usuario
-     * @return lista de reservas del cliente autenticado
+     * @param userDetails principal autenticado del que se extrae el rol y correo
+     * @return lista de reservas según el rol del usuario autenticado
      */
     @GetMapping("/cliente")
     @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
@@ -135,7 +116,13 @@ public class ReservaController {
     public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerHistorialCliente(
             @AuthenticationPrincipal UserDetails userDetails) {
 
-        List<ReservaResponse> response = reservaService.obtenerReservasCliente(userDetails.getUsername());
+        boolean esAdmin = userDetails.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+
+        List<ReservaResponse> response = esAdmin
+                ? reservaService.obtenerTodasLasReservas()
+                : reservaService.obtenerReservasCliente(userDetails.getUsername());
+
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

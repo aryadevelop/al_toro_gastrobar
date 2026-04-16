@@ -8,17 +8,6 @@ import java.math.BigDecimal;
 /**
  * Resumen de un ítem de pre-orden incluido dentro de {@link ReservaResponse}.
  *
- * <p>Ejemplo de estructura JSON:
- * <pre>
- * {
- *   "productoId": 12,
- *   "productoNombre": "Bandeja Paisa",
- *   "cantidad": 2,
- *   "precioUnitario": 28000.00,
- *   "descripcion": "Bandeja Paisa - sin huevo"
- * }
- * </pre>
- *
  * <p>Reglas de uso:
  * <ul>
  *   <li>{@code descripcion} es {@code null} para ítems sin modificación libre;
@@ -30,7 +19,7 @@ import java.math.BigDecimal;
  */
 @Getter
 @Builder
-public class PreOrdenItemResumen {
+public class PreOrdenItemResumenResponse {
 
     /** Identificador del producto. */
     private Long productoId;

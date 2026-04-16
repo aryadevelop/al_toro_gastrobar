@@ -9,27 +9,6 @@ import java.util.List;
 /**
  * Representación completa de una reserva devuelta al cliente tras crearla o consultarla.
  *
- * <p>Ejemplo de estructura JSON:
- * <pre>
- * {
- *   "reservaId": 101,
- *   "fechaHoraLlegada": "2026-05-10T19:30:00",
- *   "numeroPersonas": 4,
- *   "estado": "PENDIENTE",
- *   "tipo": "CON_PREORDEN",
- *   "decoracionId": 3,
- *   "decoracionNombre": "Romántica",
- *   "zonaId": 1,
- *   "zonaNombre": "Terraza",
- *   "notas": "Alergia al mariscos",
- *   "fechaCreacion": "2026-04-15T10:00:00",
- *   "clienteId": 55,
- *   "clienteNombre": "Ana Gómez",
- *   "preOrdenItems": [ ... ],
- *   "preOrdenTotal": 45000.00
- * }
- * </pre>
- *
  * <p>Reglas de uso:
  * <ul>
  *   <li>{@code decoracionId}, {@code decoracionNombre}, {@code zonaId} y {@code zonaNombre}
@@ -38,7 +17,7 @@ import java.util.List;
  *   <li>{@code preOrdenTotal} es {@code null} cuando no hay pre-orden.</li>
  * </ul>
  *
- * @see PreOrdenItemResumen
+ * @see PreOrdenItemResumenResponse
  */
 @Getter
 @Builder
@@ -87,7 +66,7 @@ public class ReservaResponse {
      * Resumen de los ítems de la pre-orden asociada a la reserva.
      * {@code null} o lista vacía cuando la reserva no incluye pre-orden.
      */
-    private List<PreOrdenItemResumen> preOrdenItems;
+    private List<PreOrdenItemResumenResponse> preOrdenItems;
 
     /**
      * Suma total del valor de la pre-orden.
