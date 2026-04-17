@@ -1,0 +1,34 @@
+$kind: http-request
+name: PA-03 puntosAcumulados refleja cierre de cuenta previo – 200 OK (CA-04)
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-04
+  **Objetivo:** Verificar que después de que el cajero cierre la cuenta de una visita, los puntos reflejan el incremento correspondiente (1 punto por visita cerrada).
+  **Pre-condición:** Una visita del cliente fue cerrada por caja previamente (ejecutar cierre de cuenta en la colección `pagos_caja` antes de este request). El snapshot `puntosAcumuladosSnapshot` fue capturado en PA-01 antes del cierre.
+  **Dependencia secuencial:** Ejecutar PA-01 → cerrar cuenta en pagos_caja → ejecutar PA-03.
+  **Resultado esperado:** 200 OK · `data.puntosAcumulados = puntosAcumuladosSnapshot + 1` · `data.puntosActuales = puntosActualesSnapshot + 1`.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('puntosAcumulados se incrementó en 1 tras el cierre de cuenta (CA-04)', function() {
+        var snapshotAcumulados = parseInt(pm.environment.get('puntosAcumuladosSnapshot') || '0');
+        var actual = pm.response.json().data.puntosAcumulados;
+        pm.expect(actual).to.eql(snapshotAcumulados + 1);
+      });
+      pm.test('puntosActuales se incrementó en 1 tras el cierre de cuenta (CA-04)', function() {
+        var snapshotActuales = parseInt(pm.environment.get('puntosActualesSnapshot') || '0');
+        var actual = pm.response.json().data.puntosActuales;
+        pm.expect(actual).to.eql(snapshotActuales + 1);
+      });
+      pm.environment.unset('puntosActualesSnapshot');
+      pm.environment.unset('puntosAcumuladosSnapshot');
+    language: text/javascript
+order: 3000

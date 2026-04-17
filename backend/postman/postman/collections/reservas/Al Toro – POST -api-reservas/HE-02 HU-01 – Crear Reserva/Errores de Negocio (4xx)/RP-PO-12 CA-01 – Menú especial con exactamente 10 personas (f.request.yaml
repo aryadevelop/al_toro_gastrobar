@@ -1,0 +1,42 @@
+$kind: http-request
+name: RP-PO-12 CA-01 – Menú especial con exactamente 10 personas (frontera inválida) – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar el valor de frontera del umbral del menú especial: exactamente 10 personas debe ser rechazado porque la regla exige MÁS de 10 (≥11). Es el valor inválido en la frontera.
+  **Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1, esMenuEspecial=TRUE) activo.
+  **Resultado esperado:** HTTP 422 con `success=false` y mensaje que menciona el menú especial o el límite de personas.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 10,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 10,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Menú especial con 10 personas rechazado (CA-01 frontera)', () => pm.response.to.have.status(422));
+
+      const body = pm.response.json();
+      pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);
+
+      pm.test('El mensaje menciona el menú especial o el límite de personas', () => {
+        const msg = body.message.toLowerCase();
+        pm.expect(msg).to.satisfy(m => m.includes('especial') || m.includes('10'), 'El mensaje debe describir la restricción');
+      });
+    language: text/javascript
+order: 27000

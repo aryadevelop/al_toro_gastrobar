@@ -1,0 +1,55 @@
+$kind: collection
+name: Al Toro – POST /api/clientes/{clienteId}/canje-puntos
+description: |-
+  Canjea los puntos actuales del cliente: resetea `puntosActuales` a 0 y registra la auditoría en `canje_puntos`. `puntosAcumulados` no cambia.
+
+  **Encabezados requeridos:** `Authorization: Bearer {{cajeroToken}}` o `{{adminToken}}`
+
+  **Parámetros de ruta:**
+  ```
+  clienteId: Long
+  ```
+
+  **Parámetros de query:**
+  ```
+  emailEmpleado: string (email del cajero o admin que ejecuta el canje)
+  ```
+
+  **Comportamientos especiales:**
+  - Falla con 422 si `puntosActuales == 0`.
+  - `puntosAcumulados` nunca disminuye, ni siquiera tras el canje (es contador de vida).
+  - El canje registra auditoría en la tabla `canje_puntos` con los puntos canjeados y el empleado que los canjeó.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | PC-01 | Canje exitoso con puntos disponibles | 200 |
+  | PC-02 | puntosActuales = 0 al canjear | 422 |
+  | PC-03 | puntosAcumulados no cambia tras el canje | 200 |
+  | PC-04 | ID de cliente inexistente | 404 |
+  | PC-05 | Email de empleado inexistente | 404 |
+  | PC-06 | Token de CLIENTE (sin permisos) | 403 |
+  | PC-07 | Sin token de autenticación | 401 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CAJERO – cajeroToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CAJERO falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('cajeroToken', res.json().accessToken);
+      });
+    language: text/javascript

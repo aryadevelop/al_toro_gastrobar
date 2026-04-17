@@ -1,0 +1,32 @@
+$kind: http-request
+name: RP-NEW-01 fechaHoraLlegada en el pasado – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** @Future en fechaHoraLlegada
+  **Objetivo:** Verificar que el sistema rechaza reservas con fecha en el pasado gracias a la validación @Future del DTO.
+  **Pre-condición:** Fecha enviada (2020-01-01T19:00:00) es claramente anterior a la fecha actual.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "2020-01-01T19:00:00",
+      "numeroPersonas": 2,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": null
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza fecha pasada con HTTP 422', function() {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 28000

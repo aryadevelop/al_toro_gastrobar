@@ -1,0 +1,66 @@
+$kind: collection
+name: Al Toro – GET /api/clientes/{clienteId}/puntos
+description: |-
+  Retorna los puntos actuales y acumulados de cualquier cliente identificado por su ID. Solo accesible por CAJERO o ADMIN.
+
+  **Encabezados requeridos:** `Authorization: Bearer {{cajeroToken}}` o `{{adminToken}}`
+
+  **Parámetros de ruta:**
+  ```
+  clienteId: Long
+  ```
+
+  **Campos de `ClientePuntosResponse`:** `puntosActuales`, `puntosAcumulados`
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | PB-01 | CAJERO consulta puntos de cliente existente | 200 |
+  | PB-02 | ADMIN consulta puntos de cliente existente | 200 |
+  | PB-03 | ID de cliente inexistente | 404 |
+  | PB-04 | Token de CLIENTE (sin permisos para este endpoint) | 403 |
+  | PB-05 | Sin token de autenticación | 401 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CAJERO – cajeroToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CAJERO falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('cajeroToken', res.json().accessToken);
+      });
+
+      // Login autónomo de ADMIN – adminToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('adminToken', res.json().accessToken);
+      });
+    language: text/javascript

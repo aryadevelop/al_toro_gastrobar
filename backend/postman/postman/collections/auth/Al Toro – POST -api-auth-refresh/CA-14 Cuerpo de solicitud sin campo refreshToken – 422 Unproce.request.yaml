@@ -1,0 +1,30 @@
+$kind: http-request
+name: CA-14 Cuerpo de solicitud sin campo refreshToken – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** CA-14
+  **Objetivo:** Verificar que el campo `refreshToken` está marcado como obligatorio (`@NotBlank`) y que enviar un valor vacío resulta en un error de validación.
+  **Pre-condición:** Ninguna sesión activa requerida.
+  **Resultado esperado:** HTTP 422 con código `VAL-001` y mensaje indicando que el refresh token es obligatorio.
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refreshToken": ""
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Campo refreshToken vacío', () => pm.response.to.have.status(422));
+
+      const body = pm.response.json();
+
+      pm.test('Código VAL-001', () => pm.expect(body.code).to.eql('VAL-001'));
+
+      pm.test('Mensaje indica que el refresh token es obligatorio', () =>
+        pm.expect(body.message).to.include('El refresh token es obligatorio'));
+    language: text/javascript
+order: 3000

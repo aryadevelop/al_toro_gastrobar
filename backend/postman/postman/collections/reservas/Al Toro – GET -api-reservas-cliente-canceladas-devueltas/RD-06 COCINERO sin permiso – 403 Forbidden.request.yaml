@@ -1,0 +1,24 @@
+$kind: http-request
+name: RD-06 COCINERO (rol PRODUCCION) sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE` y `ADMIN`. Los roles `COCINERO` y `BARTENDER` se mapean al rol funcional
+  `PRODUCCION` (ver `RoleMapper`) y deben ser rechazados con 403.
+  **Objetivo:** Verificar que un usuario con rol `PRODUCCION` autenticado correctamente NO
+  puede consultar el endpoint de reservas canceladas/devueltas.
+  **Pre-condición:** `cocineroToken` disponible (gestionado por el pre-request del folder).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/cliente/canceladas-devueltas?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{cocineroToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol PRODUCCION (COCINERO)', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 6000

@@ -1,0 +1,38 @@
+$kind: http-request
+name: "RP-PO-17 Pre-orden vacía []: preOrdenItems y preOrdenTotal son null – 201 Created"
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: json
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 2,
+      "preOrden": []
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con pre-orden vacía creada exitosamente', () => pm.response.to.have.status(201));
+      const postData = pm.response.json().data;
+      pm.test('La reserva se clasifica como BASICA', () => pm.expect(postData.tipo).to.eql('BASICA'));
+      pm.test('El estado es CONFIRMADA', () => pm.expect(postData.estado).to.eql('CONFIRMADA'));
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrden vacía ([]) equivale a sin pre-orden: preOrdenItems es null', () => {
+          pm.expect(r.preOrdenItems == null).to.be.true;
+        });
+        pm.test('preOrdenTotal es null cuando la lista de pre-orden es vacía', () => {
+          pm.expect(r.preOrdenTotal == null).to.be.true;
+        });
+      });
+    language: text/javascript
+order: 20000

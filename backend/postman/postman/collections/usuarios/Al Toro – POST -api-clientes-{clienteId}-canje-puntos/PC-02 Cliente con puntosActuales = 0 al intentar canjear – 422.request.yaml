@@ -1,0 +1,28 @@
+$kind: http-request
+name: PC-02 Cliente con puntosActuales = 0 al intentar canjear – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** Validación de saldo para canje
+  **Objetivo:** Verificar que el sistema rechaza el canje cuando `puntosActuales == 0`.
+  **Pre-condición:** El cliente ya fue canjeado en PC-01 (puntosActuales = 0). Ejecutar PC-01 primero.
+  **Dependencia secuencial:** Ejecutar PC-01 antes de este request.
+  **Resultado esperado:** 422 Unprocessable Entity · mensaje indica que el cliente no tiene puntos para canjear.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el canje sin puntos disponibles con 422', function() {
+        pm.response.to.have.status(422);
+      });
+      pm.test('El mensaje de error indica ausencia de puntos para canjear', function() {
+        var msg = pm.response.json().message || '';
+        pm.expect(msg.toLowerCase()).to.satisfy(function(m) {
+          return m.includes('punto') || m.includes('canjear');
+        });
+      });
+    language: text/javascript
+order: 2000

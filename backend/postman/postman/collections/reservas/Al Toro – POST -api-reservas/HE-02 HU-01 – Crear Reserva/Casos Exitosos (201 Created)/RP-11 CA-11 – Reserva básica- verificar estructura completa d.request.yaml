@@ -1,0 +1,48 @@
+$kind: http-request
+name: "RP-11 CA-11 – Reserva básica: verificar estructura completa del response – 201 Created"
+description: |-
+  **Criterio de Aceptación:** CA-11
+  **Objetivo:** Verificar que la respuesta de una reserva básica exitosa incluye todos los campos requeridos por el frontend para renderizar el resumen de la reserva, incluyendo datos del cliente y el campo `notas` con el valor exacto enviado.
+  **Pre-condición:** `clienteToken` disponible. Zona id=2 (Terraza) con capacidad en {{fechaLibre}}.
+  **Resultado esperado:** HTTP 201 con `success=true`. La respuesta incluye `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`, `fechaCreacion`, `clienteId`, `clienteNombre` y `notas` con valor `Mesa junto a la ventana`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 3,
+      "zonaId": 2,
+      "notas": "Mesa junto a la ventana"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva básica creada exitosamente', () => pm.response.to.have.status(201));
+
+      const body = pm.response.json();
+      const r = body.data;
+
+      pm.test('El campo success es true', () => pm.expect(body.success).to.be.true);
+      pm.test('El campo message está presente y no es vacío', () => pm.expect(body.message).to.be.a('string').and.not.empty);
+
+      pm.test('La respuesta contiene todos los campos obligatorios de una reserva básica', () => {
+        pm.expect(r).to.include.keys([
+          'reservaId', 'fechaHoraLlegada', 'numeroPersonas',
+          'estado', 'tipo', 'clienteId', 'clienteNombre'
+        ]);
+      });
+
+      pm.test('El reservaId es un número positivo', () => pm.expect(r.reservaId).to.be.a('number').and.above(0));
+      pm.test('El campo clienteNombre está presente y no es vacío', () => pm.expect(r.clienteNombre).to.be.a('string').and.not.empty);
+      pm.test('El campo notas está presente en la respuesta', () => pm.expect(r).to.have.property('notas'));
+      pm.test('El valor de notas coincide con el enviado en el body', () => pm.expect(r.notas).to.eql('Mesa junto a la ventana'));
+      pm.test('La clasificación de la reserva es BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));
+      pm.test('El estado de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));
+    language: text/javascript
+order: 11000

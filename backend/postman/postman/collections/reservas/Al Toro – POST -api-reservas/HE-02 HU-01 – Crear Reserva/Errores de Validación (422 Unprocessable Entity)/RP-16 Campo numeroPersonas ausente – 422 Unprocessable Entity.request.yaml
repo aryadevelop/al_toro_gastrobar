@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** RP-16
+  **Objetivo:** Verificar que el campo `numeroPersonas` es obligatorio y que su ausencia resulta en un error de validación.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** HTTP 422.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 422 – Campo numeroPersonas ausente', () => pm.response.to.have.status(422));
+    language: text/javascript
+order: 6000

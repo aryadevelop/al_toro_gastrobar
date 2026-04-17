@@ -1,0 +1,35 @@
+$kind: http-request
+name: RP-PO-13 CA-01 – Menú especial con 9 personas (por debajo del umbral) – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar que el sistema rechaza la selección de menú especial cuando el número de personas es 9, claramente por debajo del umbral mínimo de 11.
+  **Pre-condición:** `clienteToken` disponible. Producto id=132 activo.
+  **Resultado esperado:** HTTP 422 con `success=false`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 9,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 9,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Menú especial con 9 personas rechazado (CA-01)', () => pm.response.to.have.status(422));
+      pm.test('El campo success es false', () => pm.expect(pm.response.json().success).to.be.false);
+    language: text/javascript
+order: 28000

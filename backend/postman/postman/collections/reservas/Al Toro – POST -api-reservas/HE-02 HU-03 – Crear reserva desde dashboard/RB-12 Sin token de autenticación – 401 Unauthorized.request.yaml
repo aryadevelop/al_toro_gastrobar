@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Control de acceso
+  **Objetivo:** Verificar que el endpoint rechaza peticiones sin Authorization.
+  **Pre-condición:** No se incluye encabezado Authorization.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 2,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": null
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza creación sin token con 401', function() {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 12000

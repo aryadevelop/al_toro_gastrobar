@@ -1,0 +1,50 @@
+$kind: collection
+name: Al Toro – GET /api/clientes/me/puntos
+description: |-
+  Retorna los puntos actuales (canjeables) y acumulados (históricos) del cliente identificado por su email.
+
+  **Criterios de Aceptación cubiertos:** CA-03 (visualización de puntos) y CA-04 (verificación del estado tras cierre de cuenta).
+
+  **Encabezados requeridos:** `Authorization: Bearer {{clienteToken}}`
+
+  **Parámetros de query:**
+  ```
+  emailCliente: string (email del cliente autenticado)
+  ```
+
+  **Campos de `ClientePuntosResponse`:**
+  - `puntosActuales` — saldo canjeable; entero ≥ 0
+  - `puntosAcumulados` — contador histórico; entero ≥ 0 y siempre ≥ `puntosActuales`
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | PA-01 | Cliente con puntos acumulados (CA-03) | 200 |
+  | PA-02 | Cliente sin puntos (ambos campos = 0) | 200 |
+  | PA-03 | Puntos actuales reflejan cierre de cuenta previo (CA-04) | 200 |
+  | PA-04 | Email de cliente inexistente | 404 |
+  | PA-05 | Sin token de autenticación | 401 |
+  | PA-06 | Token de rol CAJERO (no CLIENTE) | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CLIENTE – clienteToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('clienteToken', res.json().accessToken);
+      });
+    language: text/javascript

@@ -1,0 +1,28 @@
+$kind: http-request
+name: CA-10 Sesión activa en otro dispositivo (override=false) – 409 Conflict
+description: |-
+  **Criterio de Aceptación:** CA-10
+  **Objetivo:** Verificar que cuando el parámetro `forceSessionOverride` es `false` y existe una sesión activa, el sistema retorna un conflicto con un mensaje que invita al usuario a confirmar el cierre de la sesión previa.
+  **Pre-condición:** Debe existir una sesión activa para el usuario admin@altoro.com (creada por CA-01 o CA-09).
+  **Resultado esperado:** HTTP 409 con mensaje de sesión activa en otro dispositivo.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailAdmin}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": false
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 409 – Sesión activa detectada', () => pm.response.to.have.status(409));
+
+      pm.test('Mensaje informativo de sesión activa en otro dispositivo', () =>
+        pm.expect(pm.response.json().message).to.eql('Ya tienes una sesión activa. ¿Deseas cerrar la otra sesión y continuar?'));
+    language: text/javascript
+order: 10000

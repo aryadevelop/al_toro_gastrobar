@@ -1,0 +1,51 @@
+$kind: http-request
+name: RB-07 Más de un menú especial en la pre-orden – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** Validación pre-orden — un solo menú especial por reserva
+  **Objetivo:** Verificar que el sistema rechaza cuando hay más de un ítem con esMenuEspecial=true.
+  **Pre-condición:** 2 ítems con esMenuEspecial=true; 15 personas (cumple el mínimo).
+  **Resultado esperado:** 422 Unprocessable Entity · mensaje indica un solo menú especial por reserva.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "2026-12-21T19:00:00",
+      "numeroPersonas": 15,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 15,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        },
+        {
+          "productoId": 133,
+          "cantidad": 15,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza más de un menú especial con 422', function() {
+        pm.response.to.have.status(422);
+      });
+      pm.test('El mensaje de error menciona la restricción de un solo menú especial', function() {
+        var msg = pm.response.json().message || '';
+        pm.expect(msg.toLowerCase()).to.include('menú especial');
+      });
+    language: text/javascript
+order: 7000

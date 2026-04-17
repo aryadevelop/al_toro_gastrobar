@@ -1,0 +1,27 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Consulta de puntos por cajero
+  **Objetivo:** Verificar que un CAJERO puede consultar los puntos de cualquier cliente por ID y la respuesta contiene los dos campos del programa de fidelización.
+  **Pre-condición:** `clienteIdConPuntos` existe en base de datos con `puntosActuales > 0`.
+  **Resultado esperado:** 200 OK · `data.puntosActuales` ≥ 0 · `data.puntosAcumulados` ≥ `data.puntosActuales`.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta contiene puntosActuales y puntosAcumulados', function() {
+        var data = pm.response.json().data;
+        pm.expect(data).to.have.property('puntosActuales');
+        pm.expect(data).to.have.property('puntosAcumulados');
+      });
+      pm.test('puntosAcumulados es mayor o igual a puntosActuales', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.puntosAcumulados).to.be.at.least(data.puntosActuales);
+      });
+    language: text/javascript
+order: 1000

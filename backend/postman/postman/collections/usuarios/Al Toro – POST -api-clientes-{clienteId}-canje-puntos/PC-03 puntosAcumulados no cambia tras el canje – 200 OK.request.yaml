@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Invariante de puntosAcumulados
+  **Objetivo:** Verificar que tras el canje `puntosAcumulados` conserva exactamente el mismo valor que tenía antes (es contador de vida, no canjeable).
+  **Pre-condición:** PC-01 ejecutado; `acumuladosAntesDelCanje` capturado en pre-request de PC-01.
+  **Dependencia secuencial:** Ejecutar PC-01 antes de este request.
+  **Resultado esperado:** 200 OK · `data.puntosAcumulados == acumuladosAntesDelCanje`.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('puntosAcumulados no cambia tras el canje (invariante de vida)', function() {
+        var antesDelCanje = parseInt(pm.environment.get('acumuladosAntesDelCanje') || '-1');
+        var despuesDelCanje = pm.response.json().data.puntosAcumulados;
+        pm.expect(despuesDelCanje).to.eql(antesDelCanje);
+      });
+      pm.environment.unset('acumuladosAntesDelCanje');
+    language: text/javascript
+order: 3000

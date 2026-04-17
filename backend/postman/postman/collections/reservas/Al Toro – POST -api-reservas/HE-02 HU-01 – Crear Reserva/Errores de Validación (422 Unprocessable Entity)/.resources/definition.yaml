@@ -1,0 +1,13 @@
+$kind: collection
+description: |-
+  Agrupa los casos en los que el backend debe rechazar la solicitud por incumplimiento de las restricciones de validación de campos (Bean Validation), antes de ejecutar cualquier lógica de negocio. Estos casos son independientes entre sí y del estado de la base de datos.
+
+  ## Campos Obligatorios del Body
+  | Campo | Tipo | Restricción |
+  |-------|------|-------------|
+  | fechaHoraLlegada | String (ISO-8601) | Requerido, no nulo |
+  | numeroPersonas | Integer | Requerido, mínimo 1 |
+  | zonaId | Integer | Opcional |
+  | decoracionId | Integer | Opcional |
+  | notas | String | Opcional |
+order: 2000

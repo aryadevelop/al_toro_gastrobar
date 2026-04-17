@@ -1,0 +1,44 @@
+$kind: http-request
+name: RP-NEW-03 esMenuEspecial=true con producto no especial – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** Validación menu_especial contra BD
+  **Objetivo:** Verificar que el sistema rechaza una pre-orden donde se marca esMenuEspecial=true para un producto que no es menú especial en la base de datos (productoId=1, Don Tostón, menu_especial=FALSE).
+  **Pre-condición:** Producto ID 1 (Don Tostón) tiene menu_especial=FALSE en la BD; fechaLibre disponible; 12 personas.
+  **Resultado esperado:** 422 Unprocessable Entity · mensaje indica que el producto no es un menú especial.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 12,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 12,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": []
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza producto no especial marcado como menú especial con 422', function() {
+        pm.response.to.have.status(422);
+      });
+      pm.test('El mensaje indica que el producto no es un menú especial', function() {
+        const msg = pm.response.json().message || '';
+        pm.expect(msg.toLowerCase()).to.include('menú especial');
+      });
+    language: text/javascript
+order: 29000

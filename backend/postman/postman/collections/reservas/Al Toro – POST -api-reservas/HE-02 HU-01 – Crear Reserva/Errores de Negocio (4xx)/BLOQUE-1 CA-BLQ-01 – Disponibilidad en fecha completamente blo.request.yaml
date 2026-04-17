@@ -1,0 +1,24 @@
+$kind: http-request
+name: BLOQUE-1 CA-BLQ-01 – Disponibilidad en fecha completamente bloqueada (Navidad) → disponible=false – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-BLQ-01
+  **Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la fecha solicitada está completamente bloqueada por el administrador (bloqueo sin franja horaria = día completo). En los datos de prueba, el 25 de diciembre de 2026 está bloqueado como 'Cierre por festividad de Navidad'.
+  **Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-25. `clienteToken` disponible.
+  **Resultado esperado:** HTTP 200. `data.disponible=false`, listas vacías.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaDia}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{fechaBloqueadaDia}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));
+
+      const d = pm.response.json().data;
+      pm.test('disponible=false para fecha completamente bloqueada (Navidad 2026-12-25)', () => pm.expect(d.disponible).to.be.false);
+      pm.test('zonas está vacío al estar bloqueada la fecha', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);
+      pm.test('decoraciones está vacío al estar bloqueada la fecha', () => pm.expect(d.decoraciones).to.be.an('array').and.be.empty);
+    language: text/javascript
+order: 22000

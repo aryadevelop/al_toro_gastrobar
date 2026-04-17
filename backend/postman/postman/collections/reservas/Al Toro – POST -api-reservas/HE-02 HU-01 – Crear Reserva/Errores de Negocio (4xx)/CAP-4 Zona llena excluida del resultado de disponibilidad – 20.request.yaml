@@ -1,0 +1,25 @@
+$kind: http-request
+name: CAP-4 Zona llena excluida del resultado de disponibilidad – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-03
+  **Objetivo:** Verificar que una zona que ha alcanzado su capacidad máxima acumulada (6/6) no aparece en el listado de zonas disponibles para esa fecha.
+  **Pre-condición:** CAP-1 y CAP-3 deben haberse ejecutado previamente. La Zona Romántica está llena (6/6) en {{fechaCapacidad}}.
+  **Resultado esperado:** HTTP 200. La Zona Romántica (zonaId=7) no aparece en `data.zonas`.
+  > **⚠ Dependencia secuencial:** Requiere CAP-1 y CAP-3 ejecutados.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaCapacidad}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{fechaCapacidad}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Disponibilidad consultada exitosamente', () => pm.response.to.have.status(200));
+
+      const zonas = pm.response.json().data.zonas;
+      const romantica = zonas.find(z => z.zonaId === 7);
+
+      pm.test('La Zona Romántica (id=7) no aparece en disponibilidad al estar llena (6/6)', () => pm.expect(romantica).to.be.undefined);
+    language: text/javascript
+order: 9000

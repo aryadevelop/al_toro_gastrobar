@@ -1,0 +1,52 @@
+$kind: http-request
+name: RP-PO-04 CA-01 – Menú especial simple con 11 personas y opción de bebida → ESPECIAL – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar que una reserva con menú especial (Menú 1, id=132) para más de 10 personas se crea exitosamente, se clasifica como ESPECIAL y la pre-orden incluye la opción de modificación de bebida seleccionada.
+  **Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1, $32.000, esMenuEspecial=TRUE) activo. Opción id=1 (BEBIDA Jugo de Maracuyá) vinculada al producto. Zona id=1 con capacidad en {{fechaPreorden}}.
+  **Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `estado=PENDIENTE`. `preOrdenItems` con 1 elemento.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 11,
+      "zonaId": 1,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 11,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con menú especial creada exitosamente', () => pm.response.to.have.status(201));
+
+      const postData = pm.response.json().data;
+
+      pm.test('La reserva con menú especial se clasifica como ESPECIAL', () => pm.expect(postData.tipo).to.eql('ESPECIAL'));
+      pm.test('El estado de una reserva especial es PENDIENTE', () => pm.expect(postData.estado).to.eql('PENDIENTE'));
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrdenItems contiene el menú especial seleccionado', () => {
+          pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);
+          pm.expect(r.preOrdenItems[0].productoId).to.eql(132);
+        });
+      });
+    language: text/javascript
+order: 16000

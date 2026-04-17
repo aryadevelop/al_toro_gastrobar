@@ -1,0 +1,48 @@
+$kind: http-request
+name: "RP-PO-01 Pre-orden: 1 producto regular – 201 Created"
+description: |-
+  **Criterio de Aceptación:** CA-01 (negativo)
+  **Objetivo:** Verificar que una reserva básica se crea exitosamente cuando la pre-orden incluye un único producto regular (sin menú especial). La respuesta debe contener `preOrdenItems` con 1 elemento y `preOrdenTotal` calculado correctamente.
+  **Pre-condición:** `clienteToken` disponible. Producto id=1 (Don Tostón, $16.000) activo. Fecha {{fechaPreorden}} con disponibilidad.
+  **Resultado esperado:** HTTP 201. `preOrdenItems` no nulo con 1 elemento. `preOrdenTotal` = 32000 (2 × $16.000).
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 3,
+      "preOrden": [
+        { "productoId": 1, "cantidad": 2 }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con pre-orden básica creada exitosamente', () => pm.response.to.have.status(201));
+
+      const postData = pm.response.json().data;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrdenItems está presente y contiene 1 elemento', () => {
+          pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);
+        });
+        pm.test('El ítem incluye productoId, cantidad y precioUnitario', () => {
+          pm.expect(r.preOrdenItems[0]).to.include.keys(['productoId', 'cantidad', 'precioUnitario']);
+        });
+        pm.test('preOrdenTotal es 32000 (2 × $16.000 Don Tostón)', () => {
+          pm.expect(r.preOrdenTotal).to.eql(32000);
+        });
+      });
+    language: text/javascript
+order: 13000

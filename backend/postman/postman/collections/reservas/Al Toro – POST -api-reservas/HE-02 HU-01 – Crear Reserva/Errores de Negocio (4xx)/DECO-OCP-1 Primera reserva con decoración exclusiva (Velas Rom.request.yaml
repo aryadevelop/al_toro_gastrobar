@@ -1,0 +1,31 @@
+$kind: http-request
+name: DECO-OCP-1 Primera reserva con decoración exclusiva (Velas Románticas id=1) – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-03 (precondición)
+  **Objetivo:** Crear la primera reserva con las Velas Románticas (id=1, exclusiva por fecha) para {{fechaDecoracion}}. Este caso es la precondición obligatoria para DECO-OCP-2 y DECO-OCP-3.
+  **Pre-condición:** Decoración id=1 (Velas Románticas) sin reservas en {{fechaDecoracion}}. Zona id=1 disponible.
+  **Resultado esperado:** HTTP 201. `decoracionId=1`.
+  > **⚠ Dependencia secuencial:** DECO-OCP-2 y DECO-OCP-3 deben ejecutarse inmediatamente después.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaDecoracion}}",
+      "numeroPersonas": 2,
+      "decoracionId": 1,
+      "zonaId": 1
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Primera reserva con decoración exclusiva creada exitosamente', () => pm.response.to.have.status(201));
+
+      pm.test('El decoracionNombre coincide con Velas Románticas', () => pm.expect(pm.response.json().data.decoracionNombre).to.eql('Velas Románticas'));
+    language: text/javascript
+order: 11000

@@ -1,0 +1,27 @@
+$kind: http-request
+name: DX-14 Formato de fecha inválido – 400 Bad Request
+description: |-
+  **Criterio de Aceptación:** Validación de entrada — `fechaHora` está tipado como
+  `LocalDateTime` con `@DateTimeFormat(iso = ISO.DATE_TIME)`. Un valor que no cumple el
+  formato `yyyy-MM-dd'T'HH:mm:ss` debe ser rechazado.
+  **Objetivo:** Verificar que el sistema retorna 400 al recibir un formato de fecha inválido.
+  **Pre-condición:** Token CLIENTE disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 400 Bad Request · `success=false`.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=15-12-2026"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "15-12-2026"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Formato de fecha inválido', function () {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('El campo success es false en la respuesta de error', function () {
+        pm.expect(pm.response.json().success).to.be.false;
+      });
+    language: text/javascript
+order: 14000

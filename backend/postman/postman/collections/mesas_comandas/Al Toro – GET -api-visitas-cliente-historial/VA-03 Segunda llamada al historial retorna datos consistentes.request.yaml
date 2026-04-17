@@ -1,0 +1,28 @@
+$kind: http-request
+name: VA-03 Segunda llamada al historial retorna datos consistentes – 200 OK (CA-06)
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-06
+  **Objetivo:** Verificar que el endpoint es idempotente: al recargar la página (segunda llamada GET) el sistema retorna los mismos IDs de visitas en el mismo orden.
+  **Pre-condición:** VA-01 ejecutado previamente; `historialSnapshot` almacenado.
+  **Dependencia secuencial:** Ejecutar VA-01 antes de este request.
+  **Resultado esperado:** 200 OK · los visitaId de la respuesta coinciden con el snapshot capturado en VA-01.
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 en segunda llamada (CA-06)', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Los datos del historial son consistentes entre llamadas consecutivas (CA-06)', function() {
+        var snapshot = JSON.parse(pm.environment.get('historialSnapshot') || '[]');
+        var actual = pm.response.json().data.map(function(v){ return v.visitaId; });
+        pm.expect(JSON.stringify(actual)).to.eql(JSON.stringify(snapshot));
+      });
+      pm.environment.unset('historialSnapshot');
+    language: text/javascript
+order: 3000

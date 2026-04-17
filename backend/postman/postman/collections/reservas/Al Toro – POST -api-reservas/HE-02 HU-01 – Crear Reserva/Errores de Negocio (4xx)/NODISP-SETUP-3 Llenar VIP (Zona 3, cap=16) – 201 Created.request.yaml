@@ -1,0 +1,24 @@
+$kind: http-request
+description: |-
+  **Objetivo:** Reservar toda la capacidad de la Zona VIP (16 personas) para {{fechaTodasOcupadas}}.
+  **Pre-condición:** NODISP-SETUP-2 ejecutado. Zona id=3 (VIP, cap=16) disponible.
+  **Resultado esperado:** HTTP 201.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaTodasOcupadas}}",
+      "numeroPersonas": 16,
+      "zonaId": 3
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 201 – VIP (Zona 3) llenada exitosamente', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 16000

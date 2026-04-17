@@ -1,0 +1,40 @@
+$kind: http-request
+name: RB-03 Reserva especial con decoración de costo adicional – 201 Created (PENDIENTE)
+description: |-
+  **Criterio de Aceptación:** CA-01 (tipo ESPECIAL)
+  **Objetivo:** Verificar que una decoración con costo adicional produce una reserva ESPECIAL en estado PENDIENTE (requiere aprobación administrativa).
+  **Pre-condición:** `idDecoracionZonaFija`=8 tiene costo adicional > 0; `fechaDecoracion` está libre.
+  **Resultado esperado:** 201 Created · `data.estado=PENDIENTE` · `data.tipo=ESPECIAL` · `data.decoracionNombre` no es null.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaDecoracion}}",
+      "numeroPersonas": 3,
+      "zonaId": null,
+      "decoracionId": {{idDecoracionZonaFija}},
+      "notas": null,
+      "preOrden": null
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function() {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva con decoración de costo queda en estado PENDIENTE y tipo ESPECIAL', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.estado).to.eql('PENDIENTE');
+        pm.expect(data.tipo).to.eql('ESPECIAL');
+      });
+      pm.test('La respuesta incluye decoracionNombre', function() {
+        pm.expect(pm.response.json().data.decoracionNombre).to.be.a('string').and.not.be.empty;
+      });
+    language: text/javascript
+order: 3000

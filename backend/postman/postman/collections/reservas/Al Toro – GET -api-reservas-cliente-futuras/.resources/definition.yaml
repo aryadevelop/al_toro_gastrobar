@@ -1,0 +1,97 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/cliente/futuras
+description: |-
+  ## Descripción
+
+  Retorna las reservas con estado `PENDIENTE` o `CONFIRMADA` cuya `fechaHoraLlegada`
+  es posterior al momento de la consulta, **ordenadas ascendentemente por fecha**
+  (la más próxima primero).
+
+  ## Autorización (`@PreAuthorize`)
+
+  El controller solo permite `CLIENTE` y `ADMIN`.
+
+  | Rol (token)               | Rol funcional (RoleMapper) | Resultado esperado            |
+  |---------------------------|----------------------------|-------------------------------|
+  | `CLIENTE` (sí dueño)      | `CLIENTE`                  | 200 (sus propias reservas)    |
+  | `CLIENTE` (otro dueño)    | `CLIENTE`                  | 403 (regla de ownership)      |
+  | `ADM`                     | `ADMIN`                    | 200 (cualquier cliente)       |
+  | `MESERO`                  | `MESERO`                   | 403 (rol no permitido)        |
+  | `CAJERO`                  | `CAJERO`                   | 403 (rol no permitido)        |
+  | `COCINERO` / `BARTENDER`  | `PRODUCCION`               | 403 (rol no permitido)        |
+  | sin token                 | —                          | 401 (no autenticado)          |
+
+  ## Independencia de las pruebas
+
+  Cada caso que necesita una reserva la crea por sí mismo mediante `POST /api/reservas`
+  en su `beforeRequest` con una fecha aleatoria dentro del horario de atención (17:00–21:00)
+  en un año futuro, y limpia `tmpReservaId` en su `afterResponse`. No dependen del orden
+  de ejecución ni de datos insertados por otras pruebas.
+
+  El único caso con dependencia de *seed* es RF-02, que requiere que el usuario
+  `sinhistorial@altoro.com` (variable `emailSinHistorial`) no tenga reservas futuras.
+  Este usuario existe exclusivamente para este propósito en `V3__dev_data.sql`.
+
+  ## Campos esperados en cada elemento
+
+  `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado` (`PENDIENTE|CONFIRMADA`),
+  `tipo` (`BASICA|ESPECIAL`). Opcionales (omitidos por `@JsonInclude(NON_NULL)`):
+  `zonaNombre`, `decoracionNombre`, `notas`, `preOrdenItems`, `preOrdenTotal`,
+  `abonos`, `totalAbonado`.
+
+  ## Matriz de casos
+
+  | ID    | Escenario                                                           | HTTP |
+  |-------|---------------------------------------------------------------------|------|
+  | RF-01 | CLIENTE consulta sus propias reservas futuras                       | 200  |
+  | RF-02 | CLIENTE sin reservas futuras (lista vacía)                          | 200  |
+  | RF-03 | CLIENTE consulta reservas de otro cliente (ownership)               | 403  |
+  | RF-04 | ADMIN consulta reservas futuras de cualquier cliente                | 200  |
+  | RF-05 | Sin token JWT                                                        | 401  |
+  | RF-06 | COCINERO (rol PRODUCCION) sin permiso                               | 403  |
+  | RF-07 | MESERO sin permiso                                                   | 403  |
+  | RF-08 | CAJERO sin permiso                                                   | 403  |
+  | RF-09 | Email de cliente inexistente (con ADMIN, sin conflicto de ownership)| 404  |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente: Postman no garantiza esperar a múltiples
+      // callbacks hermanos de pm.sendRequest antes de disparar la request. Los ejecutamos
+      // uno tras otro mediante una cadena recursiva para evitar race conditions.
+      const logins = [
+        { emailKey: 'emailCliente',            tokenKey: 'clienteToken'      },
+        { emailKey: 'emailClienteSinVisitas',  tokenKey: 'otroClienteToken'  },
+        { emailKey: 'emailSinHistorial',       tokenKey: 'sinHistorialToken' },
+        { emailKey: 'emailMesero',             tokenKey: 'meseroToken'       },
+        { emailKey: 'emailCajero',             tokenKey: 'cajeroToken'       },
+        { emailKey: 'emailAdmin',              tokenKey: 'accessToken'       },
+        { emailKey: 'emailCocinero',           tokenKey: 'cocineroToken'     }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

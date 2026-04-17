@@ -1,0 +1,17 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Control de acceso
+  **Objetivo:** Verificar que el endpoint rechaza peticiones sin Authorization.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la petición sin token con 401', function() {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 7000

@@ -1,0 +1,37 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Consulta de puntos por ADMIN
+  **Objetivo:** Verificar que el rol ADMIN también tiene acceso al endpoint (hasAnyRole CAJERO, ADMIN).
+  **Pre-condición:** Token obtenido con credenciales de administrador; `clienteIdConPuntos` existe.
+  **Resultado esperado:** 200 OK · mismos campos que PB-01.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: [{ key: 'Content-Type', value: 'application/json' }],
+        body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailAdmin'), password: pm.environment.get('passwordValida') }) }
+      }, function(err, res) {
+        if (!err && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 para ADMIN', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta del ADMIN contiene puntosActuales y puntosAcumulados', function() {
+        var data = pm.response.json().data;
+        pm.expect(data).to.have.property('puntosActuales');
+        pm.expect(data).to.have.property('puntosAcumulados');
+      });
+      pm.environment.unset('adminToken');
+    language: text/javascript
+order: 2000

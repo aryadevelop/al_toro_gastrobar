@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-03 (precondición)
+  **Objetivo:** Reservar toda la capacidad de la Terraza (30 personas) para {{fechaTodasOcupadas}}.
+  **Pre-condición:** NODISP-SETUP-1 ejecutado. Zona id=2 (Terraza, cap=30) disponible.
+  **Resultado esperado:** HTTP 201.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaTodasOcupadas}}",
+      "numeroPersonas": 30,
+      "zonaId": 2
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 201 – Terraza (Zona 2) llenada exitosamente', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 15000

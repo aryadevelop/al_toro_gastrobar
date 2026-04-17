@@ -1,0 +1,23 @@
+$kind: http-request
+name: RF-03 CLIENTE consulta reservas futuras de otro cliente – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Regla de ownership — un CLIENTE solo puede consultar sus propias reservas.
+  **Objetivo:** Verificar que el controller rechaza con 403 cuando un CLIENTE envía un
+  `emailCliente` distinto al del token.
+  **Pre-condición:** `clienteToken` autenticado como `emailCliente` (andres.morales).
+  Se consulta un email diferente (`emailClienteSinVisitas`, nicolas.vargas).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{emailClienteSinVisitas}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailClienteSinVisitas}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la consulta de reservas ajenas con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 3000

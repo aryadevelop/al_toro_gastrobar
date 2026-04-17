@@ -1,0 +1,45 @@
+$kind: collection
+name: Al Toro – POST /api/reservas
+description: |-
+  # POST /api/reservas
+
+  Crear una reserva. Combina los casos de HE-02 HU-01 (prefijo `RP-xx`, `CAP-x`, `DECO-OCP-x`, `BLOQUE-x`, `NODISP-*`) y HE-02 HU-03 (prefijo `RB-xx`).
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente: Postman no garantiza esperar a múltiples
+      // callbacks hermanos de pm.sendRequest antes de disparar la request. Los ejecutamos
+      // uno tras otro mediante una cadena recursiva para evitar la race condition.
+      const logins = [
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' },
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

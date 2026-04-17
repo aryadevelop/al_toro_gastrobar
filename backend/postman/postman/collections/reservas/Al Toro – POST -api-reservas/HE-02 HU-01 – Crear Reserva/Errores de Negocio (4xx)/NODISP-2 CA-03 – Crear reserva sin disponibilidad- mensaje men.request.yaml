@@ -1,0 +1,35 @@
+$kind: http-request
+name: "NODISP-2 CA-03 – Crear reserva sin disponibilidad: mensaje menciona 'disponibilidad' – 422 Unprocessable Entity"
+description: |-
+  **Criterio de Aceptación:** CA-03
+  **Objetivo:** Verificar que el sistema rechaza la creación de una reserva cuando no existe ninguna zona con capacidad disponible para la fecha solicitada, retornando un mensaje que orienta al cliente sobre la falta de disponibilidad.
+  **Pre-condición:** NODISP-SETUP-1 a 7 ejecutados. No hay zonas disponibles en {{fechaTodasOcupadas}}.
+  **Resultado esperado:** HTTP 422 con `success=false` y mensaje que incluye la palabra 'disponibilidad'.
+  > **⚠ Dependencia secuencial:** Requiere todos los NODISP-SETUP ejecutados.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaTodasOcupadas}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Reserva rechazada por falta de disponibilidad', () => pm.response.to.have.status(422));
+
+      const body = pm.response.json();
+
+      pm.test('El campo success es false en la respuesta de error', () => pm.expect(body.success).to.be.false);
+
+      pm.test('El mensaje de error menciona la disponibilidad', () => {
+        pm.expect(body.message.toLowerCase()).to.include('disponibilidad');
+      });
+    language: text/javascript
+order: 26000

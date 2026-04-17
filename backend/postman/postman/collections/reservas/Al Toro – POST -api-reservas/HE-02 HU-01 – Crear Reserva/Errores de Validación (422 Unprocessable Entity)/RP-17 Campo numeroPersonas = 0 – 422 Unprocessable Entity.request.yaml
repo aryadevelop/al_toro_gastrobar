@@ -1,0 +1,24 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** RP-17
+  **Objetivo:** Verificar que el sistema rechaza reservas con `numeroPersonas=0` ya que el valor mínimo permitido es 1 (`@Min(1)`).
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** HTTP 422.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 0
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 422 – numeroPersonas=0 no es válido (mínimo es 1)', () => pm.response.to.have.status(422));
+    language: text/javascript
+order: 7000

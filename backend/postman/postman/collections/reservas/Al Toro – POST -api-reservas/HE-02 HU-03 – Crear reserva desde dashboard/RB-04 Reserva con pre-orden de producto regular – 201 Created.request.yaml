@@ -1,0 +1,47 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-01 (con pre-orden)
+  **Objetivo:** Verificar que una reserva con pre-orden de producto regular (esMenuEspecial=false) se crea correctamente.
+  **Pre-condición:** Producto con ID 1 activo; fecha 2026-12-18T19:00:00 disponible.
+  **Resultado esperado:** 201 Created · `data.estado=CONFIRMADA` · `data.tipo=BASICA`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "2026-12-18T19:00:00",
+      "numeroPersonas": 2,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 2,
+          "descripcion": "Sin cebolla",
+          "esMenuEspecial": false,
+          "opcionesModificacion": null
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function() {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva con pre-orden regular es BASICA y CONFIRMADA', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+      });
+      if (pm.response.code === 201) {
+        pm.environment.set('reservaIdConPreOrden', pm.response.json().data.reservaId);
+      }
+    language: text/javascript
+order: 4000

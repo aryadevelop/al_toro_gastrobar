@@ -1,0 +1,32 @@
+$kind: http-request
+name: PB-04 Token de CLIENTE en endpoint exclusivo de CAJERO/ADMIN – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Control de acceso por rol
+  **Objetivo:** Verificar que el endpoint @PreAuthorize('hasAnyRole(CAJERO, ADMIN)') deniega token de CLIENTE.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/{{clienteIdConPuntos}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: [{ key: 'Content-Type', value: 'application/json' }],
+        body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCliente'), password: pm.environment.get('passwordValida') }) }
+      }, function(err, res) {
+        if (!err && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza token de CLIENTE en endpoint CAJERO/ADMIN con 403', function() {
+        pm.response.to.have.status(403);
+      });
+      pm.environment.unset('clienteToken');
+    language: text/javascript
+order: 4000

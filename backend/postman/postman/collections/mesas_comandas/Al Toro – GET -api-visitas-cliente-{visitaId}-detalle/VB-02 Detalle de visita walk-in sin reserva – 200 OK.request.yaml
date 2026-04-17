@@ -1,0 +1,22 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Control de acceso por propiedad
+  **Objetivo:** Verificar que un CLIENTE no puede acceder al detalle de una visita walk-in que pertenece a otro cliente. El sistema debe retornar 403.
+  **Pre-condición:** `visitaIdWalkInOtroCliente` (=10) es una visita walk-in de carlos.perez (cliente_id=11), distinto al cliente autenticado (andres.morales, cliente_id=13).
+  **Dependencia:** `visitaIdWalkInOtroCliente` está fijo en el entorno (valor=10 de V3__dev_data.sql).
+  **Resultado esperado:** 403 Forbidden · `code` = "AUTH-002".
+url: "{{baseUrl}}/api/visitas/cliente/{{visitaIdWalkInOtroCliente}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 403 cuando CLIENTE accede a visita de otro cliente', function() {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El código de error indica acceso denegado (AUTH-002)', function() {
+        pm.expect(pm.response.json().code).to.eql('AUTH-002');
+      });
+    language: text/javascript
+order: 2000

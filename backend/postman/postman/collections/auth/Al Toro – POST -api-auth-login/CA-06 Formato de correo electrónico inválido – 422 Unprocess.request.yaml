@@ -1,0 +1,31 @@
+$kind: http-request
+name: CA-06 Formato de correo electrónico inválido – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** CA-06
+  **Objetivo:** Verificar que el backend rechaza correos electrónicos con formato inválido (sin dominio, sin arroba, etc.) mediante validación de bean a nivel de controlador.
+  **Pre-condición:** Ninguna sesión activa requerida.
+  **Resultado esperado:** HTTP 422 con código `VAL-001` y mensaje de formato inválido.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "correo.com",
+      "password": "{{passwordValida}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Formato de correo inválido', () => pm.response.to.have.status(422));
+
+      const body = pm.response.json();
+
+      pm.test('Código VAL-001 y mensaje de formato de correo inválido', () => {
+        pm.expect(body.code).to.eql('VAL-001');
+        pm.expect(body.message).to.include('Por favor ingresa un correo electrónico válido');
+      });
+    language: text/javascript
+order: 6000

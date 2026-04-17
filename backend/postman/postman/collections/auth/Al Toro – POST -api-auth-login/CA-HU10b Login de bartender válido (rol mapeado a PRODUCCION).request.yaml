@@ -1,0 +1,37 @@
+$kind: http-request
+name: CA-HU10b Login de bartender válido (rol mapeado a PRODUCCION) – 200 OK
+description: |-
+  **Historia de Usuario:** HU-10b
+  **Objetivo:** Verificar que el rol BARTENDER es igualmente mapeado al rol frontend `PRODUCCION`, garantizando consistencia entre las sub-interfaces de barra y cocina bajo el mismo módulo de producción.
+  **Pre-condición:** bartender1@altoro.com debe existir con estado activo.
+  **Resultado esperado:** HTTP 200. `user.role` es `PRODUCCION`.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailBartender}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Login de bartender exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene accessToken, refreshToken y user', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body).to.have.property('refreshToken');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('El rol primario es PRODUCCION (BARTENDER mapeado por RoleMapper)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));
+
+      pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
+    language: text/javascript
+order: 14000

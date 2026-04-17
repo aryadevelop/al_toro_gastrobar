@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** RP-19
+  **Objetivo:** Verificar que el sistema rechaza un body vacío sin campos requeridos.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** HTTP 422.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: "{}"
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 422 – Cuerpo de solicitud vacío rechazado', () => pm.response.to.have.status(422));
+    language: text/javascript
+order: 9000

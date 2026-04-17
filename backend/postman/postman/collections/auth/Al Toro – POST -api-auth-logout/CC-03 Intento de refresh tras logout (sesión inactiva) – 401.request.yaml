@@ -1,0 +1,26 @@
+$kind: http-request
+name: CC-03 Intento de refresh tras logout (sesión inactiva) – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** CC-03
+  **Objetivo:** Verificar que tras un logout, el endpoint /refresh rechaza el refresh token del usuario, dado que la sesión fue marcada como inactiva en la base de datos. Esto garantiza la protección contra el uso de tokens post-logout.
+  **Pre-condición:** CC-02 debe haberse ejecutado previamente (almacena `savedRefreshToken` en el entorno).
+  **Resultado esperado:** HTTP 401.
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refreshToken": "{{savedRefreshToken}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Renovación de token rechazada tras logout', () => pm.response.to.have.status(401));
+
+      // Limpiar la variable temporal del entorno
+      pm.environment.unset('savedRefreshToken');
+    language: text/javascript
+order: 3000

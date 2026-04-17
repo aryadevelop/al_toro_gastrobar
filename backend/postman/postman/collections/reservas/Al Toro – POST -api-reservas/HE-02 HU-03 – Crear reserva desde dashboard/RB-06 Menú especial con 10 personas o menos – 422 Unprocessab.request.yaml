@@ -1,0 +1,44 @@
+$kind: http-request
+name: RB-06 Menú especial con 10 personas o menos – 422 Unprocessable Entity
+description: |-
+  **Criterio de Aceptación:** Validación menú especial — mínimo de personas
+  **Objetivo:** Verificar que el sistema rechaza un menú especial cuando numeroPersonas ≤ 10.
+  **Pre-condición:** 4 personas con esMenuEspecial=true.
+  **Resultado esperado:** 422 Unprocessable Entity · mensaje indica que el menú especial requiere más de 10 personas.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "2026-12-20T19:00:00",
+      "numeroPersonas": 4,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 4,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": []
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza menú especial con ≤10 personas con 422', function() {
+        pm.response.to.have.status(422);
+      });
+      pm.test('El mensaje de error menciona el requisito de personas para menú especial', function() {
+        var msg = pm.response.json().message || '';
+        pm.expect(msg.toLowerCase()).to.include('10');
+      });
+    language: text/javascript
+order: 6000

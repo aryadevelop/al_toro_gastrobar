@@ -1,0 +1,71 @@
+$kind: collection
+name: Al Toro – GET /api/productos/menu-especial
+description: |-
+  ## Descripción
+  Endpoint de consulta que retorna los menús especiales activos del restaurante con sus opciones de modificación agrupadas por tipo de componente (ej. proteína, guarnición, bebida). Un menú especial es un `Producto` cuyo campo `menuEspecial` es `true`. Disponible para reservas de grupos de más de 10 personas (restricción validada en el frontend). Los resultados se ordenan alfabéticamente por nombre de producto.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{clienteToken}}
+  ```
+  Este endpoint es de acceso exclusivo para usuarios con rol CLIENTE. El pre-request script de este grupo gestiona el login automático.
+
+  ## Estructura de la Respuesta Exitosa (200)
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "productoId": 1,
+        "productoNombre": "string",
+        "productoDescripcion": "string | null",
+        "productoPrecio": 50000,
+        "modificacionesPorComponente": [
+          {
+            "tipoComponente": "string",
+            "opciones": [
+              {
+                "opcionId": 1,
+                "opcionNombre": "string"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+  > **Nota:** `modificacionesPorComponente` nunca es `null`; puede ser lista vacía si el menú no tiene opciones de modificación activas.
+  > `productoDescripcion` puede ser `null` si el menú no tiene descripción registrada.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | PB-01 | Menús especiales obtenidos exitosamente con token CLIENTE | 200 |
+  | PB-02 | Solicitud sin token JWT | 401 |
+  | PB-03 | Token de rol no autorizado (ADMIN) | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CLIENTE – clienteToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('clienteToken', res.json().accessToken);
+      });
+    language: text/javascript

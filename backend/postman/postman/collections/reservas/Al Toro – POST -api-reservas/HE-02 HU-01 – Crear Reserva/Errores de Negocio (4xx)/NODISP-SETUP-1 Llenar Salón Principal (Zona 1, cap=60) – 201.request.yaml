@@ -1,0 +1,27 @@
+$kind: http-request
+name: NODISP-SETUP-1 Llenar Salón Principal (Zona 1, cap=60) – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-03 (precondición)
+  **Objetivo:** Reservar toda la capacidad del Salón Principal (60 personas) para {{fechaTodasOcupadas}}, como parte de la secuencia de setup para los casos NODISP-1 y NODISP-2.
+  **Pre-condición:** Zona id=1 (Salón Principal, cap=60) sin reservas en {{fechaTodasOcupadas}}.
+  **Resultado esperado:** HTTP 201.
+  > **⚠ Dependencia secuencial:** Ejecutar en orden NODISP-SETUP-1 a 7 antes de NODISP-1 y NODISP-2.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaTodasOcupadas}}",
+      "numeroPersonas": 60,
+      "zonaId": 1
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 201 – Salón Principal (Zona 1) llenado exitosamente', () => pm.response.to.have.status(201));
+    language: text/javascript
+order: 14000

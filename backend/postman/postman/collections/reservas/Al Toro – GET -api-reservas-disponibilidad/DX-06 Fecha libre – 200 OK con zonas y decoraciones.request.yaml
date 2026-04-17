@@ -1,0 +1,69 @@
+$kind: http-request
+name: DX-06 Fecha libre – 200 OK con zonas y decoraciones
+description: |-
+  **Criterio de Aceptación:** RD-02 / RA-01 — para una fecha dentro del horario de atención
+  y sin reservas que agoten la capacidad, el servicio retorna `disponible=true` con al menos
+  una zona libre y al menos una decoración activa. Verifica también la forma del payload de
+  `zonas` y `decoraciones`.
+  **Objetivo:** Validar el caso feliz de disponibilidad completa.
+  **Pre-condición:** `tmpFechaLibre` se genera dinámicamente en el `beforeRequest` como una
+  fecha futura aleatoria (año actual + 2..4) dentro del horario `[17:00, 22:00)`. Esto evita
+  colisiones con reservas insertadas por otras pruebas.
+  **Resultado esperado:** 200 OK · `data.disponible=true` · `data.zonas` y `data.decoraciones`
+  son arrays no vacíos · cada zona expone `zonaId`, `nombre`, `imagenUrl`, `capacidad` · las
+  decoraciones no exponen campos de zona fija a nivel interno (solo `zonaIdsCompatibles`).
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{tmpFechaLibre}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{tmpFechaLibre}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Genera una fecha futura aleatoria dentro del horario de atención [17:00, 22:00).
+      // Usar un año lejano (actual + 2..4) reduce la probabilidad de colisión con otras
+      // reservas creadas por pruebas anteriores en el mismo slot.
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fechaHora);
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Disponibilidad consultada exitosamente', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const d = pm.response.json().data;
+
+      pm.test('El campo disponible es true para fecha libre dentro del horario', function () {
+        pm.expect(d.disponible).to.be.true;
+      });
+
+      pm.test('El listado de zonas disponibles no está vacío', function () {
+        pm.expect(d.zonas).to.be.an('array').and.not.empty;
+      });
+
+      pm.test('El listado de decoraciones disponibles no está vacío', function () {
+        pm.expect(d.decoraciones).to.be.an('array').and.not.empty;
+      });
+
+      pm.test('Cada zona expone zonaId, nombre, imagenUrl y capacidad', function () {
+        pm.expect(d.zonas[0]).to.have.all.keys(['zonaId', 'nombre', 'imagenUrl', 'capacidad']);
+      });
+
+      pm.test('Las decoraciones no exponen zonaFijaId ni zonaFijaNombre directamente', function () {
+        const deco = d.decoraciones[0];
+        pm.expect(deco).to.not.have.property('zonaFijaId');
+        pm.expect(deco).to.not.have.property('zonaFijaNombre');
+      });
+
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 6000

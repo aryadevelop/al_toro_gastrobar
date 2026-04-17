@@ -1,0 +1,23 @@
+$kind: http-request
+name: DX-03 CAJERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE`. El rol `CAJERO` debe ser rechazado con 403.
+  **Objetivo:** Verificar que un CAJERO autenticado correctamente NO puede consultar la
+  disponibilidad.
+  **Pre-condición:** `cajeroToken` disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T19:00:00"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  fechaHora: "2026-12-15T19:00:00"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol CAJERO', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 3000

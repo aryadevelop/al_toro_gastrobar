@@ -1,0 +1,35 @@
+$kind: http-request
+name: RP-03 Decoración sin costo con zona compatible (Empresarial id=3, Terraza id=2) – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-05, CA-11
+  **Objetivo:** Verificar que una decoración sin costo con zonas específicas puede combinarse con una zona compatible, que la clasificación resulta BASICA (decoración gratuita, personas < 10) y que se retornan los IDs correctos.
+  **Pre-condición:** Decoración id=3 (Empresarial) es compatible con zona id=2 (Terraza). Fecha {{fechaLibre}} disponible.
+  **Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `decoracionId=3`, `zonaId=2`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 4,
+      "decoracionId": 3,
+      "zonaId": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con decoración sin costo creada exitosamente', () => pm.response.to.have.status(201));
+
+      const r = pm.response.json().data;
+
+      pm.test('La reserva con decoración gratuita se clasifica como tipo BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));
+      pm.test('El estado inicial de la reserva básica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));
+      pm.test('El decoracionNombre coincide con el solicitado (Decoración Empresarial)', () => pm.expect(r.decoracionNombre).to.eql('Decoración Empresarial'));
+      pm.test('El zonaNombre coincide con el solicitado (Terraza)', () => pm.expect(r.zonaNombre).to.eql('Terraza'));
+    language: text/javascript
+order: 3000

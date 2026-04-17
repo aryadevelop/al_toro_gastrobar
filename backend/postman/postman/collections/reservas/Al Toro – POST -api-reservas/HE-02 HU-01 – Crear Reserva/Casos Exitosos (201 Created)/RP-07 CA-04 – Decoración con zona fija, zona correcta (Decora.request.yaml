@@ -1,0 +1,30 @@
+$kind: http-request
+name: RP-07 CA-04 – Decoración con zona fija, zona correcta (Decoración id=8, Barra id=4) – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-04
+  **Objetivo:** Verificar que una reserva con decoración de zona fija se crea exitosamente cuando se especifica la zona correcta asignada a dicha decoración (Barra, id=4).
+  **Pre-condición:** Decoración id=8 tiene zona fija Barra (id=4). Fecha {{fechaLibre}} disponible.
+  **Resultado esperado:** HTTP 201. `zonaId=4`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 2,
+      "decoracionId": {{idDecoracionZonaFija}},
+      "zonaId": 4
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con decoración de zona fija y zona correcta creada exitosamente', () => pm.response.to.have.status(201));
+
+      pm.test('El zonaNombre coincide con la zona fija de la decoración (Barra)', () => pm.expect(pm.response.json().data.zonaNombre).to.eql('Barra'));
+    language: text/javascript
+order: 7000

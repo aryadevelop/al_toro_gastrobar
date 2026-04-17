@@ -1,0 +1,20 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Validación de existencia de cliente
+  **Objetivo:** Verificar que el sistema retorna 404 cuando el emailCliente no corresponde a ningún cliente registrado. Se usa token de ADM para evitar el bloqueo 403 de propiedad que aplicaría a un CLIENTE consultando un email ajeno.
+  **Pre-condición:** No existe cliente con email `noexiste@altoro.com` en la base de datos.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente=noexiste@altoro.com"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+queryParams:
+  emailCliente: noexiste@altoro.com
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para cliente inexistente (con token ADM)', function() {
+        pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,36 @@
+$kind: http-request
+description: |-
+  **Historia de Usuario:** HU-12
+  **Objetivo:** Verificar que un empleado con rol CAJERO puede autenticarse correctamente y que su rol primario es identificado de forma precisa.
+  **Pre-condición:** cajero2@altoro.com debe existir con estado activo y rol CAJERO.
+  **Resultado esperado:** HTTP 200. `user.role` es `CAJERO`.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailCajero}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Login de cajero exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene accessToken, refreshToken y user', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body).to.have.property('refreshToken');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('El rol principal del usuario es CAJERO', () => pm.expect(body.user.role).to.eql('CAJERO'));
+
+      pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
+    language: text/javascript
+order: 15000

@@ -1,0 +1,68 @@
+$kind: collection
+name: Al Toro – GET /api/productos/carta
+description: |-
+  ## Descripción
+  Endpoint de consulta que retorna los productos activos de la carta del restaurante agrupados por categoría de carta. Solo incluye productos cuyo campo `menuEspecial` es `false` o `null`. Dentro de cada categoría los productos se ordenan alfabéticamente por nombre. Las categorías se ordenan de forma ascendente por el campo `orden`.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{clienteToken}}
+  ```
+  Este endpoint es de acceso exclusivo para usuarios con rol CLIENTE. El pre-request script de este grupo gestiona el login automático.
+
+  ## Estructura de la Respuesta Exitosa (200)
+  ```json
+  {
+    "success": true,
+    "data": [
+      {
+        "categoriaId": 1,
+        "categoriaNombre": "string",
+        "orden": 1,
+        "productos": [
+          {
+            "productoId": 1,
+            "productoNombre": "string",
+            "productoDescripcion": "string | null",
+            "productoPrecio": 25000,
+            "productoCategoria": "PLATO"
+          }
+        ]
+      }
+    ]
+  }
+  ```
+
+  > **Nota:** `productos` nunca es `null`; puede ser lista vacía si la categoría no tiene productos activos.
+  > `productoDescripcion` puede ser `null` si el producto no tiene descripción registrada.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | PA-01 | Carta obtenida exitosamente con token CLIENTE | 200 |
+  | PA-02 | Solicitud sin token JWT | 401 |
+  | PA-03 | Token de rol no autorizado (ADMIN) | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CLIENTE – clienteToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('clienteToken', res.json().accessToken);
+      });
+    language: text/javascript

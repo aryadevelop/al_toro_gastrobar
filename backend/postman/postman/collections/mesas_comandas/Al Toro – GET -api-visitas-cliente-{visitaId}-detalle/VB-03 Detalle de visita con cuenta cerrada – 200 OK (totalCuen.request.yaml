@@ -1,0 +1,29 @@
+$kind: http-request
+name: VB-03 Detalle de visita con cuenta cerrada – 200 OK (totalCuenta presente)
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-07 (monto total consumido)
+  **Objetivo:** Verificar que cuando la cuenta fue cerrada por caja, los campos `subtotalCuenta`, `descuentoCuenta` y `totalCuenta` están presentes y son coherentes.
+  **Pre-condición:** `visitaIdConReserva` corresponde a una visita cuya cuenta fue cerrada (Venta registrada).
+  **Dependencia:** Si la visita consultada no tiene cuenta cerrada, este test se omite condicionalmente.
+  **Resultado esperado:** 200 OK · si `totalCuenta` está presente, entonces `subtotalCuenta` también está presente · `totalCuenta` ≥ 0.
+url: "{{baseUrl}}/api/visitas/cliente/{{visitaIdConReserva}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Si la cuenta está cerrada, totalCuenta y subtotalCuenta son coherentes (CA-07)', function() {
+        var data = pm.response.json().data;
+        if (data.totalCuenta !== undefined && data.totalCuenta !== null) {
+          pm.expect(data.subtotalCuenta).to.not.be.undefined;
+          pm.expect(Number(data.totalCuenta)).to.be.at.least(0);
+        } else {
+          pm.expect(data.subtotalCuenta == null || data.subtotalCuenta === undefined).to.be.true;
+        }
+      });
+    language: text/javascript
+order: 3000

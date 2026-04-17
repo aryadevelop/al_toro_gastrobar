@@ -1,0 +1,51 @@
+$kind: http-request
+name: "RP-PO-22 CA-05+CA-01 – Dos menús especiales con 10 personas: error indica “un menú” – 422 Unprocessable Entity"
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: json
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 10,
+      "zonaId": 1,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 10,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [
+            1
+          ]
+        },
+        {
+          "productoId": 133,
+          "cantidad": 10,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [
+            2
+          ]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      // Viola CA-05 (2 menús especiales) y CA-01 (≤10 personas).
+      // La validación de cantidad (CA-05) precede a la de umbral (CA-01),
+      // por lo que el mensaje siempre menciona la restricción de 'un menú'.
+      pm.test('Status 422 – Dos menús especiales con 10 personas rechazado', () => pm.response.to.have.status(422));
+      const body = pm.response.json();
+      pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);
+      pm.test('El mensaje reporta la restricción de CA-05 (un menú por reserva), no la de CA-01', () => {
+          pm.expect(body.message.toLowerCase()).to.satisfy(
+              m => m.includes('un') || m.includes('especial'),
+              'El mensaje debe indicar la restricción de un solo menú especial'
+          );
+      });
+    language: text/javascript
+order: 33000

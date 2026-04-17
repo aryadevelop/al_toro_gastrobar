@@ -1,0 +1,38 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-03
+  **Objetivo:** Verificar que el sistema retorna el saldo de puntos actuales y acumulados del cliente autenticado, acompañados de los campos necesarios para mostrar el indicador en el dashboard.
+  **Pre-condición:** El cliente `emailCliente` tiene al menos una visita cerrada (puntosAcumulados ≥ 1).
+  **Resultado esperado:** 200 OK · `data.puntosActuales` ≥ 0 · `data.puntosAcumulados` ≥ 0 · `puntosAcumulados` ≥ `puntosActuales`.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta contiene puntosActuales y puntosAcumulados (CA-03)', function() {
+        var data = pm.response.json().data;
+        pm.expect(data).to.have.property('puntosActuales');
+        pm.expect(data).to.have.property('puntosAcumulados');
+      });
+      pm.test('puntosActuales y puntosAcumulados son enteros no negativos', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.puntosActuales).to.be.a('number').and.to.be.at.least(0);
+        pm.expect(data.puntosAcumulados).to.be.a('number').and.to.be.at.least(0);
+      });
+      pm.test('puntosAcumulados es siempre mayor o igual a puntosActuales', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.puntosAcumulados).to.be.at.least(data.puntosActuales);
+      });
+      if (pm.response.code === 200) {
+        pm.environment.set('puntosActualesSnapshot', pm.response.json().data.puntosActuales);
+        pm.environment.set('puntosAcumuladosSnapshot', pm.response.json().data.puntosAcumulados);
+      }
+    language: text/javascript
+order: 1000

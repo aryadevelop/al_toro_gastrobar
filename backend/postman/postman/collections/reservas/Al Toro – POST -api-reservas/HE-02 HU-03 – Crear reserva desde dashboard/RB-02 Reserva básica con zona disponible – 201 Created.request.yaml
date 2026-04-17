@@ -1,0 +1,65 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar que la reserva con zona se crea correctamente y el campo zonaNombre se refleja en la respuesta.
+  **Pre-condición:** El pre-request captura `zonaIdDisponibleCapacidad` consultando disponibilidad para `fechaCapacidad` antes de ejecutar la solicitud.
+  **Resultado esperado:** 201 Created · `data.estado=CONFIRMADA` · `data.tipo=BASICA` · `data.zonaNombre` no es null.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaCapacidad}}",
+      "numeroPersonas": 2,
+      "zonaId": {{zonaIdDisponibleCapacidad}},
+      "decoracionId": null,
+      "notas": "Mesa preferiblemente junto a la ventana",
+      "preOrden": null
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Capturar zona disponible para fechaCapacidad (no para fechaLibre) antes de ejecutar la reserva
+      const baseUrl = pm.environment.get('baseUrl');
+      const token = pm.environment.get('clienteToken');
+      const fecha = pm.environment.get('fechaCapacidad');
+
+      pm.sendRequest({
+          url: baseUrl + '/api/reservas/disponibilidad?fechaHoraLlegada=' + encodeURIComponent(fecha),
+          method: 'GET',
+          header: {
+              'Authorization': 'Bearer ' + token
+          }
+      }, function(err, res) {
+          if (!err && res.code === 200) {
+              const body = res.json();
+              if (body.data && body.data.zonas && body.data.zonas.length > 0) {
+                  pm.environment.set('zonaIdDisponibleCapacidad', body.data.zonas[0].zonaId);
+              }
+          }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function() {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva con zona incluye zonaNombre en la respuesta', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.zonaNombre).to.be.a('string').and.not.be.empty;
+      });
+      pm.test('La reserva con zona es de tipo BASICA y estado CONFIRMADA', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+      });
+      if (pm.response.code === 201) {
+        pm.environment.set('reservaIdConZona', pm.response.json().data.reservaId);
+      }
+    language: text/javascript
+order: 2000

@@ -1,0 +1,42 @@
+$kind: http-request
+name: "RP-PO-06 CA-11 – Pre-orden nula: preOrdenItems y preOrdenTotal son null en el response – 201 Created"
+description: |-
+  **Criterio de Aceptación:** CA-11
+  **Objetivo:** Verificar que cuando la reserva se crea sin pre-orden (campo `preOrden` omitido), el response retorna `preOrdenItems=null` y `preOrdenTotal=null`, indicando que la reserva no tiene pre-orden asociada.
+  **Pre-condición:** `clienteToken` disponible. Fecha {{fechaPreorden}} con disponibilidad.
+  **Resultado esperado:** HTTP 201. `preOrdenItems` es null o ausente. `preOrdenTotal` es null.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva sin pre-orden creada exitosamente', () => pm.response.to.have.status(201));
+
+      const postData = pm.response.json().data;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrdenItems es null cuando la reserva no tiene pre-orden', () => {
+          pm.expect(r.preOrdenItems == null).to.be.true;
+        });
+        pm.test('preOrdenTotal es null cuando la reserva no tiene pre-orden', () => {
+          pm.expect(r.preOrdenTotal == null).to.be.true;
+        });
+      });
+    language: text/javascript
+order: 18000

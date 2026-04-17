@@ -1,0 +1,51 @@
+$kind: http-request
+name: "RP-PO-18 Mezcla ítem normal + ítem con descripción: preOrdenTotal incluye ambos – 201 Created"
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: json
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 3,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 2
+        },
+        {
+          "productoId": 36,
+          "cantidad": 1,
+          "descripcion": "Hamburguesa Al Toro - sin cebolla"
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con mezcla de ítems creada exitosamente', () => pm.response.to.have.status(201));
+      const postData = pm.response.json().data;
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrdenItems contiene 2 elementos (ítem normal + ítem con descripción)', () => {
+          pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(2);
+        });
+        pm.test('La descripción libre se conserva en el ítem correspondiente', () => {
+          const itemConDesc = r.preOrdenItems.find(i => i.descripcion != null);
+          pm.expect(itemConDesc).to.not.be.undefined;
+          pm.expect(itemConDesc.descripcion).to.eql('Hamburguesa Al Toro - sin cebolla');
+        });
+        pm.test('preOrdenTotal es 57000: suma ambos ítems (2×$16.000 Don Tostón + 1×$25.000 Hamburguesa Al Toro)', () => {
+          pm.expect(r.preOrdenTotal).to.eql(57000);
+        });
+      });
+    language: text/javascript
+order: 21000

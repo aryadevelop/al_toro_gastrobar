@@ -1,0 +1,92 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/disponibilidad
+description: |-
+  # GET /api/reservas/disponibilidad
+
+  Consulta la disponibilidad de zonas y decoraciones para una fecha/hora dada.
+
+  ## Autorización
+
+  `@PreAuthorize("hasRole('CLIENTE')")` — **solo** el rol funcional `CLIENTE` puede invocar este endpoint.
+  Cualquier otro rol (MESERO, CAJERO, PRODUCCION, ADMIN) debe recibir `403 Forbidden`.
+
+  | Caso | Token | Esperado |
+  |---|---|---|
+  | DX-01 | (sin token)                    | 401 |
+  | DX-02 | MESERO                         | 403 |
+  | DX-03 | CAJERO                         | 403 |
+  | DX-04 | COCINERO (rol PRODUCCION)      | 403 |
+  | DX-05 | ADMIN                          | 403 |
+  | DX-06..DX-12 | CLIENTE                | 200 |
+  | DX-13..DX-14 | CLIENTE                | 400 |
+
+  ## Reglas de disponibilidad (lógica del servicio)
+
+  - Horario de atención: `[17:00, 22:00)` (de lunes a domingo).
+  - Si la hora está fuera del horario o existe un bloqueo administrativo activo, el servicio
+    retorna `disponible=false` con `zonas=[]` y `decoraciones=[]`.
+  - Las decoraciones en estado `INACTIVO` son excluidas del resultado.
+  - Cada decoración reporta `puedeSeleccionarZona` y `zonaIdsCompatibles` según su vínculo con
+    zonas (fija, múltiples o sin restricción).
+
+  ## Independencia de datos
+
+  - **Tokens:** se obtienen dinámicamente mediante `pm.sendRequest` encadenado en el
+    `beforeRequest` de la colección. No requieren preordenamiento manual.
+  - **Fechas libres:** los tests de disponibilidad positiva generan una fecha futura aleatoria
+    (`tmpFechaLibre`) para evitar colisiones con datos insertados por ejecuciones anteriores u
+    otras pruebas.
+  - **Decoraciones y zonas:** las pruebas que verifican reglas específicas de decoración
+    (CA-04/CA-05/CA-06) dependen exclusivamente de la **seed data** (V2__seed_data.sql)
+    documentada en cada test — no de datos creados por otras pruebas.
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de todos los roles requeridos por la colección.
+      //
+      // Se encadenan las peticiones para evitar race conditions entre callbacks:
+      // cada login dispara el siguiente solo cuando el anterior terminó.
+      //
+      // Tokens expuestos:
+      //   - clienteToken   : rol CLIENTE (único autorizado)
+      //   - meseroToken    : rol MESERO
+      //   - cajeroToken    : rol CAJERO
+      //   - cocineroToken  : rol PRODUCCION (COCINERO)
+      //   - accessToken    : rol ADMIN (ADM)
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',   tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',    tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',    tokenKey: 'cajeroToken'   },
+        { emailKey: 'emailCocinero',  tokenKey: 'cocineroToken' },
+        { emailKey: 'emailAdmin',     tokenKey: 'accessToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

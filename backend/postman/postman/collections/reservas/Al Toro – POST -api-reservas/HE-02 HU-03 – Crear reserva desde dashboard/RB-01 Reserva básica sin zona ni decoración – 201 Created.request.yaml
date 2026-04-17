@@ -1,0 +1,44 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-01 (prerequisito)
+  **Objetivo:** Verificar que una reserva sin opciones opcionales se crea en estado CONFIRMADA y tipo BASICA.
+  **Pre-condición:** `fechaLibre` disponible; cliente existe; no hay bloqueo para esa fecha.
+  **Resultado esperado:** 201 Created · `data.estado=CONFIRMADA` · `data.tipo=BASICA` · `data.reservaId` presente · `data.clienteNombre` presente.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 2,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": null
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function() {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva básica se crea en estado CONFIRMADA y tipo BASICA', function() {
+        var data = pm.response.json().data;
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+        pm.expect(data.tipo).to.eql('BASICA');
+      });
+      pm.test('La respuesta incluye reservaId y clienteNombre', function() {
+        var data = pm.response.json().data;
+        pm.expect(data).to.have.property('reservaId');
+        pm.expect(data).to.have.property('clienteNombre');
+      });
+      if (pm.response.code === 201) {
+        pm.environment.set('reservaIdBasica', pm.response.json().data.reservaId);
+      }
+    language: text/javascript
+order: 1000

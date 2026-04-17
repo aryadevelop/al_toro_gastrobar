@@ -1,0 +1,23 @@
+$kind: http-request
+name: RF-07 MESERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE` y `ADMIN`. El rol `MESERO` debe ser rechazado con 403.
+  **Objetivo:** Verificar que un MESERO autenticado correctamente NO puede consultar
+  el endpoint de reservas futuras.
+  **Pre-condición:** `meseroToken` disponible (gestionado por el pre-request del folder).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol MESERO', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 7000

@@ -1,0 +1,32 @@
+$kind: http-request
+name: RP-05 CA-08 – Grupo de exactamente 10 personas sin decoración con costo → tipo BASICA – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-08
+  **Objetivo:** Verificar que el número de personas por sí solo no determina la clasificación. Una reserva de exactamente 10 personas sin decoración con costo debe clasificarse como BASICA.
+  **Pre-condición:** `clienteToken` disponible. Zona id=1 con capacidad suficiente en {{fechaLibre}}.
+  **Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 10,
+      "zonaId": 1
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva de 10 personas creada exitosamente', () => pm.response.to.have.status(201));
+
+      const r = pm.response.json().data;
+
+      pm.test('10 personas sin decoración con costo → clasificación BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));
+      pm.test('El estado de la reserva básica de 10 personas es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));
+    language: text/javascript
+order: 5000

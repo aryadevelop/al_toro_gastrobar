@@ -1,0 +1,40 @@
+$kind: http-request
+name: RP-PO-07 CA-01 – Menú especial con exactamente 11 personas (frontera superior) → ESPECIAL – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-01 (frontera)
+  **Objetivo:** Verificar el valor de frontera superior del umbral del menú especial: 11 personas debe superar el límite de 10 y permitir la creación con menú especial.
+  **Pre-condición:** `clienteToken` disponible. Producto id=132 (Menú 1) activo. Zona id=1 con capacidad en {{fechaPreorden}}.
+  **Resultado esperado:** HTTP 201. `tipo=ESPECIAL`. `numeroPersonas=11`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 11,
+      "zonaId": 1,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 11,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [2]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Menú especial con 11 personas (frontera) creado exitosamente', () => pm.response.to.have.status(201));
+
+      const r = pm.response.json().data;
+
+      pm.test('Con 11 personas el menú especial es válido y la reserva es ESPECIAL', () => pm.expect(r.tipo).to.eql('ESPECIAL'));
+      pm.test('El número de personas retornado es 11', () => pm.expect(r.numeroPersonas).to.eql(11));
+    language: text/javascript
+order: 19000

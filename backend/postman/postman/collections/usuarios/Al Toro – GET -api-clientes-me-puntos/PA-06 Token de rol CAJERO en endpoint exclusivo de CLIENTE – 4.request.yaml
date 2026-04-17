@@ -1,0 +1,35 @@
+$kind: http-request
+name: PA-06 Token de rol CAJERO en endpoint exclusivo de CLIENTE – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Control de acceso por rol
+  **Objetivo:** Verificar que el endpoint @PreAuthorize('hasRole(CLIENTE)') deniega token de CAJERO.
+  **Pre-condición:** Token obtenido con credenciales de cajero.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: [{ key: 'Content-Type', value: 'application/json' }],
+        body: { mode: 'raw', raw: JSON.stringify({ email: pm.environment.get('emailCajero'), password: pm.environment.get('passwordValida') }) }
+      }, function(err, res) {
+        if (!err && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza token de CAJERO en endpoint CLIENTE con 403', function() {
+        pm.response.to.have.status(403);
+      });
+      pm.environment.unset('cajeroToken');
+    language: text/javascript
+order: 6000

@@ -1,0 +1,161 @@
+name: Al Toro – Local
+values:
+  - key: baseUrl
+    enabled: true
+    value: 'http://localhost:8080'
+  - key: emailAdmin
+    enabled: true
+    value: admin@altoro.com
+  - key: emailCliente
+    enabled: true
+    value: andres.morales@gmail.com
+  - key: emailSuspendido
+    enabled: true
+    value: carlos.perez@gmail.com
+  - key: emailMesero
+    enabled: true
+    value: mesero2@altoro.com
+  - key: emailCocinero
+    enabled: true
+    value: cocinero2@altoro.com
+  - key: emailBartender
+    enabled: true
+    value: bartender1@altoro.com
+  - key: emailCajero
+    enabled: true
+    value: cajero2@altoro.com
+  - key: emailMultiRol
+    enabled: true
+    value: cajero1@altoro.com
+  - key: emailClienteSinVisitas
+    enabled: true
+    value: nicolas.vargas@gmail.com
+  - key: emailSinHistorial
+    enabled: true
+    value: sinhistorial@altoro.com
+  - key: passwordValida
+    enabled: true
+    value: Al.Toro2026!
+  - key: idProductoInactivo
+    enabled: true
+    value: '138'
+  - key: idDecoracionZonaFija
+    enabled: true
+    value: '8'
+  - key: visitaIdWalkInOtroCliente
+    enabled: true
+    value: '10'
+  - key: visitaIdAnonima
+    enabled: true
+    value: '8'
+  - key: fechaLibre
+    enabled: true
+    value: '2026-12-15T19:00:00'
+  - key: fechaCapacidad
+    enabled: true
+    value: '2026-12-16T20:00:00'
+  - key: fechaDecoracion
+    enabled: true
+    value: '2026-12-17T18:00:00'
+  - key: fechaPreorden
+    enabled: true
+    value: '2026-12-18T19:00:00'
+  - key: fechaTodasOcupadas
+    enabled: true
+    value: '2026-12-20T19:00:00'
+  - key: fechaBloqueadaDia
+    enabled: true
+    value: '2026-12-25T19:00:00'
+  - key: fechaBloqueadaFranja
+    enabled: true
+    value: '2026-12-22T20:00:00'
+  - key: fechaBloqueadaFranjaFuera
+    enabled: true
+    value: '2026-12-22T17:00:00'
+  - key: fechaFueraHorario
+    enabled: true
+    value: '2026-12-15T15:00:00'
+  - key: fechaDespuesCierre
+    enabled: true
+    value: '2026-12-15T23:00:00'
+  - key: clienteToken
+    enabled: true
+    value: ''
+  - key: clienteAccessToken
+    enabled: true
+    value: ''
+  - key: clienteRefreshToken
+    enabled: true
+    value: ''
+  - key: meseroToken
+    enabled: true
+    value: ''
+  - key: meseroAccessToken
+    enabled: true
+    value: ''
+  - key: cajeroToken
+    enabled: true
+    value: ''
+  - key: cocineroToken
+    enabled: true
+    value: ''
+  - key: sinHistorialToken
+    enabled: true
+    value: ''
+  - key: visitaIdConReserva
+    enabled: true
+    value: ''
+  - key: visitaIdWalkIn
+    enabled: true
+    value: ''
+  - key: reservaIdConPreOrden
+    enabled: true
+    value: ''
+  - key: reservaIdCancelada
+    enabled: true
+    value: '6'
+  - key: reservaIdBasica
+    enabled: true
+    value: '1'
+  - key: reservaIdFutura
+    enabled: true
+    value: ''
+  - key: reservaIdConZona
+    enabled: true
+    value: ''
+  - key: clienteIdConPuntos
+    enabled: true
+    value: ''
+  - key: clienteIdSinPuntos
+    enabled: true
+    value: ''
+  - key: zonaIdDisponibleCapacidad
+    enabled: true
+    value: ''
+  - key: zonaIdDisponible
+    enabled: true
+    value: ''
+  - key: decoracionIdDisponible
+    enabled: true
+    value: ''
+  - key: fechaCapacidadHoraAlternativa
+    enabled: true
+    value: ''
+  - key: acumuladosAntesDelCanje
+    enabled: true
+    value: ''
+  - key: puntosActualesSnapshot
+    enabled: true
+    value: ''
+  - key: puntosAcumuladosSnapshot
+    enabled: true
+    value: ''
+  - key: loginExpiresIn
+    enabled: true
+    value: ''
+  - key: refreshToken
+    enabled: true
+    value: ''
+  - key: otroClienteToken
+    enabled: true
+    value: ''

@@ -1,0 +1,28 @@
+$kind: http-request
+name: RD-02 CLIENTE sin reservas canceladas ni devueltas – 200 OK lista vacía
+description: |-
+  **Criterio de Aceptación:** Sin historial de cancelaciones — si el cliente no tiene
+  reservas en estado terminal, el sistema debe retornar una lista vacía
+  (el frontend muestra el estado "Sin historial").
+  **Objetivo:** Verificar que `data` es `[]` cuando el cliente no tiene canceladas ni devueltas.
+  **Pre-condición:** El usuario `emailSinHistorial` (sinhistorial@altoro.com) se creó en el
+  seed `V3__dev_data.sql` explícitamente sin historial de reservas. El token está en
+  `sinHistorialToken` (obtenido por el pre-request del folder).
+  **Resultado esperado:** 200 OK · `data` es un array vacío `[]`.
+url: "{{baseUrl}}/api/reservas/cliente/canceladas-devueltas?emailCliente={{emailSinHistorial}}"
+method: GET
+headers:
+  Authorization: Bearer {{sinHistorialToken}}
+queryParams:
+  emailCliente: "{{emailSinHistorial}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El campo data es un array vacío', function () {
+        pm.expect(pm.response.json().data).to.be.an('array').with.lengthOf(0);
+      });
+    language: text/javascript
+order: 2000

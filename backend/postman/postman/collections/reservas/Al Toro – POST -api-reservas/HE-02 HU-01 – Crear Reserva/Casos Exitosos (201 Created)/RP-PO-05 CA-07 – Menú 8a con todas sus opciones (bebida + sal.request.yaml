@@ -1,0 +1,51 @@
+$kind: http-request
+name: RP-PO-05 CA-07 – Menú 8a con todas sus opciones (bebida + salsas + arroz) – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-07
+  **Objetivo:** Verificar que el Menú 8a (doble proteína con arroz, id=134) acepta la combinación completa de opciones: bebida (BEBIDA), salsa de la 1ª proteína (SALSA_PROTEINA_1), salsa de la 2ª proteína (SALSA_PROTEINA_2) y tipo de arroz (ARROZ).
+  **Pre-condición:** `clienteToken` disponible. Producto id=134 con opciones 1 (bebida), 5 (salsa_p1), 9 (salsa_p2) y 11 (arroz) vinculadas. Zona id=1 con capacidad en {{fechaPreorden}}.
+  **Resultado esperado:** HTTP 201. `tipo=ESPECIAL`, `preOrdenItems` con 1 elemento.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaPreorden}}",
+      "numeroPersonas": 12,
+      "zonaId": 1,
+      "preOrden": [
+        {
+          "productoId": 134,
+          "cantidad": 12,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1, 5, 9, 11]
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva con Menú 8a y todas sus opciones creada exitosamente', () => pm.response.to.have.status(201));
+
+      const postData = pm.response.json().data;
+
+      pm.test('La reserva con menú 8a se clasifica como ESPECIAL', () => pm.expect(postData.tipo).to.eql('ESPECIAL'));
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas/' + postData.reservaId + '/detalle',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+      }, function(err, res) {
+        const r = res.json().data;
+        pm.test('preOrdenItems contiene el Menú 8a', () => {
+          pm.expect(r.preOrdenItems).to.be.an('array').with.lengthOf(1);
+          pm.expect(r.preOrdenItems[0].productoId).to.eql(134);
+        });
+      });
+    language: text/javascript
+order: 17000

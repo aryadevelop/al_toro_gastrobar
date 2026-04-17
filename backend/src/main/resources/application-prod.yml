@@ -1,0 +1,58 @@
+spring:
+
+  # PostgreSQL: credenciales obligatorias inyectadas desde Docker Compose
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+      
+  # RabbitMQ: host inyectado desde Docker Compose
+  rabbitmq:
+    host: ${RABBITMQ_HOST}
+    port: ${RABBITMQ_PORT:5672}
+    username: ${RABBITMQ_USERNAME}
+    password: ${RABBITMQ_PASSWORD}
+
+  # Correo: credenciales inyectadas desde variables de entorno
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+# Secret obligatorio desde variable de entorno; no tiene valor por defecto
+jwt:
+  secret: ${JWT_SECRET}
+
+# Orígenes permitidos en CORS; obligatorio en prod — debe ser el dominio real del frontend
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# No exponer detalles internos en respuestas de error
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# Actuator: solo /health para health checks del orquestador
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+
+# Swagger deshabilitado: no exponer la API publica en produccion
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    co.edu.unicauca: INFO

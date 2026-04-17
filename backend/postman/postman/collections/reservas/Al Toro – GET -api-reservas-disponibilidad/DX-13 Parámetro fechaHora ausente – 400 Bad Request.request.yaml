@@ -1,0 +1,24 @@
+$kind: http-request
+name: DX-13 Parámetro fechaHora ausente – 400 Bad Request
+description: |-
+  **Criterio de Aceptación:** Validación de entrada — `fechaHora` está declarado como
+  `@RequestParam` obligatorio en el controller. Si falta, Spring responde 400.
+  **Objetivo:** Verificar que el sistema retorna 400 al omitir el parámetro obligatorio.
+  **Pre-condición:** Token CLIENTE disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 400 Bad Request · `success=false`.
+url: "{{baseUrl}}/api/reservas/disponibilidad"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Parámetro fechaHora ausente', function () {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('El campo success es false en la respuesta de error', function () {
+        pm.expect(pm.response.json().success).to.be.false;
+      });
+    language: text/javascript
+order: 13000

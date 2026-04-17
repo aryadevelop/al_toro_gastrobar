@@ -1,0 +1,23 @@
+$kind: http-request
+name: BLOQUE-3 CA-BLQ-03 – Disponibilidad en franja horaria bloqueada (19:00–21:00) → disponible=false – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-BLQ-03
+  **Objetivo:** Verificar que el sistema retorna `disponible=false` cuando la hora solicitada cae dentro de una franja horaria bloqueada por el administrador (no todo el día). En los datos de prueba, el 22 de diciembre de 2026 está bloqueado entre las 19:00 y las 21:00.
+  **Pre-condición:** V3 ejecutado con el bloqueo del 2026-12-22 franja 19:00–21:00. `clienteToken` disponible. La variable {{fechaBloqueadaFranja}} es 2026-12-22T20:00:00.
+  **Resultado esperado:** HTTP 200. `data.disponible=false`.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{fechaBloqueadaFranja}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{fechaBloqueadaFranja}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Consulta procesada correctamente', () => pm.response.to.have.status(200));
+
+      const d = pm.response.json().data;
+      pm.test('disponible=false para hora dentro de la franja bloqueada (20:00 en rango 19:00-21:00)', () => pm.expect(d.disponible).to.be.false);
+      pm.test('zonas está vacío al estar bloqueada la franja', () => pm.expect(d.zonas).to.be.an('array').and.be.empty);
+    language: text/javascript
+order: 24000

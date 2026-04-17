@@ -1,0 +1,36 @@
+$kind: http-request
+name: "RP-PO-21 Pre-orden: producto inactivo – 422 Unprocessable Entity"
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: json
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 2,
+      "preOrden": [
+        {
+          "productoId": {{idProductoInactivo}},
+          "cantidad": 1
+        }
+      ]
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      // Requiere {{idProductoInactivo}} en el environment con el ID de un producto INACTIVO.
+      pm.test('Status 422 – Producto inactivo en pre-orden rechazado', () => pm.response.to.have.status(422));
+      const body = pm.response.json();
+      pm.test('El campo success es false', () => pm.expect(body.success).to.be.false);
+      pm.test('El mensaje menciona que el producto no está disponible', () => {
+          pm.expect(body.message.toLowerCase()).to.satisfy(
+              m => m.includes('disponible') || m.includes('activo'),
+              'El mensaje debe indicar que el producto no está disponible'
+          );
+      });
+    language: text/javascript
+order: 32000

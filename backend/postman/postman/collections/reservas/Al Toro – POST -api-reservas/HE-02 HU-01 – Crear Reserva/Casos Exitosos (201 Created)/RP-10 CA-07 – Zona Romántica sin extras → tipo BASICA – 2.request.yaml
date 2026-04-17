@@ -1,0 +1,34 @@
+$kind: http-request
+name: RP-10 CA-07 – Zona Romántica sin extras → tipo BASICA – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-07
+  **Objetivo:** Verificar que la Zona Romántica (id=7) no impone clasificación ESPECIAL por sí misma: una reserva en esa zona sin decoración con costo ni ≥10 personas debe ser BASICA.
+  **Pre-condición:** `clienteToken` disponible. Zona id=7 (Zona Romántica, cap=6) con capacidad en {{fechaLibre}}.
+  **Resultado esperado:** HTTP 201. `tipo=BASICA`, `estado=CONFIRMADA`, `zonaId=7`, `decoracionId=null`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{clienteToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "{{emailCliente}}",
+      "fechaHoraLlegada": "{{fechaLibre}}",
+      "numeroPersonas": 2,
+      "zonaId": 7
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Reserva en Zona Romántica sin extras creada exitosamente', () => pm.response.to.have.status(201));
+
+      const r = pm.response.json().data;
+
+      pm.test('La Zona Romántica sin extras no fuerza clasificación ESPECIAL: tipo=BASICA', () => pm.expect(r.tipo).to.eql('BASICA'));
+      pm.test('El estado de la reserva básica en Zona Romántica es CONFIRMADA', () => pm.expect(r.estado).to.eql('CONFIRMADA'));
+      pm.test('El zonaNombre coincide con Zona Romántica', () => pm.expect(r.zonaNombre).to.eql('Zona Romántica'));
+      pm.test('El campo decoracionNombre es null (sin decoración)', () => pm.expect(r.decoracionNombre).to.be.null);
+    language: text/javascript
+order: 10000

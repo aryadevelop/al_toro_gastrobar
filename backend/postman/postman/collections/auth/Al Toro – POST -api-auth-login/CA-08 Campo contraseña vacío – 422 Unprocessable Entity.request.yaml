@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-08
+  **Objetivo:** Verificar que el campo `password` es obligatorio y que el sistema retorna un error de validación cuando se envía vacío.
+  **Pre-condición:** Ninguna sesión activa requerida.
+  **Resultado esperado:** HTTP 422 con mensaje que indica que la contraseña es requerida.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailAdmin}}",
+      "password": ""
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Campo contraseña vacío', () => pm.response.to.have.status(422));
+
+      pm.test('Mensaje de contraseña requerida', () =>
+        pm.expect(pm.response.json().message).to.include('Por favor, ingresa tu contraseña'));
+    language: text/javascript
+order: 8000

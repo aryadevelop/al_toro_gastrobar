@@ -1,0 +1,43 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-03
+  **Objetivo:** Verificar que un usuario con rol CLIENTE puede autenticarse correctamente y que la respuesta incluye los datos de perfil propios del tipo de usuario cliente (nombre visible).
+  **Pre-condición:** El usuario andres.morales@gmail.com debe existir con estado activo y rol CLIENTE.
+  **Resultado esperado:** HTTP 200. El campo `user.roles` incluye `CLIENTE` y `user.nombre` no es vacío.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailCliente}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Login de cliente exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene accessToken, refreshToken y user', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body).to.have.property('refreshToken');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('El listado de roles incluye CLIENTE', () => pm.expect(body.user.roles).to.include('CLIENTE'));
+
+      pm.test('El campo nombre del usuario cliente no es vacío', () => {
+        pm.expect(body.user.nombre).to.be.a('string').and.not.empty;
+      });
+
+      // Almacenar tokens del cliente para uso en CB-03 y pruebas de visitas
+      pm.environment.set('clienteAccessToken', body.accessToken);
+      pm.environment.set('clienteToken', body.accessToken);
+      pm.environment.set('clienteRefreshToken', body.refreshToken);
+    language: text/javascript
+order: 3000
