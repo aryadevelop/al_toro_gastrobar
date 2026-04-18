@@ -16,7 +16,11 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -116,8 +120,11 @@ public class ReservaMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
+                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
+                .decoracionId(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionId() : null)
                 .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .decoracionNombre(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .modificable(esModificable(reserva))
                 .build();
     }
 
@@ -180,6 +187,8 @@ public class ReservaMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
+                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
+                .decoracionId(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionId() : null)
                 .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .decoracionNombre(reserva.getDecoracion() != null
                         ? reserva.getDecoracion().getDecoracionNombre() : null)
@@ -188,6 +197,26 @@ public class ReservaMapper {
                 .preOrdenTotal(preOrdenTotal)
                 .abonos(abonosDto)
                 .totalAbonado(totalAbonado)
+                .modificable(esModificable(reserva))
                 .build();
+    }
+
+    /**
+     * Calcula si una reserva puede ser modificada por el cliente.
+     *
+     * <p>Una reserva es modificable si su estado es {@code PENDIENTE} o {@code CONFIRMADA}
+     * y el momento actual es anterior a las 16:00 del día de llegada.
+     */
+    private boolean esModificable(Reserva reserva) {
+        // Estado terminal — no puede modificarse
+        if (reserva.getReservaEstado() != EstadoReserva.PENDIENTE
+                && reserva.getReservaEstado() != EstadoReserva.CONFIRMADA) {
+            return false;
+        }
+        // Calcular límite: 16:00 del día de la reserva
+        LocalDateTime limiteModificacion = reserva.getReservaFechaHoraLlegada()
+                .toLocalDate().atTime(LocalTime.of(16, 0));
+        // Comparar con el instante actual
+        return LocalDateTime.now().isBefore(limiteModificacion);
     }
 }
