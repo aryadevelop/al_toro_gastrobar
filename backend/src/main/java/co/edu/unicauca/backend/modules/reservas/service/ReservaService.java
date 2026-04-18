@@ -619,6 +619,82 @@ public class ReservaService {
     // -----------------------------------------------------------------------
 
     /**
+     * Consulta disponibilidad para una fecha/hora excluyendo la reserva que se está modificando.
+     *
+     * <p>Lógica idéntica a {@link #consultarDisponibilidad(LocalDateTime)}, pero usa las
+     * queries {@code *Excluyendo} del repositorio para no contar la reserva actual en los
+     * cálculos de ocupación de zona y decoración.
+     *
+     * @param fechaHora        nueva fecha y hora de llegada solicitada
+     * @param excludeReservaId ID de la reserva siendo modificada, excluida de los conteos
+     * @return {@link DisponibilidadResponse} con zonas y decoraciones disponibles
+     */
+    private DisponibilidadResponse consultarDisponibilidadParaModificacion(
+            LocalDateTime fechaHora, Long excludeReservaId) {
+
+        if (!esHorarioValido(fechaHora) || estaBloqueda(fechaHora)) {
+            return reservaMapper.sinDisponibilidad();
+        }
+
+        List<Zona> todasLasZonas = zonaRepository.findAll();
+        if (todasLasZonas.isEmpty()) {
+            return reservaMapper.sinDisponibilidad();
+        }
+
+        LocalDateTime inicio = fechaHora.toLocalDate().atStartOfDay();
+        LocalDateTime fin    = fechaHora.toLocalDate().atTime(23, 59, 59);
+
+        Map<Long, Integer> personasPorZona = reservaRepository
+                .findPersonasPorZonaEnDiaExcluyendo(inicio, fin, ESTADOS_ACTIVOS, excludeReservaId)
+                .stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> ((Number) row[1]).intValue()
+                ));
+
+        List<Zona> zonasLibres = todasLasZonas.stream()
+                .filter(z -> personasPorZona.getOrDefault(z.getZonaId(), 0)
+                             < z.getZonaCapacidadPersonas())
+                .collect(Collectors.toList());
+
+        if (zonasLibres.isEmpty()) {
+            return reservaMapper.sinDisponibilidad();
+        }
+
+        Set<Long> idsZonasLibres = zonasLibres.stream()
+                .map(Zona::getZonaId)
+                .collect(Collectors.toSet());
+
+        Set<Long> decoracionesOcupadas = Set.copyOf(
+                reservaRepository.findDecoracionesOcupadasEnDiaExcluyendo(
+                        inicio, fin, ESTADOS_ACTIVOS, excludeReservaId));
+
+        List<Decoracion> decoracionesActivas = decoracionRepository
+                .findByDecoracionEstado(EstadoGenerico.ACTIVO)
+                .stream()
+                .filter(d -> !decoracionesOcupadas.contains(d.getDecoracionId()))
+                .collect(Collectors.toList());
+
+        List<DecoracionDisponibleResponse> decoracionesDto = decoracionesActivas.stream()
+                .map(d -> {
+                    List<DecoracionZona> links =
+                            decoracionZonaRepository.findByDecoracionId(d.getDecoracionId());
+                    return reservaMapper.toDecoracionDto(d, links, idsZonasLibres);
+                })
+                .collect(Collectors.toList());
+
+        List<ZonaDisponibleResponse> zonasDto = zonasLibres.stream()
+                .map(reservaMapper::toZonaDto)
+                .collect(Collectors.toList());
+
+        return DisponibilidadResponse.builder()
+                .disponible(true)
+                .decoraciones(decoracionesDto)
+                .zonas(zonasDto)
+                .build();
+    }
+
+    /**
      * Valida que la fecha y hora de llegada estén dentro del horario de atención del restaurante.
      * @param fechaHora fecha y hora de llegada a validar
      * @return {@code true} si la hora está dentro del horario de atención, {@code false} en caso contrario
