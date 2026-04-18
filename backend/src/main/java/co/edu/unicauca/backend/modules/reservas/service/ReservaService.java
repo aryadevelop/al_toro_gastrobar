@@ -44,6 +44,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -305,23 +306,11 @@ public class ReservaService {
             }
         }
 
-        // Determinar si la reserva tiene una decoracion con costo adicinal
-        boolean tieneDecoracionConCosto = decoracion != null &&
-                decoracion.getDecoracionCostoAdicional() != null &&
-                decoracion.getDecoracionCostoAdicional().compareTo(java.math.BigDecimal.ZERO) > 0;
-
-        // Determinar si la reserva tiene un menú especial en la pre-orden
-        boolean tieneMenuEspecial = request.getPreOrden() != null &&
-                request.getPreOrden().stream()
-                        .anyMatch(item -> Boolean.TRUE.equals(item.getEsMenuEspecial()));
-
-        // Si la reserva tiene decoración con costo adicional o menú especial, se considera una reserva especial que requiere aprobación administrativa.
-        boolean esEspecial = tieneDecoracionConCosto || tieneMenuEspecial;
-
-        // Las reservas especiales quedan en estado PENDIENTE para revisión administrativa
-        // las básicas se confirman automáticamente.
-        TipoReserva tipo = esEspecial ? TipoReserva.ESPECIAL : TipoReserva.BASICA;
-        EstadoReserva estado = esEspecial ? EstadoReserva.PENDIENTE : EstadoReserva.CONFIRMADA;
+        // Determinar tipo de reserva (BASICA o ESPECIAL) según decoración y pre-orden
+        TipoReserva tipo     = determinarTipoReserva(decoracion, request.getPreOrden());
+        EstadoReserva estado = (tipo == TipoReserva.ESPECIAL)
+                ? EstadoReserva.PENDIENTE
+                : EstadoReserva.CONFIRMADA;
 
         // Si se incluye pre-orden, validar que los productos y opciones de modificación existan y sean válidos para el número de personas de la reserva
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
@@ -617,6 +606,32 @@ public class ReservaService {
     // -----------------------------------------------------------------------
     // Validaciones privadas
     // -----------------------------------------------------------------------
+
+    /**
+     * Determina el tipo de una reserva según su decoración y pre-orden.
+     *
+     * <p>Una reserva es ESPECIAL si su decoración tiene costo adicional mayor a cero
+     * o si algún ítem de la pre-orden es un menú especial. En cualquier otro caso es BASICA.
+     *
+     * @param decoracion decoración seleccionada; {@code null} si no se eligió ninguna
+     * @param preOrden   ítems de pre-orden; {@code null} o vacía si no hay pre-orden
+     * @return {@link TipoReserva#ESPECIAL} o {@link TipoReserva#BASICA}
+     */
+    private TipoReserva determinarTipoReserva(Decoracion decoracion,
+                                               List<PreOrdenItemRequest> preOrden) {
+        // Decoración con costo adicional convierte la reserva en ESPECIAL
+        boolean tieneDecoracionConCosto = decoracion != null
+                && decoracion.getDecoracionCostoAdicional() != null
+                && decoracion.getDecoracionCostoAdicional().compareTo(BigDecimal.ZERO) > 0;
+
+        // Pre-orden con al menos un menú especial también convierte la reserva en ESPECIAL
+        boolean tieneMenuEspecial = preOrden != null
+                && preOrden.stream().anyMatch(i -> Boolean.TRUE.equals(i.getEsMenuEspecial()));
+
+        return (tieneDecoracionConCosto || tieneMenuEspecial)
+                ? TipoReserva.ESPECIAL
+                : TipoReserva.BASICA;
+    }
 
     /**
      * Consulta disponibilidad para una fecha/hora excluyendo la reserva que se está modificando.
