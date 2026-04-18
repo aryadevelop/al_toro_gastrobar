@@ -16,9 +16,11 @@ import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
@@ -48,6 +50,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
@@ -88,6 +91,13 @@ public class ReservaService {
     private static final String MSG_FUERA_HORARIO = "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. " + "Por favor elija otra fecha u hora.";
     private static final int HORA_APERTURA = 17;
     private static final int HORA_CIERRE = 22;
+    private static final LocalTime HORA_LIMITE_MODIFICACION = LocalTime.of(16, 0);
+    private static final String MSG_NO_MODIFICABLE =
+            "Ya no es posible modificar esta reserva. Solo puedes cancelarla.";
+    private static final String MSG_ESTADO_NO_MODIFICABLE =
+            "Solo puedes modificar reservas con estado PENDIENTE o CONFIRMADA.";
+    private static final DateTimeFormatter FORMATTER_WA =
+            DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 
     private final ReservaRepository reservaRepository;
     private final DecoracionRepository decoracionRepository;
@@ -401,6 +411,210 @@ public class ReservaService {
         List<Abono> abonos = abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reservaId);
 
         return reservaMapper.toDetalleResponse(reserva, preOrden, abonos);
+    }
+
+    /**
+     * Modifica una reserva existente del cliente aplicando las mismas validaciones de negocio
+     * que la creación y verificando la disponibilidad excluyendo la reserva actual.
+     *
+     * <p><b>Regla de hora límite:</b> solo es posible modificar antes de las 16:00 del día
+     * de la reserva (CA-01).</p>
+     *
+     * <p><b>Transiciones de tipo y estado:</b>
+     * <ul>
+     *   <li>BASICA → BASICA: actualiza campos, mantiene CONFIRMADA.</li>
+     *   <li>BASICA → ESPECIAL: actualiza campos, cambia a PENDIENTE. Requiere WhatsApp.</li>
+     *   <li>ESPECIAL → ESPECIAL: actualiza campos, mantiene PENDIENTE.</li>
+     *   <li>ESPECIAL → BASICA: cancela reserva original, crea nueva BASICA CONFIRMADA. Requiere WhatsApp.</li>
+     * </ul>
+     *
+     * @param reservaId    ID de la reserva a modificar
+     * @param emailCliente email del cliente autenticado (tomado del token)
+     * @param request      nuevos datos de la reserva
+     * @return {@link ModificarReservaResponse} con la reserva resultante y flag de WhatsApp si aplica
+     * @throws ResourceNotFoundException si la reserva, decoración, zona o productos no existen
+     * @throws BusinessException         si se incumple alguna regla de negocio
+     */
+    @Transactional
+    public ModificarReservaResponse modificarReserva(Long reservaId,
+                                                      String emailCliente,
+                                                      ModificarReservaRequest request) {
+
+        // Verificar existencia de la reserva
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        // Verificar ownership (CA-02)
+        if (!reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes modificar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+
+        // Verificar que la reserva esté en estado activo
+        if (!ESTADOS_ACTIVOS.contains(reserva.getReservaEstado())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    MSG_ESTADO_NO_MODIFICABLE, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Verificar hora límite de modificación: antes de las 16:00 del día de la reserva (CA-01)
+        LocalDateTime limiteModificacion = reserva.getReservaFechaHoraLlegada()
+                .toLocalDate().atTime(HORA_LIMITE_MODIFICACION);
+        if (!LocalDateTime.now().isBefore(limiteModificacion)) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    MSG_NO_MODIFICABLE, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Validar horario del restaurante para la nueva fecha/hora (CA-04)
+        if (!esHorarioValido(request.getFechaHoraLlegada())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    MSG_FUERA_HORARIO, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Validar bloqueos administrativos para la nueva fecha/hora (CA-04)
+        if (estaBloqueda(request.getFechaHoraLlegada())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    MSG_FUERA_HORARIO, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Validar decoración (CA-04)
+        Decoracion nuevaDecoracion = null;
+        if (request.getDecoracionId() != null) {
+            final Long decId = request.getDecoracionId();
+            nuevaDecoracion = decoracionRepository.findById(decId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decId));
+        }
+
+        // Validar zona (CA-04)
+        Zona nuevaZona = null;
+        if (request.getZonaId() != null) {
+            final Long zId = request.getZonaId();
+            nuevaZona = zonaRepository.findById(zId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Zona", zId));
+        }
+
+        // Validar compatibilidad decoración-zona (CA-04)
+        if (nuevaDecoracion != null && nuevaZona != null) {
+            validarCompatibilidadDecoracionZona(nuevaDecoracion, nuevaZona);
+        }
+
+        // Verificar disponibilidad excluyendo la reserva actual (CA-06, CA-07)
+        DisponibilidadResponse disponibilidad =
+                consultarDisponibilidadParaModificacion(request.getFechaHoraLlegada(), reservaId);
+
+        if (!disponibilidad.getDisponible()) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    MSG_DISPONIBILIDAD_CAMBIO, HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Verificar que la decoración elegida esté disponible
+        if (nuevaDecoracion != null) {
+            final Long decId = nuevaDecoracion.getDecoracionId();
+            boolean decoracionLibre = disponibilidad.getDecoraciones().stream()
+                    .anyMatch(d -> d.getDecoracionId().equals(decId));
+            if (!decoracionLibre) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        MSG_DISPONIBILIDAD_CAMBIO, HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        // Verificar capacidad de zona
+        LocalDateTime inicioDia = request.getFechaHoraLlegada().toLocalDate().atStartOfDay();
+        LocalDateTime finDia    = request.getFechaHoraLlegada().toLocalDate().atTime(23, 59, 59);
+
+        if (nuevaZona != null) {
+            final Long zId = nuevaZona.getZonaId();
+            boolean zonaLibre = disponibilidad.getZonas().stream()
+                    .anyMatch(z -> z.getZonaId().equals(zId));
+            if (!zonaLibre) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        MSG_DISPONIBILIDAD_CAMBIO, HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+            int personasExistentes = reservaRepository.sumPersonasByZonaEnDiaExcluyendo(
+                    zId, inicioDia, finDia, ESTADOS_ACTIVOS, reservaId);
+            if (personasExistentes + request.getNumeroPersonas() > nuevaZona.getZonaCapacidadPersonas()) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "La zona seleccionada no tiene capacidad suficiente para " +
+                        request.getNumeroPersonas() + " personas en ese día.",
+                        HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+        } else {
+            boolean hayZonaConCapacidad = disponibilidad.getZonas().stream()
+                    .anyMatch(z -> {
+                        int ocupadas = reservaRepository.sumPersonasByZonaEnDiaExcluyendo(
+                                z.getZonaId(), inicioDia, finDia, ESTADOS_ACTIVOS, reservaId);
+                        return (z.getCapacidad() - ocupadas) >= request.getNumeroPersonas();
+                    });
+            if (!hayZonaConCapacidad) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "No hay zonas con capacidad suficiente para " +
+                        request.getNumeroPersonas() + " personas en ese día.",
+                        HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+        }
+
+        // Validar pre-orden (CA-05)
+        if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
+            validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
+        }
+
+        // Determinar nuevo tipo usando el helper extraído en Task 8.5
+        TipoReserva nuevoTipo    = determinarTipoReserva(nuevaDecoracion, request.getPreOrden());
+        boolean nuevoEsEspecial  = (nuevoTipo == TipoReserva.ESPECIAL);
+        boolean anteriorEraEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
+        boolean requiereWhatsApp = false;
+        Reserva reservaResultado;
+
+        if (anteriorEraEspecial && !nuevoEsEspecial) {
+            // ESPECIAL → BASICA (CA-07): cancelar original, crear nueva BASICA CONFIRMADA
+            reserva.setReservaEstado(EstadoReserva.CANCELADA);
+            reservaRepository.save(reserva);
+            eliminarPreOrdenExistente(reservaId);
+
+            Reserva nuevaReserva = Reserva.builder()
+                    .cliente(reserva.getCliente())
+                    .zona(nuevaZona)
+                    .decoracion(nuevaDecoracion)
+                    .reservaFechaHoraLlegada(request.getFechaHoraLlegada())
+                    .reservaNumeroPersonas(request.getNumeroPersonas())
+                    .reservaNotas(request.getNotas())
+                    .reservaEstado(EstadoReserva.CONFIRMADA)
+                    .reservaTipo(TipoReserva.BASICA)
+                    .build();
+            reservaResultado = reservaRepository.save(nuevaReserva);
+            requiereWhatsApp = true;
+        } else {
+            // BASICA→BASICA, BASICA→ESPECIAL, ESPECIAL→ESPECIAL: actualizar reserva existente
+            EstadoReserva nuevoEstado;
+            if (!anteriorEraEspecial && nuevoEsEspecial) {
+                // BASICA → ESPECIAL (CA-06): cambiar a PENDIENTE
+                nuevoEstado      = EstadoReserva.PENDIENTE;
+                requiereWhatsApp = true;
+            } else {
+                // BASICA→BASICA: mantener CONFIRMADA | ESPECIAL→ESPECIAL: mantener PENDIENTE
+                nuevoEstado = reserva.getReservaEstado();
+            }
+
+            reserva.setZona(nuevaZona);
+            reserva.setDecoracion(nuevaDecoracion);
+            reserva.setReservaFechaHoraLlegada(request.getFechaHoraLlegada());
+            reserva.setReservaNumeroPersonas(request.getNumeroPersonas());
+            reserva.setReservaNotas(request.getNotas());
+            reserva.setReservaEstado(nuevoEstado);
+            reserva.setReservaTipo(nuevoTipo);
+
+            eliminarPreOrdenExistente(reservaId);
+            reservaResultado = reservaRepository.save(reserva);
+        }
+
+        // Persistir nueva pre-orden si existe (CA-05)
+        if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
+            persistirPreOrden(reservaResultado, request.getPreOrden());
+        }
+
+        // Componer mensaje WhatsApp si la transición lo requiere (CA-06, CA-07)
+        String mensajeWhatsApp = requiereWhatsApp ? construirMensajeWhatsApp(reservaResultado) : null;
+
+        return reservaMapper.toModificarResponse(reservaResultado, requiereWhatsApp, mensajeWhatsApp);
     }
 
     /**
@@ -766,5 +980,38 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
         }
+    }
+
+    /**
+     * Construye el mensaje precompuesto para el chat de WhatsApp cuando la reserva
+     * requiere confirmación especial (transiciones BASICA→ESPECIAL o ESPECIAL→BASICA).
+     *
+     * <p>El mensaje incluye: ID de reserva, nombre del cliente, fecha y hora,
+     * número de personas, y opcionalmente decoración y zona si están asignadas.
+     *
+     * @param reserva entidad resultante de la modificación
+     * @return mensaje formateado listo para enviar por WhatsApp
+     */
+    private String construirMensajeWhatsApp(Reserva reserva) {
+        StringBuilder sb = new StringBuilder();
+        // Identificación del cliente y reserva
+        sb.append("Hola, soy ").append(reserva.getCliente().getClienteNombre()).append(".\n");
+        sb.append("Quisiera confirmar mi reserva #").append(reserva.getReservaId()).append(":\n");
+        // Datos obligatorios de la reserva
+        sb.append("- Fecha y hora: ")
+          .append(reserva.getReservaFechaHoraLlegada().format(FORMATTER_WA)).append("\n");
+        sb.append("- Número de personas: ")
+          .append(reserva.getReservaNumeroPersonas()).append("\n");
+        // Decoración y zona solo si están asignadas
+        if (reserva.getDecoracion() != null) {
+            sb.append("- Decoración: ")
+              .append(reserva.getDecoracion().getDecoracionNombre()).append("\n");
+        }
+        if (reserva.getZona() != null) {
+            sb.append("- Zona: ").append(reserva.getZona().getZonaNombre()).append("\n");
+        }
+        sb.append("\nPara confirmar tu reserva especial, debes abonar un valor anticipado, " +
+                  "comunicate para definirlo.");
+        return sb.toString();
     }
 }
