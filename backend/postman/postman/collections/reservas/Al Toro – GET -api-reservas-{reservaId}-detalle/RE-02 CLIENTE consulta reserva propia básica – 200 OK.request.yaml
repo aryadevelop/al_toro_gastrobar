@@ -1,0 +1,74 @@
+$kind: http-request
+name: RE-02 CLIENTE consulta detalle de reserva propia básica sin pre-orden ni abonos – 200 OK
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-07 (omisión de campos opcionales por `@JsonInclude(NON_NULL)`)
+  **Objetivo:** Verificar que `preOrdenItems`, `preOrdenTotal`, `abonos` y `totalAbonado`
+  son omitidos del JSON cuando la reserva no tiene pre-orden ni abonos asociados.
+  **Pre-condición:** Ninguna externa. El pre-request crea una reserva propia sin pre-orden,
+  sin zona y sin decoración, y captura el `reservaId` resultante en `tmpReservaId`.
+  **Resultado esperado:** 200 OK · `reservaId`, `estado`, `numeroPersonas` presentes ·
+  `preOrdenItems`, `preOrdenTotal`, `abonos`, `totalAbonado` ausentes (undefined).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null,
+            decoracionId: null,
+            notas: null,
+            preOrden: null
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('Pre-request RE-02: creación de reserva falló', err, res && res.code, res && res.text());
+          return;
+        }
+        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Los campos base están presentes en una reserva básica', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.reservaId).to.exist;
+        pm.expect(data.estado).to.exist;
+        pm.expect(data.numeroPersonas).to.exist;
+      });
+      pm.test('Los campos opcionales de pre-orden y abonos están omitidos', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.preOrdenItems).to.be.undefined;
+        pm.expect(data.preOrdenTotal).to.be.undefined;
+        pm.expect(data.abonos).to.be.undefined;
+        pm.expect(data.totalAbonado).to.be.undefined;
+      });
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 2000

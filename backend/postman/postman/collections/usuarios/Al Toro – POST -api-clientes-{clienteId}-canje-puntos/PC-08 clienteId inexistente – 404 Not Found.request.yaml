@@ -1,0 +1,46 @@
+$kind: http-request
+name: PC-08 clienteId inexistente – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Validación de existencia del cliente.
+  **Objetivo:** Verificar que el endpoint retorna 404 cuando el `clienteId` no existe.
+  **Pre-condición:** El ID `999999` no está registrado en `restaurante.cliente`.
+  El `beforeRequest` hace login autónomo de CAJERO.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/clientes/999999/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PC-08: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para clienteId inexistente', function () {
+        pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 8000

@@ -1,0 +1,52 @@
+$kind: http-request
+name: CR-08 Decoración gratuita + zona compatible – 201 Created
+description: |-
+  **Criterio de Aceptación:** Cuando la decoración no tiene costo y no hay menú especial
+  en la pre-orden, la reserva es BÁSICA (CONFIRMADA), aun teniendo decoración asociada.
+  **Objetivo:** Verificar el happy-path con decoración sin costo y zona compatible.
+  **Pre-condición:** `clienteToken` disponible; seed V2 define decoración id=2
+  "Cumpleaños Premium" con costo=0 vinculada a zonas {3 VIP, 6 Sala Privada}.
+  **Resultado esperado:** 201 Created, `tipo=BASICA`, `estado=CONFIRMADA`,
+  `zonaNombre` y `decoracionNombre` no nulos.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 4,
+      "decoracionId": 2,
+      "zonaId": 3
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva con decoración gratuita con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva es BÁSICA CONFIRMADA con zona y decoración asociadas', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.tipo).to.eql('BASICA');
+        pm.expect(body.data.estado).to.eql('CONFIRMADA');
+        pm.expect(body.data.zonaNombre).to.be.a('string').and.not.empty;
+        pm.expect(body.data.decoracionNombre).to.be.a('string').and.not.empty;
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 8000

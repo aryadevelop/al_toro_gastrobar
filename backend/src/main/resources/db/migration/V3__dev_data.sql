@@ -55,19 +55,19 @@ INSERT INTO Empleado (usuario_id, empleado_nombre, empleado_direccion, empleado_
 -- =====================================================
 -- 3. Cliente  (usuario_id 11-22)
 -- =====================================================
-INSERT INTO Cliente (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_fecha_nacimiento, cliente_puntos, cliente_acepta_terminos, cliente_fecha_aceptacion) VALUES
-(11, 'Carlos Andrés Pérez',    '3100001111', 'Calle 3 # 5-10 Popayán',         '1990-04-12', 1200, TRUE, '2024-01-10 10:30:00'),
-(12, 'Laura Valentina Gómez',  '3111112222', 'Carrera 7 # 11-22 Popayán',      '1995-07-25', 800,  TRUE, '2024-02-14 15:00:00'),
-(13, 'Andrés Felipe Morales',  '3122223333', 'Barrio Bolívar Popayán',          '1988-11-03', 2500, TRUE, '2023-12-01 09:00:00'),
-(14, 'Sofía Elena Ramírez',    '3133334444', 'Av. Panamericana # 40-12',        '1992-03-18', 350,  TRUE, '2024-03-20 11:00:00'),
-(15, 'Juan Camilo Torres',     '3144445555', 'Calle 20 # 8-55 Popayán',        '1985-09-30', 4100, TRUE, '2023-08-05 14:00:00'),
-(16, 'Valentina Cruz Lemos',   '3155556666', 'Carrera 12 # 3-78 Popayán',      '1998-12-15', 150,  TRUE, '2024-04-01 16:30:00'),
-(17, 'Miguel Ángel Herrera',   '3166667777', 'Urb. Los Pinos Casa 12 Popayán', '1993-06-22', 900,  TRUE, '2024-01-25 12:00:00'),
-(18, 'Diana Marcela López',    '3177778888', 'Calle 9 # 15-43 Popayán',        '1991-02-08', 3200, TRUE, '2023-10-10 10:00:00'),
-(19, 'Sergio Iván Castillo',   '3188889999', 'Barrio El Lago Popayán',          '1987-08-14', 600,  TRUE, '2024-02-28 09:30:00'),
-(20, 'Paola Andrea Rojas',     '3199990000', 'Carrera 2 # 6-88 Popayán',       '1996-05-05', 1800, TRUE, '2023-11-15 17:00:00'),
-(21, 'Nicolás Esteban Vargas', '3200001122', 'Calle 14 # 10-23 Popayán',       '1994-10-28', 720,  TRUE, '2024-03-05 13:00:00'),
-(22, 'Isabella Sofía Ríos',    '3211112233', 'Av. Colombia # 55-10 Popayán',   '2000-01-19', 90,   TRUE, '2024-04-08 18:00:00');
+INSERT INTO Cliente (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_fecha_nacimiento, cliente_puntos, cliente_puntos_acumulados, cliente_acepta_terminos, cliente_fecha_aceptacion) VALUES
+(11, 'Carlos Andrés Pérez',    '3100001111', 'Calle 3 # 5-10 Popayán',         '1990-04-12', 1200, 1200, TRUE, '2024-01-10 10:30:00'),
+(12, 'Laura Valentina Gómez',  '3111112222', 'Carrera 7 # 11-22 Popayán',      '1995-07-25', 800,  800,  TRUE, '2024-02-14 15:00:00'),
+(13, 'Andrés Felipe Morales',  '3122223333', 'Barrio Bolívar Popayán',          '1988-11-03', 2500, 2500, TRUE, '2023-12-01 09:00:00'),
+(14, 'Sofía Elena Ramírez',    '3133334444', 'Av. Panamericana # 40-12',        '1992-03-18', 350,  350,  TRUE, '2024-03-20 11:00:00'),
+(15, 'Juan Camilo Torres',     '3144445555', 'Calle 20 # 8-55 Popayán',        '1985-09-30', 4100, 4100, TRUE, '2023-08-05 14:00:00'),
+(16, 'Valentina Cruz Lemos',   '3155556666', 'Carrera 12 # 3-78 Popayán',      '1998-12-15', 150,  150,  TRUE, '2024-04-01 16:30:00'),
+(17, 'Miguel Ángel Herrera',   '3166667777', 'Urb. Los Pinos Casa 12 Popayán', '1993-06-22', 900,  900,  TRUE, '2024-01-25 12:00:00'),
+(18, 'Diana Marcela López',    '3177778888', 'Calle 9 # 15-43 Popayán',        '1991-02-08', 3200, 3200, TRUE, '2023-10-10 10:00:00'),
+(19, 'Sergio Iván Castillo',   '3188889999', 'Barrio El Lago Popayán',          '1987-08-14', 600,  600,  TRUE, '2024-02-28 09:30:00'),
+(20, 'Paola Andrea Rojas',     '3199990000', 'Carrera 2 # 6-88 Popayán',       '1996-05-05', 1800, 1800, TRUE, '2023-11-15 17:00:00'),
+(21, 'Nicolás Esteban Vargas', '3200001122', 'Calle 14 # 10-23 Popayán',       '1994-10-28', 720,  720,  TRUE, '2024-03-05 13:00:00'),
+(22, 'Isabella Sofía Ríos',    '3211112233', 'Av. Colombia # 55-10 Popayán',   '2000-01-19', 90,   90,   TRUE, '2024-04-08 18:00:00');
 
 -- =====================================================
 -- 4. Usuario_Rol
@@ -174,99 +174,6 @@ INSERT INTO Abono (cajero_id, reserva_id, abono_monto, abono_fecha_hora, abono_m
 (2, 16, 80000, NOW() - INTERVAL '8 days',  'TRANSFERENCIA', 'DEVOLUCION');
 
 -- =====================================================
--- 8. PreOrden_Detalle + preorden_menu_modificacion
---
---    Regla de negocio: por reserva un solo tipo de menú especial,
---    con cantidad = total de personas, y las mismas modificaciones
---    para todo el grupo.
---
---    Cobertura de los 6 menús disponibles:
---      Reserva  2 (18p, ATENDIDA)   → Menú 1  + BEBIDA
---      Reserva  3 (16p, ATENDIDA)   → Menú 3  + BEBIDA
---      Reserva  8 (98p, ATENDIDA)   → Menú 8a + SALSA_P1 + SALSA_P2 + ARROZ + BEBIDA
---      Reserva 10 (12p, CONFIRMADA) → Menú 8b + SALSA_P1 + SALSA_P2 + BEBIDA
---      Reserva 14 (14p, PENDIENTE)  → Menú 8c + SALSA_P1 + SALSA_P2 + BEBIDA
---      Reserva 17 (11p, PENDIENTE)  → Menú 8d + SALSA_P1 + SALSA_P2 + BEBIDA
---
---    Reserva  5 (2p, ATENDIDA)      → productos regulares (≤10 personas)
---    Reserva 12 (2p, PENDIENTE)     → productos regulares (≤10 personas)
---
---    La columna preorden_detalle_descripcion se usa como clave de correlación
---    para vincular las modificaciones sin depender de IDs autogenerados.
--- =====================================================
-
--- ─── Reservas con menú especial (1 fila = 1 reserva = 1 menú = N personas) ────
-INSERT INTO PreOrden_Detalle (reserva_id, producto_id, preorden_detalle_cantidad, preorden_detalle_descripcion)
-SELECT v.reserva_id, p.producto_id, v.cantidad, v.tag
-FROM (VALUES
-    ( 2, 'Menú 1 - Pechuga en Salsa de Uchuvas', 18, 'r2'),
-    ( 3, 'Menú 3 - Cerdo BBQ',                   16, 'r3'),
-    ( 8, 'Menú 8a - Doble Proteína con Arroz',   98, 'r8'),
-    (10, 'Menú 8b - Pechuga y Cerdo',            12, 'r10'),
-    (14, 'Menú 8c - Pechuga y Res en Vino',      14, 'r14'),
-    (17, 'Menú 8d - Cerdo y Res en Vino',        11, 'r17')
-) AS v(reserva_id, nombre, cantidad, tag)
-JOIN Producto p ON p.producto_nombre = v.nombre;
-
--- ─── Reservas con productos regulares (≤10 personas, sin menú especial) ──────
-INSERT INTO PreOrden_Detalle (reserva_id, producto_id, preorden_detalle_cantidad)
-SELECT v.reserva_id, p.producto_id, v.cantidad
-FROM (VALUES
-    -- Reserva 5: aniversario (2 personas, ATENDIDA)
-    (5,  'Filet Mignon',          1),
-    (5,  'Salmón a la Marinera',  1),
-    -- Reserva 12: cena romántica (2 personas, PENDIENTE)
-    (12, 'Picanha',               2),
-    (12, 'Salmón a la Marinera',  2),
-    (12, 'Gnomo',                 2)
-) AS v(reserva_id, nombre, cantidad)
-JOIN Producto p ON p.producto_nombre = v.nombre;
-
--- ─────────────────────────────────────────────────────────────────────────────
--- preorden_menu_modificacion
---   Un INSERT único resuelve todas las opciones elegidas por reserva.
---   Cada tag identifica un PreOrden_Detalle; las opciones se resuelven
---   por JOIN (tipo_componente + opcion_nombre) sin IDs hardcodeados.
---
---   Cobertura total de opciones:
---     BEBIDA:           Maracuyá(r2), Lulo(r3), Mango(r8), Fresa(r10,r17)
---     SALSA_PROTEINA_1: Uchuvas(r8,r14), BBQ(r10), Vino(r17)
---     SALSA_PROTEINA_2: BBQ(r8,r10), Uchuvas(r14), Vino(r17)  ← corrección: r14 P2=Vino, r17 P2=BBQ
---     ARROZ:            Granjero(r8)
--- ─────────────────────────────────────────────────────────────────────────────
-INSERT INTO preorden_menu_modificacion (preorden_detalle_id, opcion_id)
-SELECT pd.preorden_detalle_id, o.opcion_id
-FROM PreOrden_Detalle pd
-JOIN (VALUES
-    -- r2: Menú 1 × 18 → BEBIDA: Jugo de Maracuyá
-    ('r2',  'BEBIDA',           'Jugo de Maracuyá'),
-    -- r3: Menú 3 × 16 → BEBIDA: Jugo de Lulo
-    ('r3',  'BEBIDA',           'Jugo de Lulo'),
-    -- r8: Menú 8a × 98 → Salsa Uchuvas | Salsa BBQ | Arroz Granjero | Jugo de Mango
-    ('r8',  'SALSA_PROTEINA_1', 'Salsa de Uchuvas'),
-    ('r8',  'SALSA_PROTEINA_2', 'Salsa BBQ'),
-    ('r8',  'ARROZ',            'Arroz Granjero'),
-    ('r8',  'BEBIDA',           'Jugo de Mango'),
-    -- r10: Menú 8b × 12 → Salsa BBQ | Salsa Uchuvas | Jugo de Fresa
-    ('r10', 'SALSA_PROTEINA_1', 'Salsa BBQ'),
-    ('r10', 'SALSA_PROTEINA_2', 'Salsa de Uchuvas'),
-    ('r10', 'BEBIDA',           'Jugo de Fresa'),
-    -- r14: Menú 8c × 14 → Salsa Uchuvas | Salsa de Vino Tinto | Jugo de Lulo
-    ('r14', 'SALSA_PROTEINA_1', 'Salsa de Uchuvas'),
-    ('r14', 'SALSA_PROTEINA_2', 'Salsa de Vino Tinto'),
-    ('r14', 'BEBIDA',           'Jugo de Lulo'),
-    -- r17: Menú 8d × 11 → Salsa de Vino Tinto | Salsa BBQ | Jugo de Fresa
-    ('r17', 'SALSA_PROTEINA_1', 'Salsa de Vino Tinto'),
-    ('r17', 'SALSA_PROTEINA_2', 'Salsa BBQ'),
-    ('r17', 'BEBIDA',           'Jugo de Fresa')
-) AS v(tag, tipo, nombre)
-  ON pd.preorden_detalle_descripcion = v.tag
-JOIN opcion_modificacion o
-  ON o.tipo_componente = v.tipo
- AND o.opcion_nombre   = v.nombre
- AND o.opcion_estado   = 'ACTIVO';
-
--- =====================================================
 -- 9. Visita
 -- =====================================================
 INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin) VALUES
@@ -306,7 +213,8 @@ INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero
 (12, 2, 6, 'T-04',   3,  'ESPERA');
 
 -- =====================================================
--- 11. Comanda
+-- 11. Comanda (de visitas)
+--     IDs resultantes: 1-17
 -- =====================================================
 INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_fecha_hora_listo, comanda_notas, comanda_estado) VALUES
 -- Históricas completadas
@@ -330,9 +238,78 @@ INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, com
 (12, 'BARRA',  NOW() - INTERVAL '10 minutes', NULL,                          NULL,                    'PENDIENTE');
 
 -- =====================================================
--- 12. Comanda_Detalle
+-- 8. Comandas PRE_RESERVA (pre-órdenes unificadas)
+--
+--    Modelo unificado: no existe PreOrden_Detalle.
+--    Las pre-órdenes son Comandas con estado PRE_RESERVA,
+--    reserva_id poblado y visita_id = NULL.
+--    Al iniciar la visita, el servicio establece visita_id.
+--
+--    Reservas ATENDIDAS (2, 3, 5, 8): sus pre-órdenes ya fueron
+--    incorporadas a las comandas de visita (sección 11).
+--    Aquí solo se crean las PRE_RESERVA para reservas PENDIENTES
+--    o CONFIRMADAS que aún no tienen visita:
+--      Reserva 10 (12p, CONFIRMADA) → Menú 8b
+--      Reserva 12  (2p, PENDIENTE)  → Picanha + Salmón + Gnomo
+--      Reserva 14 (14p, PENDIENTE)  → Menú 8c
+--      Reserva 17 (11p, PENDIENTE)  → Menú 8d
+--
+--    IDs de Comanda resultantes: 18, 19, 20, 21
+--    (las 17 comandas de visita ocupan los IDs 1-17)
 -- =====================================================
-INSERT INTO Comanda_Detalle (comanda_id, producto_id, comanda_detalle_cantidad, comanda_detalle_precio, comanda_detalle_descripcion)
+
+-- ─── Comandas PRE_RESERVA ────────────────────────────────────────────────────
+INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado) VALUES
+(NULL, 10, NULL, NOW() - INTERVAL '3 days',  NULL,                       'PRE_RESERVA'),
+(NULL, 12, NULL, NOW() - INTERVAL '1 day',   'Cena romántica - velas',   'PRE_RESERVA'),
+(NULL, 14, NULL, NOW(),                       NULL,                       'PRE_RESERVA'),
+(NULL, 17, NULL, NOW() - INTERVAL '1 day',   'Fiesta de graduación',     'PRE_RESERVA');
+
+-- ─── ComandaItem de las pre-órdenes ───────────────────────────────────────
+-- precio capturado desde el catálogo en el momento de la reserva
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio)
+SELECT v.comanda_id, p.producto_id, v.cantidad, p.producto_precio
+FROM (VALUES
+    (18, 'Menú 8b - Pechuga y Cerdo',       12),
+    (19, 'Picanha',                           2),
+    (19, 'Salmón a la Marinera',              2),
+    (19, 'Gnomo',                             2),
+    (20, 'Menú 8c - Pechuga y Res en Vino', 14),
+    (21, 'Menú 8d - Cerdo y Res en Vino',   11)
+) AS v(comanda_id, nombre, cantidad)
+JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- ─── comanda_menu_modificacion para menús especiales ─────────────────────────
+-- JOIN por (comanda_id + nombre_producto) → comanda_item_id sin hardcodear IDs.
+--   Comanda 18 (Menú 8b): SALSA_P1=BBQ | SALSA_P2=Uchuvas | BEBIDA=Fresa
+--   Comanda 20 (Menú 8c): SALSA_P1=Uchuvas | SALSA_P2=Vino Tinto | BEBIDA=Lulo
+--   Comanda 21 (Menú 8d): SALSA_P1=Vino Tinto | SALSA_P2=BBQ | BEBIDA=Fresa
+INSERT INTO comanda_menu_modificacion (comanda_item_id, opcion_id)
+SELECT ci.comanda_item_id, o.opcion_id
+FROM Comanda_Item ci
+JOIN Comanda          c ON ci.comanda_id  = c.comanda_id
+JOIN Producto         p ON ci.producto_id = p.producto_id
+JOIN (VALUES
+    (18::bigint, 'Menú 8b - Pechuga y Cerdo',       'SALSA_PROTEINA_1', 'Salsa BBQ'),
+    (18,         'Menú 8b - Pechuga y Cerdo',       'SALSA_PROTEINA_2', 'Salsa de Uchuvas'),
+    (18,         'Menú 8b - Pechuga y Cerdo',       'BEBIDA',           'Jugo de Fresa'),
+    (20,         'Menú 8c - Pechuga y Res en Vino', 'SALSA_PROTEINA_1', 'Salsa de Uchuvas'),
+    (20,         'Menú 8c - Pechuga y Res en Vino', 'SALSA_PROTEINA_2', 'Salsa de Vino Tinto'),
+    (20,         'Menú 8c - Pechuga y Res en Vino', 'BEBIDA',           'Jugo de Lulo'),
+    (21,         'Menú 8d - Cerdo y Res en Vino',   'SALSA_PROTEINA_1', 'Salsa de Vino Tinto'),
+    (21,         'Menú 8d - Cerdo y Res en Vino',   'SALSA_PROTEINA_2', 'Salsa BBQ'),
+    (21,         'Menú 8d - Cerdo y Res en Vino',   'BEBIDA',           'Jugo de Fresa')
+) AS v(cmd_id, prod_nombre, tipo, opcion_nombre)
+  ON c.comanda_id = v.cmd_id AND p.producto_nombre = v.prod_nombre
+JOIN opcion_modificacion o
+  ON o.tipo_componente = v.tipo
+ AND o.opcion_nombre   = v.opcion_nombre
+ AND o.opcion_estado   = 'ACTIVO';
+
+-- =====================================================
+-- 12. Comanda_Item (de visitas)
+-- =====================================================
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion)
 SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.nombre
 FROM (VALUES
     -- Comanda 1 (visita 1 - cocina)
@@ -488,3 +465,24 @@ INSERT INTO Bloque_Disponibilidad (bloque_fecha_inicio, bloque_fecha_fin, bloque
 -- =====================================================
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
 VALUES (9, 'Producto de Prueba Inactivo', 'INACTIVO', 10000, 'PREPARACION', 'PLATO', FALSE);
+
+-- =====================================================
+-- Clientes adicionales para pruebas de borde
+--   sinpuntos@altoro.com   → clienteIdSinPuntos  (cliente_puntos=0)
+--   sinhistorial@altoro.com → emailSinHistorial   (sin visitas ni reservas)
+-- =====================================================
+INSERT INTO Usuario (usuario_email, usuario_password) VALUES
+('sinpuntos@altoro.com',    '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK'),
+('sinhistorial@altoro.com', '$2a$12$rGT4QIRzw47iaPwfpLverejOFI4oY36WdbJu1QMZfn.CXd.JBs/CK');
+
+INSERT INTO Cliente (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_fecha_nacimiento, cliente_puntos, cliente_puntos_acumulados, cliente_acepta_terminos, cliente_fecha_aceptacion)
+SELECT u.usuario_id, 'Sin Puntos', '3001234567', 'Dirección de Prueba Popayán', '1995-01-01', 0, 0, TRUE, NOW()
+FROM Usuario u WHERE u.usuario_email = 'sinpuntos@altoro.com';
+
+INSERT INTO Cliente (usuario_id, cliente_nombre, cliente_telefono, cliente_direccion, cliente_fecha_nacimiento, cliente_puntos, cliente_puntos_acumulados, cliente_acepta_terminos, cliente_fecha_aceptacion)
+SELECT u.usuario_id, 'Sin Historial', '3009876543', 'Dirección de Prueba Popayán', '1998-06-15', 500, 500, TRUE, NOW()
+FROM Usuario u WHERE u.usuario_email = 'sinhistorial@altoro.com';
+
+INSERT INTO Usuario_Rol (usuario_id, rol_nombre, rol_estado)
+SELECT u.usuario_id, 'CLIENTE', 'ACTIVO'
+FROM Usuario u WHERE u.usuario_email IN ('sinpuntos@altoro.com', 'sinhistorial@altoro.com');

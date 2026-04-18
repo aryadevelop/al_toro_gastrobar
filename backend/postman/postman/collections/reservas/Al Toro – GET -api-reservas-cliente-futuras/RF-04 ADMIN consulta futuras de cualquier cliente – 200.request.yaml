@@ -1,0 +1,74 @@
+$kind: http-request
+name: RF-04 ADMIN consulta reservas futuras de cualquier cliente – 200 OK
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — `ADMIN` está incluido en el `@PreAuthorize`
+  del controller y, al no ser `CLIENTE`, no aplica restricción de ownership.
+  **Objetivo:** Verificar que un ADMIN puede consultar las reservas futuras de cualquier cliente
+  y que la reserva recién creada aparece en la lista.
+  **Pre-condición:** Ninguna externa. El pre-request crea una reserva a nombre de `emailCliente`
+  con `clienteToken` para garantizar que haya al menos una reserva futura. La petición principal
+  usa `accessToken` (ADMIN) para consultarla.
+  **Resultado esperado:** 200 OK · la reserva creada está presente en `data`.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null,
+            decoracionId: null,
+            notas: null,
+            preOrden: null
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('Pre-request RF-04: creación de reserva falló', err, res && res.code, res && res.text());
+          return;
+        }
+        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 para ADMIN sin restricción de ownership', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo data es un array', function () {
+        pm.expect(body.data).to.be.an('array');
+      });
+
+      const tmpId = String(pm.environment.get('tmpReservaId'));
+      pm.test('La reserva creada en el pre-request aparece en la lista', function () {
+        pm.expect(body.data.map(r => String(r.reservaId))).to.include(tmpId);
+      });
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 4000

@@ -1,0 +1,18 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Manejo de recursos inexistentes
+  **Objetivo:** Verificar que el sistema retorna 404 para un visitaId que no existe.
+  **Pre-condición:** No existe visita con ID 999999.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/visitas/cliente/999999/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para visita inexistente', function() {
+        pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 4000

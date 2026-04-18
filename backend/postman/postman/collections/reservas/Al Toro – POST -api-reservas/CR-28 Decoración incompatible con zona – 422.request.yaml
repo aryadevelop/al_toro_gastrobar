@@ -1,0 +1,46 @@
+$kind: http-request
+name: CR-28 Decoración incompatible con zona – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Cada decoración está vinculada a un conjunto de zonas
+  compatibles. Si el cliente elige una combinación incompatible, `ReservaService`
+  rechaza con `BusinessException` (422).
+  **Objetivo:** Verificar el rechazo cuando decoración y zona no son compatibles.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida.
+  Seed V2: decoración id=1 "Velas Románticas" está vinculada únicamente a las zonas
+  {1 Salón, 2 Terraza, 3 VIP}; la zona id=4 "Barra" NO está en ese conjunto.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2,
+      "decoracionId": 1,
+      "zonaId": 4
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza decoración incompatible con la zona con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 28000

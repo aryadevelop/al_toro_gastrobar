@@ -1,0 +1,23 @@
+$kind: http-request
+name: DX-02 MESERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE`. El rol `MESERO` debe ser rechazado con 403.
+  **Objetivo:** Verificar que un MESERO autenticado correctamente NO puede consultar la
+  disponibilidad.
+  **Pre-condición:** `meseroToken` disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T19:00:00"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  fechaHora: "2026-12-15T19:00:00"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol MESERO', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 2000

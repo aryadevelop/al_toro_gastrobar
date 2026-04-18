@@ -17,6 +17,17 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.stream.Collectors;
 
+/**
+ * Implementación de {@link UserDetailsService} que carga los datos de autenticación
+ * de un usuario desde la base de datos.
+ *
+ * <p>Spring Security invoca {@link #loadUserByUsername} durante el proceso de login
+ * para construir el objeto {@link UserDetails} con correo, contraseña y autoridades.
+ * Solo los roles con estado {@code ACTIVO} se incluyen como authorities.
+ * Si el usuario no existe o no tiene roles activos, lanza {@link UsernameNotFoundException}.
+ *
+ * @see co.edu.unicauca.backend.shared.security.RoleMapper
+ */
 @Service
 @RequiredArgsConstructor
 public class CustomUserDetailsService implements UserDetailsService {
@@ -24,6 +35,13 @@ public class CustomUserDetailsService implements UserDetailsService {
     private final UsuarioRepository usuarioRepository;
     private final UsuarioRolRepository usuarioRolRepository;
 
+    /**
+     * Carga los datos de autenticación del usuario identificado por su correo electrónico.
+     *
+     * @param username correo electrónico del usuario
+     * @return {@link UserDetails} con correo, contraseña hasheada y autoridades de roles activos
+     * @throws UsernameNotFoundException si el usuario no existe o no tiene roles activos
+     */
     @Override
     public UserDetails loadUserByUsername(String username) throws UsernameNotFoundException {
         Usuario usuario = usuarioRepository.findByUsuarioEmail(username)

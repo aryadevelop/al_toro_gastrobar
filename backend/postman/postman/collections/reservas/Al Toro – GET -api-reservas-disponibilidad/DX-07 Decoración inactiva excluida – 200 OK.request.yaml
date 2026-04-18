@@ -1,0 +1,44 @@
+$kind: http-request
+name: DX-07 Decoración inactiva excluida – 200 OK
+description: |-
+  **Criterio de Aceptación:** RD-03 — las decoraciones con `decoracion_estado = 'INACTIVO'`
+  no deben aparecer en el resultado de disponibilidad. La decoración `id=7` (`Rústica Vintage`)
+  está definida como INACTIVO en `V2__seed_data.sql`.
+  **Objetivo:** Verificar el filtrado por estado de decoración.
+  **Pre-condición:** Seed data con decoración id=7 en estado INACTIVO.
+  **Resultado esperado:** 200 OK · ninguna decoración con `decoracionId=7` en `data.decoraciones`.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{tmpFechaLibre}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{tmpFechaLibre}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Disponibilidad consultada exitosamente', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const decos = pm.response.json().data.decoraciones;
+      const rustica = decos.find(d => d.decoracionId === 7);
+
+      pm.test('La decoración Rústica Vintage (INACTIVA, id=7) no aparece en el resultado', function () {
+        pm.expect(rustica).to.be.undefined;
+      });
+
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 7000

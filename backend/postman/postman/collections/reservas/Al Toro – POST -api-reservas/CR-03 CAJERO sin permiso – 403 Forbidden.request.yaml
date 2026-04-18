@@ -1,0 +1,41 @@
+$kind: http-request
+name: CR-03 CAJERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE`. El rol `CAJERO` debe ser rechazado con 403.
+  **Objetivo:** Verificar que un CAJERO autenticado correctamente NO puede crear reservas.
+  **Pre-condición:** `cajeroToken` disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol CAJERO', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 3000

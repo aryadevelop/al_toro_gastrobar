@@ -1,0 +1,26 @@
+$kind: http-request
+name: CA-17 Uso de access token en endpoint /refresh – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** CA-17
+  **Objetivo:** Verificar que el endpoint `/refresh` valida que el token recibido tenga claim `type='refresh'`. Enviar el access token activo (con `type='access'`) debe resultar en error de autenticación (`BadCredentialsException` en `AuthService.refresh`).
+  **Pre-condición:** CA-01 o CA-09 deben haberse ejecutado previamente para disponer de un `accessToken` en el entorno.
+  **Resultado esperado:** HTTP 401 con código `AUTH-001`.
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refreshToken": "{{accessToken}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Access token no válido como refreshToken', () => pm.response.to.have.status(401));
+
+      pm.test('Código de error AUTH-001', () =>
+        pm.expect(pm.response.json().code).to.eql('AUTH-001'));
+    language: text/javascript
+order: 6000

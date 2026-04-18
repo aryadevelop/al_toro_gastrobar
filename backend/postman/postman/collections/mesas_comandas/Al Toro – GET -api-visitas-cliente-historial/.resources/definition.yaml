@@ -1,0 +1,73 @@
+$kind: collection
+name: Al Toro – GET /api/visitas/cliente/historial
+description: |-
+  Retorna todas las visitas del cliente (con reserva y walk-ins), ordenadas de la más reciente a la más antigua.
+
+  **Criterios de Aceptación cubiertos:** CA-05 (historial de visitas) y CA-06 (idempotencia al recargar).
+
+  **Control de acceso:**
+  - `CLIENTE`: solo puede consultar su propio historial (`emailCliente` == email del token); de lo contrario devuelve 403.
+  - `ADM`: puede consultar el historial de cualquier cliente sin restricción.
+
+  **Notas de implementación:**
+  - NO incluye reservas canceladas, devueltas ni inasistencias (esas visitas no se generan).
+  - Walk-ins tienen `reservaId=null`.
+  - `mesaIdentificador=null` si no hubo mesa asignada.
+  - `montoTotal=null` si la cuenta no fue cerrada por caja.
+
+  **Campos de `VisitaResumenResponse`:** `visitaId`, `reservaId` (nullable), `fechaHoraLlegada`, `numeroPersonas`, `mesaIdentificador` (nullable), `zonaNombre` (nullable), `estadoVisita`, `montoTotal` (nullable)
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | VA-01 | CLIENTE consulta su propio historial (CA-05) | 200 |
+  | VA-02 | CLIENTE intenta consultar historial de otro cliente | 403 |
+  | VA-03 | Segunda llamada retorna datos consistentes (CA-06) | 200 |
+  | VA-04 | ADM consulta email de cliente inexistente | 404 |
+  | VA-05 | Sin token de autenticación | 401 |
+  | VA-06 | ADM consulta historial de emailCliente | 200 |
+  | VA-07 | ADM consulta historial de cliente sin visitas | 200 (lista vacía) |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CLIENTE – clienteToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('clienteToken', res.json().accessToken);
+      });
+
+      // Login autónomo de ADMIN – accessToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('accessToken', res.json().accessToken);
+      });
+    language: text/javascript

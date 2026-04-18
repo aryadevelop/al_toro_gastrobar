@@ -1,0 +1,104 @@
+$kind: http-request
+name: RF-01 CLIENTE consulta sus propias reservas futuras – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — visualización de reservas futuras del propio cliente.
+  **Objetivo:** Verificar que un CLIENTE obtiene la lista de sus reservas futuras,
+  que la reserva recién creada aparece en el resultado con los campos obligatorios,
+  y que la lista está ordenada ascendentemente por `fechaHoraLlegada`.
+  **Pre-condición:** Ninguna externa. El pre-request crea una reserva a nombre del
+  CLIENTE autenticado (`emailCliente`) y captura su `reservaId` en `tmpReservaId`.
+  **Resultado esperado:** 200 OK · `data` contiene al menos la reserva creada ·
+  todos los elementos tienen los campos mínimos · orden ascendente por fecha.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null,
+            decoracionId: null,
+            notas: null,
+            preOrden: null
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('Pre-request RF-01: creación de reserva falló', err, res && res.code, res && res.text());
+          return;
+        }
+        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es true', function () {
+        pm.expect(body.success).to.be.true;
+      });
+      pm.test('El campo data es un array', function () {
+        pm.expect(body.data).to.be.an('array');
+      });
+
+      const lista = body.data;
+      const tmpId = String(pm.environment.get('tmpReservaId'));
+
+      pm.test('La reserva creada en el pre-request aparece en la lista', function () {
+        pm.expect(lista.map(r => String(r.reservaId))).to.include(tmpId);
+      });
+
+      pm.test('Cada reserva contiene los campos obligatorios del dashboard', function () {
+        lista.forEach(r => {
+          pm.expect(r).to.include.keys(['reservaId', 'fechaHoraLlegada', 'numeroPersonas', 'estado', 'tipo']);
+        });
+      });
+
+      pm.test('Solo hay reservas con estado PENDIENTE o CONFIRMADA', function () {
+        lista.forEach(r => {
+          pm.expect(['PENDIENTE', 'CONFIRMADA']).to.include(r.estado);
+        });
+      });
+
+      pm.test('Todas las fechas son posteriores a ahora', function () {
+        const ahora = new Date();
+        lista.forEach(r => {
+          pm.expect(new Date(r.fechaHoraLlegada) > ahora).to.be.true;
+        });
+      });
+
+      pm.test('La lista está ordenada ascendentemente por fechaHoraLlegada', function () {
+        for (let i = 1; i < lista.length; i++) {
+          pm.expect(new Date(lista[i].fechaHoraLlegada) >= new Date(lista[i-1].fechaHoraLlegada)).to.be.true;
+        }
+      });
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 1000

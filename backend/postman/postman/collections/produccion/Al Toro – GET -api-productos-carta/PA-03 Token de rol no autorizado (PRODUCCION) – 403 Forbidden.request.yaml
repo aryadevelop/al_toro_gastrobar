@@ -1,0 +1,41 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** PA-03
+  **Objetivo:** Verificar que el endpoint de carta rechaza solicitudes de usuarios autenticados con rol PRODUCCION.
+  **Pre-condición:** El pre-request de este caso obtiene un token PRODUCCION válido y lo almacena en `{{accessToken}}`.
+  **Resultado esperado:** HTTP 403. El token es válido pero el rol no está autorizado para este recurso.
+
+  > **Dependencia de pre-request:** Este request ejecuta un login autónomo como PRODUCCION antes de enviar la solicitud.
+url: "{{baseUrl}}/api/productos/carta"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo como PRODUCCION para verificar rechazo por rol no autorizado
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: [{ key: 'Content-Type', value: 'application/json' }],
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCocinero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function(err, res) {
+        if (!err && res.code === 200) {
+          pm.environment.set('accessToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 403 – Rol PRODUCCION no autorizado para consultar la carta', () => pm.response.to.have.status(403));
+
+      pm.environment.unset('accessToken');
+    language: text/javascript
+order: 3000

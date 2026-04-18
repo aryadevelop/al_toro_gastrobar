@@ -1,0 +1,57 @@
+$kind: http-request
+name: "DX-09 CA-05 Decoración con zonas específicas: zonaIdsCompatibles correctas – 200 OK"
+description: |-
+  **Criterio de Aceptación:** CA-05 — una decoración con múltiples zonas vinculadas (>1)
+  debe presentarse con `puedeSeleccionarZona=true` y su `zonaIdsCompatibles` debe ser
+  subconjunto del conjunto declarado en la seed. La decoración id=3 (`Decoración Empresarial`)
+  está vinculada a las zonas {1, 2, 3, 6} según `V2__seed_data.sql`.
+  **Objetivo:** Verificar la proyección de decoraciones con múltiples zonas compatibles.
+  **Pre-condición:** Seed data: decoración id=3 con zonas compatibles {1, 2, 3, 6}.
+  **Resultado esperado:** 200 OK · `empresarial.puedeSeleccionarZona=true` · cada id en
+  `zonaIdsCompatibles` pertenece al conjunto {1, 2, 3, 6}.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{tmpFechaLibre}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{tmpFechaLibre}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Disponibilidad consultada exitosamente', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const decos = pm.response.json().data.decoraciones;
+      const empresarial = decos.find(d => d.decoracionId === 3);
+
+      pm.test('La decoración Empresarial (id=3) aparece en el resultado', function () {
+        pm.expect(empresarial).to.not.be.undefined;
+      });
+
+      pm.test('puedeSeleccionarZona es true para decoración con múltiples zonas compatibles', function () {
+        pm.expect(empresarial.puedeSeleccionarZona).to.be.true;
+      });
+
+      pm.test('Todos los IDs de zonaIdsCompatibles pertenecen al conjunto válido {1,2,3,6}', function () {
+        const VALIDAS = [1, 2, 3, 6];
+        empresarial.zonaIdsCompatibles.forEach(id => {
+          pm.expect(VALIDAS).to.include(id);
+        });
+      });
+
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 9000

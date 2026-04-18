@@ -12,9 +12,7 @@ import java.util.List;
  * <ul>
  *   <li>Si {@code disponible} es {@code false}, las listas {@code decoraciones} y {@code zonas}
  *       estarán vacías y el frontend debe informar al cliente.</li>
- *   <li>Las zonas devueltas en este objeto son las libres sin decoración asignada;
- *       las zonas compatibles con cada decoración se incluyen en
- *       {@link DecoracionDisponibleResponse#getZonaIdsCompatibles()}.</li>
+ *   <li>Las zonas devueltas en este objeto son las libres sin decoración asignada.</li>
  * </ul>
  *
  * @see DecoracionDisponibleResponse

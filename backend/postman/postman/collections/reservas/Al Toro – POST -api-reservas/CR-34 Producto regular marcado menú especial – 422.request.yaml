@@ -1,0 +1,50 @@
+$kind: http-request
+name: CR-34 Producto regular marcado esMenuEspecial=true – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `validarPreOrden` lanza 422 cuando un ítem tiene
+  `esMenuEspecial=true` pero el producto no está marcado como `menu_especial` en BD.
+  **Objetivo:** Verificar el rechazo cuando se intenta forzar un producto regular
+  como menú especial.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida;
+  producto id=1 "Don Tostón" tiene `menu_especial=FALSE` según seed V2.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 12,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 1,
+          "esMenuEspecial": true
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el producto regular marcado como menú especial con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 34000

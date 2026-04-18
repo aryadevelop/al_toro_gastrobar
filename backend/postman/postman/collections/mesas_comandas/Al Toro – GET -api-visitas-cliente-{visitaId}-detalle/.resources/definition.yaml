@@ -1,0 +1,93 @@
+$kind: collection
+name: Al Toro – GET /api/visitas/cliente/{visitaId}/detalle
+description: |-
+  Retorna el detalle completo de una visita: datos base, comanda consolidada de todas las sub-comandas, abonos (si vino de reserva) y totales de la venta (si cuenta cerrada).
+
+  **Criterio de Aceptación cubierto:** HE-02-HU-03-CA-07 (detalle de visita).
+
+  **Control de acceso:**
+  - `CLIENTE`: solo puede consultar visitas que le pertenezcan; de lo contrario devuelve 403. Visitas anónimas (cliente_id=NULL) también devuelven 403.
+  - `CAJERO`, `MESERO`, `ADM`: pueden consultar cualquier visita sin restricción de propiedad.
+
+  **Notas de implementación:**
+  - Walk-ins: `reservaId`, `decoracionNombre`, `notas`, `abonos` serán `null`.
+  - Si la cuenta no fue cerrada por caja: `subtotalCuenta`, `descuentoCuenta`, `totalCuenta` serán `null`.
+  - `itemsComanda` consolida todos los items de todas las comandas de la visita.
+
+  **Variables de entorno requeridas:**
+  - `visitaIdConReserva`: ID de visita de `emailCliente` con reserva (auto-capturado en pre-request o setar manualmente con visita_id=1).
+  - `visitaIdWalkInOtroCliente`: ID de visita walk-in de otro cliente (fijo=10, carlos.perez).
+  - `visitaIdAnonima`: ID de visita sin cliente asignado (fijo=8).
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | VB-01 | CLIENTE accede a visita propia con reserva (CA-07) | 200 |
+  | VB-02 | CLIENTE intenta acceder a visita walk-in de otro cliente | 403 |
+  | VB-03 | Visita propia cerrada: totalCuenta coherente con subtotalCuenta | 200 |
+  | VB-04 | ID de visita inexistente | 404 |
+  | VB-05 | Sin token de autenticación | 401 |
+  | VB-06 | CLIENTE intenta acceder a visita anónima (sin propietario) | 403 |
+  | VB-07 | ADM accede a visita walk-in de otro cliente | 200 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de CLIENTE – popula clienteToken
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (loginErr, loginRes) => {
+        if (loginErr || !loginRes || loginRes.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', loginErr, loginRes && loginRes.code);
+          return;
+        }
+        const token = loginRes.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        // Auto-captura de visitaIdConReserva sólo si no está poblado
+        if (pm.environment.get('visitaIdConReserva')) return;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/visitas/cliente/historial?emailCliente=' + pm.environment.get('emailCliente'),
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (histErr, histRes) => {
+          if (histErr || !histRes || histRes.code !== 200) {
+            console.warn('Pre-request: historial falló – asignar visitaIdConReserva manualmente (visita_id=1)', histErr);
+            return;
+          }
+          const v = (histRes.json().data || []).find(v => v.reservaId != null);
+          if (v) pm.environment.set('visitaIdConReserva', v.visitaId);
+          else console.warn('Pre-request: emailCliente no tiene visitas con reserva – asignar visitaIdConReserva=1 manualmente');
+        });
+      });
+
+      // Login autónomo de ADMIN – popula accessToken para VB-07
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('accessToken', res.json().accessToken);
+      });
+    language: text/javascript

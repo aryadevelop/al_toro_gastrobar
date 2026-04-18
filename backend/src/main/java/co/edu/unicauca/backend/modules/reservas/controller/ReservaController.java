@@ -2,11 +2,12 @@ package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
-import co.edu.unicauca.backend.modules.reservas.service.PreOrdenService;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -15,8 +16,7 @@ import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
-import org.springframework.security.core.annotation.AuthenticationPrincipal;
-import org.springframework.security.core.userdetails.UserDetails;
+import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
 
 import java.time.LocalDateTime;
@@ -29,16 +29,12 @@ import java.util.List;
  * <p>Expone los endpoints bajo {@code /api/reservas} y delega toda la lógica
  * de negocio en {@link ReservaService}.
  *
- * <p>Comportamiento general:
- * <ul>
- *   <li><b>Disponibilidad:</b> verifica zonas y decoraciones libres para una
- *       fecha/hora; respeta el horario de atención y los bloqueos del administrador.</li>
- *   <li><b>Creación:</b> registra una reserva para el cliente autenticado,
- *       incluyendo opcionalmente una pre-orden de platos.</li>
- *   <li><b>Pre-orden:</b> permite a CAJERO, MESERO y ADMIN consultar los ítems
- *       anticipados por el cliente para pre-cargar la comanda.</li>
- *   <li><b>Historial:</b> CLIENTE y ADMIN visualizan todas las reservas del sistema.</li>
- * </ul>
+ * <p><b>Regla de ownership:</b> Los endpoints que operan sobre datos de un cliente específico
+ * aplican la siguiente lógica: si el solicitante tiene rol {@code CLIENTE}, solo puede acceder
+ * a sus propios datos (el email/ID se toma del token, no del body o query param). Otros roles
+ * ({@code CAJERO}, {@code ADM}, etc.) pueden acceder a datos de cualquier cliente. Esta lógica
+ * está codificada aunque el endpoint hoy solo permita {@code CLIENTE}, para que cuando se amplíe
+ * el {@code @PreAuthorize} en el futuro, el acceso multi-cliente funcione sin cambios adicionales.
  *
  * @see ReservaService
  */
@@ -49,7 +45,6 @@ import java.util.List;
 public class ReservaController {
 
     private final ReservaService reservaService;
-    private final PreOrdenService preOrdenService;
 
     /**
      * Consulta la disponibilidad de zonas y decoraciones para una fecha y hora dadas.
@@ -59,8 +54,6 @@ public class ReservaController {
      *   <li>La hora está fuera del horario de atención (lunes–domingo, 5 PM–10 PM).</li>
      *   <li>Existe un bloqueo activo registrado por el administrador.</li>
      * </ul>
-     *
-     * <p>Solo accesible por usuarios con rol {@code CLIENTE}.
      *
      * @param fechaHora fecha y hora a consultar en formato ISO-8601
      * @return respuesta con el detalle de disponibilidad, zonas y decoraciones libres
@@ -76,15 +69,15 @@ public class ReservaController {
     }
 
     /**
-     * Crea una nueva reserva para el cliente autenticado.
+     * Crea una nueva reserva.
      *
-     * <p>El cliente se identifica a partir del {@link UserDetails} del contexto de seguridad,
-     * por lo que no es necesario enviar el identificador de usuario en el cuerpo de la petición.
+     * <p>Si el solicitante tiene rol {@code CLIENTE}, el email de la reserva se toma
+     * del token de autenticación, ignorando el campo {@code emailCliente} del body.
+     * Otros roles pueden especificar el email en el body
+     * para crear reservas a nombre de otro cliente.
      *
-     * <p>Solo accesible por usuarios con rol {@code CLIENTE}.
-     *
-     * @param request    datos de la reserva a crear (fecha, zona, decoración y pre-orden opcional)
-     * @param userDetails principal autenticado del que se extrae el rol y, si aplica, el correo
+     * @param request        datos de la reserva (fecha, zona, decoración y pre-orden opcional)
+     * @param authentication contexto de seguridad del request
      * @return respuesta {@code 201 Created} con el detalle de la reserva registrada
      */
     @PostMapping
@@ -92,37 +85,103 @@ public class ReservaController {
     @Operation(summary = "Crear nueva reserva")
     public ResponseEntity<ApiResponse<ReservaResponse>> crearReserva(
             @Valid @RequestBody CrearReservaRequest request,
-            @AuthenticationPrincipal UserDetails userDetails) {
+            Authentication authentication) {
 
-        ReservaResponse response = reservaService.crearReserva(userDetails.getUsername(), request);
-        return ResponseEntity.status(HttpStatus.CREATED)
-                .body(ApiResponse.created("Reserva creada exitosamente", response));
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        String emailEfectivo = esCliente ? authentication.getName() : request.getEmailCliente();
+
+        ReservaResponse response = reservaService.crearReserva(emailEfectivo, request);
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Reserva creada exitosamente", response));
+    }
+
+    // TODO: Agregar endpoints para modificar reservas futuras 
+    // TODO: cancelar reservas futuras
+
+    /**
+     * Retorna las reservas futuras activas del cliente, ordenadas de la más próxima a la más lejana.
+     *
+     * <p>Solo se incluyen reservas con estado {@code PENDIENTE} o {@code CONFIRMADA}
+     * cuya fecha de llegada sea posterior al momento de la consulta.
+     * Si el solicitante tiene rol {@code CLIENTE}, solo puede consultar sus propias reservas.
+     *
+     * @param emailCliente   correo del cliente a consultar
+     * @param authentication contexto de seguridad del request
+     * @return lista de reservas futuras ordenada ascendentemente por fecha de llegada;
+     *         vacía si no hay reservas futuras
+     */
+    @GetMapping("/cliente/futuras")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
+    @Operation(summary = "Obtener resumen de reservas futuras del cliente (dashboard)")
+    public ResponseEntity<ApiResponse<List<ReservaDetalleResponse>>> obtenerReservasFuturasCliente(
+            @RequestParam String emailCliente,
+            Authentication authentication) {
+
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+
+        List<ReservaDetalleResponse> response = reservaService.obtenerReservasFuturas(emailCliente);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    // TODO: obtener todas las reservas futuras
+
+    /**
+     * Retorna las reservas canceladas o devueltas del cliente, ordenadas de la más reciente
+     * a la más antigua.
+     *
+     * <p>Si el solicitante tiene rol {@code CLIENTE}, solo puede consultar sus propias reservas.
+     *
+     * @param emailCliente   correo del cliente a consultar
+     * @param authentication contexto de seguridad del request
+     * @return lista de reservas canceladas o devueltas; vacía si no hay ninguna
+     */
+    @GetMapping("/cliente/canceladas-devueltas")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
+    @Operation(summary = "Obtener reservas canceladas o devueltas del cliente")
+    public ResponseEntity<ApiResponse<List<ReservaDetalleResponse>>> obtenerReservasCanceladasODevueltas(
+            @RequestParam String emailCliente,
+            Authentication authentication) {
+
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+
+        List<ReservaDetalleResponse> response = reservaService.obtenerReservasCanceladasODevueltas(emailCliente);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
     /**
-     * Retorna el historial de reservas.
+     * Retorna el detalle completo de una reserva específica.
      *
-     * <ul>
-     *   <li><b>CLIENTE:</b> retorna únicamente sus propias reservas.</li>
-     *   <li><b>ADMIN:</b> retorna todas las reservas del sistema.</li>
-     * </ul>
+     * <p>Si el solicitante tiene rol {@code CLIENTE}, el servicio valida que la reserva
+     * pertenezca al cliente autenticado antes de retornar el detalle.
+     * Otros roles acceden sin restricción de propiedad.
      *
-     * @param userDetails principal autenticado del que se extrae el rol y correo
-     * @return lista de reservas según el rol del usuario autenticado
+     * @param reservaId      identificador de la reserva a consultar
+     * @param authentication contexto de seguridad del request
+     * @return detalle completo de la reserva, incluyendo pre-orden y abonos si aplican
      */
-    @GetMapping("/cliente")
-    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
-    @Operation(summary = "Obtener historial de reservas del cliente")
-    public ResponseEntity<ApiResponse<List<ReservaResponse>>> obtenerHistorialCliente(
-            @AuthenticationPrincipal UserDetails userDetails) {
+    @GetMapping("/{reservaId}/detalle")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'MESERO', 'CAJERO', 'ADMIN')")
+    @Operation(summary = "Obtener detalle completo de una reserva del cliente")
+    public ResponseEntity<ApiResponse<ReservaDetalleResponse>> obtenerDetalleReserva(
+            @PathVariable Long reservaId,
+            Authentication authentication) {
 
-        boolean esAdmin = userDetails.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_ADMIN"));
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        String emailAutenticado = esCliente ? authentication.getName() : null;
 
-        List<ReservaResponse> response = esAdmin
-                ? reservaService.obtenerTodasLasReservas()
-                : reservaService.obtenerReservasCliente(userDetails.getUsername());
-
+        ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailAutenticado);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
+    
 }

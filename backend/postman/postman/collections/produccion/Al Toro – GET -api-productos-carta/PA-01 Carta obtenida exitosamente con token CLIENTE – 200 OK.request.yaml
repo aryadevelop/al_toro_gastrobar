@@ -1,0 +1,53 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** PA-01
+  **Objetivo:** Verificar que un cliente autenticado puede obtener la carta completa de productos agrupados por categoría, con estructura de respuesta válida.
+  **Pre-condición:** El usuario `{{emailCliente}}` debe existir con estado activo y rol CLIENTE. Deben existir productos activos con `menuEspecial = false` en la base de datos.
+  **Resultado esperado:** HTTP 200 con `success: true` y `data` como arreglo de categorías, cada una con sus productos activos.
+url: "{{baseUrl}}/api/productos/carta"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Carta obtenida exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene success: true', () => {
+        pm.expect(body).to.have.property('success', true);
+      });
+
+      pm.test('El campo data es un arreglo', () => {
+        pm.expect(body.data).to.be.an('array');
+      });
+
+      pm.test('Cada categoría tiene los campos requeridos: categoriaId, categoriaNombre, orden, productos', () => {
+        if (body.data.length > 0) {
+          const categoria = body.data[0];
+          pm.expect(categoria).to.have.property('categoriaId');
+          pm.expect(categoria).to.have.property('categoriaNombre');
+          pm.expect(categoria).to.have.property('orden');
+          pm.expect(categoria).to.have.property('productos');
+        }
+      });
+
+      pm.test('El campo productos dentro de cada categoría es un arreglo (nunca null)', () => {
+        body.data.forEach(cat => {
+          pm.expect(cat.productos).to.be.an('array');
+        });
+      });
+
+      pm.test('Cada producto tiene los campos requeridos: productoId, productoNombre, productoPrecio, productoCategoria', () => {
+        body.data.forEach(cat => {
+          cat.productos.forEach(prod => {
+            pm.expect(prod).to.have.property('productoId');
+            pm.expect(prod).to.have.property('productoNombre');
+            pm.expect(prod).to.have.property('productoPrecio');
+            pm.expect(prod).to.have.property('productoCategoria');
+          });
+        });
+      });
+    language: text/javascript
+order: 1000

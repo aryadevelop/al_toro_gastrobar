@@ -1,0 +1,63 @@
+$kind: http-request
+name: RE-06 CLIENTE consulta detalle de reserva ajena – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Regla de ownership — un CLIENTE solo puede consultar sus propias reservas.
+  **Objetivo:** Verificar que el sistema retorna 403 cuando un CLIENTE consulta el detalle de
+  una reserva que pertenece a otro cliente.
+  **Pre-condición:** Ninguna externa. El pre-request crea una reserva a nombre del *otro*
+  CLIENTE (`emailClienteSinVisitas`, token en `otroClienteToken`) y captura su `reservaId` en
+  `tmpReservaId`. La petición principal usa `clienteToken` (CLIENTE distinto) para consultarla.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      // Crear la reserva con el segundo CLIENTE para asegurar que la reserva NO sea de
+      // {{emailCliente}}; así la regla de ownership debe rechazar a clienteToken.
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('otroClienteToken')
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailClienteSinVisitas'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null,
+            decoracionId: null,
+            notas: null,
+            preOrden: null
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('Pre-request RE-06: creación de reserva ajena falló', err, res && res.code, res && res.text());
+          return;
+        }
+        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 la consulta de detalle de reserva ajena', function () {
+        pm.response.to.have.status(403);
+      });
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 6000

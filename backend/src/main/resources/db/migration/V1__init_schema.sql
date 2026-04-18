@@ -62,6 +62,7 @@ CREATE TABLE Cliente (
     cliente_direccion VARCHAR(255),
     cliente_fecha_nacimiento DATE,
     cliente_puntos INTEGER NOT NULL DEFAULT 0,
+    cliente_puntos_acumulados INTEGER NOT NULL DEFAULT 0,
     cliente_acepta_terminos BOOLEAN NOT NULL,
     cliente_fecha_aceptacion TIMESTAMP NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -69,6 +70,7 @@ CREATE TABLE Cliente (
     CONSTRAINT fk_cliente_usuario FOREIGN KEY (usuario_id)
         REFERENCES Usuario(usuario_id) ON DELETE CASCADE,
     CONSTRAINT chk_cliente_puntos CHECK (cliente_puntos >= 0),
+    CONSTRAINT chk_cliente_puntos_acumulados CHECK (cliente_puntos_acumulados >= 0),
     CONSTRAINT chk_cliente_telefono CHECK (cliente_telefono ~ '^[0-9]{10}$')
 );
 
@@ -217,7 +219,7 @@ COMMENT ON TABLE Visita IS 'Registro de visitas al restaurante - con o sin reser
 -- Tabla Mesa
 CREATE TABLE Mesa (
     visita_id BIGINT PRIMARY KEY,
-    zona_id BIGINT,
+    zona_id BIGINT NOT NULL,
     mesero_id BIGINT NOT NULL,
     mesa_identificador VARCHAR(20) NOT NULL,
     mesa_numero_personas INTEGER NOT NULL,
@@ -227,7 +229,7 @@ CREATE TABLE Mesa (
     CONSTRAINT fk_mesa_visita FOREIGN KEY (visita_id)
         REFERENCES Visita(visita_id) ON DELETE CASCADE,
     CONSTRAINT fk_mesa_zona FOREIGN KEY (zona_id)
-        REFERENCES Zona(zona_id) ON DELETE SET NULL,
+        REFERENCES Zona(zona_id) ON DELETE RESTRICT,
     CONSTRAINT fk_mesa_mesero FOREIGN KEY (mesero_id)
         REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
     CONSTRAINT chk_mesa_estado CHECK (mesa_estado IN ('ESPERA', 'EN_PREPARACION', 'ATENDIDA', 'CERRADA')),
@@ -380,10 +382,14 @@ CREATE TABLE Movimiento_Inventario (
 COMMENT ON TABLE Movimiento_Inventario IS 'Historial de movimientos de inventario - ingresos y egresos';
 
 -- Tabla Comanda
+-- Una comanda puede estar ligada a una visita activa (comanda de mesa)
+-- o a una reserva sin visita aún (estado PRE_RESERVA = pre-orden unificada).
+-- Siempre debe tener al menos uno de los dos: visita_id o reserva_id.
 CREATE TABLE Comanda (
     comanda_id BIGSERIAL PRIMARY KEY,
-    visita_id BIGINT NOT NULL,
-    comanda_estacion VARCHAR(20) NOT NULL,
+    visita_id BIGINT,
+    reserva_id BIGINT,
+    comanda_estacion VARCHAR(20),
     comanda_fecha_hora_inicio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     comanda_fecha_hora_listo TIMESTAMP,
     comanda_notas TEXT,
@@ -392,53 +398,37 @@ CREATE TABLE Comanda (
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_comanda_visita FOREIGN KEY (visita_id)
         REFERENCES Visita(visita_id) ON DELETE CASCADE,
-    CONSTRAINT chk_comanda_estacion CHECK (comanda_estacion IN ('COCINA', 'BARRA')),
-    CONSTRAINT chk_comanda_estado CHECK (comanda_estado IN ('PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')),
+    CONSTRAINT fk_comanda_reserva FOREIGN KEY (reserva_id)
+        REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
+    CONSTRAINT chk_comanda_contexto CHECK (visita_id IS NOT NULL OR reserva_id IS NOT NULL),
+    CONSTRAINT chk_comanda_estacion CHECK (comanda_estacion IS NULL OR comanda_estacion IN ('COCINA', 'BARRA')),
+    CONSTRAINT chk_comanda_estado CHECK (comanda_estado IN ('PRE_RESERVA', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')),
     CONSTRAINT chk_comanda_fechas CHECK (comanda_fecha_hora_listo IS NULL OR comanda_fecha_hora_listo >= comanda_fecha_hora_inicio)
 );
 
-COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra';
+COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra, o pre-órdenes de reservas (estado PRE_RESERVA)';
+COMMENT ON COLUMN Comanda.visita_id IS 'NULL mientras la comanda es PRE_RESERVA; se puebla al iniciar la visita';
+COMMENT ON COLUMN Comanda.reserva_id IS 'Presente en pre-órdenes; NULL en comandas de walk-in';
+COMMENT ON COLUMN Comanda.comanda_estacion IS 'NULL en estado PRE_RESERVA; se asigna al convertir a comanda activa';
 
--- Tabla PreOrden_Detalle
-CREATE TABLE PreOrden_Detalle (
-    preorden_detalle_id BIGSERIAL PRIMARY KEY,
-    reserva_id BIGINT NOT NULL,
-    producto_id BIGINT NOT NULL,
-    preorden_detalle_cantidad INTEGER NOT NULL,
-    preorden_detalle_descripcion VARCHAR(500),
-    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_preorden_reserva FOREIGN KEY (reserva_id)
-        REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
-    CONSTRAINT fk_preorden_producto FOREIGN KEY (producto_id)
-        REFERENCES Producto(producto_id) ON DELETE RESTRICT,
-    CONSTRAINT chk_preorden_cantidad CHECK (preorden_detalle_cantidad > 0 AND preorden_detalle_cantidad <= 250)
-);
-
-COMMENT ON TABLE PreOrden_Detalle IS 'Pre-orden de productos asociados a una reserva';
-COMMENT ON COLUMN PreOrden_Detalle.preorden_detalle_descripcion IS 'Null = ítem normal; "Producto - modificación libre" = ítem con ajuste cuyo precio define el cajero al crear la comanda';
-
--- Tabla Comanda_Detalle
-CREATE TABLE Comanda_Detalle (
-    comanda_detalle_id BIGSERIAL PRIMARY KEY,
+-- Tabla Comanda_Item
+CREATE TABLE Comanda_Item (
+    comanda_item_id BIGSERIAL PRIMARY KEY,
     comanda_id BIGINT NOT NULL,
     producto_id BIGINT NOT NULL,
-    comanda_detalle_cantidad INTEGER NOT NULL,
-    comanda_detalle_precio DECIMAL(12,2) NOT NULL,
-    comanda_detalle_descripcion VARCHAR(500),
-    preorden_detalle_id BIGINT DEFAULT NULL,
+    comanda_item_cantidad INTEGER NOT NULL,
+    comanda_item_precio DECIMAL(12,2) NOT NULL,
+    comanda_item_descripcion VARCHAR(500),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_comanda_detalle_comanda FOREIGN KEY (comanda_id)
+    CONSTRAINT fk_comanda_item_comanda FOREIGN KEY (comanda_id)
         REFERENCES Comanda(comanda_id) ON DELETE CASCADE,
-    CONSTRAINT fk_comanda_detalle_producto FOREIGN KEY (producto_id)
+    CONSTRAINT fk_comanda_item_producto FOREIGN KEY (producto_id)
         REFERENCES Producto(producto_id) ON DELETE RESTRICT,
-    CONSTRAINT fk_comanda_detalle_preorden FOREIGN KEY (preorden_detalle_id)
-        REFERENCES PreOrden_Detalle(preorden_detalle_id) ON DELETE SET NULL,
-    CONSTRAINT chk_comanda_detalle_cantidad CHECK (comanda_detalle_cantidad > 0),
-    CONSTRAINT chk_comanda_detalle_precio CHECK (comanda_detalle_precio >= 0)
+    CONSTRAINT chk_comanda_item_cantidad CHECK (comanda_item_cantidad > 0),
+    CONSTRAINT chk_comanda_item_precio CHECK (comanda_item_precio >= 0)
 );
 
-COMMENT ON COLUMN Comanda_Detalle.preorden_detalle_id IS 'FK nullable: presente cuando la línea de comanda proviene de una pre-orden. NULL = pedido tomado en mesa sin pre-orden.';
-COMMENT ON TABLE Comanda_Detalle IS 'Detalle de productos en cada comanda';
+COMMENT ON TABLE Comanda_Item IS 'Línea de producto en una comanda (activa o pre-orden)';
 
 -- Tabla opcion_modificacion
 CREATE TABLE opcion_modificacion (
@@ -471,19 +461,21 @@ CREATE TABLE producto_opcion_modificacion (
 
 COMMENT ON TABLE producto_opcion_modificacion IS 'Define qué opciones de modificación ofrece cada menú especial';
 
--- Tabla preorden_menu_modificacion
-CREATE TABLE preorden_menu_modificacion (
-    id                  BIGSERIAL PRIMARY KEY,
-    preorden_detalle_id BIGINT    NOT NULL,
-    opcion_id           BIGINT    NOT NULL,
-    created_at          TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT fk_preorden_menu_mod_detalle FOREIGN KEY (preorden_detalle_id)
-        REFERENCES PreOrden_Detalle(preorden_detalle_id) ON DELETE CASCADE,
-    CONSTRAINT fk_preorden_menu_mod_opcion  FOREIGN KEY (opcion_id)
+-- Tabla comanda_menu_modificacion
+-- Registra las opciones de menú especial seleccionadas para un ítem de comanda
+-- (tanto en pre-órdenes PRE_RESERVA como en comandas activas de mesa).
+CREATE TABLE comanda_menu_modificacion (
+    id                    BIGSERIAL PRIMARY KEY,
+    comanda_item_id    BIGINT    NOT NULL,
+    opcion_id             BIGINT    NOT NULL,
+    created_at            TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_cmd_menu_mod_detalle FOREIGN KEY (comanda_item_id)
+        REFERENCES Comanda_Item(comanda_item_id) ON DELETE CASCADE,
+    CONSTRAINT fk_cmd_menu_mod_opcion  FOREIGN KEY (opcion_id)
         REFERENCES opcion_modificacion(opcion_id) ON DELETE RESTRICT
 );
 
-COMMENT ON TABLE preorden_menu_modificacion IS 'Modificaciones seleccionadas por el cliente para un ítem de menú especial';
+COMMENT ON TABLE comanda_menu_modificacion IS 'Opciones de modificación de menú especial asociadas a un ítem de comanda';
 
 -- =====================================================
 -- BLOQUEOS DE DISPONIBILIDAD
@@ -515,6 +507,25 @@ COMMENT ON TABLE Bloque_Disponibilidad IS 'Franjas de tiempo bloqueadas por el a
 COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_inicio IS 'Hora de inicio del bloqueo (inclusive). NULL = día completo bloqueado';
 COMMENT ON COLUMN Bloque_Disponibilidad.bloque_hora_fin IS 'Hora de fin del bloqueo (exclusiva). NULL = día completo bloqueado';
 COMMENT ON COLUMN Bloque_Disponibilidad.admin_id IS 'Empleado administrador activo que creó el bloqueo';
+
+-- =====================================================
+-- TABLA CANJE_PUNTOS (fidelización)
+-- =====================================================
+CREATE TABLE canje_puntos (
+    canje_id               BIGSERIAL    PRIMARY KEY,
+    cliente_id             BIGINT       NOT NULL,
+    empleado_id            BIGINT       NOT NULL,
+    canje_puntos_canjeados INTEGER      NOT NULL,
+    canje_fecha_hora       TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    CONSTRAINT fk_canje_cliente  FOREIGN KEY (cliente_id)  REFERENCES Cliente(usuario_id)  ON DELETE RESTRICT,
+    CONSTRAINT fk_canje_empleado FOREIGN KEY (empleado_id) REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
+    CONSTRAINT chk_canje_puntos_positivos CHECK (canje_puntos_canjeados > 0)
+);
+
+COMMENT ON TABLE  canje_puntos IS 'Auditoría de canjes de puntos de fidelización';
+COMMENT ON COLUMN Cliente.cliente_puntos IS 'Saldo actual de puntos canjeables. Se resetea a 0 en cada canje';
+COMMENT ON COLUMN Cliente.cliente_puntos_acumulados IS 'Total histórico de puntos ganados. Solo sube; nunca se resetea';
+COMMENT ON COLUMN canje_puntos.canje_puntos_canjeados IS 'Puntos que tenía el cliente en el momento del canje (siempre > 0)';
 
 -- =====================================================
 -- ÍNDICES PARA OPTIMIZACIÓN DE CONSULTAS
@@ -593,25 +604,27 @@ CREATE INDEX idx_movimiento_fecha_hora ON Movimiento_Inventario(movimiento_fecha
 CREATE INDEX idx_movimiento_tipo ON Movimiento_Inventario(movimiento_tipo);
 CREATE INDEX idx_movimiento_fecha_tipo ON Movimiento_Inventario(movimiento_fecha_hora DESC, movimiento_tipo);
 
-CREATE INDEX idx_comanda_visita_id ON Comanda(visita_id);
-CREATE INDEX idx_comanda_estacion ON Comanda(comanda_estacion);
+CREATE INDEX idx_comanda_visita_id ON Comanda(visita_id) WHERE visita_id IS NOT NULL;
+CREATE INDEX idx_comanda_reserva_id ON Comanda(reserva_id) WHERE reserva_id IS NOT NULL;
+CREATE INDEX idx_comanda_estacion ON Comanda(comanda_estacion) WHERE comanda_estacion IS NOT NULL;
 CREATE INDEX idx_comanda_estado ON Comanda(comanda_estado);
 CREATE INDEX idx_comanda_fecha_inicio ON Comanda(comanda_fecha_hora_inicio DESC);
 CREATE INDEX idx_comanda_pendientes ON Comanda(comanda_estacion, comanda_fecha_hora_inicio) WHERE comanda_estado IN ('PENDIENTE', 'EN_PREPARACION');
+CREATE INDEX idx_comanda_prereserva ON Comanda(reserva_id) WHERE comanda_estado = 'PRE_RESERVA';
 
-CREATE INDEX idx_comanda_detalle_comanda_id ON Comanda_Detalle(comanda_id);
-CREATE INDEX idx_comanda_detalle_producto_id ON Comanda_Detalle(producto_id);
-CREATE INDEX idx_comanda_detalle_preorden_id ON Comanda_Detalle(preorden_detalle_id) WHERE preorden_detalle_id IS NOT NULL;
-
-CREATE INDEX idx_preorden_reserva_id ON PreOrden_Detalle(reserva_id);
-CREATE INDEX idx_preorden_producto_id ON PreOrden_Detalle(producto_id);
+CREATE INDEX idx_comanda_item_comanda_id ON Comanda_Item(comanda_id);
+CREATE INDEX idx_comanda_item_producto_id ON Comanda_Item(producto_id);
 
 CREATE INDEX idx_insumo_tipo             ON Insumo(tipo_insumo);
 CREATE INDEX idx_opcion_tipo_componente  ON opcion_modificacion(tipo_componente);
 CREATE INDEX idx_opcion_estado           ON opcion_modificacion(opcion_estado);
 CREATE INDEX idx_prod_opcion_producto_id ON producto_opcion_modificacion(producto_id);
-CREATE INDEX idx_preorden_menu_detalle   ON preorden_menu_modificacion(preorden_detalle_id);
-CREATE INDEX idx_preorden_menu_opcion    ON preorden_menu_modificacion(opcion_id);
+CREATE INDEX idx_cmd_menu_mod_detalle    ON comanda_menu_modificacion(comanda_item_id);
+CREATE INDEX idx_cmd_menu_mod_opcion     ON comanda_menu_modificacion(opcion_id);
+
+CREATE INDEX idx_canje_cliente_id  ON canje_puntos(cliente_id);
+CREATE INDEX idx_canje_empleado_id ON canje_puntos(empleado_id);
+CREATE INDEX idx_canje_fecha_hora  ON canje_puntos(canje_fecha_hora DESC);
 
 CREATE INDEX idx_bloque_fecha_inicio ON Bloque_Disponibilidad(bloque_fecha_inicio);
 CREATE INDEX idx_bloque_fecha_fin    ON Bloque_Disponibilidad(bloque_fecha_fin);
@@ -802,27 +815,29 @@ ORDER BY cc.orden, p.producto_nombre;
 
 COMMENT ON VIEW v_productos_disponibles IS 'Vista de productos activos ordenados por categoría';
 
--- Vista de comandas activas
+-- Vista de comandas activas 
 CREATE OR REPLACE VIEW v_comandas_activas AS
 SELECT
     c.comanda_id,
     c.visita_id,
+    c.reserva_id,
     c.comanda_estacion,
     c.comanda_estado,
     c.comanda_fecha_hora_inicio,
     m.mesa_identificador,
     m.mesero_id,
     e.empleado_nombre AS mesero_nombre,
-    COUNT(cd.comanda_detalle_id) AS cantidad_items
+    COUNT(ci.comanda_item_id) AS cantidad_items
 FROM Comanda c
-INNER JOIN Mesa m ON c.visita_id = m.visita_id
-INNER JOIN Empleado e ON m.mesero_id = e.usuario_id
-LEFT JOIN Comanda_Detalle cd ON c.comanda_id = cd.comanda_id
+LEFT JOIN Mesa m ON c.visita_id = m.visita_id
+LEFT JOIN Empleado e ON m.mesero_id = e.usuario_id
+LEFT JOIN Comanda_Item ci ON c.comanda_id = ci.comanda_id
 WHERE c.comanda_estado IN ('PENDIENTE', 'EN_PREPARACION')
-GROUP BY c.comanda_id, c.visita_id, c.comanda_estacion, c.comanda_estado,
+  AND c.visita_id IS NOT NULL
+GROUP BY c.comanda_id, c.visita_id, c.reserva_id, c.comanda_estacion, c.comanda_estado,
          c.comanda_fecha_hora_inicio, m.mesa_identificador, m.mesero_id, e.empleado_nombre;
 
-COMMENT ON VIEW v_comandas_activas IS 'Vista de comandas en proceso';
+COMMENT ON VIEW v_comandas_activas IS 'Comandas en producción (cocina/barra) — excluye PRE_RESERVA';
 
 -- =====================================================
 -- CONFIGURACIONES ADICIONALES

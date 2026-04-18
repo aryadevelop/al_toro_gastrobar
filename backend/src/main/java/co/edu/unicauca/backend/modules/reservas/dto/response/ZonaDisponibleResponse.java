@@ -15,7 +15,7 @@ public class ZonaDisponibleResponse {
     /** Identificador único de la zona. */
     private Long zonaId;
 
-    /** Nombre visible de la zona*/
+    /** Nombre visible de la zona. */
     private String nombre;
 
     /** URL de la imagen representativa de la zona; puede ser {@code null} si no tiene imagen. */

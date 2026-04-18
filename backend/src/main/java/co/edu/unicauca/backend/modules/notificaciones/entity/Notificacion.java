@@ -11,7 +11,10 @@ import lombok.*;
 import java.time.LocalDateTime;
 
 /**
- * Entidad Notificacion - Sistema de notificaciones entre empleados
+ * Notificación enviada a un empleado del restaurante sobre el estado de una mesa.
+ *
+ * @see co.edu.unicauca.backend.shared.enums.TipoNotificacion
+ * @see co.edu.unicauca.backend.shared.enums.EstadoNotificacion
  */
 @Entity
 @Table(name = "notificacion", schema = "restaurante",
@@ -29,33 +32,39 @@ import java.time.LocalDateTime;
 @Builder
 public class Notificacion {
 
+    /** Identificador único generado por la base de datos. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     @Column(name = "notificacion_id")
     private Long notificacionId;
 
+    /** Mesa sobre la que se emite la notificación. */
     @NotNull(message = "La mesa es obligatoria")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "mesa_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_notificacion_mesa"))
     private Mesa mesa;
 
+    /** Empleado destinatario de la notificación. */
     @NotNull(message = "El empleado es obligatorio")
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "empleado_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_notificacion_empleado"))
     private Empleado empleado;
 
+    /** Estado actual: {@code ACTIVA} si está pendiente de atención, {@code ATENDIDA} si fue resuelta. */
     @NotNull(message = "El estado de la notificación es obligatorio")
     @Enumerated(EnumType.STRING)
     @Column(name = "notificacion_estado", nullable = false, length = 20)
     private EstadoNotificacion notificacionEstado;
 
+    /** Motivo de la notificación; determina el mensaje mostrado al empleado. */
     @NotNull(message = "El tipo de notificación es obligatorio")
     @Enumerated(EnumType.STRING)
     @Column(name = "notificacion_tipo", nullable = false, length = 20)
     private TipoNotificacion notificacionTipo;
 
+    /** Fecha y hora en que se emitió la notificación; por defecto la fecha y hora de creación. */
     @NotNull
     @Column(name = "notificacion_fecha_hora", nullable = false)
     @Builder.Default

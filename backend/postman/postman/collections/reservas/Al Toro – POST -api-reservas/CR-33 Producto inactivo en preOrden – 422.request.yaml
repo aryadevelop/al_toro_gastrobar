@@ -1,0 +1,49 @@
+$kind: http-request
+name: CR-33 productoId corresponde a producto inactivo – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `persistirPreOrden` rechaza con 422 cualquier producto cuyo
+  estado sea distinto de `ACTIVO`.
+  **Objetivo:** Verificar el rechazo cuando un producto de la pre-orden está inactivo.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida;
+  `idProductoInactivo` = 138 apunta a un producto en estado INACTIVO según seed V2.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2,
+      "preOrden": [
+        {
+          "productoId": {{idProductoInactivo}},
+          "cantidad": 1,
+          "esMenuEspecial": false
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el producto inactivo con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 33000

@@ -26,10 +26,10 @@ import java.time.LocalDateTime;
  *   <li>{@code reservaNotas} es opcional; {@code null} si no hay observaciones.</li>
  *   <li>{@code reservaNumeroPersonas} debe ser al menos {@code 1}; obligatorio.</li>
  *   <li>{@code reservaFechaCreacion} se asigna automáticamente en {@code @PrePersist}.</li>
- *   <li>Los ítems de pre-orden se almacenan en {@link PreOrdenDetalle}.</li>
+ *   <li>Los ítems de pre-orden se persisten como una {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda}
+ *       en estado {@code PRE_RESERVA}.</li>
  * </ul>
  *
- * @see PreOrdenDetalle
  * @see co.edu.unicauca.backend.shared.enums.EstadoReserva
  * @see co.edu.unicauca.backend.shared.enums.TipoReserva
  */

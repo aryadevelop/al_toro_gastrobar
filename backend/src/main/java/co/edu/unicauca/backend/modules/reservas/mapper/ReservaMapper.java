@@ -1,14 +1,17 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
+import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResumenResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
-import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenDetalle;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
@@ -21,75 +24,56 @@ import java.util.stream.Collectors;
 
 /**
  * Mapper para convertir entidades del módulo de reservas en sus DTOs de respuesta.
- * 
- * Delega la conversión de ítems de pre-orden en {@link PreOrdenMapper}.
+ *
+ * <p>Cubre la conversión de {@link Reserva} junto con sus {@link ComandaItem} de pre-orden,
+ * {@link co.edu.unicauca.backend.modules.pagos_caja.entity.Abono abonos}, zonas y
+ * decoraciones. El mapeo de los ítems de pre-orden se delega en {@link PreOrdenMapper}.
+ *
+ * @see co.edu.unicauca.backend.modules.reservas.service.ReservaService
+ * @see PreOrdenMapper
  */
 @Component
 @RequiredArgsConstructor
 public class ReservaMapper {
 
-    /** Formateador sin zona horaria para las fechas de respuesta. */
     private static final DateTimeFormatter FORMATTER = DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     private final PreOrdenMapper preOrdenMapper;
 
     /**
-     * Convierte una entidad {@link Reserva} y sus detalles de pre-orden en el DTO de respuesta completo.
+     * Convierte una {@link Reserva} en el DTO de respuesta.
      *
      * @param reserva  entidad de reserva a convertir
-     * @param detalles lista de detalles de pre-orden asociados (puede estar vacía)
      * @return {@link ReservaResponse} con todos los campos de la reserva y el resumen de pre-orden
      */
-    public ReservaResponse toResponse(Reserva reserva, List<PreOrdenDetalle> detalles) {
-        // Convierte los detalles a resúmenes de ítem; null si no hay pre-orden
-        List<PreOrdenItemResumenResponse> preOrdenItems = detalles.isEmpty() ? null :
-                detalles.stream()
-                        .map(preOrdenMapper::toItemResumen)
-                        .collect(Collectors.toList());
-
-        // Calcula el total sumando precio × cantidad de todos los ítems de pre-orden.
-        // Retorna null si no hay pre-orden.
-        BigDecimal preOrdenTotal = detalles.isEmpty() ? null :
-                detalles.stream()
-                        .map(d -> d.getProducto().getProductoPrecio()
-                                .multiply(BigDecimal.valueOf(d.getPreordenDetalleCantidad())))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
-
+    public ReservaResponse toResponse(Reserva reserva) {
         return ReservaResponse.builder()
                 .reservaId(reserva.getReservaId())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
-                .decoracionId(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionId() : null)
                 .decoracionNombre(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionNombre() : null)
-                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
                 .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .notas(reserva.getReservaNotas())
-                .fechaCreacion(reserva.getReservaFechaCreacion().format(FORMATTER))
                 .clienteId(reserva.getCliente().getUsuarioId())
                 .clienteNombre(reserva.getCliente().getClienteNombre())
-                .preOrdenItems(preOrdenItems)
-                .preOrdenTotal(preOrdenTotal)
                 .build();
     }
 
     /**
-     * Convierte una entidad {@link Decoracion} en su DTO de disponibilidad, indicando con qué
-     * zonas libres es compatible y si el cliente puede seleccionar zona manualmente.
+     * Convierte una {@link Decoracion} en su DTO de disponibilidad.
      *
      * @param decoracion     decoración a convertir
-     * @param links          relaciones decoración-zona precargadas por el servicio
-     * @param idsZonasLibres IDs de zonas con capacidad disponible en el día consultado
+     * @param links          relaciones decoración-zona precargadas
+     * @param idsZonasLibres IDs de zonas con capacidad disponible
      * @return {@link DecoracionDisponibleResponse} con datos de presentación y compatibilidad
      */
-    public DecoracionDisponibleResponse toDecoracionDto(Decoracion decoracion,
-                                                        List<DecoracionZona> links,
-                                                        Set<Long> idsZonasLibres) {
-        // Si la decoración solo tiene una zona asignada, el cliente no puede elegir zona
+    public DecoracionDisponibleResponse toDecoracionDto(Decoracion decoracion, List<DecoracionZona> links, Set<Long> idsZonasLibres) {
+        // Si solo hay un link, no se muestra la opción de seleccionar zona
         boolean puedeSeleccionar = links.size() != 1;
 
-        // Solo incluye zonas compatibles que además estén libres en el día consultado
+        // Se consideran compatibles las zonas libres que están vinculadas a la decoración
         List<Long> zonaIdsCompatibles = links.stream()
                 .map(DecoracionZona::getZonaId)
                 .filter(idsZonasLibres::contains)
@@ -105,8 +89,7 @@ public class ReservaMapper {
     }
 
     /**
-     * Convierte una entidad {@link Zona} en su DTO de disponibilidad con los campos básicos
-     * de presentación (id, nombre, imagen y capacidad).
+     * Convierte una {@link Zona} en su DTO de disponibilidad.
      *
      * @param zona zona a convertir
      * @return {@link ZonaDisponibleResponse} con los datos de presentación de la zona
@@ -121,15 +104,90 @@ public class ReservaMapper {
     }
 
     /**
+     * Convierte una {@link Reserva} en el DTO resumido para el listado del dashboard.
+     *
+     * @param reserva entidad de reserva a convertir
+     * @return {@link ReservaDetalleResponse} con los campos básicos
+     */
+    public ReservaDetalleResponse toResumen(Reserva reserva) {
+        return ReservaDetalleResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
+                .decoracionNombre(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .build();
+    }
+
+    /**
      * Construye una respuesta de disponibilidad negativa con listas vacías.
      *
-     * @return {@link DisponibilidadResponse} con {@code disponible = false} y colecciones vacías
+     * @return {@link DisponibilidadResponse} con {@code disponible = false}
      */
     public DisponibilidadResponse sinDisponibilidad() {
         return DisponibilidadResponse.builder()
                 .disponible(false)
                 .decoraciones(List.of())
                 .zonas(List.of())
+                .build();
+    }
+
+    /**
+     * Convierte una {@link Reserva} con su pre-orden y abonos en el DTO de detalle completo.
+     *
+     * @param reserva  entidad de reserva
+     * @param preOrden ítems de comanda PRE_RESERVA (puede ser vacía)
+     * @param abonos   abonos asociados (puede ser vacía)
+     * @return {@link ReservaDetalleResponse} con todos los campos del detalle
+     */
+    public ReservaDetalleResponse toDetalleResponse(Reserva reserva,
+                                                    List<ComandaItem> preOrden,
+                                                    List<Abono> abonos) {
+        // Si la reserva no tiene pre-orden, se dejan los campos relacionados como null para omitirlos en la respuesta.
+        List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null :
+                preOrden.stream()
+                        .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
+                        .collect(Collectors.toList());
+          
+        BigDecimal preOrdenTotal = preOrden.isEmpty() ? null :
+                preOrden.stream()
+                        .map(d -> d.getComandaItemPrecio()
+                                .multiply(BigDecimal.valueOf(d.getComandaItemCantidad())))
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        // Si no hay abonos, se dejan los campos relacionados como null para omitirlos en la respuesta.
+        List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null :
+                abonos.stream()
+                        .map(a -> AbonoItemResponse.builder()
+                                .abonoId(a.getAbonoId())
+                                .monto(a.getAbonoMonto())
+                                .fechaHora(a.getAbonoFechaHora().format(FORMATTER))
+                                .metodo(a.getAbonoMetodo().name())
+                                .tipo(a.getAbonoTipo().name())
+                                .build())
+                        .collect(Collectors.toList());
+
+        BigDecimal totalAbonado = abonos.isEmpty() ? null :
+                abonos.stream()
+                        .map(Abono::getAbonoMonto)
+                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return ReservaDetalleResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
+                .decoracionNombre(reserva.getDecoracion() != null
+                        ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .notas(reserva.getReservaNotas())
+                .preOrdenItems(preOrdenItems)
+                .preOrdenTotal(preOrdenTotal)
+                .abonos(abonosDto)
+                .totalAbonado(totalAbonado)
                 .build();
     }
 }

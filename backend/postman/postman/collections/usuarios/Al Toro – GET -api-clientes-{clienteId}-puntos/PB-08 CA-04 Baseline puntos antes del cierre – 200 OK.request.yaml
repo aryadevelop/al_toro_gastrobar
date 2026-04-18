@@ -1,0 +1,50 @@
+$kind: http-request
+name: PB-08 CA-04 Baseline puntos antes del cierre – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-04 — setup del invariante previo al cierre de venta.
+  **Objetivo:** Capturar `puntosActuales` y `puntosAcumulados` del cliente 11 (Carlos Pérez,
+  asociado a la visita seed ID=10) ANTES de que PB-09 cierre la cuenta.
+  **Pre-condición:** El `beforeRequest` hace login autónomo de CAJERO (un solo nivel de
+  `pm.sendRequest` — Postman lo espera antes de disparar el request principal).
+  **Resultado esperado:** 200 OK · almacena `tmpCA04PuntosAntes` y `tmpCA04AcumuladosAntes`
+  en el entorno para que PB-09 los consuma.
+  **Dependencia:** debe ejecutarse inmediatamente antes de PB-09 en la misma corrida.
+url: "{{baseUrl}}/api/clientes/11/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PB-08: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 (baseline)', function () {
+        pm.response.to.have.status(200);
+      });
+      const data = pm.response.json().data;
+      pm.environment.set('tmpCA04PuntosAntes',     data.puntosActuales);
+      pm.environment.set('tmpCA04AcumuladosAntes', data.puntosAcumulados);
+    language: text/javascript
+order: 8000

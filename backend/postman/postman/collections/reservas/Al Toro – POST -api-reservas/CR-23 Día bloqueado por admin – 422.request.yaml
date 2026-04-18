@@ -1,0 +1,32 @@
+$kind: http-request
+name: CR-23 Día completo bloqueado por admin – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `ReservaService` consulta `Bloque_Disponibilidad` y rechaza
+  con `BusinessException` (422) cualquier fecha cubierta por un bloqueo.
+  **Objetivo:** Verificar el rechazo cuando la fecha coincide con un bloqueo de día
+  completo.
+  **Dependencia de seed:** V3 define un bloqueo para `2026-12-25` con franja NULL (día
+  completo) — no existe un API para crear bloqueos administrativos, por lo que la
+  prueba depende de `{{fechaBloqueadaDia}}` = `2026-12-25T19:00:00` presente en el
+  entorno.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{fechaBloqueadaDia}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la reserva en día bloqueado con 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 23000

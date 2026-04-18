@@ -1,0 +1,55 @@
+$kind: http-request
+name: PA-07 Cliente sin puntos – 200 OK saldo cero
+description: |-
+  **Criterio de Aceptación:** CA-03 — el dashboard muestra `0` para clientes nuevos o
+  recién canjeados.
+  **Objetivo:** Verificar que para el cliente seed `sinpuntos@altoro.com` el endpoint
+  retorna `puntosActuales = 0` y `puntosAcumulados = 0`.
+  **Pre-condición:** Env `emailSinPuntos=sinpuntos@altoro.com` (seed `V3__dev_data.sql`).
+  El `beforeRequest` de este test hace login autónomo con ese email para obtener
+  `clienteSinPuntosToken`.
+  **Resultado esperado:** 200 OK · `data.puntosActuales = 0` · `data.puntosAcumulados = 0`.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente=sinpuntos@altoro.com"
+method: GET
+headers:
+  Authorization: Bearer {{clienteSinPuntosToken}}
+queryParams:
+  emailCliente: sinpuntos@altoro.com
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'sinpuntos@altoro.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteSinPuntosToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PA-07: login CLIENTE sin puntos falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('puntosActuales = 0 para cliente sin saldo canjeable', function () {
+        pm.expect(pm.response.json().data.puntosActuales).to.eql(0);
+      });
+      pm.test('puntosAcumulados = 0 para cliente sin historial de visitas', function () {
+        pm.expect(pm.response.json().data.puntosAcumulados).to.eql(0);
+      });
+    language: text/javascript
+order: 7000

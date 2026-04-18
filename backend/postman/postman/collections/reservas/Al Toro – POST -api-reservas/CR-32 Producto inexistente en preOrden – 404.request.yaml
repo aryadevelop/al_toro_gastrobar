@@ -1,0 +1,49 @@
+$kind: http-request
+name: CR-32 productoId inexistente en preOrden – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Cada ítem de la pre-orden se resuelve contra
+  `productoRepository`. Un `productoId` inexistente lanza `ResourceNotFoundException`
+  → 404.
+  **Objetivo:** Verificar el rechazo cuando un producto de la pre-orden no existe.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2,
+      "preOrden": [
+        {
+          "productoId": 99999,
+          "cantidad": 1,
+          "esMenuEspecial": false
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el producto inexistente con 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 32000

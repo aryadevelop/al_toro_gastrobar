@@ -1,7 +1,12 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Enum para tipos de movimiento de inventario
+ * Dirección de un {@link co.edu.unicauca.backend.modules.inventario.entity.MovimientoInventario}.
+ *
+ * <ul>
+ *   <li>{@code INGRESO} — entrada de stock: compra de insumos o producción de semielaborados.</li>
+ *   <li>{@code EGRESO} — salida de stock: consumo durante la preparación de productos.</li>
+ * </ul>
  */
 public enum TipoMovimiento {
     INGRESO("Ingreso"),

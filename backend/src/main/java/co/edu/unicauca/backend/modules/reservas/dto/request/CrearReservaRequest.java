@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.reservas.dto.request;
 
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.Email;
+import jakarta.validation.constraints.Future;
 import jakarta.validation.constraints.Min;
 import jakarta.validation.constraints.NotNull;
 import lombok.Getter;
@@ -44,6 +45,7 @@ public class CrearReservaRequest {
      * Debe ser una fecha/hora futura; obligatorio.
      */
     @NotNull(message = "La fecha y hora de llegada son obligatorias")
+    @Future(message = "La fecha y hora de llegada deben ser en el futuro")
     private LocalDateTime fechaHoraLlegada;
 
     /**

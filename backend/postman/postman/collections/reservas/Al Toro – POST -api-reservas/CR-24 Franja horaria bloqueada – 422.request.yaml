@@ -1,0 +1,30 @@
+$kind: http-request
+name: CR-24 Franja horaria bloqueada por admin – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Los bloqueos administrativos pueden aplicar solo a una
+  franja horaria dentro de un día. El servicio debe rechazar la reserva si
+  `fechaHoraLlegada` cae dentro de la franja bloqueada.
+  **Objetivo:** Verificar el rechazo cuando la hora exacta está dentro de la franja.
+  **Dependencia de seed:** V3 define un bloqueo `2026-12-22` con franja 19:00-21:00.
+  `{{fechaBloqueadaFranja}}` = `2026-12-22T20:00:00` cae dentro.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{fechaBloqueadaFranja}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la reserva dentro de la franja bloqueada con 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 24000

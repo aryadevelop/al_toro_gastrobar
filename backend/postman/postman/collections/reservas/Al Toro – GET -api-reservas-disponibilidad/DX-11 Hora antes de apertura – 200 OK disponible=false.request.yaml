@@ -1,0 +1,52 @@
+$kind: http-request
+name: DX-11 Hora antes de apertura (14:00) – 200 OK disponible=false
+description: |-
+  **Criterio de Aceptación:** CA-HOR-01 — el servicio valida `hora >= HORA_APERTURA (17)`.
+  Para una hora anterior a las 17:00, debe retornar `disponible=false` con `zonas=[]` y
+  `decoraciones=[]`.
+  **Objetivo:** Verificar la validación del límite inferior del horario de atención.
+  **Pre-condición:** Token CLIENTE disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 200 OK · `data.disponible=false` · `data.zonas=[]` · `data.decoraciones=[]`.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{tmpFechaAntes}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{tmpFechaAntes}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Genera una fecha futura aleatoria con hora 14:00 (antes de apertura).
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(14, 0, 0, 0);
+      pm.environment.set('tmpFechaAntes',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T14:00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Consulta procesada correctamente', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const d = pm.response.json().data;
+
+      pm.test('disponible=false para hora anterior al horario de apertura (14:00)', function () {
+        pm.expect(d.disponible).to.be.false;
+      });
+
+      pm.test('zonas está vacío cuando no hay disponibilidad por horario', function () {
+        pm.expect(d.zonas).to.be.an('array').and.be.empty;
+      });
+
+      pm.test('decoraciones está vacío cuando no hay disponibilidad por horario', function () {
+        pm.expect(d.decoraciones).to.be.an('array').and.be.empty;
+      });
+
+      pm.environment.unset('tmpFechaAntes');
+    language: text/javascript
+order: 11000

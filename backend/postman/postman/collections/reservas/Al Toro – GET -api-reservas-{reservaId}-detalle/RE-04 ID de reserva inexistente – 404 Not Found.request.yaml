@@ -1,0 +1,20 @@
+$kind: http-request
+name: RE-04 ID de reserva inexistente – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Manejo de recurso inexistente
+  **Objetivo:** Verificar que el endpoint retorna 404 cuando se consulta un `reservaId` que no existe.
+  **Pre-condición:** Ninguna. Se usa un ID intencionalmente alto (`9999999999`) para evitar
+  colisiones con datos reales sin asumir nada de la base.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/reservas/9999999999/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para reserva inexistente', function () {
+        pm.response.to.have.status(404);
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,69 @@
+$kind: http-request
+name: CR-31 Decoración ya ocupada en la fecha – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Cada decoración solo puede asignarse a una reserva por
+  día. Si ya existe una reserva con la misma decoración en la fecha solicitada,
+  `ReservaService` rechaza la segunda petición con 422.
+  **Objetivo:** Verificar el rechazo cuando la decoración ya está tomada.
+  **Pre-condición:** `clienteToken` disponible. El `beforeRequest` genera
+  `tmpFechaLibre` aleatoria y crea una primera reserva con decoración id=2
+  (Cumpleaños Premium, gratuita) + zona id=3 (VIP). El test principal intenta una
+  segunda reserva con la misma decoración + zona id=6 (Sala Privada, también
+  compatible con la decoración 2).
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 4,
+      "decoracionId": 2,
+      "zonaId": 6
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken'),
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            fechaHoraLlegada: fecha,
+            numeroPersonas: 4,
+            decoracionId: 2,
+            zonaId: 3
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('CR-31 pre-request: primera reserva con decoración 2 falló', err, res && res.code, res && res.text && res.text());
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la reserva con decoración ya ocupada con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 31000

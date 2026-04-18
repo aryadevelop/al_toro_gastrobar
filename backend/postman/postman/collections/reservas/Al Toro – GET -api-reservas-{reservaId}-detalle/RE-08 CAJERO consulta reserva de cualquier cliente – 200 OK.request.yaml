@@ -1,0 +1,65 @@
+$kind: http-request
+name: RE-08 CAJERO consulta detalle de reserva de cualquier cliente – 200 OK
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — `CAJERO` está incluido en el `@PreAuthorize`
+  del controller y, al no ser `CLIENTE`, no aplica restricción de ownership.
+  **Objetivo:** Verificar que un CAJERO puede consultar el detalle de cualquier reserva.
+  **Pre-condición:** Ninguna externa. El pre-request crea una reserva a nombre de un CLIENTE
+  cualquiera (`emailCliente`) y captura su `reservaId` en `tmpReservaId`. La petición principal
+  usa `cajeroToken` para consultarla.
+  **Resultado esperado:** 200 OK · `reservaId` coincide con la reserva creada.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null,
+            decoracionId: null,
+            notas: null,
+            preOrden: null
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('Pre-request RE-08: creación de reserva falló', err, res && res.code, res && res.text());
+          return;
+        }
+        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 para CAJERO sin restricción de ownership', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El reservaId del detalle coincide con el de la reserva consultada', function () {
+        pm.expect(String(pm.response.json().data.reservaId))
+          .to.eql(String(pm.environment.get('tmpReservaId')));
+      });
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 8000

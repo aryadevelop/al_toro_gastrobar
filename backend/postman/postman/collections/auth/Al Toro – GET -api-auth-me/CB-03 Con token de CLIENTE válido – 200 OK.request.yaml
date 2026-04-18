@@ -1,0 +1,24 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CB-03
+  **Objetivo:** Verificar que el endpoint retorna correctamente los datos de perfil de un usuario con rol CLIENTE, incluyendo el nombre visible y el correo.
+  **Pre-condición:** CA-03 debe haberse ejecutado previamente o el pre-request del grupo debe haber generado `clienteAccessToken`.
+  **Resultado esperado:** HTTP 200. `roles` incluye `CLIENTE`. `nombre` y `email` no son vacíos.
+url: "{{baseUrl}}/api/auth/me"
+method: GET
+headers:
+  Authorization: Bearer {{clienteAccessToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Usuario CLIENTE autenticado retornado', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('El listado de roles incluye CLIENTE', () => pm.expect(body.roles).to.include('CLIENTE'));
+
+      pm.test('El nombre del usuario cliente no es vacío', () => pm.expect(body.nombre).to.be.a('string').and.not.empty);
+
+      pm.test('El correo electrónico no es vacío', () => pm.expect(body.email).to.be.a('string').and.not.empty);
+    language: text/javascript
+order: 3000

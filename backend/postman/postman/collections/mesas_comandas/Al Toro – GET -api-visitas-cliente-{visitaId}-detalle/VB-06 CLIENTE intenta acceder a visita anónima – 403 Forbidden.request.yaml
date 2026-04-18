@@ -1,0 +1,21 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Control de acceso — visita sin propietario
+  **Objetivo:** Verificar que un CLIENTE no puede acceder al detalle de una visita anónima (sin cliente asignado, cliente_id=NULL). Como no hay propietario, la validación de propiedad falla y el sistema retorna 403.
+  **Pre-condición:** `visitaIdAnonima` (=8) es una visita walk-in anónima sin cliente en V3__dev_data.sql (INSERT fila: NULL, NULL, ...).
+  **Resultado esperado:** 403 Forbidden · `code` = "AUTH-002".
+url: "{{baseUrl}}/api/visitas/cliente/{{visitaIdAnonima}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 403 para visita anónima consultada por CLIENTE', function() {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El código de error indica acceso denegado (AUTH-002)', function() {
+        pm.expect(pm.response.json().code).to.eql('AUTH-002');
+      });
+    language: text/javascript
+order: 6000

@@ -1,7 +1,12 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Enum para estados de notificación
+ * Estado de una {@link co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion}.
+ *
+ * <ul>
+ *   <li>{@code ACTIVA} — la notificación fue emitida y está pendiente de atención.</li>
+ *   <li>{@code ATENDIDA} — el empleado destinatario revisó y resolvió la notificación.</li>
+ * </ul>
  */
 public enum EstadoNotificacion {
     ACTIVA("Activa"),

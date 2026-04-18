@@ -1,0 +1,57 @@
+$kind: http-request
+name: CR-11 Reserva con menú especial – 201 ESPECIAL PENDIENTE
+description: |-
+  **Criterio de Aceptación:** Un ítem con `esMenuEspecial=true` exige que el producto
+  esté marcado como menú especial y que la reserva tenga más de 10 comensales. La
+  presencia de un menú especial convierte la reserva en ESPECIAL (estado PENDIENTE).
+  **Objetivo:** Verificar el happy-path de menú especial con modificaciones BEBIDA válidas.
+  **Pre-condición:** `clienteToken` disponible; seed V2 incluye producto id=132
+  (Pechuga en Uchuvas, `menu_especial=TRUE`) y las opciones de BEBIDA con ids 1..4
+  vinculadas a ese producto.
+  **Resultado esperado:** 201 Created, `tipo=ESPECIAL`, `estado=PENDIENTE`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 12,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 12,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva con menú especial con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva con menú especial queda ESPECIAL PENDIENTE', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.tipo).to.eql('ESPECIAL');
+        pm.expect(body.data.estado).to.eql('PENDIENTE');
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 11000

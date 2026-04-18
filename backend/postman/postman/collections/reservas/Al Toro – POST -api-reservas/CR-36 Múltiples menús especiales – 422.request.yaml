@@ -1,0 +1,56 @@
+$kind: http-request
+name: CR-36 Múltiples menús especiales en una reserva – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Una misma reserva solo puede incluir un menú especial.
+  `validarPreOrden` rechaza con 422 si hay más de un ítem con `esMenuEspecial=true`.
+  **Objetivo:** Verificar el límite de un menú especial por reserva.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida;
+  productos id=132 y id=133 son menús especiales según seed V2.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 12,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 6,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        },
+        {
+          "productoId": 133,
+          "cantidad": 6,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [2]
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza múltiples menús especiales con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 36000

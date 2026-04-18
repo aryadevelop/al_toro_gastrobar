@@ -1,0 +1,43 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-13
+  **Objetivo:** Verificar que el endpoint emite un nuevo par de tokens cuando se presenta un refresh token vigente, que el nuevo refresh token es distinto al anterior (rotación), y que el tiempo de expiración coincide con el configurado en el login inicial.
+  **Pre-condición:** CA-01 o CA-09 deben haberse ejecutado previamente para disponer de un `refreshToken` válido en el entorno.
+  **Resultado esperado:** HTTP 200 con nuevos `accessToken` y `refreshToken` distintos a los anteriores.
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refreshToken": "{{refreshToken}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Refresh token renovado exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('Se retorna un nuevo access token no vacío', () => pm.expect(body.accessToken).to.be.a('string').and.not.empty);
+
+      pm.test('El nuevo refresh token es distinto al anterior (rotación confirmada)', () => {
+        pm.expect(body.refreshToken).to.be.a('string').and.not.empty;
+        pm.expect(body.refreshToken).to.not.eql(pm.environment.get('refreshToken'));
+      });
+
+      pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
+
+      pm.test('El tiempo de expiración coincide con el valor del login inicial', () =>
+        pm.expect(body.expiresIn).to.eql(pm.environment.get('loginExpiresIn')));
+
+      // Preservar el refresh token anterior para CA-15 y actualizar con los nuevos tokens
+      if (pm.response.code === 200) {
+        pm.environment.set('oldRefreshToken', pm.environment.get('refreshToken'));
+        pm.environment.set('accessToken', body.accessToken);
+        pm.environment.set('refreshToken', body.refreshToken);
+      }
+    language: text/javascript
+order: 2000

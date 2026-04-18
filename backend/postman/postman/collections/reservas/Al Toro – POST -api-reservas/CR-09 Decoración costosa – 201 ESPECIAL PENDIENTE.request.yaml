@@ -1,0 +1,52 @@
+$kind: http-request
+name: CR-09 Decoración costosa – 201 ESPECIAL PENDIENTE
+description: |-
+  **Criterio de Aceptación:** Si la decoración tiene costo > 0, la reserva se marca como
+  ESPECIAL y su estado inicial es PENDIENTE (requiere confirmación administrativa).
+  **Objetivo:** Verificar que el tipo/estado derivado se calcula correctamente cuando la
+  decoración es pagada.
+  **Pre-condición:** `clienteToken` disponible; seed V2 define decoración id=1 "Velas
+  Románticas" con costo=25000 vinculada a zonas {1 Salón, 2 Terraza, 3 VIP}.
+  **Resultado esperado:** 201 Created, `tipo=ESPECIAL`, `estado=PENDIENTE`,
+  `decoracionNombre` no nulo.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2,
+      "decoracionId": 1,
+      "zonaId": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva especial con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva queda como ESPECIAL PENDIENTE por la decoración con costo', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.tipo).to.eql('ESPECIAL');
+        pm.expect(body.data.estado).to.eql('PENDIENTE');
+        pm.expect(body.data.decoracionNombre).to.be.a('string').and.not.empty;
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 9000

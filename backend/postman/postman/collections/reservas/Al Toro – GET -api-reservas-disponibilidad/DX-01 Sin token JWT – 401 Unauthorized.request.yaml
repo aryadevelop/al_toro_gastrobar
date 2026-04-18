@@ -1,0 +1,19 @@
+$kind: http-request
+name: DX-01 Sin token JWT – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** Control de acceso — no se permite consultar disponibilidad sin autenticación.
+  **Objetivo:** Verificar que el endpoint rechaza peticiones sin header `Authorization` con 401.
+  **Pre-condición:** Ninguna.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-12-15T19:00:00"
+method: GET
+queryParams:
+  fechaHora: "2026-12-15T19:00:00"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la petición sin token con 401', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 1000

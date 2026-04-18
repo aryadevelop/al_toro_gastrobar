@@ -1,0 +1,18 @@
+$kind: http-request
+name: RE-05 Sin token de autenticación – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** Control de acceso por autenticación
+  **Objetivo:** Verificar que el endpoint rechaza con 401 cualquier petición sin header `Authorization`.
+  **Pre-condición:** Ninguna. No se envía token y no se requieren datos en BD: el filtro JWT
+  rechaza la petición antes de tocar el controller, así que el `reservaId` usado es irrelevante.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/reservas/1/detalle"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la petición sin token con 401', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 5000

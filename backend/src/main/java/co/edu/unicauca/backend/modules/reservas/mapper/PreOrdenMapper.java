@@ -1,63 +1,51 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenDetalleResponse;
-import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResumenResponse;
-import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenDetalle;
-import co.edu.unicauca.backend.modules.reservas.entity.PreOrdenMenuModificacion;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;
 import java.util.stream.Collectors;
 
 /**
- * Mapper para convertir entidades de pre-orden en sus DTOs de respuesta.
+ * Mapper para convertir ítems de una {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda}
+ * en estado {@code PRE_RESERVA} en sus DTOs de respuesta.
+ *
+ * <p>Transforma cada {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem}
+ * junto con sus {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion}
+ * en un {@link PreOrdenDetalleResponse} para exponer la pre-orden del cliente.
  */
 @Component
 public class PreOrdenMapper {
 
     /**
-     * Convierte un {@link PreOrdenDetalle} y sus modificaciones en el DTO de detalle completo.
+     * Convierte un {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem}
+     * y sus modificaciones de menú especial en el DTO de detalle.
      *
-     * @param detalle detalle de pre-orden a convertir
-     * @param mods    lista de opciones de modificación seleccionadas para ese ítem
-     * @return {@link PreOrdenDetalleResponse} con producto, cantidad, precio y modificaciones
+     * @param detalle detalle de comanda a convertir
+     * @param mods    modificaciones de menú especial asociadas al ítem; vacía si no aplica
+     * @return {@link PreOrdenDetalleResponse} con producto, cantidad, precio snapshot y modificaciones
      */
-    public PreOrdenDetalleResponse toDetalleResponse(PreOrdenDetalle detalle, List<PreOrdenMenuModificacion> mods) {
-        
-        // Mapea cada modificación a su DTO anidado de opción seleccionada
-        List<PreOrdenDetalleResponse.OpcionModificacionSeleccionada> modificacionesDto = mods.stream()
-                .map(m -> PreOrdenDetalleResponse.OpcionModificacionSeleccionada.builder()
+    public PreOrdenItemResponse toDetalleResponse(ComandaItem detalle,
+                                                     List<ComandaMenuModificacion> mods) {
+        List<PreOrdenItemResponse.OpcionModificacionSeleccionada> modificacionesDto = mods.stream()
+                .map(m -> PreOrdenItemResponse.OpcionModificacionSeleccionada.builder()
                         .opcionId(m.getOpcion().getOpcionId())
                         .opcionNombre(m.getOpcion().getOpcionNombre())
                         .tipoComponente(m.getOpcion().getTipoComponente().name())
                         .build())
                 .collect(Collectors.toList());
 
-        return PreOrdenDetalleResponse.builder()
-                .preordenDetalleId(detalle.getPreordenDetalleId())
+        return PreOrdenItemResponse.builder()
+                .comandaItemId(detalle.getComandaItemId())
                 .productoId(detalle.getProducto().getProductoId())
                 .productoNombre(detalle.getProducto().getProductoNombre())
-                .cantidad(detalle.getPreordenDetalleCantidad())
-                .precioUnitario(detalle.getProducto().getProductoPrecio())
-                .descripcion(detalle.getPreordenDetalleDescripcion())
+                .cantidad(detalle.getComandaItemCantidad())
+                .precioUnitario(detalle.getComandaItemPrecio())
+                .descripcion(detalle.getComandaItemDescripcion())
                 .modificaciones(modificacionesDto.isEmpty() ? null : modificacionesDto)
-                .build();
-    }
-
-    /**
-     * Convierte un {@link PreOrdenDetalle} en el resumen ligero de ítem usado dentro de
-     * {@link co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse}.
-     *
-     * @param detalle detalle de pre-orden a resumir
-     * @return {@link PreOrdenItemResumenResponse} con producto, cantidad, precio y descripción
-     */
-    public PreOrdenItemResumenResponse toItemResumen(PreOrdenDetalle detalle) {
-        return PreOrdenItemResumenResponse.builder()
-                .productoId(detalle.getProducto().getProductoId())
-                .productoNombre(detalle.getProducto().getProductoNombre())
-                .cantidad(detalle.getPreordenDetalleCantidad())
-                .precioUnitario(detalle.getProducto().getProductoPrecio())
-                .descripcion(detalle.getPreordenDetalleDescripcion())
                 .build();
     }
 }

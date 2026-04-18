@@ -1,0 +1,30 @@
+$kind: http-request
+name: CA-15 Reutilización de refresh token ya rotado – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** CA-15
+  **Objetivo:** Verificar que el mecanismo de rotación de tokens invalida el refresh token anterior en la base de datos, de modo que intentar reutilizarlo resulte en error de autenticación (protección contra robo de token).
+  **Pre-condición:** CA-13 debe haberse ejecutado previamente (almacena `oldRefreshToken` en el entorno).
+  **Resultado esperado:** HTTP 401 con código `AUTH-001`.
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "refreshToken": "{{oldRefreshToken}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Refresh token ya rotado no es reutilizable', () => pm.response.to.have.status(401));
+
+      pm.test('Código de error AUTH-001', () =>
+        pm.expect(pm.response.json().code).to.eql('AUTH-001'));
+
+      // Limpiar variables temporales del entorno
+      pm.environment.unset('oldRefreshToken');
+      pm.environment.unset('loginExpiresIn');
+    language: text/javascript
+order: 4000

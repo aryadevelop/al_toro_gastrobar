@@ -1,0 +1,32 @@
+$kind: http-request
+name: RF-09 Email de cliente inexistente (con ADMIN) – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Validación de existencia — si el email no corresponde a un
+  cliente registrado, el servicio lanza `ResourceNotFoundException` (→ 404).
+  **Objetivo:** Verificar que el sistema retorna 404 cuando el `emailCliente` no existe.
+  **Pre-condición:** El email `no-existe-{{$randomUUID}}@altoro.com` se genera dinámicamente
+  para garantizar que nunca exista. Se usa `accessToken` (ADMIN) para evitar que el check de
+  ownership de CLIENTE responda 403 antes de llegar a la validación de existencia.
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{tmpEmailInexistente}}"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+queryParams:
+  emailCliente: "{{tmpEmailInexistente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const uuid = (typeof crypto !== 'undefined' && crypto.randomUUID)
+        ? crypto.randomUUID()
+        : (Date.now() + '-' + Math.floor(Math.random() * 1e9));
+      pm.environment.set('tmpEmailInexistente', 'no-existe-' + uuid + '@altoro.com');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para email de cliente inexistente', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.environment.unset('tmpEmailInexistente');
+    language: text/javascript
+order: 9000

@@ -1,0 +1,32 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CB-04
+  **Objetivo:** Verificar que el filtro JWT rechaza tokens cuya firma ha sido manipulada. Este caso simula un ataque de falsificación de token alterando el último carácter de la firma del access token activo.
+  **Pre-condición:** Debe existir un `accessToken` válido en el entorno para generar el token adulterado.
+  **Resultado esperado:** HTTP 401.
+url: "{{baseUrl}}/api/auth/me"
+method: GET
+headers:
+  Authorization: Bearer {{tamperedToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Obtener el accessToken del entorno y adulterar su firma
+      const token = pm.environment.get('accessToken') || '';
+      if (token) {
+        const parts = token.split('.');
+        const sig = parts[2];
+        parts[2] = sig.slice(0, -1) + (sig.slice(-1) === 'A' ? 'B' : 'A');
+        pm.environment.set('tamperedToken', parts.join('.'));
+      } else {
+        pm.environment.set('tamperedToken', 'header.payload.invalidsignature');
+      }
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Token con firma adulterada rechazado', () => pm.response.to.have.status(401));
+
+      // Limpiar la variable temporal del entorno
+      pm.environment.unset('tamperedToken');
+    language: text/javascript
+order: 4000
