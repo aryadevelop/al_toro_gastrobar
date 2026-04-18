@@ -1,7 +1,9 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
@@ -95,7 +97,41 @@ public class ReservaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Reserva creada exitosamente", response));
     }
 
-    // TODO: Agregar endpoints para modificar reservas futuras 
+    /**
+     * Modifica una reserva futura del cliente autenticado.
+     *
+     * <p>Solo el cliente propietario puede modificar su reserva ({@code ROLE_CLIENTE}).
+     * El email del cliente se toma del token de autenticación, nunca del body.
+     *
+     * <p>Reglas de negocio aplicadas:
+     * <ul>
+     *   <li>La reserva debe estar en estado {@code PENDIENTE} o {@code CONFIRMADA}.</li>
+     *   <li>El momento actual debe ser anterior a las 16:00 del día de la reserva (CA-01).</li>
+     *   <li>Aplica las mismas validaciones de horario, bloqueos y disponibilidad que la creación.</li>
+     * </ul>
+     *
+     * <p>Cuando el campo {@code requiereWhatsApp} de la respuesta es {@code true}, el frontend
+     * debe redirigir al cliente al chat de WhatsApp de la empresa con el mensaje precompuesto.
+     *
+     * @param reservaId      identificador de la reserva a modificar
+     * @param request        nuevos datos de la reserva
+     * @param authentication contexto de seguridad del request
+     * @return {@code 200 OK} con los datos de la reserva resultante
+     */
+    @PutMapping("/{reservaId}")
+    @PreAuthorize("hasRole('CLIENTE')")
+    @Operation(summary = "Modificar una reserva futura del cliente")
+    public ResponseEntity<ApiResponse<ModificarReservaResponse>> modificarReserva(
+            @PathVariable Long reservaId,
+            @Valid @RequestBody ModificarReservaRequest request,
+            Authentication authentication) {
+
+        String emailCliente = authentication.getName();
+        ModificarReservaResponse response =
+                reservaService.modificarReserva(reservaId, emailCliente, request);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     // TODO: cancelar reservas futuras
 
     /**
