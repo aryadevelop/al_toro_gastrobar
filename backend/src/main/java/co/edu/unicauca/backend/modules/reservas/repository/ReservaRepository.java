@@ -94,4 +94,75 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("inicio") LocalDateTime inicio,
             @Param("fin") LocalDateTime fin,
             @Param("estados") List<EstadoReserva> estados);
+
+    /**
+     * Suma los comensales reservados en una zona excluyendo una reserva específica.
+     *
+     * <p>Usado al modificar una reserva para no contar la reserva actual
+     * en el cálculo de capacidad disponible.
+     *
+     * @param zonaId           identificador de la zona
+     * @param inicio           inicio del rango de fecha/hora (inclusive)
+     * @param fin              fin del rango de fecha/hora (inclusive)
+     * @param estados          estados a considerar como activos
+     * @param excludeReservaId reserva a excluir del cómputo
+     * @return suma de personas; {@code 0} si no hay reservas
+     */
+    @Query("SELECT COALESCE(SUM(r.reservaNumeroPersonas), 0) FROM Reserva r " +
+           "WHERE r.zona.zonaId = :zonaId " +
+           "AND r.reservaFechaHoraLlegada BETWEEN :inicio AND :fin " +
+           "AND r.reservaEstado IN :estados " +
+           "AND r.reservaId <> :excludeReservaId")
+    int sumPersonasByZonaEnDiaExcluyendo(
+            @Param("zonaId") Long zonaId,
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fin") LocalDateTime fin,
+            @Param("estados") List<EstadoReserva> estados,
+            @Param("excludeReservaId") Long excludeReservaId);
+
+    /**
+     * Devuelve los IDs de decoraciones ocupadas excluyendo una reserva específica.
+     *
+     * <p>Usado al modificar una reserva para no bloquear la decoración que ya tiene asignada.
+     *
+     * @param inicio           inicio del rango (inclusive)
+     * @param fin              fin del rango (inclusive)
+     * @param estados          estados a considerar como activos
+     * @param excludeReservaId reserva a excluir
+     * @return lista de {@code decoracionId} ocupados
+     */
+    @Query("SELECT r.decoracion.decoracionId FROM Reserva r " +
+           "WHERE r.reservaFechaHoraLlegada BETWEEN :inicio AND :fin " +
+           "AND r.reservaEstado IN :estados " +
+           "AND r.decoracion IS NOT NULL " +
+           "AND r.reservaId <> :excludeReservaId")
+    List<Long> findDecoracionesOcupadasEnDiaExcluyendo(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fin") LocalDateTime fin,
+            @Param("estados") List<EstadoReserva> estados,
+            @Param("excludeReservaId") Long excludeReservaId);
+
+    /**
+     * Suma comensales por zona excluyendo una reserva específica.
+     *
+     * <p>Usado al modificar una reserva para no contar la reserva actual en los
+     * cálculos de ocupación de zona.
+     *
+     * @param inicio           inicio del rango (inclusive)
+     * @param fin              fin del rango (inclusive)
+     * @param estados          estados a considerar como activos
+     * @param excludeReservaId reserva a excluir
+     * @return lista de pares {@code [zonaId, sumaPersonas]}
+     */
+    @Query("SELECT r.zona.zonaId, SUM(r.reservaNumeroPersonas) FROM Reserva r " +
+           "WHERE r.reservaFechaHoraLlegada BETWEEN :inicio AND :fin " +
+           "AND r.reservaEstado IN :estados " +
+           "AND r.zona IS NOT NULL " +
+           "AND r.reservaId <> :excludeReservaId " +
+           "GROUP BY r.zona.zonaId")
+    List<Object[]> findPersonasPorZonaEnDiaExcluyendo(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fin") LocalDateTime fin,
+            @Param("estados") List<EstadoReserva> estados,
+            @Param("excludeReservaId") Long excludeReservaId);
 }

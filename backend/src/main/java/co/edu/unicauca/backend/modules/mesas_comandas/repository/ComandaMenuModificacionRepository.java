@@ -22,4 +22,13 @@ public interface ComandaMenuModificacionRepository extends JpaRepository<Comanda
      * @return lista de modificaciones; vacía si el ítem no tiene modificaciones
      */
     List<ComandaMenuModificacion> findByComandaItem_ComandaItemId(Long comandaItemId);
+
+    /**
+     * Elimina todas las modificaciones asociadas a un ítem de comanda.
+     *
+     * <p>Usado al reemplazar la pre-orden de una reserva durante una modificación.
+     *
+     * @param comandaItemId identificador del item de comanda
+     */
+    void deleteByComandaItem_ComandaItemId(Long comandaItemId);
 }
