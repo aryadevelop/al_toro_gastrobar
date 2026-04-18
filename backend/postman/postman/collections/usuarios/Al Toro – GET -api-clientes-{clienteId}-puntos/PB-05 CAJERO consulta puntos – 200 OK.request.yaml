@@ -1,0 +1,80 @@
+$kind: http-request
+name: PB-05 CAJERO consulta puntos – 200 OK
+description: |-
+  **Criterio de Aceptación:** Consulta administrativa de puntos por caja.
+  **Objetivo:** Verificar que un CAJERO puede consultar los puntos de cualquier cliente por
+  ID y recibe la estructura `{puntosActuales, puntosAcumulados}` con ambos campos enteros
+  no negativos e invariante `puntosAcumulados ≥ puntosActuales`.
+  **Pre-condición:** El `beforeRequest` hace login autónomo de CAJERO y luego resuelve
+  `tmpClienteId` iterando IDs seed (11..22) y escogiendo el primero existente.
+  **Resultado esperado:** 200 OK · estructura correcta · invariantes válidos.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const candidates = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+
+      const probe = (token, index) => {
+        if (index >= candidates.length) return;
+        const id = candidates[index];
+        pm.sendRequest({
+          url: baseUrl + '/api/clientes/' + id + '/puntos',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.environment.set('tmpClienteId', id);
+          } else {
+            probe(token, index + 1);
+          }
+        });
+      };
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          probe(token, 0);
+        } else {
+          console.warn('PB-05: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta expone puntosActuales y puntosAcumulados', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('puntosActuales');
+        pm.expect(data).to.have.property('puntosAcumulados');
+      });
+      pm.test('Ambos campos son enteros no negativos', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.puntosActuales).to.be.a('number').and.to.be.at.least(0);
+        pm.expect(data.puntosAcumulados).to.be.a('number').and.to.be.at.least(0);
+      });
+      pm.test('puntosAcumulados ≥ puntosActuales (invariante de vida)', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.puntosAcumulados).to.be.at.least(data.puntosActuales);
+      });
+      pm.environment.unset('tmpClienteId');
+    language: text/javascript
+order: 5000

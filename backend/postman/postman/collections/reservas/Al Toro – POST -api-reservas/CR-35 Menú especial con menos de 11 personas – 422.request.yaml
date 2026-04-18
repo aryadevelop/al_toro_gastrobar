@@ -1,0 +1,50 @@
+$kind: http-request
+name: CR-35 Menú especial con numeroPersonas ≤ 10 – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `validarPreOrden` rechaza con 422 cuando la pre-orden
+  incluye un menú especial y la reserva es para 10 o menos personas.
+  **Objetivo:** Verificar el mínimo de comensales requerido para menú especial.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida;
+  producto id=132 (Pechuga uchuvas) es menú especial según seed V2.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 8,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 8,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el menú especial con ≤10 personas con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 35000

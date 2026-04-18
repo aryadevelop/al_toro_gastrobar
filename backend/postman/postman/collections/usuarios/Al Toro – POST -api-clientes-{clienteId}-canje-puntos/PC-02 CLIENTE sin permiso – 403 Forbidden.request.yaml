@@ -1,0 +1,46 @@
+$kind: http-request
+name: PC-02 CLIENTE sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Matriz de roles — canje exclusivo de `CAJERO`/`ADMIN`.
+  **Objetivo:** Verificar que un CLIENTE no puede ejecutar el canje de sus propios puntos.
+  **Pre-condición:** El `beforeRequest` de este test hace login autónomo para obtener
+  `clienteToken`, independiente del hook de colección.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/1/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PC-02: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza token de CLIENTE con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 2000

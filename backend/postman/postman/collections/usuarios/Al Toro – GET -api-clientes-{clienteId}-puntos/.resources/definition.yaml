@@ -1,66 +1,87 @@
 $kind: collection
 name: Al Toro – GET /api/clientes/{clienteId}/puntos
 description: |-
-  Retorna los puntos actuales y acumulados de cualquier cliente identificado por su ID. Solo accesible por CAJERO o ADMIN.
+  # GET /api/clientes/{clienteId}/puntos
 
-  **Encabezados requeridos:** `Authorization: Bearer {{cajeroToken}}` o `{{adminToken}}`
+  Retorna el saldo de puntos actuales y acumulados de un cliente identificado por
+  su `clienteId`. Uso operativo desde caja o administración (no expuesto al
+  propio cliente, que cuenta con `/me/puntos`).
 
-  **Parámetros de ruta:**
-  ```
-  clienteId: Long
-  ```
+  ## Autorización
 
-  **Campos de `ClientePuntosResponse`:** `puntosActuales`, `puntosAcumulados`
+  `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")` — solo los roles `CAJERO` y
+  `ADMIN` acceden al endpoint. Cliente final, meseros y producción reciben `403`.
 
-  | ID | Escenario | HTTP |
-  |----|-----------|------|
-  | PB-01 | CAJERO consulta puntos de cliente existente | 200 |
-  | PB-02 | ADMIN consulta puntos de cliente existente | 200 |
-  | PB-03 | ID de cliente inexistente | 404 |
-  | PB-04 | Token de CLIENTE (sin permisos para este endpoint) | 403 |
-  | PB-05 | Sin token de autenticación | 401 |
+  | Caso         | Token                              | Esperado |
+  |--------------|------------------------------------|----------|
+  | PB-01        | (sin token)                        | 401      |
+  | PB-02..PB-04 | CLIENTE / MESERO / COCINERO        | 403      |
+  | PB-05        | CAJERO                             | 200      |
+  | PB-06        | ADMIN                              | 200      |
+  | PB-07        | CAJERO, clienteId inexistente      | 404      |
+
+  ## Categorías de pruebas
+
+  - **PB-01..PB-04** Matriz de autorización por rol.
+  - **PB-05..PB-06** Casos exitosos para los dos roles autorizados.
+  - **PB-07** Validación de existencia del recurso.
+
+  ## Independencia de datos
+
+  - **Tokens:** se obtienen dinámicamente en el `beforeRequest` de la colección
+    con login secuencial encadenado.
+  - **Cliente objetivo:** cada test resuelve dinámicamente un `clienteId` válido
+    iterando un pool de IDs candidatos del seed (`V3__dev_data.sql`, ids 11..22)
+    vía `GET /api/clientes/{id}/puntos` y usando el primero que responda 200.
+    Los tests PB-05/PB-06 solo validan la forma de la respuesta, no valores
+    absolutos, por lo que son robustos frente a canjes previos.
+  - **clienteId inexistente (PB-07):** se usa un ID alto fijo (`999999`)
+    garantizado como no existente en seed.
+
 scripts:
   - type: http:beforeRequest
     code: |-
-      // Login autónomo de CAJERO – cajeroToken
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: pm.environment.get('emailCajero'),
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 200) {
-          console.warn('Pre-request: login CAJERO falló', err, res && res.code);
-          return;
-        }
-        pm.environment.set('cajeroToken', res.json().accessToken);
-      });
+      // ---------------------------------------------------------------------------
+      // Login secuencial de todos los roles requeridos por la colección.
+      //
+      // Tokens expuestos:
+      //   - clienteToken  : rol CLIENTE (para test de 403)
+      //   - meseroToken   : rol MESERO
+      //   - cajeroToken   : rol CAJERO (rol autorizado)
+      //   - cocineroToken : rol PRODUCCION (COCINERO)
+      //   - accessToken   : rol ADMIN (rol autorizado)
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',   tokenKey: 'cajeroToken'   },
+        { emailKey: 'emailCocinero', tokenKey: 'cocineroToken' },
+        { emailKey: 'emailAdmin',    tokenKey: 'accessToken'   }
+      ];
 
-      // Login autónomo de ADMIN – adminToken
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: pm.environment.get('emailAdmin'),
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 200) {
-          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
-          return;
-        }
-        pm.environment.set('adminToken', res.json().accessToken);
-      });
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
     language: text/javascript

@@ -78,9 +78,6 @@ values:
   - key: fechaDespuesCierre
     enabled: true
     value: '2026-12-15T23:00:00'
-  - key: clienteToken
-    enabled: true
-    value: ''
   - key: clienteAccessToken
     enabled: true
     value: ''
@@ -91,9 +88,6 @@ values:
     enabled: true
     value: ''
   - key: meseroAccessToken
-    enabled: true
-    value: ''
-  - key: cajeroToken
     enabled: true
     value: ''
   - key: cocineroToken
@@ -141,13 +135,7 @@ values:
   - key: fechaCapacidadHoraAlternativa
     enabled: true
     value: ''
-  - key: acumuladosAntesDelCanje
-    enabled: true
-    value: ''
-  - key: puntosActualesSnapshot
-    enabled: true
-    value: ''
-  - key: puntosAcumuladosSnapshot
+  - key: otroClienteToken
     enabled: true
     value: ''
   - key: loginExpiresIn
@@ -156,6 +144,18 @@ values:
   - key: refreshToken
     enabled: true
     value: ''
-  - key: otroClienteToken
+  - key: accessToken
+    enabled: true
+    value: ''
+  - key: adminToken
+    enabled: true
+    value: ''
+  - key: cajeroToken
+    enabled: true
+    value: ''
+  - key: clienteToken
+    enabled: true
+    value: ''
+  - key: clienteSinPuntosToken
     enabled: true
     value: ''

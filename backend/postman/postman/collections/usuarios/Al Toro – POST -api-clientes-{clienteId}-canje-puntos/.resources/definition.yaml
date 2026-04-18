@@ -1,55 +1,109 @@
 $kind: collection
 name: Al Toro – POST /api/clientes/{clienteId}/canje-puntos
 description: |-
-  Canjea los puntos actuales del cliente: resetea `puntosActuales` a 0 y registra la auditoría en `canje_puntos`. `puntosAcumulados` no cambia.
+  # POST /api/clientes/{clienteId}/canje-puntos
 
-  **Encabezados requeridos:** `Authorization: Bearer {{cajeroToken}}` o `{{adminToken}}`
+  Canjea el saldo actual del cliente: pone `clientePuntos` en `0`, mantiene
+  `clientePuntosAcumulados` intacto (contador de vida) y registra auditoría en
+  la tabla `canje_puntos` con los puntos canjeados y el empleado responsable.
 
-  **Parámetros de ruta:**
-  ```
-  clienteId: Long
-  ```
+  ## Autorización
 
-  **Parámetros de query:**
-  ```
-  emailEmpleado: string (email del cajero o admin que ejecuta el canje)
-  ```
+  `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")` — solo los roles `CAJERO` y
+  `ADMIN` ejecutan canjes. CLIENTE, MESERO y COCINERO reciben `403`.
 
-  **Comportamientos especiales:**
-  - Falla con 422 si `puntosActuales == 0`.
-  - `puntosAcumulados` nunca disminuye, ni siquiera tras el canje (es contador de vida).
-  - El canje registra auditoría en la tabla `canje_puntos` con los puntos canjeados y el empleado que los canjeó.
+  ## Query params
 
-  | ID | Escenario | HTTP |
-  |----|-----------|------|
-  | PC-01 | Canje exitoso con puntos disponibles | 200 |
-  | PC-02 | puntosActuales = 0 al canjear | 422 |
-  | PC-03 | puntosAcumulados no cambia tras el canje | 200 |
-  | PC-04 | ID de cliente inexistente | 404 |
-  | PC-05 | Email de empleado inexistente | 404 |
-  | PC-06 | Token de CLIENTE (sin permisos) | 403 |
-  | PC-07 | Sin token de autenticación | 401 |
+  - `emailEmpleado` (obligatorio) — correo del empleado que registra el canje;
+    debe corresponder a un `Empleado` existente.
+
+  ## Reglas de negocio
+
+  - Cliente debe tener `clientePuntos > 0` para canjear; en caso contrario `422`.
+  - `clientePuntosAcumulados` **nunca decrece** (invariante de vida).
+  - La respuesta contiene `puntosActuales = 0` y `puntosAcumulados` sin cambios.
+
+  | Caso         | Token / Situación                               | Esperado |
+  |--------------|-------------------------------------------------|----------|
+  | PC-01        | (sin token)                                     | 401      |
+  | PC-02..PC-04 | CLIENTE / MESERO / COCINERO                     | 403      |
+  | PC-05        | CAJERO canjea cliente con puntos > 0            | 200      |
+  | PC-06        | ADMIN canjea cliente con puntos > 0             | 200      |
+  | PC-07        | CAJERO canjea cliente con puntosActuales = 0    | 422      |
+  | PC-08        | CAJERO con clienteId inexistente                | 404      |
+  | PC-09        | CAJERO con emailEmpleado inexistente            | 404      |
+
+  ## Categorías de pruebas
+
+  - **PC-01..PC-04** Matriz de autorización por rol.
+  - **PC-05..PC-06** Casos exitosos + invariante `puntosAcumulados` estable.
+  - **PC-07** Validación de precondición de saldo (`puntosActuales = 0 → 422`).
+  - **PC-08..PC-09** Validaciones de existencia de cliente y empleado.
+
+  ## Independencia de datos
+
+  - **Tokens:** se obtienen dinámicamente en el `beforeRequest` de la colección
+    con login secuencial encadenado.
+  - **Selección dinámica de cliente con puntos (PC-05/PC-06):** el pre-request
+    itera un pool de IDs candidatos del seed (`V3__dev_data.sql`, ids 11..22)
+    consultando `GET /api/clientes/{id}/puntos` y usa el primero que tenga
+    `puntosActuales > 0`. Así cada corrida elige un cliente distinto y los tests
+    se mantienen funcionales mientras queden clientes con saldo.
+  - **Invariante de `puntosAcumulados`:** PC-05 y PC-06 capturan el acumulado
+    previo en el mismo pre-request; el assert post-respuesta verifica que el
+    acumulado se preserva (coincide con el capturado).
+  - **Cliente sin puntos (PC-07):** se usa `clienteIdSinPuntos` (env), que
+    apunta al cliente seed `sinpuntos@altoro.com` con `cliente_puntos = 0`
+    estable (no participa en ventas).
+  - **Limitación inherente:** el canje mutila el saldo; corridas repetidas
+    consumen el pool de clientes con puntos. Cuando el pool quede vacío es
+    necesario reseed (`./mvnw flyway:clean flyway:migrate`) o cerrar cuentas
+    desde la colección `pagos_caja` para regenerar puntos.
+
 scripts:
   - type: http:beforeRequest
     code: |-
-      // Login autónomo de CAJERO – cajeroToken
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: pm.environment.get('emailCajero'),
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 200) {
-          console.warn('Pre-request: login CAJERO falló', err, res && res.code);
-          return;
-        }
-        pm.environment.set('cajeroToken', res.json().accessToken);
-      });
+      // ---------------------------------------------------------------------------
+      // Login secuencial de todos los roles requeridos por la colección.
+      //
+      // Tokens expuestos:
+      //   - clienteToken  : rol CLIENTE (para test de 403)
+      //   - meseroToken   : rol MESERO
+      //   - cajeroToken   : rol CAJERO (rol autorizado)
+      //   - cocineroToken : rol PRODUCCION (COCINERO)
+      //   - accessToken   : rol ADMIN (rol autorizado)
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',   tokenKey: 'cajeroToken'   },
+        { emailKey: 'emailCocinero', tokenKey: 'cocineroToken' },
+        { emailKey: 'emailAdmin',    tokenKey: 'accessToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
     language: text/javascript

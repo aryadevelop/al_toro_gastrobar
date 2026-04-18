@@ -1,50 +1,98 @@
 $kind: collection
 name: Al Toro – GET /api/clientes/me/puntos
 description: |-
-  Retorna los puntos actuales (canjeables) y acumulados (históricos) del cliente identificado por su email.
+  # GET /api/clientes/me/puntos
 
-  **Criterios de Aceptación cubiertos:** CA-03 (visualización de puntos) y CA-04 (verificación del estado tras cierre de cuenta).
+  Retorna el saldo de puntos actuales (canjeables) y acumulados (histórico de vida)
+  del cliente autenticado. Cubre el CA-03 del dashboard del cliente (HE-02).
 
-  **Encabezados requeridos:** `Authorization: Bearer {{clienteToken}}`
+  ## Autorización
 
-  **Parámetros de query:**
-  ```
-  emailCliente: string (email del cliente autenticado)
-  ```
+  `@PreAuthorize("hasRole('CLIENTE')")` — **solo** el rol `CLIENTE` accede al endpoint.
+  Todo otro rol (MESERO, CAJERO, COCINERO, ADMIN) debe recibir `403 Forbidden`.
 
-  **Campos de `ClientePuntosResponse`:**
-  - `puntosActuales` — saldo canjeable; entero ≥ 0
-  - `puntosAcumulados` — contador histórico; entero ≥ 0 y siempre ≥ `puntosActuales`
+  Regla de ownership del controller: aunque el endpoint acepta `emailCliente` como
+  query param, si el solicitante tiene rol CLIENTE el email debe coincidir con el
+  del token; en caso contrario se devuelve `403` (mensaje "Solo puedes consultar
+  tus propios puntos").
 
-  | ID | Escenario | HTTP |
-  |----|-----------|------|
-  | PA-01 | Cliente con puntos acumulados (CA-03) | 200 |
-  | PA-02 | Cliente sin puntos (ambos campos = 0) | 200 |
-  | PA-03 | Puntos actuales reflejan cierre de cuenta previo (CA-04) | 200 |
-  | PA-04 | Email de cliente inexistente | 404 |
-  | PA-05 | Sin token de autenticación | 401 |
-  | PA-06 | Token de rol CAJERO (no CLIENTE) | 403 |
+  | Caso         | Token                              | Esperado |
+  |--------------|------------------------------------|----------|
+  | PA-01        | (sin token)                        | 401      |
+  | PA-02..PA-05 | MESERO / CAJERO / COCINERO / ADMIN | 403      |
+  | PA-06        | CLIENTE con puntos                 | 200      |
+  | PA-07        | CLIENTE sin puntos                 | 200      |
+  | PA-08        | CLIENTE consultando email ajeno    | 403      |
+  | PA-09        | CLIENTE con query param ausente    | 400      |
+
+  ## Categorías de pruebas
+
+  - **PA-01..PA-05** Matriz de autorización por rol.
+  - **PA-06..PA-07** Casos exitosos con distintos estados de saldo.
+  - **PA-08..PA-09** Validaciones de ownership y parámetros.
+
+  ## Independencia de datos
+
+  - **Tokens:** se obtienen dinámicamente en el `beforeRequest` de la colección
+    (login secuencial encadenado para evitar race conditions).
+  - **Cliente con puntos:** se usa el usuario del env `emailCliente` (seed data
+    `andres.morales@gmail.com`, `cliente_puntos = 2500`). PA-06 verifica la
+    estructura y los invariantes (`puntosAcumulados ≥ puntosActuales`), pero no
+    compara contra valores numéricos absolutos, de modo que se mantiene
+    independiente del estado post-canje.
+  - **Cliente sin puntos:** se usa el env `emailSinPuntos` (seed data
+    `sinpuntos@altoro.com`, `cliente_puntos = 0`). Valor siempre estable porque
+    este cliente no tiene visitas ni ventas cerradas en seed.
+
 scripts:
   - type: http:beforeRequest
     code: |-
-      // Login autónomo de CLIENTE – clienteToken
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: pm.environment.get('emailCliente'),
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 200) {
-          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
-          return;
-        }
-        pm.environment.set('clienteToken', res.json().accessToken);
-      });
+      // ---------------------------------------------------------------------------
+      // Login secuencial de todos los roles requeridos por la colección.
+      //
+      // Se encadenan las peticiones para evitar race conditions entre callbacks:
+      // cada login dispara el siguiente solo cuando el anterior terminó.
+      //
+      // Tokens expuestos:
+      //   - clienteToken         : rol CLIENTE (emailCliente, con puntos)
+      //   - clienteSinPuntosToken: rol CLIENTE (emailSinPuntos, puntos=0)
+      //   - meseroToken          : rol MESERO
+      //   - cajeroToken          : rol CAJERO
+      //   - cocineroToken        : rol PRODUCCION (COCINERO)
+      //   - accessToken          : rol ADMIN (ADM)
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',     tokenKey: 'clienteToken'          },
+        { emailKey: 'emailSinPuntos',   tokenKey: 'clienteSinPuntosToken' },
+        { emailKey: 'emailMesero',      tokenKey: 'meseroToken'           },
+        { emailKey: 'emailCajero',      tokenKey: 'cajeroToken'           },
+        { emailKey: 'emailCocinero',    tokenKey: 'cocineroToken'         },
+        { emailKey: 'emailAdmin',       tokenKey: 'accessToken'           }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
     language: text/javascript

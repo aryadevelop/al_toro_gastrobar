@@ -1,0 +1,42 @@
+$kind: http-request
+name: CR-22 Hora de cierre exacta (22:00) – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** El rango de apertura es **[17:00, 22:00)** — el intervalo
+  es cerrado por la izquierda y abierto por la derecha. Una reserva a las 22:00 queda
+  fuera del rango y debe rechazarse.
+  **Objetivo:** Verificar que 22:00 se considera fuera de horario.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaCierre` aleatoria futura a 22:00.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaCierre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(22, 0, 0, 0);
+      pm.environment.set('tmpFechaCierre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T22:00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza una reserva a las 22:00 con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaCierre');
+    language: text/javascript
+order: 22000

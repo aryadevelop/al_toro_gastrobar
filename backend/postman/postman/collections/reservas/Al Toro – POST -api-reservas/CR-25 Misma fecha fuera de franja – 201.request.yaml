@@ -1,0 +1,30 @@
+$kind: http-request
+name: CR-25 Fecha con bloqueo parcial, hora fuera de franja – 201 Created
+description: |-
+  **Criterio de Aceptación:** Un bloqueo por franja solo debe afectar reservas dentro
+  de la franja, no todo el día. Una reserva en la misma fecha pero fuera de la franja
+  bloqueada debe aceptarse.
+  **Objetivo:** Verificar que la validación de bloqueos opera por franja, no por día.
+  **Dependencia de seed:** V3 define bloqueo `2026-12-22` con franja 19:00-21:00.
+  `{{fechaBloqueadaFranjaFuera}}` = `2026-12-22T17:00:00` está antes de la franja.
+  **Resultado esperado:** 201 Created.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{fechaBloqueadaFranjaFuera}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema acepta la reserva fuera de la franja bloqueada con 201', function () {
+        pm.response.to.have.status(201);
+      });
+    language: text/javascript
+order: 25000

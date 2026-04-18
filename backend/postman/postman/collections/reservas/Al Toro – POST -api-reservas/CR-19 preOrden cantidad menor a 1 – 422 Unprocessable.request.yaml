@@ -1,0 +1,49 @@
+$kind: http-request
+name: CR-19 preOrden cantidad menor a 1 – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Cada ítem de `preOrden` valida en cascada (`@Valid`).
+  `cantidad` tiene `@Min(1)` — un valor de 0 viola la restricción y produce
+  `MethodArgumentNotValidException` → 422.
+  **Objetivo:** Verificar que el límite inferior de `cantidad` se aplica correctamente.
+  **Pre-condición:** `clienteToken` disponible; producto id=1 activo.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 0,
+          "esMenuEspecial": false
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza cantidad=0 en preOrden con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 19000

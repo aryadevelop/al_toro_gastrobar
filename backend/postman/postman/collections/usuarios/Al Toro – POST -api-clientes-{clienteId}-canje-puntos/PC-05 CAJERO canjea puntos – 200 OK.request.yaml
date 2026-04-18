@@ -1,0 +1,85 @@
+$kind: http-request
+name: PC-05 CAJERO canjea puntos – 200 OK
+description: |-
+  **Criterio de Aceptación:** Canje exitoso.
+  **Objetivo:** Verificar que el canje (1) retorna 200, (2) pone `puntosActuales = 0`
+  y (3) mantiene `puntosAcumulados` idéntico al valor previo (invariante de vida).
+  **Pre-condición:** El `beforeRequest` hace login autónomo de CAJERO y luego elige
+  dinámicamente un `tmpClienteConPuntos` del pool seed (11..22) iterando `GET /puntos`
+  hasta encontrar uno con `puntosActuales > 0`, capturando `tmpAcumuladosAntes` para
+  el assert del invariante.
+  **Resultado esperado:** 200 OK · `data.puntosActuales = 0` · `data.puntosAcumulados == tmpAcumuladosAntes`.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteConPuntos}}/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const candidates = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+
+      const probe = (token, index) => {
+        if (index >= candidates.length) {
+          console.warn('PC-05: no quedan clientes seed con puntosActuales > 0; reseed requerido');
+          return;
+        }
+        const id = candidates[index];
+        pm.sendRequest({
+          url: baseUrl + '/api/clientes/' + id + '/puntos',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            const data = res.json().data;
+            if (data && data.puntosActuales > 0) {
+              pm.environment.set('tmpClienteConPuntos', id);
+              pm.environment.set('tmpAcumuladosAntes', data.puntosAcumulados);
+              return;
+            }
+          }
+          probe(token, index + 1);
+        });
+      };
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          probe(token, 0);
+        } else {
+          console.warn('PC-05: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Tras el canje puntosActuales es 0', function () {
+        pm.expect(pm.response.json().data.puntosActuales).to.eql(0);
+      });
+      pm.test('puntosAcumulados no cambia tras el canje (invariante de vida)', function () {
+        const antes = parseInt(pm.environment.get('tmpAcumuladosAntes') || '-1');
+        const despues = pm.response.json().data.puntosAcumulados;
+        pm.expect(despues).to.eql(antes);
+      });
+      pm.environment.unset('tmpClienteConPuntos');
+      pm.environment.unset('tmpAcumuladosAntes');
+    language: text/javascript
+order: 5000

@@ -1,0 +1,27 @@
+$kind: http-request
+name: CR-14 fechaHoraLlegada ausente – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `fechaHoraLlegada` está anotada como `@NotNull`. Si falta
+  en el body, el binding produce `MethodArgumentNotValidException` → 422.
+  **Objetivo:** Verificar el rechazo cuando `fechaHoraLlegada` no se envía.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la ausencia de fechaHoraLlegada con 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 14000

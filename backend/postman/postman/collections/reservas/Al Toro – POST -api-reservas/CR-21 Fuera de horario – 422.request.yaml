@@ -1,0 +1,43 @@
+$kind: http-request
+name: CR-21 Fuera de horario de apertura – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** El horario de atención para reservas es [17:00, 22:00).
+  `ReservaService` rechaza cualquier `fechaHoraLlegada` fuera de ese rango con
+  `BusinessException` (422). 14:00 está antes de la apertura.
+  **Objetivo:** Verificar que el sistema rechaza reservas a una hora fuera del horario.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaFueraHorario` aleatoria futura
+  con hora 14:00 (antes de apertura).
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaFueraHorario}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(14, 0, 0, 0);
+      pm.environment.set('tmpFechaFueraHorario',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T14:00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la reserva fuera de horario con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaFueraHorario');
+    language: text/javascript
+order: 21000

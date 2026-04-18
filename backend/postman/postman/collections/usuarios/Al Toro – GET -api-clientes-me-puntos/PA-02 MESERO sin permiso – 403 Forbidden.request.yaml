@@ -1,0 +1,46 @@
+$kind: http-request
+name: PA-02 MESERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Matriz de roles — el endpoint es exclusivo de `CLIENTE`.
+  **Objetivo:** Verificar que `@PreAuthorize("hasRole('CLIENTE')")` deniega token de MESERO.
+  **Pre-condición:** El `beforeRequest` de este test hace login autónomo para obtener
+  `meseroToken`, independiente del hook de colección.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PA-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza token de MESERO con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 2000
