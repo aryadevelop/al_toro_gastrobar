@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
@@ -198,6 +199,32 @@ public class ReservaMapper {
                 .abonos(abonosDto)
                 .totalAbonado(totalAbonado)
                 .modificable(esModificable(reserva))
+                .build();
+    }
+
+    /**
+     * Construye el DTO de respuesta para una modificación de reserva.
+     *
+     * @param reserva          entidad resultante (puede ser nueva en transición ESPECIAL→BASICA)
+     * @param requiereWhatsApp {@code true} si la transición de tipo requiere contacto vía WhatsApp
+     * @param mensajeWhatsApp  mensaje precompuesto; {@code null} cuando no se requiere WhatsApp
+     * @return {@link ModificarReservaResponse} con los datos de la reserva resultante
+     */
+    public ModificarReservaResponse toModificarResponse(Reserva reserva,
+                                                         boolean requiereWhatsApp,
+                                                         String mensajeWhatsApp) {
+        return ModificarReservaResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
+                .decoracionNombre(reserva.getDecoracion() != null
+                        ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .notas(reserva.getReservaNotas())
+                .requiereWhatsApp(requiereWhatsApp)
+                .mensajeWhatsApp(mensajeWhatsApp)
                 .build();
     }
 
