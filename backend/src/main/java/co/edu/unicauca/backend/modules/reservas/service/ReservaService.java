@@ -588,6 +588,32 @@ public class ReservaService {
         return comandaItemRepository.findByComanda_ComandaId(comandaGuardada.getComandaId());
     }
 
+    /**
+     * Elimina la pre-orden ({@code PRE_RESERVA} comanda) de una reserva si existe.
+     *
+     * <p>Borra en orden: modificaciones de menú → ítems → comanda, para respetar
+     * las restricciones de FK de la base de datos.
+     *
+     * @param reservaId identificador de la reserva cuya pre-orden se va a eliminar
+     */
+    private void eliminarPreOrdenExistente(Long reservaId) {
+        // Buscar la comanda PRE_RESERVA de esta reserva; si no existe, no hay nada que eliminar
+        comandaRepository
+                .findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA)
+                .ifPresent(comanda -> {
+                    List<ComandaItem> items =
+                            comandaItemRepository.findByComanda_ComandaId(comanda.getComandaId());
+                    // Borrar modificaciones de menú especial antes que los ítems (FK constraint)
+                    items.forEach(item ->
+                            comandaMenuModificacionRepository
+                                    .deleteByComandaItem_ComandaItemId(item.getComandaItemId()));
+                    // Borrar los ítems antes que la comanda (FK constraint)
+                    comandaItemRepository.deleteAll(items);
+                    // Eliminar la comanda vacía
+                    comandaRepository.delete(comanda);
+                });
+    }
+
     // -----------------------------------------------------------------------
     // Validaciones privadas
     // -----------------------------------------------------------------------
