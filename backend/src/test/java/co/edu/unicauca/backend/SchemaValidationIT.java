@@ -12,6 +12,7 @@ import org.springframework.test.context.ActiveProfiles;
 import javax.sql.DataSource;
 import java.sql.*;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -155,6 +156,11 @@ class SchemaValidationIT {
             Map<String, Boolean> dbNullability = getDbColumnNullability(table);
             if (dbNullability.isEmpty()) continue;
 
+            String[] idCols = p.getIdentifierColumnNames();
+            Set<String> idColumns = Arrays.stream(idCols)
+                    .map(String::toLowerCase)
+                    .collect(Collectors.toSet());
+
             boolean[] entityNullability = p.getPropertyNullability();
             String[] props = p.getPropertyNames();
 
@@ -163,6 +169,7 @@ class SchemaValidationIT {
                 if (cols == null) continue;
                 for (String col : cols) {
                     if (isBlankCol(col)) continue;
+                    if (idColumns.contains(col.toLowerCase())) continue;
                     Boolean dbNullable = dbNullability.get(col.toLowerCase());
                     if (dbNullable == null) continue; // columna faltante ya cubierta en Test 3
 

@@ -38,4 +38,10 @@ public class ReservaResponse {
 
     /** Nombre completo del cliente que realizó la reserva. */
     private String clienteNombre;
+
+    /** {@code true} cuando la reserva es ESPECIAL y requiere confirmar anticipo vía WhatsApp. */
+    private Boolean requiereWhatsApp;
+
+    /** Mensaje precompuesto para WhatsApp; {@code null} cuando no aplica. */
+    private String mensajeWhatsApp;
 }

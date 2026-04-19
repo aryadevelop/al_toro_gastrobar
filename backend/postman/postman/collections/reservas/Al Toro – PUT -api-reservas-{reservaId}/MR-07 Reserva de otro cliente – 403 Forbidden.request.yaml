@@ -1,0 +1,77 @@
+$kind: http-request
+name: MR-07 Reserva de otro cliente – 403 Forbidden
+description: |
+  El cliente autenticado intenta modificar una reserva que pertenece a otro cliente.
+  El servicio detecta el mismatch de ownership → BusinessException ACCESS_DENIED → 403.
+  Probe: usa ADMIN para obtener una reserva futura de diana.lopez@gmail.com (seed).
+url: "{{baseUrl}}/api/reservas/{{reservaIdOtroCliente}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "2028-06-15T19:00:00",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'admin@altoro.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (errA, resA) {
+        if (errA || !resA || resA.code !== 200) {
+          console.warn('MR-07: login ADMIN falló', errA, resA && resA.code);
+          return;
+        }
+        const adminToken = resA.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/cliente/futuras?emailCliente=diana.lopez@gmail.com',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + adminToken }
+        }, function (errB, resB) {
+          if (!errB && resB && resB.code === 200) {
+            const futuras = resB.json().data;
+            if (futuras && futuras.length > 0) {
+              pm.environment.set('reservaIdOtroCliente', futuras[0].reservaId);
+            } else {
+              console.warn('MR-07: diana.lopez no tiene reservas futuras');
+            }
+          }
+
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCliente'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (errC, resC) {
+            if (!errC && resC && resC.code === 200) {
+              pm.environment.set('clienteToken', resC.json().accessToken);
+            } else {
+              console.warn('MR-07: login CLIENTE falló', errC, resC && resC.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva de otro cliente → 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 7000

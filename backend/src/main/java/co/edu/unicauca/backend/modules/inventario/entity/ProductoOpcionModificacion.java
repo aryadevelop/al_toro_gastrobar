@@ -38,11 +38,12 @@ public class ProductoOpcionModificacion {
                 foreignKey = @ForeignKey(name = "fk_prod_opcion_opcion"))
     private OpcionModificacion opcion;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
     @PrePersist
+    
     protected void onCreate() {
         if (createdAt == null) createdAt = LocalDateTime.now();
     }

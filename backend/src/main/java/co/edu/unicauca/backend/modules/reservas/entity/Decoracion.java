@@ -63,7 +63,7 @@ public class Decoracion extends AuditableEntity {
      * Costo adicional que se cobra al cliente por seleccionar esta decoración.
      * No puede ser negativo; {@code null} equivale a sin costo adicional.
      */
-    @DecimalMin(value = "0.00", message = "El costo adicional no puede ser negativo")
+    @DecimalMin(value = "1.00", message = "El costo adicional no puede ser negativo o cero")
     @Digits(integer = 10, fraction = 2, message = "El costo debe tener máximo 10 dígitos enteros y 2 decimales")
     @Column(name = "decoracion_costo_adicional", precision = 12, scale = 2)
     private BigDecimal decoracionCostoAdicional;

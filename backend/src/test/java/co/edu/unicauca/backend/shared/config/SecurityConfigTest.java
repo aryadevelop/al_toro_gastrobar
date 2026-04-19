@@ -1,5 +1,7 @@
 package co.edu.unicauca.backend.shared.config;
 
+import co.edu.unicauca.backend.modules.auth.entity.Sesion;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -14,6 +16,8 @@ import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
+
+import java.util.Optional;
 
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.*;
@@ -80,6 +84,13 @@ class SecurityConfigTest {
      */
     @MockitoBean
     UserDetailsService userDetailsService;
+
+    /**
+     * Mock de {@link SesionRepository}: requerido por {@code JwtAuthenticationFilter}
+     * para verificar que el access token tiene sesión activa.
+     */
+    @MockitoBean
+    SesionRepository sesionRepository;
 
     /**
     * Verifica que {@code /api/auth/login} es accesible sin autenticación.
@@ -183,9 +194,12 @@ class SecurityConfigTest {
         @DisplayName("Bearer válido en /api/resources/test → JwtFilter autentica → 200")
         void jwtValido_endpointPrivado_retorna200() throws Exception {
             UserDetails usuario = usuarioMock();
+            when(jwtTokenProvider.isAccessToken(TOKEN)).thenReturn(true);
             when(jwtTokenProvider.extractUsername(TOKEN)).thenReturn("testuser");
             when(userDetailsService.loadUserByUsername("testuser")).thenReturn(usuario);
             when(jwtTokenProvider.isTokenValid(TOKEN, usuario)).thenReturn(true);
+            when(sesionRepository.findBySesionTokenAndSesionActivaTrue(TOKEN))
+                    .thenReturn(Optional.of(Sesion.builder().build()));
 
             mockMvc.perform(get("/api/resources/test")
                             .header("Authorization", "Bearer " + TOKEN))

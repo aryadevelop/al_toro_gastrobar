@@ -138,15 +138,6 @@ values:
   - key: otroClienteToken
     enabled: true
     value: ''
-  - key: loginExpiresIn
-    enabled: true
-    value: ''
-  - key: refreshToken
-    enabled: true
-    value: ''
-  - key: accessToken
-    enabled: true
-    value: ''
   - key: adminToken
     enabled: true
     value: ''
@@ -157,5 +148,23 @@ values:
     enabled: true
     value: ''
   - key: clienteSinPuntosToken
+    enabled: true
+    value: ''
+  - key: reservaIdOtroCliente
+    enabled: true
+    value: ''
+  - key: decoracionConCostoId
+    enabled: true
+    value: ''
+  - key: decoracionConCostoId2
+    enabled: true
+    value: ''
+  - key: loginExpiresIn
+    enabled: true
+    value: ''
+  - key: accessToken
+    enabled: true
+    value: ''
+  - key: refreshToken
     enabled: true
     value: ''

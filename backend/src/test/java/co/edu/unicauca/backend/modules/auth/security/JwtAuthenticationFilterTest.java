@@ -1,5 +1,7 @@
 package co.edu.unicauca.backend.modules.auth.security;
 
+import co.edu.unicauca.backend.modules.auth.entity.Sesion;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import org.junit.jupiter.api.AfterEach;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -16,6 +18,8 @@ import org.springframework.security.core.context.SecurityContextHolder;
 import org.springframework.security.core.userdetails.User;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.security.core.userdetails.UserDetailsService;
+
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.*;
@@ -53,6 +57,13 @@ class JwtAuthenticationFilterTest {
      */
     @Mock
     UserDetailsService userDetailsService;
+
+    /**
+     * Mock de {@link SesionRepository}: satisface la dependencia del filtro para
+     * verificar que el access token tiene una sesión activa en base de datos.
+     */
+    @Mock
+    SesionRepository sesionRepository;
 
     @InjectMocks
     JwtAuthenticationFilter filtro;
@@ -171,9 +182,12 @@ class JwtAuthenticationFilterTest {
                     .build();
             request.addHeader("Authorization", "Bearer " + TOKEN);
 
+            when(jwtTokenProvider.isAccessToken(TOKEN)).thenReturn(true);
             when(jwtTokenProvider.extractUsername(TOKEN)).thenReturn("testuser");
             when(userDetailsService.loadUserByUsername("testuser")).thenReturn(usuarioMock);
             when(jwtTokenProvider.isTokenValid(TOKEN, usuarioMock)).thenReturn(true);
+            when(sesionRepository.findBySesionTokenAndSesionActivaTrue(TOKEN))
+                    .thenReturn(Optional.of(Sesion.builder().build()));
         }
 
         @Test
@@ -226,6 +240,7 @@ class JwtAuthenticationFilterTest {
                     .build();
             request.addHeader("Authorization", "Bearer " + TOKEN);
 
+            when(jwtTokenProvider.isAccessToken(TOKEN)).thenReturn(true);
             when(jwtTokenProvider.extractUsername(TOKEN)).thenReturn("testuser");
             when(userDetailsService.loadUserByUsername("testuser")).thenReturn(usuarioMock);
             when(jwtTokenProvider.isTokenValid(TOKEN, usuarioMock)).thenReturn(false);
