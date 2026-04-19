@@ -46,12 +46,14 @@ public class ReservaMapper {
     private final PreOrdenMapper preOrdenMapper;
 
     /**
-     * Convierte una {@link Reserva} en el DTO de respuesta.
+     * Convierte una {@link Reserva} en el DTO de respuesta incluyendo información de WhatsApp.
      *
-     * @param reserva  entidad de reserva a convertir
-     * @return {@link ReservaResponse} con todos los campos de la reserva y el resumen de pre-orden
+     * @param reserva          entidad de reserva a convertir
+     * @param requiereWhatsApp {@code true} si la reserva es ESPECIAL y requiere anticipo
+     * @param mensajeWhatsApp  mensaje precompuesto; {@code null} cuando no aplica
+     * @return {@link ReservaResponse} con todos los campos de la reserva
      */
-    public ReservaResponse toResponse(Reserva reserva) {
+    public ReservaResponse toResponse(Reserva reserva, boolean requiereWhatsApp, String mensajeWhatsApp) {
         return ReservaResponse.builder()
                 .reservaId(reserva.getReservaId())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
@@ -63,6 +65,8 @@ public class ReservaMapper {
                 .notas(reserva.getReservaNotas())
                 .clienteId(reserva.getCliente().getUsuarioId())
                 .clienteNombre(reserva.getCliente().getClienteNombre())
+                .requiereWhatsApp(requiereWhatsApp ? true : null)
+                .mensajeWhatsApp(mensajeWhatsApp)
                 .build();
     }
 
