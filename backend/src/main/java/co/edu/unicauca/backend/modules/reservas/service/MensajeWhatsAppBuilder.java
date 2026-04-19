@@ -80,16 +80,11 @@ public class MensajeWhatsAppBuilder {
      * @return mensaje formateado listo para enviar por WhatsApp
      */
     public String construirMensaje(Reserva reserva, String nota) {
-        // StringBuilder acumulador del cuerpo del mensaje para evitar concatenaciones costosas
         StringBuilder sb = new StringBuilder();
-        // Saludo inicial con el nombre del cliente dueño de la reserva
         sb.append("Hola, soy ").append(reserva.getCliente().getClienteNombre()).append(".\n");
-        // Identificador de la reserva para que el personal la ubique rápidamente
         sb.append("Reserva #").append(reserva.getReservaId()).append(":\n");
-        // Fecha y hora formateadas con el patrón dd/MM/yyyy HH:mm
         sb.append("- Fecha y hora: ")
           .append(reserva.getReservaFechaHoraLlegada().format(FORMATTER_WA)).append("\n");
-        // Número de personas de la reserva
         sb.append("- Número de personas: ")
           .append(reserva.getReservaNumeroPersonas()).append("\n");
         // Incluir la decoración solo si la reserva tiene una asignada

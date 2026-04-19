@@ -127,8 +127,7 @@ public class ReservaController {
             Authentication authentication) {
 
         String emailCliente = authentication.getName();
-        ModificarReservaResponse response =
-                reservaService.modificarReserva(reservaId, emailCliente, request);
+        ModificarReservaResponse response = reservaService.modificarReserva(reservaId, emailCliente, request);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
