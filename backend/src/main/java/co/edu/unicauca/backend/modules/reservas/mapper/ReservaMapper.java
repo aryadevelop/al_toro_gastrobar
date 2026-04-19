@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
@@ -16,7 +17,11 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Set;
@@ -41,12 +46,14 @@ public class ReservaMapper {
     private final PreOrdenMapper preOrdenMapper;
 
     /**
-     * Convierte una {@link Reserva} en el DTO de respuesta.
+     * Convierte una {@link Reserva} en el DTO de respuesta incluyendo información de WhatsApp.
      *
-     * @param reserva  entidad de reserva a convertir
-     * @return {@link ReservaResponse} con todos los campos de la reserva y el resumen de pre-orden
+     * @param reserva          entidad de reserva a convertir
+     * @param requiereWhatsApp {@code true} si la reserva es ESPECIAL y requiere anticipo
+     * @param mensajeWhatsApp  mensaje precompuesto; {@code null} cuando no aplica
+     * @return {@link ReservaResponse} con todos los campos de la reserva
      */
-    public ReservaResponse toResponse(Reserva reserva) {
+    public ReservaResponse toResponse(Reserva reserva, boolean requiereWhatsApp, String mensajeWhatsApp) {
         return ReservaResponse.builder()
                 .reservaId(reserva.getReservaId())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
@@ -58,6 +65,8 @@ public class ReservaMapper {
                 .notas(reserva.getReservaNotas())
                 .clienteId(reserva.getCliente().getUsuarioId())
                 .clienteNombre(reserva.getCliente().getClienteNombre())
+                .requiereWhatsApp(requiereWhatsApp ? true : null)
+                .mensajeWhatsApp(mensajeWhatsApp)
                 .build();
     }
 
@@ -116,8 +125,11 @@ public class ReservaMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
+                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
+                .decoracionId(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionId() : null)
                 .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .decoracionNombre(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .modificable(esModificable(reserva))
                 .build();
     }
 
@@ -146,11 +158,9 @@ public class ReservaMapper {
                                                     List<ComandaItem> preOrden,
                                                     List<Abono> abonos) {
         // Si la reserva no tiene pre-orden, se dejan los campos relacionados como null para omitirlos en la respuesta.
-        List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null :
-                preOrden.stream()
-                        .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
-                        .collect(Collectors.toList());
-          
+        List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null
+                : construirItemsPreOrden(preOrden);
+
         BigDecimal preOrdenTotal = preOrden.isEmpty() ? null :
                 preOrden.stream()
                         .map(d -> d.getComandaItemPrecio()
@@ -158,16 +168,8 @@ public class ReservaMapper {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Si no hay abonos, se dejan los campos relacionados como null para omitirlos en la respuesta.
-        List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null :
-                abonos.stream()
-                        .map(a -> AbonoItemResponse.builder()
-                                .abonoId(a.getAbonoId())
-                                .monto(a.getAbonoMonto())
-                                .fechaHora(a.getAbonoFechaHora().format(FORMATTER))
-                                .metodo(a.getAbonoMetodo().name())
-                                .tipo(a.getAbonoTipo().name())
-                                .build())
-                        .collect(Collectors.toList());
+        List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null
+                : construirAbonosDto(abonos);
 
         BigDecimal totalAbonado = abonos.isEmpty() ? null :
                 abonos.stream()
@@ -180,6 +182,8 @@ public class ReservaMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
+                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
+                .decoracionId(reserva.getDecoracion() != null ? reserva.getDecoracion().getDecoracionId() : null)
                 .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .decoracionNombre(reserva.getDecoracion() != null
                         ? reserva.getDecoracion().getDecoracionNombre() : null)
@@ -188,6 +192,70 @@ public class ReservaMapper {
                 .preOrdenTotal(preOrdenTotal)
                 .abonos(abonosDto)
                 .totalAbonado(totalAbonado)
+                .modificable(esModificable(reserva))
                 .build();
+    }
+
+    /**
+     * Construye el DTO de respuesta para una modificación de reserva.
+     *
+     * @param reserva          entidad resultante (puede ser nueva en transición ESPECIAL→BASICA)
+     * @param requiereWhatsApp {@code true} si la transición de tipo requiere contacto vía WhatsApp
+     * @param mensajeWhatsApp  mensaje precompuesto; {@code null} cuando no se requiere WhatsApp
+     * @return {@link ModificarReservaResponse} con los datos de la reserva resultante
+     */
+    public ModificarReservaResponse toModificarResponse(Reserva reserva,
+                                                         boolean requiereWhatsApp,
+                                                         String mensajeWhatsApp) {
+        return ModificarReservaResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
+                .decoracionNombre(reserva.getDecoracion() != null
+                        ? reserva.getDecoracion().getDecoracionNombre() : null)
+                .notas(reserva.getReservaNotas())
+                .requiereWhatsApp(requiereWhatsApp)
+                .mensajeWhatsApp(mensajeWhatsApp)
+                .build();
+    }
+
+    private List<PreOrdenItemResponse> construirItemsPreOrden(List<ComandaItem> items) {
+        return items.stream()
+                .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
+                .collect(Collectors.toList());
+    }
+
+    private List<AbonoItemResponse> construirAbonosDto(List<Abono> abonos) {
+        return abonos.stream()
+                .map(a -> AbonoItemResponse.builder()
+                        .abonoId(a.getAbonoId())
+                        .monto(a.getAbonoMonto())
+                        .fechaHora(a.getAbonoFechaHora().format(FORMATTER))
+                        .metodo(a.getAbonoMetodo().name())
+                        .tipo(a.getAbonoTipo().name())
+                        .build())
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Calcula si una reserva puede ser modificada por el cliente.
+     *
+     * <p>Una reserva es modificable si su estado es {@code PENDIENTE} o {@code CONFIRMADA}
+     * y el momento actual es anterior a las 16:00 del día de llegada.
+     */
+    private boolean esModificable(Reserva reserva) {
+        // Estado terminal — no puede modificarse
+        if (reserva.getReservaEstado() != EstadoReserva.PENDIENTE
+                && reserva.getReservaEstado() != EstadoReserva.CONFIRMADA) {
+            return false;
+        }
+        // Calcular límite: 16:00 del día de la reserva
+        LocalDateTime limiteModificacion = reserva.getReservaFechaHoraLlegada()
+                .toLocalDate().atTime(LocalTime.of(16, 0));
+        // Comparar con el instante actual
+        return LocalDateTime.now().isBefore(limiteModificacion);
     }
 }

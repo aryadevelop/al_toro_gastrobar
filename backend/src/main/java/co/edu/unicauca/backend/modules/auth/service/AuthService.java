@@ -121,28 +121,14 @@ public class AuthService {
         UserDetails userDetails = userDetailsService.loadUserByUsername(email);
         RolNombre primaryRol = resolvePrimaryRole(activeRoles);
 
-        // Controla sesiones concurrentes: si hay sesión activa se exige confirmación explícita
-        List<Sesion> activeSessions = sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(usuario.getUsuarioId());
-        if (!activeSessions.isEmpty()) {
-            if (!Boolean.TRUE.equals(request.getForceSessionOverride())) {
-                throw new BusinessException(ErrorCode.INVALID_STATE, ACTIVE_SESSION_MESSAGE, HttpStatus.CONFLICT);
-            }
-            // Cierra las sesiones anteriores antes de crear la nueva
-            activeSessions.forEach(session -> session.setSesionActiva(false));
-            sesionRepository.saveAll(activeSessions);
-        }
+        // Controla sesiones concurrentes: invalida previas o lanza conflicto según flag
+        gestionarSesion(usuario, Boolean.TRUE.equals(request.getForceSessionOverride()));
 
         // Genera los tokens y persiste la nueva sesión
         String accessToken = jwtTokenProvider.generateToken(userDetails);
         String refreshToken = jwtTokenProvider.generateRefreshToken(userDetails);
 
-        sesionRepository.save(Sesion.builder()
-                .usuario(usuario)
-                .sesionToken(accessToken)
-                .sesionRefreshToken(refreshToken)
-                .sesionFechaCreacion(LocalDateTime.now())
-                .sesionActiva(true)
-                .build());
+        crearNuevaSesion(usuario, accessToken, refreshToken);
 
         return AuthResponse.builder()
                 .accessToken(accessToken)
@@ -249,6 +235,48 @@ public class AuthService {
     // -----------------------------------------------------------------------
     // Helpers privados
     // -----------------------------------------------------------------------
+
+    /**
+     * Controla las sesiones concurrentes del usuario durante el inicio de sesión.
+     *
+     * <p>Si el usuario tiene sesiones activas y {@code forceOverride} es {@code false},
+     * lanza excepción de conflicto. Si es {@code true}, invalida todas las sesiones previas.</p>
+     *
+     * @param usuario       usuario que inicia sesión
+     * @param forceOverride si {@code true}, las sesiones activas existentes se invalidan
+     * @throws BusinessException (HTTP 409) si hay sesión activa y no se fuerza el reemplazo
+     */
+    private void gestionarSesion(Usuario usuario, boolean forceOverride) {
+        // Busca sesiones activas del usuario por su ID
+        List<Sesion> activeSessions = sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(usuario.getUsuarioId());
+        if (!activeSessions.isEmpty()) {
+            // Si no se pidió override, rechazar con conflicto para que el cliente confirme
+            if (!forceOverride) {
+                throw new BusinessException(ErrorCode.INVALID_STATE, ACTIVE_SESSION_MESSAGE, HttpStatus.CONFLICT);
+            }
+            // Si se fuerza el reemplazo, cierra las sesiones anteriores
+            activeSessions.forEach(session -> session.setSesionActiva(false));
+            sesionRepository.saveAll(activeSessions);
+        }
+    }
+
+    /**
+     * Crea y persiste una nueva sesión activa para el usuario con los tokens generados.
+     *
+     * @param usuario      usuario propietario de la nueva sesión
+     * @param accessToken  token de acceso generado para esta sesión
+     * @param refreshToken token de refresco generado para esta sesión
+     */
+    private void crearNuevaSesion(Usuario usuario, String accessToken, String refreshToken) {
+        // Construye la sesión con ambos tokens y la marca como activa
+        sesionRepository.save(Sesion.builder()
+                .usuario(usuario)
+                .sesionToken(accessToken)
+                .sesionRefreshToken(refreshToken)
+                .sesionFechaCreacion(LocalDateTime.now())
+                .sesionActiva(true)
+                .build());
+    }
 
     /**
      * Construye el DTO de perfil consultando la tabla de Cliente o Empleado

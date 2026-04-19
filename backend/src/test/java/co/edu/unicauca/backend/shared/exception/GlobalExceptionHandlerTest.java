@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.shared.exception;
 
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import jakarta.validation.Valid;
@@ -85,6 +86,14 @@ class GlobalExceptionHandlerTest {
      */
     @MockitoBean
     UserDetailsService userDetailsService;
+
+    /**
+     * Mock de {@link SesionRepository}: requerido por {@code JwtAuthenticationFilter}
+     * para verificar que el access token tiene sesión activa. No se stubea porque
+     * los tests no envían cabecera {@code Authorization}.
+     */
+    @MockitoBean
+    SesionRepository sesionRepository;
 
     // ── Controlador auxiliar ──────────────────────────────────────────────────
 

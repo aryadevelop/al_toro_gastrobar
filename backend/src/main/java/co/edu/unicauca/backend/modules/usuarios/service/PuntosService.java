@@ -114,6 +114,12 @@ public class PuntosService {
         return toResponse(cliente);
     }
 
+    /**
+     * Convierte una entidad {@link Cliente} en el DTO de puntos de fidelización.
+     *
+     * @param cliente entidad con los datos de puntos
+     * @return {@link ClientePuntosResponse} con los puntos actuales y acumulados
+     */
     private ClientePuntosResponse toResponse(Cliente cliente) {
         return ClientePuntosResponse.builder()
                 .puntosActuales(cliente.getClientePuntos())

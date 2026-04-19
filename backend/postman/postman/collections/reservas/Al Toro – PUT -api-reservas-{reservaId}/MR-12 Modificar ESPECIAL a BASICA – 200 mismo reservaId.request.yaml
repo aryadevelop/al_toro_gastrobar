@@ -1,0 +1,87 @@
+$kind: http-request
+name: MR-12 Modificar ESPECIAL a BASICA – 200 mismo reservaId sin WhatsApp
+description: |
+  Crea una reserva ESPECIAL (decoración con costo) y la modifica quitando la decoración.
+  El sistema actualiza la reserva in-place: pasa a BASICA CONFIRMADA conservando el mismo reservaId.
+  Sin abonos previos → requiereWhatsApp=false.
+  Resultado esperado: 200, tipo=BASICA, estado=CONFIRMADA, reservaId igual al original, requiereWhatsApp=false.
+  Pre-condición: decoracionConCostoId disponible en el entorno.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaEspecialId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.environment.set('decoracionConCostoId', 1);
+
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        pm.environment.set('clienteToken', res.json().accessToken);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + res.json().accessToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fecha,
+            numeroPersonas: 2,
+            decoracionId: parseInt(pm.environment.get('decoracionConCostoId'))
+          })}
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaEspecialId', r2.json().data.reservaId);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Modificación ESPECIAL→BASICA → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Tipo BASICA, estado CONFIRMADA, mismo reservaId, sin WhatsApp', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+        pm.expect(data.requiereWhatsApp).to.be.false;
+        pm.expect(data.reservaId).to.eql(parseInt(pm.environment.get('tmpReservaEspecialId')));
+      });
+      pm.test('Datos de la reserva actualizados correctamente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.fechaHoraLlegada).to.eql(pm.environment.get('tmpFechaLibre'));
+        pm.expect(data.numeroPersonas).to.eql(2);
+        pm.expect(data.decoracionNombre).to.be.null;
+        pm.expect(data.zonaNombre).to.be.null;
+      });
+      pm.environment.unset('tmpReservaEspecialId');
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 12000

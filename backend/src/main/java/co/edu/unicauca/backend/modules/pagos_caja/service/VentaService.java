@@ -96,8 +96,7 @@ public class VentaService {
         // Acumula 1 punto por visita cerrada al cliente asociado
         Cliente cliente = visita.getCliente();
         if (cliente != null) {
-            cliente.setClientePuntos(cliente.getClientePuntos() + 1);
-            cliente.setClientePuntosAcumulados(cliente.getClientePuntosAcumulados() + 1);
+            incrementarPuntosCliente(cliente);
         }
 
         // TODO: Verificar si se registró la hora de salida de la visita; si no, registrar la hora actual
@@ -107,5 +106,20 @@ public class VentaService {
         // TODO: Verificar todos los estados relacionados con la visita antes de cerrarla
         // TODO: Notificar cierre de visita al dashboard del cliente vía WebSocket (+1 punto, mover a historial)
         // TODO: Actualizar dashboard de mesas: retirar la mesa de ocupadas y marcarla como disponible
+    }
+
+    /**
+     * Incrementa en 1 los puntos actuales y acumulados del cliente tras un cierre de cuenta.
+     *
+     * <p>{@code clientePuntosAcumulados} nunca disminuye — solo crece con cada visita cerrada,
+     * independientemente de canjes posteriores.</p>
+     *
+     * @param cliente cliente que realizó la visita
+     */
+    private void incrementarPuntosCliente(Cliente cliente) {
+        // Suma al saldo actual (puede decrementarse en futuros canjes)
+        cliente.setClientePuntos(cliente.getClientePuntos() + 1);
+        // Suma al acumulado histórico (invariante: nunca disminuye)
+        cliente.setClientePuntosAcumulados(cliente.getClientePuntosAcumulados() + 1);
     }
 }

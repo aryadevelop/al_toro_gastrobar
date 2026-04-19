@@ -1,0 +1,63 @@
+$kind: http-request
+name: MR-08 Reserva ya cancelada – 422 Unprocessable
+description: |
+  Intento de modificar una reserva con estado CANCELADA o DEVUELTA.
+  El servicio verifica el estado antes de proceder → BusinessException INVALID_STATE → 422.
+  Probe: obtiene la primera reserva cancelada del cliente autenticado.
+url: "{{baseUrl}}/api/reservas/{{reservaIdCancelada}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "2028-06-15T19:00:00",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MR-08: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/cliente/canceladas-devueltas?emailCliente=' + pm.environment.get('emailCliente'),
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, function (err2, res2) {
+          if (!err2 && res2 && res2.code === 200) {
+            const canceladas = res2.json().data;
+            if (canceladas && canceladas.length > 0) {
+              pm.environment.set('reservaIdCancelada', canceladas[0].reservaId);
+            } else {
+              console.warn('MR-08: el cliente no tiene reservas canceladas — ejecutar flyway:migrate para aplicar V4');
+            }
+          } else {
+            console.warn('MR-08: fallo al obtener canceladas', err2, res2 && res2.code);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva cancelada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 8000

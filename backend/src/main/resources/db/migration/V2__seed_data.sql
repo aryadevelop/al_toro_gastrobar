@@ -55,13 +55,13 @@ INSERT INTO Zona (zona_nombre, zona_capacidad_personas, zona_imagen_url) VALUES
 -- =====================================================
 INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url) VALUES
 ('Velas Románticas',        'ACTIVO',   25000.00, 'https://picsum.photos/seed/decor-velas/360/220'),
-('Cumpleaños Premium',      'ACTIVO',   0,        'https://picsum.photos/seed/decor-cumple/360/220'),
-('Decoración Empresarial',  'ACTIVO',   0,        'https://picsum.photos/seed/decor-empresa/360/220'),
-('Mesa Temática Toro',      'ACTIVO',   0,        'https://picsum.photos/seed/decor-toro/360/220'),
-('Minimalista Elegante',    'ACTIVO',   0,        'https://picsum.photos/seed/decor-minimal/360/220'),
-('Globos y Flores',         'ACTIVO',   0,        'https://picsum.photos/seed/decor-globos/360/220'),
-('Rústica Vintage',         'INACTIVO', 0,        'https://picsum.photos/seed/decor-rustica/360/220'),
-('Test Zona Fija',          'ACTIVO',   0,        NULL);
+('Cumpleaños Premium',      'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-cumple/360/220'),
+('Decoración Empresarial',  'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-empresa/360/220'),
+('Mesa Temática Toro',      'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-toro/360/220'),
+('Minimalista Elegante',    'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-minimal/360/220'),
+('Globos y Flores',         'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-globos/360/220'),
+('Rústica Vintage',         'INACTIVO', NULL,        'https://picsum.photos/seed/decor-rustica/360/220'),
+('Test Zona Fija',          'ACTIVO',   NULL,        NULL);
 
 -- =====================================================
 -- 4. DECORACION_ZONA

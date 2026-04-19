@@ -15,8 +15,8 @@ import java.util.List;
  *
  * <p>Campos opcionales (pueden ser {@code null} si no aplican):
  * <ul>
- *   <li>{@code zonaNombre} — si el cliente no seleccionó zona.</li>
- *   <li>{@code decoracionNombre} — si la reserva no incluyó decoración.</li>
+ *   <li>{@code zonaId} y {@code zonaNombre} — si el cliente no seleccionó zona.</li>
+ *   <li>{@code decoracionId} y {@code decoracionNombre} — si la reserva no incluyó decoración.</li>
  *   <li>{@code notas} — si no se registraron observaciones especiales.</li>
  *   <li>{@code preOrdenItems} y {@code preOrdenTotal} — si la reserva no tiene pre-orden.</li>
  *   <li>{@code abonos} y {@code totalAbonado} — si no se registraron anticipos.</li>
@@ -41,6 +41,18 @@ public class ReservaDetalleResponse {
 
     /** Tipo de reserva: {@code BASICA} o {@code ESPECIAL}. */
     private final String tipo;
+
+    /** Identificador de la zona seleccionada; {@code null} si el cliente no eligió zona. */
+    private final Long zonaId;
+
+    /** Identificador de la decoración seleccionada; {@code null} si no aplica. */
+    private final Long decoracionId;
+
+    /**
+     * {@code true} si la reserva puede modificarse (estado activo y antes de las 16:00
+     * del día de llegada); {@code false} en caso contrario.
+     */
+    private final boolean modificable;
 
     /** Nombre de la zona seleccionada; {@code null} si el cliente no eligió zona. */
     private final String zonaNombre;

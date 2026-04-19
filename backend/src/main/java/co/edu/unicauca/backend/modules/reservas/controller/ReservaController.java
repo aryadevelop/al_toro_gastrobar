@@ -1,7 +1,9 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
@@ -95,7 +97,40 @@ public class ReservaController {
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Reserva creada exitosamente", response));
     }
 
-    // TODO: Agregar endpoints para modificar reservas futuras 
+    /**
+     * Modifica una reserva futura del cliente autenticado.
+     *
+     * <p>Solo el cliente propietario puede modificar su reserva ({@code ROLE_CLIENTE}).
+     * El email del cliente se toma del token de autenticación, nunca del body.
+     *
+     * <p>Reglas de negocio aplicadas:
+     * <ul>
+     *   <li>La reserva debe estar en estado {@code PENDIENTE} o {@code CONFIRMADA}.</li>
+     *   <li>El momento actual debe ser anterior a las 16:00 del día de la reserva (CA-01).</li>
+     *   <li>Aplica las mismas validaciones de horario, bloqueos y disponibilidad que la creación.</li>
+     * </ul>
+     *
+     * <p>Cuando el campo {@code requiereWhatsApp} de la respuesta es {@code true}, el frontend
+     * debe redirigir al cliente al chat de WhatsApp de la empresa con el mensaje precompuesto.
+     *
+     * @param reservaId      identificador de la reserva a modificar
+     * @param request        nuevos datos de la reserva
+     * @param authentication contexto de seguridad del request
+     * @return {@code 200 OK} con los datos de la reserva resultante
+     */
+    @PutMapping("/{reservaId}")
+    @PreAuthorize("hasRole('CLIENTE')")
+    @Operation(summary = "Modificar una reserva futura del cliente")
+    public ResponseEntity<ApiResponse<ModificarReservaResponse>> modificarReserva(
+            @PathVariable Long reservaId,
+            @Valid @RequestBody ModificarReservaRequest request,
+            Authentication authentication) {
+
+        String emailCliente = authentication.getName();
+        ModificarReservaResponse response = reservaService.modificarReserva(reservaId, emailCliente, request);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
     // TODO: cancelar reservas futuras
 
     /**
@@ -117,12 +152,7 @@ public class ReservaController {
             @RequestParam String emailCliente,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
-        }
+        validarOwnershipCliente(emailCliente, authentication);
 
         List<ReservaDetalleResponse> response = reservaService.obtenerReservasFuturas(emailCliente);
         return ResponseEntity.ok(ApiResponse.ok(response));
@@ -147,12 +177,7 @@ public class ReservaController {
             @RequestParam String emailCliente,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
-        }
+        validarOwnershipCliente(emailCliente, authentication);
 
         List<ReservaDetalleResponse> response = reservaService.obtenerReservasCanceladasODevueltas(emailCliente);
         return ResponseEntity.ok(ApiResponse.ok(response));
@@ -183,5 +208,25 @@ public class ReservaController {
         ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailAutenticado);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
-    
+
+    /**
+     * Valida que el cliente autenticado sea el propietario del recurso solicitado.
+     *
+     * <p>Solo aplica restricción cuando el solicitante tiene rol {@code CLIENTE}. Otros roles
+     * (ADM, CAJERO, etc.) pueden acceder a recursos de cualquier cliente sin restricción.
+     *
+     * @param emailPropietario email del propietario del recurso
+     * @param authentication   contexto de autenticación del request actual
+     * @throws BusinessException con HTTP 403 si el cliente autenticado no es el propietario
+     */
+    private void validarOwnershipCliente(String emailPropietario, Authentication authentication) {
+        // Solo aplica la restricción cuando el solicitante es CLIENTE
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        // Compara ignorando mayúsculas para evitar falsos negativos por capitalización
+        if (esCliente && !authentication.getName().equalsIgnoreCase(emailPropietario)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+    }
 }

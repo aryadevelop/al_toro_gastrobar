@@ -44,7 +44,7 @@ public class ComandaItem {
     /** Identificador único generado por la base de datos. */
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
-    @Column(name = "comanda_item_id")
+    @Column(name = "comanda_item_id", nullable = false, updatable = false)
     private Long comandaItemId;
 
     /** Comanda a la que pertenece este ítem. */

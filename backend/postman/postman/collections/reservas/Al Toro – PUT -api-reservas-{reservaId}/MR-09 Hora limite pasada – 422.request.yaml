@@ -1,0 +1,59 @@
+$kind: http-request
+name: MR-09 Hora límite pasada – 422 Unprocessable
+description: |
+  El cliente intenta modificar una reserva BASICA cuyo límite estándar (13:00 del mismo día)
+  ya venció. El beforeRequest crea una reserva para HOY a las 19:00; el límite es hoy a las 13:00.
+  Si el test corre antes de las 13:00 puede dar 200 — en ese caso usar reservaIdCancelada como proxy.
+  Resultado esperado: 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaHoyId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "2028-06-15T19:00:00",
+      "numeroPersonas": 4
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const hoy = new Date();
+      const fechaHoy = hoy.getFullYear() + '-' + pad(hoy.getMonth() + 1) + '-' + pad(hoy.getDate()) + 'T19:00:00';
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        pm.environment.set('clienteToken', res.json().accessToken);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + res.json().accessToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fechaHoy, numeroPersonas: 2 })}
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaHoyId', r2.json().data.reservaId);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Hora límite pasada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpReservaHoyId');
+    language: text/javascript
+order: 9000
