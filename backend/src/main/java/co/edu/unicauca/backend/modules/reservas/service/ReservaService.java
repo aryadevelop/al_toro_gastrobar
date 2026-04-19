@@ -310,152 +310,73 @@ public class ReservaService {
                                                       String emailCliente,
                                                       ModificarReservaRequest request) {
 
-        // Verificar existencia de la reserva
+        // 1. Verificar existencia y elegibilidad (ownership + estado activo)
         Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
-
-        // Verificar ownership y estado activo
         reservaValidador.validarElegibilidadModificacion(reserva, emailCliente);
 
-        // Verificar hora límite de modificación:
-        // - Reserva actual o nueva es ESPECIAL: antes de las 11:00 pm del día anterior
-        // - Básica sin ningún componente especial: antes de la 1:00 pm del mismo día
-        boolean actualEsEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
-
-        // La nueva pre-orden incluye menú especial
+        // 2. Evaluar si la configuración actual o la nueva involucra menú especial o decoración con costo
+        boolean anteriorEraEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
         boolean nuevoTieneMenuEspecial = request.getPreOrden() != null &&
                 request.getPreOrden().stream().anyMatch(i -> Boolean.TRUE.equals(i.getEsMenuEspecial()));
-
-        // La nueva decoración tiene costo adicional > 0 (null se trata como sin costo)
         boolean nuevoDecoracionTieneCosto = reservaValidador.tieneDecoracionConCosto(
                 request.getDecoracionId() == null ? null
                         : decoracionRepository.findById(request.getDecoracionId()).orElse(null));
 
-        // Aplica límite de modificación si la reserva actual o la nueva configuración es ESPECIAL
-        boolean aplicaLimiteEspecial = actualEsEspecial || nuevoTieneMenuEspecial || nuevoDecoracionTieneCosto;
-
-        // Para evaluar la hora límite, se toma la fecha de llegada original, ya que el cliente podría estar modificando solo la hora o la decoración manteniendo la misma fecha, y el límite se calcula respecto a esa fecha original.
-        LocalDateTime limiteModificacion = aplicaLimiteEspecial
-                ? reserva.getReservaFechaHoraLlegada().toLocalDate().minusDays(1).atTime(HORA_LIMITE_MENU_ESPECIAL)
-                : reserva.getReservaFechaHoraLlegada().toLocalDate().atTime(HORA_LIMITE_ESTANDAR);
-
-        // Verificar que la modificación se realice antes del límite establecido
+        // 3. Verificar hora límite — se usa la fecha de llegada original porque el límite se calcula sobre ella
+        boolean aplicaLimiteEspecial = anteriorEraEspecial || nuevoTieneMenuEspecial || nuevoDecoracionTieneCosto;
+        LocalDateTime limiteModificacion = calcularLimiteModificacion(aplicaLimiteEspecial, reserva.getReservaFechaHoraLlegada());
         if (!LocalDateTime.now().isBefore(limiteModificacion)) {
-            throw new BusinessException(ErrorCode.INVALID_STATE, "No es posible modificar esta reserva. Solo cancelarla", HttpStatus.UNPROCESSABLE_ENTITY);
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "No es posible modificar esta reserva. Solo cancelarla", HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        // Validar que la nueva fecha, decoración y zona sean compatibles y tengan capacidad, excluyendo la reserva actual de las consultas de disponibilidad
-        ParDecoracionZona dz = validarYCargarDecoracionZona(request.getFechaHoraLlegada(), request.getDecoracionId(), request.getZonaId());
+        // 4. Validar disponibilidad, decoración y zona excluyendo la reserva actual del conteo
+        ParDecoracionZona dz = validarYCargarDecoracionZona(
+                request.getFechaHoraLlegada(), request.getDecoracionId(), request.getZonaId());
         Decoracion nuevaDecoracion = dz.decoracion();
         Zona nuevaZona = dz.zona();
+        validarDisponibilidadYCapacidad(
+                request.getFechaHoraLlegada(), nuevaDecoracion, nuevaZona, request.getNumeroPersonas(), reservaId);
 
-        // Validar que la nueva configuración tenga capacidad, excluyendo la reserva actual
-        validarDisponibilidadYCapacidad(request.getFechaHoraLlegada(), nuevaDecoracion, nuevaZona, request.getNumeroPersonas(), reservaId);
-
-        // Validar preorden
+        // 5. Validar pre-orden antes de modificar la reserva
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
             preOrdenGestor.validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
         }
 
-        // Determinar nuevo tipo de reserva para evaluar transiciones y estado resultante
+        // 6. Determinar nuevo tipo y capturar el valorAnterior
         TipoReserva nuevoTipo = determinarTipoReserva(nuevaDecoracion, request.getPreOrden());
-        boolean nuevoEsEspecial = (nuevoTipo == TipoReserva.ESPECIAL);
-        boolean anteriorEraEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
-        boolean requiereWhatsApp = false;
-        Reserva reservaResultado;
+        boolean nuevoEsEspecial = nuevoTipo == TipoReserva.ESPECIAL;
+        BigDecimal valorAnterior = (anteriorEraEspecial && nuevoEsEspecial)
+                ? calcularValorEspecial(reserva.getDecoracion(),
+                                        obtenerItemsPreOrden(reservaId),
+                                        reserva.getReservaNumeroPersonas())
+                : BigDecimal.ZERO;
 
-        // Capturar el numero antiguo de personas
-        int oldNumeroPersonas = reserva.getReservaNumeroPersonas();
-
-        // Para ESPECIAL→ESPECIAL: calcular valor anterior antes de eliminar la pre-orden
-        BigDecimal valorAnterior = BigDecimal.ZERO;
-        if (anteriorEraEspecial && nuevoEsEspecial) {
-            if (reserva.getDecoracion() != null
-                    && reserva.getDecoracion().getDecoracionCostoAdicional() != null) {
-                valorAnterior = valorAnterior.add(reserva.getDecoracion().getDecoracionCostoAdicional());
-            }
-            for (ComandaItem item : obtenerItemsPreOrden(reservaId)) {
-                if (Boolean.TRUE.equals(item.getProducto().getMenuEspecial())) {
-                    valorAnterior = valorAnterior.add(
-                            item.getComandaItemPrecio()
-                                .multiply(BigDecimal.valueOf(oldNumeroPersonas)));
-                }
-            }
-        }
-
-        // Determinar nuevo estado según transición de tipo
-        EstadoReserva nuevoEstado;
-        if (!anteriorEraEspecial && nuevoEsEspecial) {
-            nuevoEstado = EstadoReserva.PENDIENTE;
-        } else if (anteriorEraEspecial && !nuevoEsEspecial) {
-            nuevoEstado = EstadoReserva.CONFIRMADA;
-        } else {
-            // BASICA→BASICA: mantener CONFIRMADA | ESPECIAL→ESPECIAL: mantener PENDIENTE
-            nuevoEstado = reserva.getReservaEstado();
-        }
-
+        // 7. Actualizar campos, eliminar pre-orden anterior y persistir
         reserva.setZona(nuevaZona);
         reserva.setDecoracion(nuevaDecoracion);
         reserva.setReservaFechaHoraLlegada(request.getFechaHoraLlegada());
         reserva.setReservaNumeroPersonas(request.getNumeroPersonas());
         reserva.setReservaNotas(request.getNotas());
-        reserva.setReservaEstado(nuevoEstado);
+        reserva.setReservaEstado(determinarNuevoEstado(anteriorEraEspecial, nuevoEsEspecial, reserva.getReservaEstado()));
         reserva.setReservaTipo(nuevoTipo);
 
         preOrdenGestor.eliminarPreOrdenExistente(reservaId);
-        reservaResultado = reservaRepository.save(reserva);
+        Reserva reservaResultado = reservaRepository.save(reserva);
 
-        // Persistir nueva pre-orden si existe
-        boolean tieneNuevaPreOrden = request.getPreOrden() != null && !request.getPreOrden().isEmpty();
-        if (tieneNuevaPreOrden) {
+        // 8. Persistir nueva pre-orden si el cliente incluyó una
+        if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
             preOrdenGestor.persistirPreOrden(reservaResultado, request.getPreOrden());
         }
 
-        // Determinar mensaje de WhatsApp según transición
-        String mensajeWhatsApp = null;
-        if (!anteriorEraEspecial && nuevoEsEspecial) {
-            // BASICA → ESPECIAL: el cliente debe confirmar anticipo
-            requiereWhatsApp = true;
-            mensajeWhatsApp  = mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_ANTICIPO);
+        // 9. Construir notificación de WhatsApp según la transición de tipo
+        String mensajeWhatsApp = construirNotificacionWhatsApp(
+                anteriorEraEspecial, nuevoEsEspecial,
+                valorAnterior, nuevaDecoracion,
+                reservaResultado, request.getNumeroPersonas(), reservaId);
 
-        } else if (anteriorEraEspecial && nuevoEsEspecial) {
-            // ESPECIAL → ESPECIAL: notificar solo si el valor total (decoración + menú × personas) cambió
-            BigDecimal valorNuevo = BigDecimal.ZERO;
-            if (nuevaDecoracion != null && nuevaDecoracion.getDecoracionCostoAdicional() != null) {
-                valorNuevo = valorNuevo.add(nuevaDecoracion.getDecoracionCostoAdicional());
-            }
-            for (ComandaItem item : obtenerItemsPreOrden(reservaResultado.getReservaId())) {
-                if (Boolean.TRUE.equals(item.getProducto().getMenuEspecial())) {
-                    valorNuevo = valorNuevo.add(
-                            item.getComandaItemPrecio()
-                                .multiply(BigDecimal.valueOf(request.getNumeroPersonas())));
-                }
-            }
-            if (valorAnterior.compareTo(valorNuevo) != 0) {
-                requiereWhatsApp = true;
-                mensajeWhatsApp  = mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_CAMBIO_ESPECIAL);
-            }
-
-        } else if (anteriorEraEspecial) {
-            // ESPECIAL → BASICA: notificar si el abono neto supera el valor de los platos
-            BigDecimal totalAbonos = calcularAbonoNeto(reservaId);
-            BigDecimal totalPlatos = calcularTotalPlatos(reservaResultado.getReservaId());
-            if (totalAbonos.compareTo(BigDecimal.ZERO) > 0 && totalPlatos.compareTo(totalAbonos) < 0) {
-                requiereWhatsApp = true;
-                mensajeWhatsApp  = mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_CAMBIO_ESPECIAL);
-            }
-
-        } else {
-            // BASICA → BASICA: notificar si el abono neto supera el valor de los platos
-            BigDecimal totalAbonos = calcularAbonoNeto(reservaId);
-            BigDecimal totalPlatos = calcularTotalPlatos(reservaResultado.getReservaId());
-            if (totalAbonos.compareTo(BigDecimal.ZERO) > 0 && totalPlatos.compareTo(totalAbonos) < 0) {
-                requiereWhatsApp = true;
-                mensajeWhatsApp  = mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_ABONO_AJUSTE);
-            }
-        }
-
-        return reservaMapper.toModificarResponse(reservaResultado, requiereWhatsApp, mensajeWhatsApp);
+        return reservaMapper.toModificarResponse(reservaResultado, mensajeWhatsApp != null, mensajeWhatsApp);
     }
 
     // -----------------------------------------------------------------------
@@ -601,7 +522,6 @@ public class ReservaService {
         LocalDateTime inicioDia = fechaHora.toLocalDate().atStartOfDay();
         LocalDateTime finDia    = fechaHora.toLocalDate().atTime(23, 59, 59);
 
-        //
         if (zona != null) {
             final Long zId = zona.getZonaId();
 
@@ -644,6 +564,137 @@ public class ReservaService {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
         }
+    }
+
+    /**
+     * Calcula la hora límite hasta la cual se puede modificar o cancelar una reserva.
+     *
+     * <ul>
+     *   <li>Si aplica límite especial (reserva actual o nueva involucra ESPECIAL):
+     *       antes de las {@link #HORA_LIMITE_MENU_ESPECIAL} del día <em>anterior</em> a la reserva.</li>
+     *   <li>Si es puramente BASICA: antes de las {@link #HORA_LIMITE_ESTANDAR} del mismo día.</li>
+     * </ul>
+     *
+     * @param aplicaLimiteEspecial {@code true} si la reserva actual o la nueva configuración es ESPECIAL
+     * @param fechaHoraLlegada     fecha y hora de llegada de la reserva
+     * @return instante límite hasta el cual se permite la operación
+     */
+    private LocalDateTime calcularLimiteModificacion(boolean aplicaLimiteEspecial, LocalDateTime fechaHoraLlegada) {
+        // Las reservas especiales requieren coordinación extra: el límite es el día anterior
+        if (aplicaLimiteEspecial) {
+            return fechaHoraLlegada.toLocalDate().minusDays(1).atTime(HORA_LIMITE_MENU_ESPECIAL);
+        }
+        // Las reservas básicas pueden modificarse el mismo día hasta la hora límite estándar
+        return fechaHoraLlegada.toLocalDate().atTime(HORA_LIMITE_ESTANDAR);
+    }
+
+    /**
+     * Calcula el valor monetario total de los componentes especiales de una reserva:
+     * costo de la decoración más el precio del menú especial multiplicado por el número de personas.
+     *
+     * @param decoracion decoración asignada a la reserva; puede ser {@code null}
+     * @param items      ítems de la pre-orden a evaluar
+     * @param personas   número de personas para escalar el precio del menú especial
+     * @return suma del costo de decoración más precio × personas de los ítems especiales
+     */
+    private BigDecimal calcularValorEspecial(Decoracion decoracion, List<ComandaItem> items, int personas) {
+        BigDecimal valor = BigDecimal.ZERO;
+        // Agregar el costo adicional de la decoración si tiene uno definido
+        if (decoracion != null && decoracion.getDecoracionCostoAdicional() != null) {
+            valor = valor.add(decoracion.getDecoracionCostoAdicional());
+        }
+        // Agregar precio × personas solo para ítems de menú especial
+        for (ComandaItem item : items) {
+            if (Boolean.TRUE.equals(item.getProducto().getMenuEspecial())) {
+                valor = valor.add(item.getComandaItemPrecio().multiply(BigDecimal.valueOf(personas)));
+            }
+        }
+        return valor;
+    }
+
+    /**
+     * Determina el nuevo estado de la reserva tras una modificación según la transición de tipo.
+     *
+     * <ul>
+     *   <li>BASICA → ESPECIAL: pasa a {@code PENDIENTE} (el restaurante debe confirmar el servicio).</li>
+     *   <li>ESPECIAL → BASICA: pasa a {@code CONFIRMADA} (no requiere preparación especial).</li>
+     *   <li>Sin cambio de categoría: conserva el estado actual.</li>
+     * </ul>
+     *
+     * @param anteriorEraEspecial {@code true} si la reserva era ESPECIAL antes de la modificación
+     * @param nuevoEsEspecial     {@code true} si la reserva resulta ESPECIAL tras la modificación
+     * @param estadoActual        estado actual de la reserva
+     * @return estado resultante tras la transición
+     */
+    private EstadoReserva determinarNuevoEstado(boolean anteriorEraEspecial, boolean nuevoEsEspecial,
+                                                 EstadoReserva estadoActual) {
+        // BASICA → ESPECIAL: requiere confirmación manual del restaurante antes de proceder
+        if (!anteriorEraEspecial && nuevoEsEspecial) return EstadoReserva.PENDIENTE;
+        // ESPECIAL → BASICA: se confirma automáticamente al eliminar el componente especial
+        if (anteriorEraEspecial && !nuevoEsEspecial) return EstadoReserva.CONFIRMADA;
+        // Sin cambio de categoría: BASICA→BASICA mantiene CONFIRMADA, ESPECIAL→ESPECIAL mantiene PENDIENTE
+        return estadoActual;
+    }
+
+    /**
+     * Decide si corresponde enviar una notificación de WhatsApp al cliente y construye
+     * el mensaje según la transición de tipo ocurrida en la modificación.
+     *
+     * <ul>
+     *   <li>BASICA → ESPECIAL: siempre notifica (el cliente debe abonar anticipo).</li>
+     *   <li>ESPECIAL → ESPECIAL: notifica solo si el valor total (decoración + menú × personas) cambió.</li>
+     *   <li>ESPECIAL → BASICA: notifica si el abono neto supera el total de platos (posible devolución).</li>
+     *   <li>BASICA → BASICA: notifica si el abono neto supera el total de platos (posible ajuste).</li>
+     * </ul>
+     *
+     * @param anteriorEraEspecial  {@code true} si la reserva era ESPECIAL antes de la modificación
+     * @param nuevoEsEspecial      {@code true} si la reserva resulta ESPECIAL tras la modificación
+     * @param valorAnterior        valor especial calculado antes de eliminar la pre-orden original
+     * @param nuevaDecoracion      decoración resultante de la reserva ya modificada
+     * @param reservaResultado     entidad de reserva guardada con los datos actualizados
+     * @param nuevasPersonas       número de personas actualizado
+     * @param reservaIdOriginal    ID de la reserva (para calcular el abono neto histórico)
+     * @return mensaje precompuesto para WhatsApp, o {@code null} si no aplica notificación
+     */
+    private String construirNotificacionWhatsApp(
+            boolean anteriorEraEspecial, boolean nuevoEsEspecial,
+            BigDecimal valorAnterior, Decoracion nuevaDecoracion,
+            Reserva reservaResultado, int nuevasPersonas, Long reservaIdOriginal) {
+
+        // BASICA → ESPECIAL: el cliente debe abonar un anticipo para confirmar el servicio especial
+        if (!anteriorEraEspecial && nuevoEsEspecial) {
+            return mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_ANTICIPO);
+        }
+
+        // ESPECIAL → ESPECIAL: notificar solo si el costo total cambió
+        if (anteriorEraEspecial && nuevoEsEspecial) {
+            BigDecimal valorNuevo = calcularValorEspecial(
+                    nuevaDecoracion,
+                    obtenerItemsPreOrden(reservaResultado.getReservaId()),
+                    nuevasPersonas);
+            if (valorAnterior.compareTo(valorNuevo) != 0) {
+                return mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_CAMBIO_ESPECIAL);
+            }
+            return null;
+        }
+
+        // ESPECIAL → BASICA: si hay abono neto que supera los platos, puede corresponder devolución
+        if (anteriorEraEspecial) {
+            BigDecimal totalAbonos = calcularAbonoNeto(reservaIdOriginal);
+            BigDecimal totalPlatos = calcularTotalPlatos(reservaResultado.getReservaId());
+            if (totalAbonos.compareTo(BigDecimal.ZERO) > 0 && totalPlatos.compareTo(totalAbonos) < 0) {
+                return mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_CAMBIO_ESPECIAL);
+            }
+            return null;
+        }
+
+        // BASICA → BASICA: si hay abono neto que supera los platos, el cliente puede pedir ajuste
+        BigDecimal totalAbonos = calcularAbonoNeto(reservaIdOriginal);
+        BigDecimal totalPlatos = calcularTotalPlatos(reservaResultado.getReservaId());
+        if (totalAbonos.compareTo(BigDecimal.ZERO) > 0 && totalPlatos.compareTo(totalAbonos) < 0) {
+            return mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_ABONO_AJUSTE);
+        }
+        return null;
     }
 
     /**
