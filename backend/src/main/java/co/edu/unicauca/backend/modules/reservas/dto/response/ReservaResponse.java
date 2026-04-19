@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.reservas.dto.response;
 
+import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 /**
@@ -7,6 +8,7 @@ import lombok.Getter;
  */
 @Getter
 @Builder
+@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReservaResponse {
 
     /** Identificador único de la reserva. */
@@ -38,4 +40,10 @@ public class ReservaResponse {
 
     /** Nombre completo del cliente que realizó la reserva. */
     private String clienteNombre;
+
+    /** {@code true} cuando la reserva es ESPECIAL y requiere confirmar anticipo vía WhatsApp. */
+    private Boolean requiereWhatsApp;
+
+    /** Mensaje precompuesto para WhatsApp; {@code null} cuando no aplica. */
+    private String mensajeWhatsApp;
 }
