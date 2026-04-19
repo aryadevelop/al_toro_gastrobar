@@ -32,6 +32,10 @@ public interface ComandaItemRepository extends JpaRepository<ComandaItem, Long> 
      * <p>Multiplica {@code productoPrecio × comandaItemCantidad} por cada ítem y suma el resultado.
      * {@code COALESCE} garantiza retornar {@code 0} si la reserva no tiene ítems en su comanda.</p>
      *
+     * <p><strong>Nota de diseño:</strong> se usa {@code i.producto.productoPrecio} (precio actual
+     * del catálogo) en lugar de {@code i.comandaItemPrecio} (precio capturado al pedido),
+     * por especificación del pre-orden. No modificar sin revisar el spec.</p>
+     *
      * @param reservaId identificador de la reserva cuya comanda pre-orden se totaliza
      * @return total monetario del pre-orden; {@code 0} si no hay ítems
      */
