@@ -21,6 +21,9 @@ body:
 scripts:
   - type: beforeRequest
     code: |-
+      pm.environment.set('decoracionConCostoId', 1);
+      pm.environment.set('decoracionConCostoId2', 9);
+
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
       d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
@@ -71,6 +74,13 @@ scripts:
         pm.expect(data.estado).to.eql('PENDIENTE');
         pm.expect(data.requiereWhatsApp).to.be.true;
         pm.expect(data.mensajeWhatsApp).to.be.a('string').and.not.empty;
+      });
+      pm.test('Datos de la reserva actualizados correctamente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.reservaId).to.eql(parseInt(pm.environment.get('tmpReservaEspecialId')));
+        pm.expect(data.fechaHoraLlegada).to.eql(pm.environment.get('tmpFechaLibre'));
+        pm.expect(data.decoracionNombre).to.eql('Bodas Premium');
+        pm.expect(data.zonaNombre).to.be.null;
       });
       pm.environment.unset('tmpReservaEspecialId');
       pm.environment.unset('tmpFechaLibre');

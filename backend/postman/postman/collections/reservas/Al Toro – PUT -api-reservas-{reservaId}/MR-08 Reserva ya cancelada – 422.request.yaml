@@ -3,7 +3,7 @@ name: MR-08 Reserva ya cancelada – 422 Unprocessable
 description: |
   Intento de modificar una reserva con estado CANCELADA o DEVUELTA.
   El servicio verifica el estado antes de proceder → BusinessException INVALID_STATE → 422.
-  Pre-condición: reservaIdCancelada apunta a una reserva en estado terminal.
+  Probe: obtiene la primera reserva cancelada del cliente autenticado.
 url: "{{baseUrl}}/api/reservas/{{reservaIdCancelada}}"
 method: PUT
 headers:
@@ -29,11 +29,29 @@ scripts:
           forceSessionOverride: true
         })}
       }, function (err, res) {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
+        if (err || !res || res.code !== 200) {
           console.warn('MR-08: login CLIENTE falló', err, res && res.code);
+          return;
         }
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/cliente/canceladas-devueltas?emailCliente=' + pm.environment.get('emailCliente'),
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, function (err2, res2) {
+          if (!err2 && res2 && res2.code === 200) {
+            const canceladas = res2.json().data;
+            if (canceladas && canceladas.length > 0) {
+              pm.environment.set('reservaIdCancelada', canceladas[0].reservaId);
+            } else {
+              console.warn('MR-08: el cliente no tiene reservas canceladas — ejecutar flyway:migrate para aplicar V4');
+            }
+          } else {
+            console.warn('MR-08: fallo al obtener canceladas', err2, res2 && res2.code);
+          }
+        });
       });
     language: text/javascript
   - type: afterResponse

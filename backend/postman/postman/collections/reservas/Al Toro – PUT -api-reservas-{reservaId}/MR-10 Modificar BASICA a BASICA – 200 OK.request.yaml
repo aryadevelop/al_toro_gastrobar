@@ -65,6 +65,13 @@ scripts:
         pm.expect(data.requiereWhatsApp).to.be.false;
         pm.expect(data.numeroPersonas).to.eql(4);
       });
+      pm.test('Datos de la reserva actualizados correctamente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.reservaId).to.eql(parseInt(pm.environment.get('tmpReservaId')));
+        pm.expect(data.fechaHoraLlegada).to.eql(pm.environment.get('tmpFechaLibre'));
+        pm.expect(data.decoracionNombre).to.be.null;
+        pm.expect(data.zonaNombre).to.be.null;
+      });
       pm.environment.unset('tmpReservaId');
       pm.environment.unset('tmpFechaLibre');
     language: text/javascript

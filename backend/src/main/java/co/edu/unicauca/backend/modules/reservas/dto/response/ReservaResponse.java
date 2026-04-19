@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.reservas.dto.response;
 
-import com.fasterxml.jackson.annotation.JsonInclude;
 import lombok.Builder;
 import lombok.Getter;
 /**
@@ -8,7 +7,6 @@ import lombok.Getter;
  */
 @Getter
 @Builder
-@JsonInclude(JsonInclude.Include.NON_NULL)
 public class ReservaResponse {
 
     /** Identificador único de la reserva. */

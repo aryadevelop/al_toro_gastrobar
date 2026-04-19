@@ -39,7 +39,7 @@ public class MensajeWhatsAppBuilder {
      * abonar un anticipo antes de confirmar la reserva.
      */
     public static final String MSG_WA_ANTICIPO =
-            "Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo.";
+            "Para confirmar tu reserva especial debes realizar un anticipo. Comunícate para definir el valor.";
 
     /**
      * Nota para cuando una reserva ESPECIAL cambia de valor (por ejemplo por
@@ -47,14 +47,14 @@ public class MensajeWhatsAppBuilder {
      * ajustarse manualmente con el restaurante.
      */
     public static final String MSG_WA_CAMBIO_ESPECIAL =
-            "La reserva cambió de valor, comunicate para definir el estado de tu cuenta.";
+            "El valor de la reserva cambió. Comunícate para definir el estado de tu cuenta.";
 
     /**
      * Nota para cuando la reserva se modifica correctamente y el cliente puede
      * comunicarse si desea ajustar el abono ya realizado.
      */
     public static final String MSG_WA_ABONO_AJUSTE =
-            "La reserva ha sido modificada correctamente. Puede comunicarse si desea una modificacion en el abono.";
+            "La reserva fue modificada correctamente. Comunícate si deseas ajustar el abono.";
 
     /**
      * Formateador usado para presentar la fecha y hora de la reserva en el

@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
@@ -482,6 +483,81 @@ class ReservaServiceModificarTest {
         }
     }
 
+    // ─── Pre-orden ───────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Pre-orden en modificación")
+    class PreOrdenEnModificacion {
+
+        @Test
+        @DisplayName("Toda modificación elimina la pre-orden anterior")
+        void modificacion_siempreEliminaPreOrdenAnterior() {
+            when(reservaRepository.findById(RESERVA_ID))
+                    .thenReturn(Optional.of(reservaBasicaConfirmada));
+            stubDisponibilidadLibre();
+            when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(anyLong()))
+                    .thenReturn(List.of());
+            when(reservaRepository.save(any())).thenReturn(reservaBasicaConfirmada);
+            when(reservaMapper.toModificarResponse(any(), anyBoolean(), any()))
+                    .thenReturn(ModificarReservaResponse.builder()
+                            .reservaId(RESERVA_ID).estado("CONFIRMADA").tipo("BASICA")
+                            .requiereWhatsApp(false).build());
+
+            service.modificarReserva(RESERVA_ID, EMAIL, requestMinima);
+
+            verify(preOrdenGestor).eliminarPreOrdenExistente(RESERVA_ID);
+        }
+
+        @Test
+        @DisplayName("BASICA → ESPECIAL por menú especial: tipo ESPECIAL, PENDIENTE, requiereWhatsApp=true")
+        void basicaAEspecialPorMenuEspecial_requiereWhatsApp() {
+            when(reservaRepository.findById(RESERVA_ID))
+                    .thenReturn(Optional.of(reservaBasicaConfirmada));
+            stubDisponibilidadLibre();
+            when(reservaRepository.save(any())).thenReturn(reservaBasicaConfirmada);
+
+            when(reservaMapper.toModificarResponse(any(), eq(true), anyString()))
+                    .thenReturn(ModificarReservaResponse.builder()
+                            .reservaId(RESERVA_ID).estado("PENDIENTE").tipo("ESPECIAL")
+                            .requiereWhatsApp(true).mensajeWhatsApp("msg").build());
+
+            ModificarReservaRequest reqMenuEspecial = buildRequestConMenuEspecial(
+                    LocalDate.now().plusDays(1).atTime(19, 0), 2);
+
+            ModificarReservaResponse respuesta =
+                    service.modificarReserva(RESERVA_ID, EMAIL, reqMenuEspecial);
+
+            assertThat(respuesta.isRequiereWhatsApp()).isTrue();
+            assertThat(respuesta.getTipo()).isEqualTo("ESPECIAL");
+            assertThat(respuesta.getEstado()).isEqualTo("PENDIENTE");
+
+            ArgumentCaptor<Reserva> captor = ArgumentCaptor.forClass(Reserva.class);
+            verify(reservaRepository).save(captor.capture());
+            assertThat(captor.getValue().getReservaTipo()).isEqualTo(TipoReserva.ESPECIAL);
+            assertThat(captor.getValue().getReservaEstado()).isEqualTo(EstadoReserva.PENDIENTE);
+        }
+
+        @Test
+        @DisplayName("Request con pre-orden → persistirPreOrden es invocado con la reserva guardada")
+        void requestConPreOrden_persisteNuevaPreOrden() {
+            when(reservaRepository.findById(RESERVA_ID))
+                    .thenReturn(Optional.of(reservaBasicaConfirmada));
+            stubDisponibilidadLibre();
+            when(reservaRepository.save(any())).thenReturn(reservaBasicaConfirmada);
+            when(reservaMapper.toModificarResponse(any(), eq(true), anyString()))
+                    .thenReturn(ModificarReservaResponse.builder()
+                            .reservaId(RESERVA_ID).estado("PENDIENTE").tipo("ESPECIAL")
+                            .requiereWhatsApp(true).mensajeWhatsApp("msg").build());
+
+            ModificarReservaRequest reqMenuEspecial = buildRequestConMenuEspecial(
+                    LocalDate.now().plusDays(1).atTime(19, 0), 2);
+
+            service.modificarReserva(RESERVA_ID, EMAIL, reqMenuEspecial);
+
+            verify(preOrdenGestor).persistirPreOrden(eq(reservaBasicaConfirmada), anyList());
+        }
+    }
+
     // ─── Disponibilidad ───────────────────────────────────────────────────────
 
     @Nested
@@ -546,6 +622,29 @@ class ReservaServiceModificarTest {
             throw new RuntimeException(e);
         }
         return a;
+    }
+
+    private ModificarReservaRequest buildRequestConMenuEspecial(LocalDateTime fecha, int personas) {
+        PreOrdenItemRequest item = new PreOrdenItemRequest();
+        item.setProductoId(99L);
+        item.setCantidad(2);
+        item.setEsMenuEspecial(true);
+
+        ModificarReservaRequest req = new ModificarReservaRequest();
+        try {
+            java.lang.reflect.Field f1 = ModificarReservaRequest.class.getDeclaredField("fechaHoraLlegada");
+            f1.setAccessible(true);
+            f1.set(req, fecha);
+            java.lang.reflect.Field f2 = ModificarReservaRequest.class.getDeclaredField("numeroPersonas");
+            f2.setAccessible(true);
+            f2.set(req, personas);
+            java.lang.reflect.Field f3 = ModificarReservaRequest.class.getDeclaredField("preOrden");
+            f3.setAccessible(true);
+            f3.set(req, List.of(item));
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        }
+        return req;
     }
 
     private ModificarReservaRequest buildRequest(LocalDateTime fecha, int personas, Long decoracionId) {

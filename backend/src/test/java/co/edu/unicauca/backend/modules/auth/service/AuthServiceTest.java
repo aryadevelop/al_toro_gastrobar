@@ -21,7 +21,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -132,7 +131,7 @@ class AuthServiceTest {
 
             assertThatThrownBy(() -> authService.login(request))
                     .isInstanceOf(BadCredentialsException.class)
-                    .hasMessage("Credenciales incorrectas por favor veirfique su correo y/o contraseña");
+                    .hasMessage("Credenciales incorrectas por favor verifique su correo y/o contraseña");
         }
 
         @Test
@@ -194,6 +193,7 @@ class AuthServiceTest {
                     .empleadoFechaIngreso(java.time.LocalDate.now())
                     .build();
 
+            when(jwtTokenProvider.isRefreshToken("refresh-ok")).thenReturn(true);
             when(jwtTokenProvider.extractUsername("refresh-ok")).thenReturn("cajero@altoro.com");
             when(usuarioRepository.findByUsuarioEmail("cajero@altoro.com")).thenReturn(Optional.of(usuario));
             when(usuarioRolRepository.findByUsuarioIdAndRolEstado(2L, RolEstado.ACTIVO))
@@ -203,23 +203,27 @@ class AuthServiceTest {
             when(userDetailsService.loadUserByUsername("cajero@altoro.com")).thenReturn(userDetails);
             when(jwtTokenProvider.isTokenValid("refresh-ok", userDetails)).thenReturn(true);
 
-            Sesion sesionActiva = Sesion.builder().sesionId(20L).usuario(usuario).sesionToken("old").sesionActiva(true).build();
-            when(sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(2L)).thenReturn(List.of(sesionActiva));
+            Sesion sesionActiva = Sesion.builder()
+                    .sesionId(20L).usuario(usuario)
+                    .sesionToken("old").sesionActiva(true).build();
+            when(sesionRepository.findBySesionRefreshTokenAndSesionActivaTrue("refresh-ok"))
+                    .thenReturn(Optional.of(sesionActiva));
 
             when(jwtTokenProvider.generateToken(userDetails)).thenReturn("new-access");
             when(jwtTokenProvider.generateRefreshToken(userDetails)).thenReturn("new-refresh");
             when(empleadoRepository.findByUsuario_UsuarioEmail("cajero@altoro.com")).thenReturn(Optional.of(empleado));
 
-            AuthResponse response = authService.refresh(RefreshTokenRequest.builder().refreshToken("refresh-ok").build());
+            AuthResponse response = authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("refresh-ok").build());
 
             assertThat(response.getAccessToken()).isEqualTo("new-access");
             assertThat(response.getRefreshToken()).isEqualTo("new-refresh");
             assertThat(response.getUser().getRole()).isEqualTo("CAJERO");
 
-            @SuppressWarnings("unchecked")
-            ArgumentCaptor<List<Sesion>> sessionsCaptor = ArgumentCaptor.forClass((Class<List<Sesion>>) (Class<?>) List.class);
-            verify(sesionRepository).saveAll(sessionsCaptor.capture());
-            assertThat(sessionsCaptor.getValue().get(0).getSesionToken()).isEqualTo("new-access");
+            // El refresh actualiza la sesión existente in-place (save), no crea una nueva (saveAll)
+            verify(sesionRepository).save(sesionActiva);
+            assertThat(sesionActiva.getSesionToken()).isEqualTo("new-access");
+            assertThat(sesionActiva.getSesionRefreshToken()).isEqualTo("new-refresh");
         }
     }
 

@@ -52,13 +52,12 @@ public class DisponibilidadConsultador {
     // -----------------------------------------------------------------------
 
     /**
-     * Lista de estados de reserva que se consideran activos (ocupan cupo).
+     * Lista de estados de reserva que se consideran activos.
      *
      * <p>Solo las reservas en alguno de estos estados se computan al calcular
      * la disponibilidad de zonas y decoraciones.
      */
-    private final List<EstadoReserva> estadosActivos =
-            List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
+    private final List<EstadoReserva> estadosActivos = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
 
     // -----------------------------------------------------------------------
     // Dependencias inyectadas

@@ -56,7 +56,7 @@ public class ComandaMenuModificacion {
                 foreignKey = @ForeignKey(name = "fk_cmd_menu_mod_opcion"))
     private OpcionModificacion opcion;
 
-    @Column(name = "created_at")
+    @Column(name = "created_at", nullable = false)
     @Builder.Default
     private LocalDateTime createdAt = LocalDateTime.now();
 
