@@ -1,15 +1,11 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
-import co.edu.unicauca.backend.modules.inventario.repository.OpcionModificacionRepository;
-import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
-import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaMenuModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
@@ -18,9 +14,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleRespo
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.mapper.ReservaMapper;
-import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
-import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
@@ -29,6 +23,7 @@ import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -41,6 +36,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
@@ -60,18 +56,16 @@ class ReservaServiceModificarTest {
 
     @Mock ReservaRepository reservaRepository;
     @Mock DecoracionRepository decoracionRepository;
-    @Mock DecoracionZonaRepository decoracionZonaRepository;
     @Mock ZonaRepository zonaRepository;
     @Mock ClienteRepository clienteRepository;
-    @Mock BloqueDisponibilidadRepository bloqueRepository;
     @Mock ComandaRepository comandaRepository;
     @Mock ComandaItemRepository comandaItemRepository;
-    @Mock ComandaMenuModificacionRepository comandaMenuModificacionRepository;
-    @Mock ProductoRepository productoRepository;
-    @Mock OpcionModificacionRepository opcionModificacionRepository;
-    @Mock ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
     @Mock ReservaMapper reservaMapper;
     @Mock AbonoRepository abonoRepository;
+    @Mock ReservaValidador reservaValidador;
+    @Mock DisponibilidadConsultador disponibilidadConsultador;
+    @Mock PreOrdenGestor preOrdenGestor;
+    @Mock MensajeWhatsAppBuilder mensajeWhatsAppBuilder;
 
     @InjectMocks
     ReservaService service;
@@ -145,45 +139,68 @@ class ReservaServiceModificarTest {
         } catch (Exception e) {
             throw new RuntimeException(e);
         }
+
+        // Stubs globales para ReservaValidador: replican la lógica real de los métodos delegados
+        when(reservaValidador.esHorarioValido(any(), any(), any())).thenReturn(true);
+        when(reservaValidador.estaBloqueda(any())).thenReturn(false);
+        when(reservaValidador.tieneDecoracionConCosto(any())).thenAnswer(inv -> {
+            Decoracion d = inv.getArgument(0);
+            return d != null && d.getDecoracionCostoAdicional() != null
+                    && d.getDecoracionCostoAdicional().compareTo(BigDecimal.ZERO) > 0;
+        });
+        doAnswer(inv -> {
+            Reserva r = inv.getArgument(0);
+            String email = inv.getArgument(1);
+            if (!r.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(email)) {
+                throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                        "Solo puedes modificar tus propias reservas.", HttpStatus.FORBIDDEN);
+            }
+            List<EstadoReserva> activos = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
+            if (!activos.contains(r.getReservaEstado())) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "No es posible modificar esta reserva.", HttpStatus.UNPROCESSABLE_ENTITY);
+            }
+            return null;
+        }).when(reservaValidador).validarElegibilidadModificacion(any(), any());
+
+        when(mensajeWhatsAppBuilder.construirMensaje(any(), any())).thenReturn("mensaje-wa-test");
     }
 
     // ─── helpers de stub de disponibilidad ───────────────────────────────────
 
     /** Configura los mocks para que consultarDisponibilidadParaModificacion devuelva disponible=true. */
     private void stubDisponibilidadLibre() {
-        when(bloqueRepository.countBloquesParaFechaHora(any(), any())).thenReturn(0L);
-        when(zonaRepository.findAll()).thenReturn(List.of(zonaConCapacidad(10L, 20)));
-        when(reservaRepository.findPersonasPorZonaEnDiaExcluyendo(any(), any(), any(), anyLong()))
-                .thenReturn(List.of());
-        when(decoracionRepository.findByDecoracionEstado(any())).thenReturn(List.of());
-        when(reservaRepository.findDecoracionesOcupadasEnDiaExcluyendo(any(), any(), any(), anyLong()))
-                .thenReturn(List.of());
-        // Mapper de zonas devuelve DTO con datos reales de la zona (necesario para anyMatch)
-        when(reservaMapper.toZonaDto(any()))
-                .thenAnswer(inv -> {
-                    Zona z = inv.getArgument(0);
-                    return ZonaDisponibleResponse.builder()
-                            .zonaId(z.getZonaId())
-                            .capacidad(z.getZonaCapacidadPersonas())
-                            .build();
-                });
-        // Mapper de decoraciones devuelve DTO básico
-        when(reservaMapper.toDecoracionDto(any(), any(), any()))
-                .thenAnswer(inv -> {
-                    co.edu.unicauca.backend.modules.reservas.entity.Decoracion d = inv.getArgument(0);
-                    return DecoracionDisponibleResponse.builder()
-                            .decoracionId(d.getDecoracionId())
-                            .build();
-                });
-        // Capacidad disponible al verificar zona específica (para el else branch sin zona)
+        ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder()
+                .zonaId(10L).capacidad(20).build();
+        when(disponibilidadConsultador.consultarParaModificacion(any(), anyInt(), anyLong(), any(), any()))
+                .thenReturn(DisponibilidadResponse.builder()
+                        .disponible(true)
+                        .zonas(List.of(zonaDto))
+                        .decoraciones(List.of())
+                        .build());
         when(reservaRepository.sumPersonasByZonaEnDiaExcluyendo(anyLong(), any(), any(), any(), anyLong()))
                 .thenReturn(0);
-        // pre-orden existente vacía
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(anyLong(), any()))
                 .thenReturn(Optional.empty());
-        // sinDisponibilidad por si se llama en ruta de error dentro del helper
-        when(reservaMapper.sinDisponibilidad())
-                .thenReturn(DisponibilidadResponse.builder().disponible(false).build());
+    }
+
+    /** Variante de stubDisponibilidadLibre que incluye decoraciones en la respuesta. */
+    private void stubDisponibilidadLibreConDecoraciones(Long... decoracionIds) {
+        ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder()
+                .zonaId(10L).capacidad(20).build();
+        List<DecoracionDisponibleResponse> decDtos = java.util.Arrays.stream(decoracionIds)
+                .map(id -> DecoracionDisponibleResponse.builder().decoracionId(id).build())
+                .collect(java.util.stream.Collectors.toList());
+        when(disponibilidadConsultador.consultarParaModificacion(any(), anyInt(), anyLong(), any(), any()))
+                .thenReturn(DisponibilidadResponse.builder()
+                        .disponible(true)
+                        .zonas(List.of(zonaDto))
+                        .decoraciones(decDtos)
+                        .build());
+        when(reservaRepository.sumPersonasByZonaEnDiaExcluyendo(anyLong(), any(), any(), any(), anyLong()))
+                .thenReturn(0);
+        when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(anyLong(), any()))
+                .thenReturn(Optional.empty());
     }
 
     // ─── Validaciones previas ─────────────────────────────────────────────────
@@ -409,9 +426,7 @@ class ReservaServiceModificarTest {
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reservaConDec));
             when(decoracionRepository.findById(5L)).thenReturn(Optional.of(decoracion));
-            stubDisponibilidadLibre();
-            when(decoracionRepository.findByDecoracionEstado(any())).thenReturn(List.of(decoracion));
-            when(decoracionZonaRepository.findByDecoracionId(anyLong())).thenReturn(List.of());
+            stubDisponibilidadLibreConDecoraciones(5L);
             when(reservaRepository.save(any())).thenReturn(reservaConDec);
 
             ModificarReservaResponse respuestaMock = ModificarReservaResponse.builder()
@@ -448,10 +463,7 @@ class ReservaServiceModificarTest {
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reservaConDecAnterior));
             when(decoracionRepository.findById(6L)).thenReturn(Optional.of(decoracionNueva));
-            stubDisponibilidadLibre();
-            when(decoracionRepository.findByDecoracionEstado(any()))
-                    .thenReturn(List.of(decoracionAnterior, decoracionNueva));
-            when(decoracionZonaRepository.findByDecoracionId(anyLong())).thenReturn(List.of());
+            stubDisponibilidadLibreConDecoraciones(5L, 6L);
             when(reservaRepository.save(any())).thenReturn(reservaConDecAnterior);
 
             ModificarReservaResponse respuestaMock = ModificarReservaResponse.builder()
@@ -481,13 +493,7 @@ class ReservaServiceModificarTest {
         void sinZonasLibres_lanzaCambioDisponibilidad() {
             when(reservaRepository.findById(RESERVA_ID))
                     .thenReturn(Optional.of(reservaBasicaConfirmada));
-            when(bloqueRepository.countBloquesParaFechaHora(any(), any())).thenReturn(0L);
-
-            // Zona completamente ocupada (capacidad=5, ocupadas=5)
-            when(zonaRepository.findAll()).thenReturn(List.of(zonaConCapacidad(10L, 5)));
-            when(reservaRepository.findPersonasPorZonaEnDiaExcluyendo(any(), any(), any(), anyLong()))
-                    .thenReturn(java.util.Collections.singletonList(new Object[]{10L, 5L}));
-            when(reservaMapper.sinDisponibilidad())
+            when(disponibilidadConsultador.consultarParaModificacion(any(), anyInt(), anyLong(), any(), any()))
                     .thenReturn(DisponibilidadResponse.builder().disponible(false).build());
 
             assertThatThrownBy(() -> service.modificarReserva(RESERVA_ID, EMAIL, requestMinima))
