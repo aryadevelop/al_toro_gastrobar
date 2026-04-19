@@ -89,11 +89,10 @@ public class ReservaValidador {
      */
     public boolean esHorarioValido(LocalDateTime fechaHora, LocalTime horaApertura, LocalTime horaCierre) {
 
-        // Extraer solo la parte de hora de la fecha/hora de llegada
-        int hora = fechaHora.getHour();
-
-        // Verificar que la hora esté dentro del rango [apertura, cierre)
-        return hora >= horaApertura.getHour() && hora < horaCierre.getHour();
+        // Extrae la hora del instante para comparar contra el horario de apertura
+        LocalTime horaLlegada = fechaHora.toLocalTime();
+        // Verifica que la hora está dentro del rango [apertura, cierre) con precisión de minutos
+        return !horaLlegada.isBefore(horaApertura) && horaLlegada.isBefore(horaCierre);
     }
 
     // -----------------------------------------------------------------------
@@ -145,9 +144,13 @@ public class ReservaValidador {
         List<DecoracionZona> links = decoracionZonaRepository
                 .findByDecoracionId(decoracion.getDecoracionId());
 
-        // Si la decoración no tiene enlaces a zonas, se asume que es compatible con todas las zonas.
+        // Si la decoración no tiene enlaces a zonas, es compatible con todas las zonas: no se valida nada.
+        if (links.isEmpty()) {
+            return;
+        }
+
+        // Si la decoración solo tiene un enlace a zona, solo puede usarse en esa zona.
         if (links.size() == 1) {
-            // Si la decoración solo tiene un enlace a zona, solo puede usarse en esa zona.
             Long zonaPermitida = links.get(0).getZonaId();
             if (!zonaPermitida.equals(zonaId)) {
                 // La zona solicitada no coincide con la única zona permitida para esta decoración
@@ -155,7 +158,7 @@ public class ReservaValidador {
                         "La decoración seleccionada solo puede usarse en su zona asignada.",
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
-        } else if (links.size() > 1) {
+        } else {
             // Si la decoración tiene múltiples enlaces a zonas, verificar que la zona solicitada esté entre ellas
             boolean esCompatible = links.stream()
                     .anyMatch(l -> l.getZonaId().equals(zonaId));
@@ -166,7 +169,6 @@ public class ReservaValidador {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
         }
-        // Si links está vacío, no hay restricción de zona: la decoración es compatible con cualquier zona
     }
 
     // -----------------------------------------------------------------------
