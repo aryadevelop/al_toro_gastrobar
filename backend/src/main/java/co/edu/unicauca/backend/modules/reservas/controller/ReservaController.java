@@ -152,12 +152,7 @@ public class ReservaController {
             @RequestParam String emailCliente,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
-        }
+        validarOwnershipCliente(emailCliente, authentication);
 
         List<ReservaDetalleResponse> response = reservaService.obtenerReservasFuturas(emailCliente);
         return ResponseEntity.ok(ApiResponse.ok(response));
@@ -182,12 +177,7 @@ public class ReservaController {
             @RequestParam String emailCliente,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        if (esCliente && !emailCliente.equalsIgnoreCase(authentication.getName())) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
-        }
+        validarOwnershipCliente(emailCliente, authentication);
 
         List<ReservaDetalleResponse> response = reservaService.obtenerReservasCanceladasODevueltas(emailCliente);
         return ResponseEntity.ok(ApiResponse.ok(response));
@@ -218,5 +208,25 @@ public class ReservaController {
         ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailAutenticado);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
-    
+
+    /**
+     * Valida que el cliente autenticado sea el propietario del recurso solicitado.
+     *
+     * <p>Solo aplica restricción cuando el solicitante tiene rol {@code CLIENTE}. Otros roles
+     * (ADM, CAJERO, etc.) pueden acceder a recursos de cualquier cliente sin restricción.
+     *
+     * @param emailPropietario email del propietario del recurso
+     * @param authentication   contexto de autenticación del request actual
+     * @throws BusinessException con HTTP 403 si el cliente autenticado no es el propietario
+     */
+    private void validarOwnershipCliente(String emailPropietario, Authentication authentication) {
+        // Solo aplica la restricción cuando el solicitante es CLIENTE
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        // Compara ignorando mayúsculas para evitar falsos negativos por capitalización
+        if (esCliente && !authentication.getName().equalsIgnoreCase(emailPropietario)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+    }
 }

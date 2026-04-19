@@ -158,11 +158,9 @@ public class ReservaMapper {
                                                     List<ComandaItem> preOrden,
                                                     List<Abono> abonos) {
         // Si la reserva no tiene pre-orden, se dejan los campos relacionados como null para omitirlos en la respuesta.
-        List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null :
-                preOrden.stream()
-                        .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
-                        .collect(Collectors.toList());
-          
+        List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null
+                : construirItemsPreOrden(preOrden);
+
         BigDecimal preOrdenTotal = preOrden.isEmpty() ? null :
                 preOrden.stream()
                         .map(d -> d.getComandaItemPrecio()
@@ -170,16 +168,8 @@ public class ReservaMapper {
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Si no hay abonos, se dejan los campos relacionados como null para omitirlos en la respuesta.
-        List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null :
-                abonos.stream()
-                        .map(a -> AbonoItemResponse.builder()
-                                .abonoId(a.getAbonoId())
-                                .monto(a.getAbonoMonto())
-                                .fechaHora(a.getAbonoFechaHora().format(FORMATTER))
-                                .metodo(a.getAbonoMetodo().name())
-                                .tipo(a.getAbonoTipo().name())
-                                .build())
-                        .collect(Collectors.toList());
+        List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null
+                : construirAbonosDto(abonos);
 
         BigDecimal totalAbonado = abonos.isEmpty() ? null :
                 abonos.stream()
@@ -230,6 +220,24 @@ public class ReservaMapper {
                 .requiereWhatsApp(requiereWhatsApp)
                 .mensajeWhatsApp(mensajeWhatsApp)
                 .build();
+    }
+
+    private List<PreOrdenItemResponse> construirItemsPreOrden(List<ComandaItem> items) {
+        return items.stream()
+                .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
+                .collect(Collectors.toList());
+    }
+
+    private List<AbonoItemResponse> construirAbonosDto(List<Abono> abonos) {
+        return abonos.stream()
+                .map(a -> AbonoItemResponse.builder()
+                        .abonoId(a.getAbonoId())
+                        .monto(a.getAbonoMonto())
+                        .fechaHora(a.getAbonoFechaHora().format(FORMATTER))
+                        .metodo(a.getAbonoMetodo().name())
+                        .tipo(a.getAbonoTipo().name())
+                        .build())
+                .collect(Collectors.toList());
     }
 
     /**
