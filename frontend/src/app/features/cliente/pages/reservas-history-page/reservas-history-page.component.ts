@@ -40,6 +40,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
           <div class="visit-actions">
             <button type="button" class="btn-secondary" (click)="onViewFutureDetail(reservation.id)">Ver detalle</button>
+            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
+              Modificar
+            </button>
           </div>
         </article>
 
@@ -185,6 +188,17 @@ export class ReservasHistoryPageComponent implements OnInit {
     void this.router.navigate(['/app/cliente/reserva/detail', reservationId]);
   }
 
+  onModifyReservation(reservation: Reserva): void {
+    if (!this.canModifyReservation(reservation)) {
+      this.flashMessage.set(this.getModificationCutoffMessage(reservation));
+      this.showFlash.set(true);
+      setTimeout(() => this.showFlash.set(false), 3500);
+      return;
+    }
+
+    void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
+  }
+
   formatDateTime(date: Date): string {
     return date.toLocaleString('es-CO', {
       dateStyle: 'short',
@@ -218,6 +232,40 @@ export class ReservasHistoryPageComponent implements OnInit {
 
   toDateTime(reservation: Reserva): Date {
     return new Date(`${reservation.date}T${reservation.time}:00`);
+  }
+
+  canModifyReservation(reservation: Reserva): boolean {
+    return (
+      this.toDateTime(reservation).getTime() > Date.now() &&
+      !this.isModificationCutoffReached(reservation) &&
+      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED')
+    );
+  }
+
+  private isModificationCutoffReached(reserva: Reserva): boolean {
+    const cutoff = this.getModificationCutoffDate(reserva);
+    return Date.now() >= cutoff.getTime();
+  }
+
+  private getModificationCutoffMessage(reserva: Reserva): string {
+    if (reserva.type === 'SPECIAL') {
+      return 'Esta reserva especial solo se puede modificar hasta las 11:00 p.m. del día anterior.';
+    }
+
+    return 'Esta reserva básica solo se puede modificar hasta la 1:00 p.m. del mismo día.';
+  }
+
+  private getModificationCutoffDate(reserva: Reserva): Date {
+    const dayStart = new Date(`${reserva.date}T00:00:00`);
+
+    if (reserva.type === 'SPECIAL') {
+      dayStart.setDate(dayStart.getDate() - 1);
+      dayStart.setHours(23, 0, 0, 0);
+      return dayStart;
+    }
+
+    dayStart.setHours(13, 0, 0, 0);
+    return dayStart;
   }
 
   private loadHistoryData(): void {

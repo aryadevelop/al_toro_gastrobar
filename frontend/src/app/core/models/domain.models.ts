@@ -36,6 +36,7 @@ export interface Reserva {
   date: string;
   time: string;
   status: 'PENDING' | 'CONFIRMED' | 'ARRIVED' | 'CANCELLED' | 'COMPLETED';
+  type?: 'BASIC' | 'SPECIAL';
   tableCode?: string;
   decorationId?: string;
   decorationName?: string;

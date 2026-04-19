@@ -1,11 +1,12 @@
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { combineLatest, map, Observable, of, throwError } from 'rxjs';
+import { combineLatest, map, Observable, of } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
   BackendCrearReservaRequest,
   BackendDisponibilidadResponse,
+  BackendModificarReservaResponse,
   BackendReservaDetalle,
 } from '../models/api.models';
 import { Pago, Reserva } from '../models/domain.models';
@@ -29,6 +30,12 @@ export interface ReservationDetailData {
   preOrderTotal: number;
   totalPaid: number;
   payments: Pago[];
+}
+
+export interface ReservationUpdateResult {
+  reservation: Reserva;
+  requiresWhatsApp: boolean;
+  whatsappMessage?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -116,8 +123,32 @@ export class ReservationService {
       );
   }
 
-  update(_id: string, _payload: Partial<Reserva>): Observable<Reserva | null> {
-    return throwError(() => new Error('La API actual no tiene endpoint para actualizar reservas.'));
+  update(id: string, payload: Partial<Reserva>): Observable<ReservationUpdateResult> {
+    const request = this.toCreateRequest(payload as Omit<Reserva, 'id' | 'status'> & { status?: Reserva['status'] });
+
+    return this.http
+      .put<ApiEnvelope<BackendModificarReservaResponse>>(API_PATHS.reservas.modificar(id), request)
+      .pipe(
+        map((response) => {
+          const data = response.data;
+          const reservation = this.toReserva({
+            reservaId: data.reservaId,
+            fechaHoraLlegada: data.fechaHoraLlegada,
+            numeroPersonas: data.numeroPersonas,
+            estado: data.estado,
+            tipo: data.tipo,
+            zonaNombre: data.zonaNombre,
+            decoracionNombre: data.decoracionNombre,
+            notas: data.notas,
+          });
+
+          return {
+            reservation,
+            requiresWhatsApp: Boolean(data.requiereWhatsApp),
+            whatsappMessage: data.mensajeWhatsApp,
+          } satisfies ReservationUpdateResult;
+        })
+      );
   }
 
   private listByEndpoint(endpoint: string): Observable<Reserva[]> {
@@ -177,7 +208,10 @@ export class ReservationService {
       date: datePart,
       time: timePart,
       status: this.toReservationStatus(input.estado),
+      type: this.toReservationType(input.tipo),
+      decorationId: input.decoracionId ? String(input.decoracionId) : undefined,
       decorationName: input.decoracionNombre,
+      zoneId: input.zonaId ? String(input.zonaId) : undefined,
       zoneName: input.zonaNombre,
       notes: input.notas,
       preorderItems: (input.preOrdenItems ?? []).map((item) => ({
@@ -234,6 +268,19 @@ export class ReservationService {
     }
 
     return 'TRANSFER';
+  }
+
+  private toReservationType(rawType?: string): Reserva['type'] {
+    const normalized = (rawType ?? '').toUpperCase();
+    if (normalized === 'ESPECIAL' || normalized === 'SPECIAL') {
+      return 'SPECIAL';
+    }
+
+    if (normalized === 'BASICA' || normalized === 'BASIC') {
+      return 'BASIC';
+    }
+
+    return undefined;
   }
 
   private toNumberOrUndefined(value?: string): number | undefined {
