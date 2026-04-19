@@ -238,10 +238,12 @@ export class LoginPageComponent {
       error: (err: HttpErrorResponse) => {
         this.loading.set(false);
         const code = err.error?.code;
+        const message = String(err.error?.message ?? '').toLowerCase();
+        const hasActiveSession = err.status === 409 || message.includes('sesión activa') || message.includes('sesion activa');
 
         if (code === 'PASSWORD_EXPIRED') {
           void this.router.navigateByUrl('/auth/change-password');
-        } else if (code === 'ACTIVE_SESSION') {
+        } else if (code === 'ACTIVE_SESSION' || hasActiveSession) {
           this.pendingCredentials.set(this.loginForm.getRawValue());
           this.showActiveSessionDialog.set(true);
         } else {
