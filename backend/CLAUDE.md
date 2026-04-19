@@ -66,7 +66,7 @@ Postman collections are in `backend/postman/`. The base template for creating ne
 
 - **Never modify the frontend.** All implementation work is backend-only unless explicitly instructed otherwise.
 - **Documentation is mandatory:** every implemented feature must update its corresponding Javadoc (classes, methods) and inline comments so that documentation stays consistent with the implementation.
-- **Scope strictly to the HU:** do not implement features, helpers, or abstractions that are not required by the current user story, even if they seem useful for future stories.
+- **Scope to the HU:** do not implement features, helpers, or abstractions that are not required by the current user story, even if they seem useful for future stories, except in refactor issues.
 - **Postman tests:** when adding or modifying endpoints, create the corresponding Postman tests using `backend/postman/prompt` as the base template.
 
 ## Postman — Convenciones y estructura
@@ -137,6 +137,7 @@ Cada endpoint tiene su propia carpeta en `backend/postman/postman/collections/`:
 | `reservas/Al Toro – GET -api-reservas-cliente-futuras/` | `GET /api/reservas/cliente/futuras` |
 | `reservas/Al Toro – GET -api-reservas-cliente-canceladas/` | `GET /api/reservas/cliente/canceladas` |
 | `reservas/Al Toro – GET -api-reservas-{id}-detalle/` | `GET /api/reservas/{id}/detalle` |
+| `reservas/Al Toro – PUT -api-reservas-{reservaId}/` | `PUT /api/reservas/{reservaId}` |
 | `mesas_comandas/Al Toro – GET -api-visitas-cliente-historial/` | `GET /api/visitas/cliente/historial` |
 | `mesas_comandas/Al Toro – GET -api-visitas-cliente-{id}-detalle/` | `GET /api/visitas/cliente/{id}/detalle` |
 | `usuarios/Al Toro – GET -api-clientes-me-puntos/` | `GET /api/clientes/me/puntos` |
@@ -164,6 +165,9 @@ Cada endpoint tiene su propia carpeta en `backend/postman/postman/collections/`:
 | `visitaIdWalkIn` | `SELECT visita_id FROM restaurante.visita WHERE reserva_id IS NULL LIMIT 1` |
 | `reservaIdConPreOrden` | `SELECT r.reserva_id FROM restaurante.reserva r JOIN restaurante.comanda c ON c.reserva_id = r.reserva_id LIMIT 1` |
 | `reservaIdCancelada` | `SELECT reserva_id FROM restaurante.reserva WHERE reserva_estado IN ('CANCELADA','DEVUELTA') LIMIT 1` |
+| `decoracionConCostoId` | `SELECT decoracion_id FROM restaurante.decoracion WHERE decoracion_costo_adicional > 0 AND decoracion_estado = 'ACTIVO' LIMIT 1` |
+| `decoracionConCostoId2` | Segunda decoración con costo para MR-13; misma query con `OFFSET 1 LIMIT 1` |
+| `reservaIdOtroCliente` | `SELECT r.reserva_id FROM restaurante.reserva r JOIN restaurante.usuario u ON u.usuario_id = r.cliente_id WHERE u.usuario_email <> '<emailCliente>' AND r.reserva_estado IN ('PENDIENTE','CONFIRMADA') LIMIT 1` |
 | `clienteIdConPuntos` | Ya no requerido para `/api/clientes` — los tests lo resuelven dinámicamente del pool 11..22 |
 
 ## Git Workflow
