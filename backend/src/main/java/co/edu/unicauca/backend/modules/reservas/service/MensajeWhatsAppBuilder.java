@@ -58,8 +58,7 @@ public class MensajeWhatsAppBuilder {
 
     /**
      * Formateador usado para presentar la fecha y hora de la reserva en el
-     * mensaje de WhatsApp. Patrón {@code dd/MM/yyyy HH:mm} (por ejemplo,
-     * {@code 19/04/2026 19:30}).
+     * mensaje de WhatsApp.
      */
     private static final DateTimeFormatter FORMATTER_WA = DateTimeFormatter.ofPattern("dd/MM/yyyy HH:mm");
 

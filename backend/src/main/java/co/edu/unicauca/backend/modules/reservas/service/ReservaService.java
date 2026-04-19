@@ -130,10 +130,12 @@ public class ReservaService {
         Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
                 .orElseThrow(() -> new ResourceNotFoundException("Cliente", "email", emailCliente));
 
+        // Validar horarios y bloqueos administrativos para la fecha/hora solicitada
         ParDecoracionZona dz = validarYCargarDecoracionZona(request.getFechaHoraLlegada(), request.getDecoracionId(), request.getZonaId());
         Decoracion decoracion = dz.decoracion();
         Zona zona = dz.zona();
 
+        // Validar que la reserva cumpla con las reglas de capacidad y disponibilidad
         validarDisponibilidadYCapacidad(request.getFechaHoraLlegada(), decoracion, zona, request.getNumeroPersonas(), null);
 
         // Determinar tipo de reserva (BASICA o ESPECIAL) según decoración y pre-orden
@@ -148,7 +150,7 @@ public class ReservaService {
                     MSG_ANTICIPACION_MINIMA, HttpStatus.UNPROCESSABLE_ENTITY);
         }
 
-        // Si se incluye pre-orden, validar que los productos y opciones de modificación existan y sean válidos para el número de personas de la reserva
+        // Validar pre-orden
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
             preOrdenGestor.validarPreOrden(request.getPreOrden(), request.getNumeroPersonas());
         }
@@ -246,6 +248,32 @@ public class ReservaService {
         return reservaMapper.toDetalleResponse(reserva, preOrden, abonos);
     }
 
+    /**
+     * Devuelve el historial de reservas canceladas o devueltas del cliente.
+     *
+     * @param emailCliente correo del cliente
+     * @return lista de {@link ReservaDetalleResponse} ordenada descendentemente por fecha
+     * @throws ResourceNotFoundException si el cliente no existe
+     */
+    @Transactional(readOnly = true)
+    public List<ReservaDetalleResponse> obtenerReservasCanceladasODevueltas(String emailCliente) {
+
+        // Verifica que el cliente exista
+        Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
+                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "email", emailCliente));
+
+        // Solo se consideran estados terminales para el historial
+        List<EstadoReserva> estadosTerminales =
+                List.of(EstadoReserva.CANCELADA, EstadoReserva.DEVUELTA);
+
+        return reservaRepository
+                .findByCliente_UsuarioIdOrderByReservaFechaHoraLlegadaDesc(cliente.getUsuarioId())
+                .stream()
+                .filter(r -> estadosTerminales.contains(r.getReservaEstado()))
+                .map(reservaMapper::toResumen)
+                .collect(Collectors.toList());
+    }
+
     // -----------------------------------------------------------------------
     // CRUD - UPDATE
     // -----------------------------------------------------------------------
@@ -286,7 +314,7 @@ public class ReservaService {
         Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
 
-        // Verificar ownership y estado activo (delega en ReservaValidador)
+        // Verificar ownership y estado activo
         reservaValidador.validarElegibilidadModificacion(reserva, emailCliente);
 
         // Verificar hora límite de modificación:
@@ -430,34 +458,8 @@ public class ReservaService {
         return reservaMapper.toModificarResponse(reservaResultado, requiereWhatsApp, mensajeWhatsApp);
     }
 
-    /**
-     * Devuelve el historial de reservas canceladas o devueltas del cliente.
-     *
-     * @param emailCliente correo del cliente
-     * @return lista de {@link ReservaDetalleResponse} ordenada descendentemente por fecha
-     * @throws ResourceNotFoundException si el cliente no existe
-     */
-    @Transactional(readOnly = true)
-    public List<ReservaDetalleResponse> obtenerReservasCanceladasODevueltas(String emailCliente) {
-
-        // Verifica que el cliente exista
-        Cliente cliente = clienteRepository.findByUsuario_UsuarioEmail(emailCliente)
-                .orElseThrow(() -> new ResourceNotFoundException("Cliente", "email", emailCliente));
-
-        // Solo se consideran estados terminales para el historial
-        List<EstadoReserva> estadosTerminales =
-                List.of(EstadoReserva.CANCELADA, EstadoReserva.DEVUELTA);
-
-        return reservaRepository
-                .findByCliente_UsuarioIdOrderByReservaFechaHoraLlegadaDesc(cliente.getUsuarioId())
-                .stream()
-                .filter(r -> estadosTerminales.contains(r.getReservaEstado()))
-                .map(reservaMapper::toResumen)
-                .collect(Collectors.toList());
-    }
-
     // -----------------------------------------------------------------------
-    // Lógica interna de pre-orden (antes en PreOrdenService)
+    // Lógica interna de pre-orden
     // -----------------------------------------------------------------------
 
     /**
