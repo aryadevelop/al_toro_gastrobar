@@ -1,0 +1,45 @@
+$kind: http-request
+name: MR-07 Reserva de otro cliente – 403 Forbidden
+description: |
+  El cliente autenticado intenta modificar una reserva que pertenece a otro cliente.
+  El servicio detecta el mismatch de ownership → BusinessException ACCESS_DENIED → 403.
+  Pre-condición: reservaIdOtroCliente debe apuntar a una reserva activa de un cliente diferente.
+url: "{{baseUrl}}/api/reservas/{{reservaIdOtroCliente}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "2028-06-15T19:00:00",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('MR-07: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva de otro cliente → 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 7000

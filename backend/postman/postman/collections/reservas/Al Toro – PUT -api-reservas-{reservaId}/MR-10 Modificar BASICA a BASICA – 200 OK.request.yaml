@@ -1,0 +1,71 @@
+$kind: http-request
+name: MR-10 Modificar BASICA a BASICA – 200 OK sin WhatsApp
+description: |
+  Crea una reserva BASICA y la modifica cambiando solo el número de personas.
+  Resultado esperado: 200, tipo=BASICA, estado=CONFIRMADA, requiereWhatsApp=false.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 4
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        pm.environment.set('clienteToken', res.json().accessToken);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + res.json().accessToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 })}
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Modificación BASICA→BASICA → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Tipo sigue siendo BASICA y estado CONFIRMADA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+        pm.expect(data.requiereWhatsApp).to.be.false;
+        pm.expect(data.numeroPersonas).to.eql(4);
+      });
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 10000
