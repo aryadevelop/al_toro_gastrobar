@@ -61,21 +61,20 @@ public class JwtTokenProvider {
         this.refreshExpirationMs = refreshExpirationMs;
     }
 
-    /**
-     * Genera un token JWT firmado para el usuario dado.
-     *
-     * <p>El token contiene el nombre de usuario como {@code subject}, la fecha
-     * de emisión actual y una fecha de expiración calculada a partir de
-     * {@code expirationMs}.
-     *
-     * @param userDetails detalles del usuario autenticado
-     * @return token JWT compacto y firmado
-     */
     /** Devuelve el tiempo de vida del access token en segundos (para el campo {@code expiresIn} de la respuesta). */
     public long getExpirationSeconds() {
         return expirationMs / 1000;
     }
 
+    /**
+     * Genera un token JWT de acceso firmado para el usuario dado.
+     *
+     * <p>El token contiene el nombre de usuario como {@code subject}, la fecha
+     * de emisión actual y una fecha de expiración calculada a partir de {@code expirationMs}.</p>
+     *
+     * @param userDetails detalles del usuario autenticado
+     * @return token JWT de acceso compacto y firmado
+     */
     public String generateToken(UserDetails userDetails) {
         return buildToken(userDetails, expirationMs, TOKEN_TYPE_ACCESS);
     }
@@ -90,6 +89,14 @@ public class JwtTokenProvider {
         return buildToken(userDetails, refreshExpirationMs, TOKEN_TYPE_REFRESH);
     }
 
+    /**
+     * Construye y firma un token JWT con el tipo y expiración indicados.
+     *
+     * @param userDetails      detalles del usuario (subject del token)
+     * @param tokenExpirationMs tiempo de vida del token en milisegundos
+     * @param tokenType        valor del claim {@code type} ({@code "access"} o {@code "refresh"})
+     * @return token JWT compacto y firmado
+     */
     private String buildToken(UserDetails userDetails, long tokenExpirationMs, String tokenType) {
         Date now = new Date();
         return Jwts.builder()
