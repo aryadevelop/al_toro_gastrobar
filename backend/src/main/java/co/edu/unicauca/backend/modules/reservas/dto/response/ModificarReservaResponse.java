@@ -9,17 +9,14 @@ import lombok.Getter;
  *
  * <p>Cuando {@code requiereWhatsApp} es {@code true}, el frontend debe redirigir
  * al cliente al chat de WhatsApp de la empresa con el mensaje {@code mensajeWhatsApp}
- * precompuesto. Esto ocurre en las transiciones BASICA→ESPECIAL y ESPECIAL→BASICA.
- *
- * <p>En la transición ESPECIAL→BASICA el {@code reservaId} corresponde a la reserva
- * nueva creada; la reserva original queda en estado CANCELADA.
+ * precompuesto. El {@code reservaId} siempre corresponde a la misma reserva modificada.
  */
 @Getter
 @Builder
 @JsonInclude(JsonInclude.Include.NON_NULL)
 public class ModificarReservaResponse {
 
-    /** Identificador de la reserva resultante (puede diferir del original en ESPECIAL→BASICA). */
+    /** Identificador de la reserva modificada. */
     private final Long reservaId;
 
     /** Estado de la reserva resultante: {@code CONFIRMADA} o {@code PENDIENTE}. */
