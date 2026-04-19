@@ -50,6 +50,8 @@ export interface BackendReservaDetalle {
   numeroPersonas: number;
   estado: string;
   tipo?: string;
+  zonaId?: number;
+  decoracionId?: number;
   zonaNombre?: string;
   decoracionNombre?: string;
   notas?: string;
@@ -74,6 +76,19 @@ export interface BackendCrearReservaRequest {
     esMenuEspecial?: boolean;
     opcionesModificacion?: number[];
   }>;
+}
+
+export interface BackendModificarReservaResponse {
+  reservaId: number;
+  estado: string;
+  tipo?: string;
+  fechaHoraLlegada: string;
+  numeroPersonas: number;
+  zonaNombre?: string;
+  decoracionNombre?: string;
+  notas?: string;
+  requiereWhatsApp: boolean;
+  mensajeWhatsApp?: string;
 }
 
 export interface BackendCategoriaCarta {

@@ -7,7 +7,7 @@ import { Subject, takeUntil } from 'rxjs';
 import { Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ProductCatalogService } from '../../../../core/services/product-catalog.service';
-import { ReservationService } from '../../../../core/services/reservation.service';
+import { ReservationDetailData, ReservationService } from '../../../../core/services/reservation.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
 interface DecorationOption {
@@ -115,7 +115,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
               <span class="section-label">Decoraciones disponibles (opcional)</span>
               <div class="card-grid" *ngIf="availableDecorations().length > 0">
                 <label class="option-card" *ngFor="let decoration of availableDecorations()">
-                  <input type="radio" name="decoration" [value]="decoration.id" formControlName="decorationId" />
+                  <input type="radio" name="decorationId" [value]="decoration.id" formControlName="decorationId" />
                   <img [src]="decoration.imageUrl" [alt]="decoration.name" />
                   <strong>{{ decoration.name }}</strong>
                 </label>
@@ -131,10 +131,9 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
                 <label class="option-card" *ngFor="let zone of availableZones()">
                   <input
                     type="radio"
-                    name="zone"
+                    name="zoneId"
                     [value]="zone.id"
                     formControlName="zoneId"
-                    [disabled]="isZoneSelectionLocked()"
                   />
                   <img [src]="zone.imageUrl" [alt]="zone.name" />
                   <strong>{{ zone.name }}</strong>
@@ -879,6 +878,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   private readonly destroy$ = new Subject<void>();
   private editingReservationId = '';
   private previousGuests = this.reservaForm.controls.guests.value;
+  private editReservationData: ReservationDetailData | null = null;
+  private editReservationLoaded = false;
+  private cartaCatalogLoaded = false;
+  private specialMenusLoaded = false;
+  private editFormHydrated = false;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -895,14 +899,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     this.loadCatalog();
 
-    if (this.editMode()) {
-      this.showFloating('Modificar/cancelar reservas aún no está habilitado en backend.');
-      void this.router.navigateByUrl('/app/cliente/reservas/history');
-      return;
-    }
-
-    this.updateAvailability();
-
     this.reservaForm.controls.date.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateAvailability();
     });
@@ -913,6 +909,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     this.reservaForm.controls.decorationId.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateAvailableZones();
+      this.syncZoneControlState();
       this.syncRomanticAddonState();
     });
 
@@ -934,6 +931,14 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
       this.previousGuests = value;
     });
+
+    if (this.editMode()) {
+      this.loadEditReservation();
+      return;
+    }
+
+    this.syncZoneControlState();
+    this.updateAvailability();
   }
 
   ngOnDestroy(): void {
@@ -1300,6 +1305,37 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.loading.set(true);
 
     const payload = this.buildReservationPayload();
+
+    if (this.editMode() && this.editingReservationId) {
+      this.reservationService.update(this.editingReservationId, payload).subscribe({
+        next: (result) => {
+          this.loading.set(false);
+          this.showSummary.set(false);
+
+          if (result.requiresWhatsApp) {
+            this.redirectToWhatsapp(result.whatsappMessage);
+            return;
+          }
+
+          void this.router.navigateByUrl('/app/cliente', {
+            state: { flashMessage: 'La reserva fue modificada correctamente' }
+          });
+        },
+        error: (err: HttpErrorResponse) => {
+          this.loading.set(false);
+          const backendMessage =
+            (typeof err.error?.message === 'string' && err.error.message.trim().length > 0
+              ? err.error.message
+              : '') ||
+            (typeof err.error === 'string' && err.error.trim().length > 0 ? err.error : '');
+
+          this.showFloating(backendMessage || 'No fue posible modificar la reserva. Intenta nuevamente.');
+        }
+      });
+
+      return;
+    }
+
     this.reservationService.create(payload).subscribe({
       next: () => {
         this.loading.set(false);
@@ -1491,6 +1527,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
           this.reservaForm.controls.zoneId.setValue('');
         }
 
+        this.syncZoneControlState();
         this.syncRomanticAddonState();
       },
       error: () => {
@@ -1511,6 +1548,21 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   private syncRomanticAddonState(): void {
     if (!this.showRomanticAddonOption() && this.reservaForm.controls.romanticAddon.value) {
       this.reservaForm.controls.romanticAddon.setValue(false);
+    }
+  }
+
+  private syncZoneControlState(): void {
+    const zoneControl = this.reservaForm.controls.zoneId;
+
+    if (this.isZoneSelectionLocked()) {
+      if (zoneControl.enabled) {
+        zoneControl.disable({ emitEvent: false });
+      }
+      return;
+    }
+
+    if (zoneControl.disabled) {
+      zoneControl.enable({ emitEvent: false });
     }
   }
 
@@ -1595,34 +1647,137 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
           modificationDraft: '',
           modifications: [],
         }));
+        this.cartaCatalogLoaded = true;
+        this.tryHydrateEditForm();
       },
       error: () => {
         this.cartaItems = this.buildCartaItems();
+        this.cartaCatalogLoaded = true;
+        this.tryHydrateEditForm();
       },
     });
 
     this.productCatalogService.listSpecialMenus().subscribe({
       next: (menus) => {
         this.specialMenus = menus;
+        this.specialMenusLoaded = true;
+        this.tryHydrateEditForm();
       },
       error: () => {
         this.specialMenus = [];
+        this.specialMenusLoaded = true;
+        this.tryHydrateEditForm();
       },
     });
   }
 
-  private redirectToWhatsapp(): void {
+  private loadEditReservation(): void {
+    this.reservationService.getDetail(this.editingReservationId).subscribe({
+      next: (detail) => {
+        this.editReservationData = detail;
+        this.editReservationLoaded = true;
+        this.tryHydrateEditForm();
+      },
+      error: (err: HttpErrorResponse) => {
+        const backendMessage =
+          (typeof err.error?.message === 'string' && err.error.message.trim().length > 0
+            ? err.error.message
+            : '') ||
+          (typeof err.error === 'string' && err.error.trim().length > 0 ? err.error : '');
+
+        this.showFloating(backendMessage || 'No fue posible cargar la reserva a modificar.');
+        void this.router.navigateByUrl('/app/cliente/reservas/history');
+      }
+    });
+  }
+
+  private tryHydrateEditForm(): void {
+    if (!this.editMode() || this.editFormHydrated) {
+      return;
+    }
+
+    if (!this.editReservationLoaded || !this.cartaCatalogLoaded || !this.specialMenusLoaded || !this.editReservationData) {
+      return;
+    }
+
+    this.hydrateEditForm(this.editReservationData.reservation);
+    this.editFormHydrated = true;
+  }
+
+  private hydrateEditForm(reservation: Reserva): void {
+    this.clearSpecialMenuSelection();
+    this.clearCartaSelection();
+
+    this.reservaForm.patchValue(
+      {
+        date: reservation.date,
+        time: reservation.time,
+        guests: reservation.guests,
+        decorationId: reservation.decorationId ?? '',
+        zoneId: reservation.zoneId ?? '',
+        romanticAddon: false,
+        specialMenuId: '',
+        specialMenuQty: 1,
+        notes: reservation.notes ?? '',
+      },
+      { emitEvent: false }
+    );
+
+    this.previousGuests = reservation.guests;
+    this.hydratePreorder(reservation.preorderItems ?? []);
+    this.updateAvailability();
+  }
+
+  private hydratePreorder(items: ReservaPreorderItem[]): void {
+    if (items.length === 0) {
+      this.activePreorderTab.set('carta');
+      return;
+    }
+
+    const specialMenuItem = items.find((item) => this.specialMenus.some((menu) => menu.id === item.productId));
+    if (specialMenuItem) {
+      this.activePreorderTab.set('especial');
+      this.reservaForm.controls.specialMenuId.setValue(specialMenuItem.productId, { emitEvent: false });
+      this.reservaForm.controls.specialMenuQty.setValue(Math.max(1, specialMenuItem.quantity), { emitEvent: false });
+      this.specialMenuCustomizationSelection = specialMenuItem.modificationOptionIds ?? [];
+      return;
+    }
+
+    this.activePreorderTab.set('carta');
+    items.forEach((item) => {
+      const cartaItem = this.cartaItems.find((entry) => entry.productId === item.productId);
+      if (!cartaItem) {
+        return;
+      }
+
+      cartaItem.quantity = Math.max(0, item.quantity);
+
+      if (item.description?.trim()) {
+        cartaItem.modifications = [
+          {
+            id: `${cartaItem.productId}-mod-hydrated`,
+            text: item.description.trim(),
+            quantity: 1,
+          },
+        ];
+      }
+    });
+  }
+
+  private redirectToWhatsapp(customMessage?: string): void {
     const formValue = this.reservaForm.getRawValue();
 
-    const message = [
-      'Hola, quiero confirmar una reserva especial en Al Toro Gastrobar.',
-      `Fecha: ${formValue.date}`,
-      `Hora: ${formValue.time}`,
-      `Número de personas: ${formValue.guests}`,
-      `Extras: ${this.summaryExtrasText()}`,
-      `Pre-orden aproximada: ${this.formatCurrency(this.preorderTotal())}`,
-      WHATSAPP_NOTE
-    ].join('\n');
+    const message = customMessage?.trim()
+      ? customMessage
+      : [
+          'Hola, quiero confirmar una reserva especial en Al Toro Gastrobar.',
+          `Fecha: ${formValue.date}`,
+          `Hora: ${formValue.time}`,
+          `Número de personas: ${formValue.guests}`,
+          `Extras: ${this.summaryExtrasText()}`,
+          `Pre-orden aproximada: ${this.formatCurrency(this.preorderTotal())}`,
+          WHATSAPP_NOTE,
+        ].join('\n');
 
     const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
     window.location.href = url;

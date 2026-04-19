@@ -27,6 +27,7 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
             class="input-field"
             type="email"
             formControlName="email"
+            autocomplete="username"
             placeholder="correo&#64;ejemplo.com"
             [class.input-error]="loginForm.controls.email.touched && loginForm.controls.email.invalid"
           />
@@ -58,6 +59,7 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
             class="input-field"
             type="password"
             formControlName="password"
+            autocomplete="current-password"
             [class.input-error]="loginForm.controls.password.touched && loginForm.controls.password.invalid"
           />
           <!-- Criterio 6: campo contraseña vacío -->
