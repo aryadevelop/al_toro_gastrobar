@@ -2,21 +2,12 @@ import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
-import { Comanda, Reserva, Venta } from '../../../../core/models/domain.models';
+import { Reserva } from '../../../../core/models/domain.models';
 import { AuthService } from '../../../../core/services/auth.service';
-import { ComandaService } from '../../../../core/services/comanda.service';
+import { ClientePointsService } from '../../../../core/services/cliente-points.service';
 import { ReservationService } from '../../../../core/services/reservation.service';
-import { SalesService } from '../../../../core/services/sales.service';
+import { VisitHistoryEntry, VisitService } from '../../../../core/services/visit.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
-
-interface VisitHistoryItem {
-  reservationId?: string;
-  dateTime: Date;
-  guests: number;
-  statusLabel: string;
-  total: number;
-  hasDetail: boolean;
-}
 
 @Component({
   selector: 'app-reservas-history-page',
@@ -46,18 +37,9 @@ interface VisitHistoryItem {
           <p><strong>Fecha y hora:</strong> {{ formatDateTime(toDateTime(reservation)) }}</p>
           <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
           <p><strong>Estado:</strong> {{ getReservationStatusLabel(reservation.status) }}</p>
-          <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
-            Ya no es posible modificar esta reserva. Solo puedes cancelarla.
-          </p>
 
           <div class="visit-actions">
             <button type="button" class="btn-secondary" (click)="onViewFutureDetail(reservation.id)">Ver detalle</button>
-            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
-              Modificar
-            </button>
-            <button type="button" class="btn-danger" [disabled]="!canCancelReservation(reservation)" (click)="onCancelReservation(reservation)">
-              Cancelar
-            </button>
           </div>
         </article>
 
@@ -176,14 +158,14 @@ export class ReservasHistoryPageComponent implements OnInit {
   readonly flashMessage = signal('');
   readonly showFlash = signal(false);
 
-  visitHistory: VisitHistoryItem[] = [];
+  visitHistory: VisitHistoryEntry[] = [];
   reservasFuturas: Reserva[] = [];
 
   constructor(
     private readonly authService: AuthService,
     private readonly reservationService: ReservationService,
-    private readonly comandaService: ComandaService,
-    private readonly salesService: SalesService,
+    private readonly visitService: VisitService,
+    private readonly clientePointsService: ClientePointsService,
     private readonly router: Router
   ) {}
 
@@ -191,7 +173,7 @@ export class ReservasHistoryPageComponent implements OnInit {
     this.loadHistoryData();
   }
 
-  onViewVisitDetail(visit: VisitHistoryItem): void {
+  onViewVisitDetail(visit: VisitHistoryEntry): void {
     if (!visit.reservationId) {
       return;
     }
@@ -201,58 +183,6 @@ export class ReservasHistoryPageComponent implements OnInit {
 
   onViewFutureDetail(reservationId: string): void {
     void this.router.navigate(['/app/cliente/reserva/detail', reservationId]);
-  }
-
-  onModifyReservation(reservation: Reserva): void {
-    if (!this.canModifyReservation(reservation)) {
-      if (this.isModificationCutoffReached(reservation)) {
-        this.flashMessage.set('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
-        this.showFlash.set(true);
-        setTimeout(() => this.showFlash.set(false), 3500);
-      }
-      return;
-    }
-
-    void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
-  }
-
-  onCancelReservation(reservation: Reserva): void {
-    if (!this.canCancelReservation(reservation)) {
-      return;
-    }
-
-    if (!window.confirm('¿Deseas cancelar esta reserva?')) {
-      return;
-    }
-
-    this.reservationService.update(reservation.id, { status: 'CANCELLED' }).subscribe(() => {
-      this.flashMessage.set('Reserva cancelada correctamente.');
-      this.showFlash.set(true);
-      setTimeout(() => this.showFlash.set(false), 3500);
-      this.loadHistoryData();
-    });
-  }
-
-  canModifyReservation(reservation: Reserva): boolean {
-    return (
-      this.isFutureReservation(reservation) &&
-      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') &&
-      !this.isModificationCutoffReached(reservation)
-    );
-  }
-
-  canCancelReservation(reservation: Reserva): boolean {
-    return this.isFutureReservation(reservation) && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
-  }
-
-  isModificationCutoffReached(reservation: Reserva): boolean {
-    const sameDate = new Date(`${reservation.date}T00:00:00`).toDateString() === new Date().toDateString();
-    if (!sameDate) {
-      return false;
-    }
-
-    const cutoff = new Date(`${reservation.date}T16:00:00`).getTime();
-    return Date.now() >= cutoff;
   }
 
   formatDateTime(date: Date): string {
@@ -300,72 +230,16 @@ export class ReservasHistoryPageComponent implements OnInit {
     }
 
     combineLatest([
-      this.reservationService.listByCliente(currentUser.id),
-      this.comandaService.list(),
-      this.salesService.list()
-    ]).subscribe(([reservas, comandas, ventas]) => {
-      this.reservasFuturas = [...reservas]
-        .filter((item) => this.isFutureReservation(item) && (item.status === 'PENDING' || item.status === 'CONFIRMED'))
+      this.reservationService.listFuture(),
+      this.visitService.getHistory(currentUser.email),
+      this.clientePointsService.getMyPoints(currentUser.email)
+    ]).subscribe(([futureReservations, visits, currentPoints]) => {
+      this.reservasFuturas = [...futureReservations]
+        .filter((item) => item.status === 'PENDING' || item.status === 'CONFIRMED')
         .sort((a, b) => this.toDateTime(a).getTime() - this.toDateTime(b).getTime());
 
-      const paidSales = ventas.filter((item) => item.clienteId === currentUser.id && item.paid);
-      this.points.set(paidSales.length);
-      this.visitHistory = this.mapVisitHistory(paidSales, reservas, comandas);
+      this.visitHistory = visits;
+      this.points.set(currentPoints);
     });
-  }
-
-  private mapVisitHistory(sales: Venta[], reservas: Reserva[], comandas: Comanda[]): VisitHistoryItem[] {
-    const reservaById = new Map(reservas.map((item) => [item.id, item]));
-    const comandaById = new Map(comandas.map((item) => [item.id, item]));
-
-    return sales
-      .map((sale) => {
-        const comanda = comandaById.get(sale.comandaId);
-        const reserva = comanda?.reservaId ? reservaById.get(comanda.reservaId) : undefined;
-
-        const dateTime = reserva ? this.toDateTime(reserva) : new Date(sale.createdAt);
-
-        return {
-          reservationId: reserva?.id,
-          dateTime,
-          guests: reserva?.guests ?? 0,
-          statusLabel: this.getVisitStatusLabel(reserva?.status),
-          total: sale.total,
-          hasDetail: Boolean(reserva?.id)
-        } satisfies VisitHistoryItem;
-      })
-      .sort((a, b) => b.dateTime.getTime() - a.dateTime.getTime());
-  }
-
-  private getVisitStatusLabel(status?: Reserva['status']): string {
-    if (!status) {
-      return 'Completada';
-    }
-
-    if (status === 'ARRIVED') {
-      return 'Asistió';
-    }
-
-    if (status === 'COMPLETED') {
-      return 'Completada';
-    }
-
-    if (status === 'CONFIRMED') {
-      return 'Confirmada';
-    }
-
-    if (status === 'PENDING') {
-      return 'Pendiente';
-    }
-
-    if (status === 'CANCELLED') {
-      return 'Cancelada';
-    }
-
-    return status;
-  }
-
-  private isFutureReservation(reservation: Reserva): boolean {
-    return this.toDateTime(reservation).getTime() > Date.now();
   }
 }

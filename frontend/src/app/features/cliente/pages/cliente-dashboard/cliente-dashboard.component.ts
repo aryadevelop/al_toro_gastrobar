@@ -252,8 +252,9 @@ export class ClienteDashboardComponent implements OnInit {
       return;
     }
 
-    const reservationId = reservation.id;
-    void this.router.navigate(['/app/cliente/reserva/edit', reservationId]);
+    this.flashMessage.set('Modificar reservas aún no está habilitado en backend.');
+    this.showFlash.set(true);
+    setTimeout(() => this.showFlash.set(false), 3500);
   }
 
   onCancelReservation(reservation: Reserva): void {
@@ -261,16 +262,9 @@ export class ClienteDashboardComponent implements OnInit {
       return;
     }
 
-    if (!window.confirm('¿Deseas cancelar esta reserva?')) {
-      return;
-    }
-
-    this.reservationService.update(reservation.id, { status: 'CANCELLED' }).subscribe(() => {
-      this.flashMessage.set('Reserva cancelada correctamente.');
-      this.showFlash.set(true);
-      setTimeout(() => this.showFlash.set(false), 3500);
-      this.loadDashboardData();
-    });
+    this.flashMessage.set('Cancelar reservas aún no está habilitado en backend.');
+    this.showFlash.set(true);
+    setTimeout(() => this.showFlash.set(false), 3500);
   }
 
   canModifyReservation(reservation: Reserva): boolean {

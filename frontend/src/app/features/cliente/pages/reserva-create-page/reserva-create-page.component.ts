@@ -1,11 +1,12 @@
 ﻿import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject, take, takeUntil } from 'rxjs';
-import { MOCK_PRODUCTOS } from '../../../../core/mocks/restaurant.mock';
+import { Subject, takeUntil } from 'rxjs';
 import { Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
 import { AuthService } from '../../../../core/services/auth.service';
+import { ProductCatalogService } from '../../../../core/services/product-catalog.service';
 import { ReservationService } from '../../../../core/services/reservation.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
@@ -13,7 +14,7 @@ interface DecorationOption {
   id: string;
   name: string;
   imageUrl: string;
-  availableDays: number[];
+  compatibleZoneIds: string[];
   fixedZoneId?: string;
 }
 
@@ -21,7 +22,6 @@ interface ZoneOption {
   id: string;
   name: string;
   imageUrl: string;
-  decorationIds: string[];
 }
 
 interface CartaModification {
@@ -46,7 +46,7 @@ interface SpecialMenuOption {
   name: string;
   description: string;
   pricePerPerson: number;
-  customizationOptions: string[];
+  customizationOptions: Array<{ optionId: string; optionName: string }>;
 }
 
 const ROMANTIC_ZONE_ID = 'zona-romantica';
@@ -58,88 +58,11 @@ const SPECIAL_MENU_HINT_MESSAGE = '¡Para más de 10 personas puedes pedir un mi
 const MAX_QTY_PER_ITEM = 250;
 const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
+const DEFAULT_OPTION_IMAGE = 'https://picsum.photos/seed/altoro-option/360/220';
 
-const PRODUCT_DETAILS: Record<string, { description: string; category: 'Platos' | 'Bebidas' }> = {
-  'p-1': {
-    description: 'Carne premium a la parrilla con sal de mar y mantequilla.',
-    category: 'Platos'
-  },
-  'p-2': {
-    description: 'Bebida artesanal preparada al momento.',
-    category: 'Bebidas'
-  }
-};
-
-const DECORATION_OPTIONS: DecorationOption[] = [
-  {
-    id: 'decor-clasica',
-    name: 'Decoración Clásica',
-    imageUrl: 'https://picsum.photos/seed/decor-clasica/360/220',
-    availableDays: [0, 1, 2, 3, 4, 5, 6]
-  },
-  {
-    id: 'decor-romantica',
-    name: 'Decoración Romántica',
-    imageUrl: 'https://picsum.photos/seed/decor-romantica/360/220',
-    availableDays: [1, 2, 3, 4, 5],
-    fixedZoneId: ROMANTIC_ZONE_ID
-  },
-  {
-    id: 'decor-celebracion',
-    name: 'Decoración Celebración',
-    imageUrl: 'https://picsum.photos/seed/decor-celebracion/360/220',
-    availableDays: [5, 6, 0]
-  }
-];
-
-const ZONE_OPTIONS: ZoneOption[] = [
-  {
-    id: ROMANTIC_ZONE_ID,
-    name: 'Zona Romántica',
-    imageUrl: 'https://picsum.photos/seed/zona-romantica/360/220',
-    decorationIds: []
-  },
-  {
-    id: 'zona-terraza',
-    name: 'Zona Terraza',
-    imageUrl: 'https://picsum.photos/seed/zona-terraza/360/220',
-    decorationIds: ['decor-clasica', 'decor-celebracion']
-  },
-  {
-    id: 'zona-salon',
-    name: 'Zona Salón Principal',
-    imageUrl: 'https://picsum.photos/seed/zona-salon/360/220',
-    decorationIds: ['decor-clasica', 'decor-romantica', 'decor-celebracion']
-  },
-  {
-    id: 'zona-vip',
-    name: 'Zona VIP',
-    imageUrl: 'https://picsum.photos/seed/zona-vip/360/220',
-    decorationIds: ['decor-romantica', 'decor-celebracion']
-  }
-];
-
-const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [
-  {
-    id: 'menu-especial-parrilla',
-    name: 'Menú Especial Parrilla',
-    description: 'Chorizo santarrosano + bife ancho + bebida para todo el grupo.',
-    pricePerPerson: 45000,
-    customizationOptions: ['Sin chorizo', 'Sin picante', 'Ensalada adicional']
-  },
-  {
-    id: 'menu-especial-premium',
-    name: 'Menú Especial Premium',
-    description: 'Entrada premium + corte especial + postre + bebida.',
-    pricePerPerson: 62000,
-    customizationOptions: ['Sin postre', 'Punto de cocción medio', 'Sin lactosa']
-  }
-];
-
-const FULLY_BOOKED_SLOTS = [
-  { date: '2026-04-05', time: '20:00' },
-  { date: '2026-04-15', time: '19:30' }
-];
+const DECORATION_OPTIONS: DecorationOption[] = [];
+const ZONE_OPTIONS: ZoneOption[] = [];
+const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
 @Component({
   selector: 'app-reserva-create-page',
@@ -390,10 +313,10 @@ const FULLY_BOOKED_SLOTS = [
                       <label *ngFor="let option of menu.customizationOptions">
                         <input
                           type="checkbox"
-                          [checked]="isSpecialMenuCustomizationSelected(option)"
-                          (change)="toggleSpecialMenuCustomizationOption(option, $any($event.target).checked)"
+                          [checked]="isSpecialMenuCustomizationSelected(option.optionId)"
+                          (change)="toggleSpecialMenuCustomizationOption(option.optionId, $any($event.target).checked)"
                         />
-                        {{ option }}
+                        {{ option.optionName }}
                       </label>
                     </div>
                   </article>
@@ -936,7 +859,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly romanticAddonLabel = ROMANTIC_ADDON_LABEL;
   readonly specialMenuHintMessage = SPECIAL_MENU_HINT_MESSAGE;
   readonly whatsappNote = WHATSAPP_NOTE;
-  readonly specialMenus = SPECIAL_MENU_OPTIONS;
+  specialMenus: SpecialMenuOption[] = [...SPECIAL_MENU_OPTIONS];
 
   readonly reservaForm = this.formBuilder.nonNullable.group({
     date: ['', [Validators.required]],
@@ -954,15 +877,13 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   specialMenuCustomizationSelection: string[] = [];
 
   private readonly destroy$ = new Subject<void>();
-  private existingReservations: Reserva[] = [];
-  private originalReservation: Reserva | null = null;
   private editingReservationId = '';
-  private hydratedEditForm = false;
   private previousGuests = this.reservaForm.controls.guests.value;
 
   constructor(
     private readonly formBuilder: FormBuilder,
     private readonly reservationService: ReservationService,
+    private readonly productCatalogService: ProductCatalogService,
     public readonly authService: AuthService,
     private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router
@@ -972,35 +893,15 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.editingReservationId = this.activatedRoute.snapshot.paramMap.get('id') ?? '';
     this.editMode.set(Boolean(this.editingReservationId));
 
-    this.reservationService.list().pipe(takeUntil(this.destroy$)).subscribe((items) => {
-      this.existingReservations = items;
+    this.loadCatalog();
 
-      if (this.editMode() && !this.hydratedEditForm) {
-        const currentUser = this.authService.currentUser();
-        const selected = items.find(
-          (reserva) => reserva.id === this.editingReservationId && reserva.clienteId === (currentUser?.id ?? '')
-        );
+    if (this.editMode()) {
+      this.showFloating('Modificar/cancelar reservas aún no está habilitado en backend.');
+      void this.router.navigateByUrl('/app/cliente/reservas/history');
+      return;
+    }
 
-        if (!selected) {
-          this.showFloating('No se encontró la reserva a modificar.');
-          void this.router.navigateByUrl('/app/cliente/reservas/history');
-          return;
-        }
-
-        if (!this.canEditReservation(selected)) {
-          void this.router.navigateByUrl('/app/cliente', {
-            state: { flashMessage: 'Ya no es posible modificar esta reserva. Solo puedes cancelarla.' }
-          });
-          return;
-        }
-
-        this.originalReservation = selected;
-        this.hydrateEditForm(selected);
-        this.hydratedEditForm = true;
-      }
-
-      this.updateAvailability();
-    });
+    this.updateAvailability();
 
     this.reservaForm.controls.date.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateAvailability();
@@ -1262,9 +1163,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
         return 'Sin pre-orden';
       }
 
-      const customizations = this.specialMenuCustomizationSelection.length > 0
-        ? ` (${this.specialMenuCustomizationSelection.join(', ')})`
-        : '';
+      const selectedOptionNames = special.customizationOptions
+        .filter((option) => this.specialMenuCustomizationSelection.includes(option.optionId))
+        .map((option) => option.optionName);
+
+      const customizations = selectedOptionNames.length > 0 ? ` (${selectedOptionNames.join(', ')})` : '';
 
       return `${special.name} x ${this.reservaForm.controls.specialMenuQty.value}${customizations}`;
     }
@@ -1339,11 +1242,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
-    if (this.editMode() && this.originalReservation && !this.canEditReservation(this.originalReservation)) {
-      this.showFloating('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
-      return;
-    }
-
     const { date, time } = this.reservaForm.getRawValue();
 
     if (!date || !time) {
@@ -1383,11 +1281,6 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onCancelSummary(): void {
-    if (this.editMode()) {
-      void this.router.navigateByUrl('/app/cliente');
-      return;
-    }
-
     this.showSummary.set(false);
   }
 
@@ -1396,8 +1289,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const { date, time, decorationId } = this.reservaForm.getRawValue();
-    const effectiveZoneId = this.getEffectiveZoneId();
+    const { date, time } = this.reservaForm.getRawValue();
 
     if (!date || !time) {
       this.showSummary.set(false);
@@ -1407,62 +1299,30 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     this.loading.set(true);
 
-    this.reservationService.list().pipe(take(1)).subscribe({
-      next: (items) => {
-        this.existingReservations = items;
+    const payload = this.buildReservationPayload();
+    this.reservationService.create(payload).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.showSummary.set(false);
 
-        if (!this.isSelectionStillAvailable(date, time, decorationId, effectiveZoneId)) {
-          this.loading.set(false);
-          this.showSummary.set(false);
-          this.showFloating('Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.');
+        if (payload.status === 'PENDING') {
+          this.redirectToWhatsapp();
           return;
         }
 
-        const payload = this.buildReservationPayload();
-
-        const upsert$ = this.editMode() && this.editingReservationId
-          ? this.reservationService.update(this.editingReservationId, payload)
-          : this.reservationService.create(payload);
-
-        upsert$.subscribe({
-          next: () => {
-            this.loading.set(false);
-            this.showSummary.set(false);
-
-            if (this.editMode()) {
-              const wasSpecial = this.originalReservation ? this.hasExtraServicesFromReservation(this.originalReservation) : false;
-              const isSpecial = this.hasExtraServices();
-              const shouldRedirectWhatsapp = (isSpecial && !wasSpecial) || (!isSpecial && wasSpecial);
-
-              if (shouldRedirectWhatsapp) {
-                this.redirectToWhatsapp();
-                return;
-              }
-
-              void this.router.navigateByUrl('/app/cliente', {
-                state: { flashMessage: 'La reserva ha sido modificada correctamente' }
-              });
-              return;
-            }
-
-            if (payload.status === 'PENDING') {
-              this.redirectToWhatsapp();
-              return;
-            }
-
-            void this.router.navigateByUrl('/app/cliente', {
-              state: { flashMessage: `Su reserva para el día ${payload.date} fue agendada correctamente` }
-            });
-          },
-          error: () => {
-            this.loading.set(false);
-            this.showFloating('No fue posible registrar la reserva. Intenta nuevamente.');
-          }
+        void this.router.navigateByUrl('/app/cliente', {
+          state: { flashMessage: `Su reserva para el día ${payload.date} fue agendada correctamente` }
         });
       },
-      error: () => {
+      error: (err: HttpErrorResponse) => {
         this.loading.set(false);
-        this.showFloating('No fue posible verificar disponibilidad. Intenta nuevamente.');
+        const backendMessage =
+          (typeof err.error?.message === 'string' && err.error.message.trim().length > 0
+            ? err.error.message
+            : '') ||
+          (typeof err.error === 'string' && err.error.trim().length > 0 ? err.error : '');
+
+        this.showFloating(backendMessage || 'No fue posible registrar la reserva. Intenta nuevamente.');
       }
     });
   }
@@ -1472,7 +1332,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     const currentUser = this.authService.currentUser();
     const effectiveZoneId = this.getEffectiveZoneId();
 
-    const selectedDecoration = DECORATION_OPTIONS.find((item) => item.id === formValue.decorationId);
+    const selectedDecoration = this.availableDecorations().find((item) => item.id === formValue.decorationId);
     const selectedZone = this.getZoneById(effectiveZoneId);
 
     const preorderItems = this.buildPreorderItems();
@@ -1508,15 +1368,21 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
         return [];
       }
 
-      const menuName = this.specialMenuCustomizationSelection.length > 0
-        ? `${selectedMenu.name} (${this.specialMenuCustomizationSelection.join(', ')})`
-        : selectedMenu.name;
+      const selectedOptions = selectedMenu.customizationOptions.filter((option) =>
+        this.specialMenuCustomizationSelection.includes(option.optionId)
+      );
+      const optionNames = selectedOptions.map((option) => option.optionName);
+
+      const menuName = optionNames.length > 0 ? `${selectedMenu.name} (${optionNames.join(', ')})` : selectedMenu.name;
 
       return [
         {
           productId: selectedMenu.id,
           productName: menuName,
-          quantity: this.reservaForm.controls.specialMenuQty.value
+          quantity: this.reservaForm.controls.specialMenuQty.value,
+          description: optionNames.length > 0 ? `Opciones: ${optionNames.join(', ')}` : undefined,
+          isSpecialMenu: true,
+          modificationOptionIds: selectedOptions.map((option) => option.optionId),
         }
       ];
     }
@@ -1525,22 +1391,17 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     this.cartaItems.forEach((item) => {
       if (item.quantity > 0) {
+        const modificationsText = item.modifications.length > 0
+          ? `Modificaciones: ${item.modifications.map((modification) => `${modification.text} x${modification.quantity}`).join(', ')}`
+          : undefined;
+
         items.push({
           productId: item.productId,
           productName: item.productName,
-          quantity: item.quantity
+          quantity: item.quantity,
+          description: modificationsText,
         });
       }
-
-      item.modifications.forEach((modification) => {
-        if (modification.quantity > 0) {
-          items.push({
-            productId: `${item.productId}-${modification.id}`,
-            productName: `Modificación ${item.productName}: ${modification.text}`,
-            quantity: modification.quantity
-          });
-        }
-      });
     });
 
     return items;
@@ -1554,7 +1415,16 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     if (this.activePreorderTab() === 'especial' && this.specialMenuCustomizationSelection.length > 0) {
-      notes.push(`Modificaciones menú: ${this.specialMenuCustomizationSelection.join(', ')}`);
+      const selectedMenu = this.selectedSpecialMenu();
+      const selectedOptionNames = selectedMenu
+        ? selectedMenu.customizationOptions
+            .filter((option) => this.specialMenuCustomizationSelection.includes(option.optionId))
+            .map((option) => option.optionName)
+        : [];
+
+      if (selectedOptionNames.length > 0) {
+        notes.push(`Modificaciones menú: ${selectedOptionNames.join(', ')}`);
+      }
     }
 
     if (this.reservaForm.controls.romanticAddon.value) {
@@ -1588,46 +1458,51 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const unavailable = this.isSlotUnavailable(date, time, this.existingReservations);
-    if (unavailable) {
-      this.availableDecorations.set([]);
-      this.availableZones.set([]);
-      this.reservaForm.controls.decorationId.setValue('');
-      this.reservaForm.controls.zoneId.setValue('');
-      this.showNoAvailabilityWarning.set(true);
-      this.syncRomanticAddonState();
-      return;
-    }
+    this.reservationService.getAvailability(date, time).subscribe({
+      next: (availability) => {
+        this.showNoAvailabilityWarning.set(!availability.available);
 
-    const decorations = this.getDecorationsForDate(date);
-    this.availableDecorations.set(decorations);
+        this.availableDecorations.set(
+          availability.decorations.map((item) => ({
+            id: item.id,
+            name: item.name,
+            imageUrl: this.toOptionImage(`decor-${item.id}`),
+            compatibleZoneIds: item.compatibleZoneIds ?? [],
+            fixedZoneId:
+              item.allowZoneSelection === false && (item.compatibleZoneIds?.length ?? 0) === 1
+                ? item.compatibleZoneIds?.[0]
+                : undefined,
+          }))
+        );
 
-    if (!decorations.some((item) => item.id === this.reservaForm.controls.decorationId.value)) {
-      this.reservaForm.controls.decorationId.setValue('');
-      this.reservaForm.controls.zoneId.setValue('');
-    }
+        this.availableZones.set(
+          availability.zones.map((item) => ({
+            id: item.id,
+            name: item.name,
+            imageUrl: this.toOptionImage(`zona-${item.id}`),
+          }))
+        );
 
-    this.updateAvailableZones();
-    this.syncRomanticAddonState();
+        if (!this.availableDecorations().some((item) => item.id === this.reservaForm.controls.decorationId.value)) {
+          this.reservaForm.controls.decorationId.setValue('');
+        }
+
+        if (!this.availableZones().some((item) => item.id === this.reservaForm.controls.zoneId.value)) {
+          this.reservaForm.controls.zoneId.setValue('');
+        }
+
+        this.syncRomanticAddonState();
+      },
+      error: () => {
+        this.availableDecorations.set([]);
+        this.availableZones.set([]);
+        this.showNoAvailabilityWarning.set(true);
+      },
+    });
   }
 
   private updateAvailableZones(): void {
-    if (this.availableDecorations().length === 0) {
-      this.availableZones.set([]);
-      this.reservaForm.controls.zoneId.setValue('');
-      return;
-    }
-
-    const selectedDecorationId = this.reservaForm.controls.decorationId.value;
-    const zones = this.getZonesForSelection(selectedDecorationId);
-
-    this.availableZones.set(zones);
-
-    if (this.isZoneSelectionLocked()) {
-      this.reservaForm.controls.zoneId.setValue('');
-      return;
-    }
-
+    const zones = this.getZonesForSelection(this.reservaForm.controls.decorationId.value);
     if (!zones.some((zone) => zone.id === this.reservaForm.controls.zoneId.value)) {
       this.reservaForm.controls.zoneId.setValue('');
     }
@@ -1655,33 +1530,32 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private getDecorationsForDate(date: string): DecorationOption[] {
-    const day = new Date(`${date}T00:00:00`).getDay();
-    return DECORATION_OPTIONS.filter((item) => item.availableDays.includes(day));
+    void date;
+    return this.availableDecorations();
   }
 
   private getZonesForSelection(selectedDecorationId: string): ZoneOption[] {
     if (!selectedDecorationId) {
-      return [...ZONE_OPTIONS];
+      return [...this.availableZones()];
     }
 
-    const selectedDecoration = DECORATION_OPTIONS.find((item) => item.id === selectedDecorationId);
+    const selectedDecoration = this.availableDecorations().find((item) => item.id === selectedDecorationId);
     if (!selectedDecoration) {
       return [];
     }
 
     if (selectedDecoration.fixedZoneId) {
-      const fixedZone = this.getZoneById(selectedDecoration.fixedZoneId);
-      return fixedZone ? [fixedZone] : [];
+      return this.availableZones().filter((zone) => zone.id === selectedDecoration.fixedZoneId);
     }
 
-    return ZONE_OPTIONS.filter((zone) => zone.decorationIds.includes(selectedDecorationId));
+    if (selectedDecoration.compatibleZoneIds.length === 0) {
+      return [...this.availableZones()];
+    }
+
+    return this.availableZones().filter((zone) => selectedDecoration.compatibleZoneIds.includes(zone.id));
   }
 
   private isSelectionStillAvailable(date: string, time: string, decorationId: string, zoneId: string): boolean {
-    if (this.isSlotUnavailable(date, time, this.existingReservations)) {
-      return false;
-    }
-
     const decorations = this.getDecorationsForDate(date);
     if (decorationId && !decorations.some((item) => item.id === decorationId)) {
       return false;
@@ -1708,151 +1582,33 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return selected.getTime() < Date.now();
   }
 
-  private isSlotUnavailable(date: string, time: string, reservations: Reserva[]): boolean {
-    if (FULLY_BOOKED_SLOTS.some((slot) => slot.date === date && slot.time === time)) {
-      return true;
-    }
-
-    const sameSlotReservations = reservations.filter(
-      (item) =>
-        item.date === date &&
-        item.time === time &&
-        item.status !== 'CANCELLED' &&
-        item.id !== this.editingReservationId
-    );
-
-    return sameSlotReservations.length >= 3;
-  }
-
-  private hydrateEditForm(reservation: Reserva): void {
-    this.clearSpecialMenuSelection();
-    this.clearCartaSelection();
-
-    this.reservaForm.patchValue(
-      {
-        date: reservation.date,
-        time: reservation.time,
-        guests: reservation.guests,
-        decorationId: reservation.decorationId ?? '',
-        zoneId: reservation.zoneId ?? '',
-        romanticAddon: false,
-        specialMenuId: '',
-        specialMenuQty: 1,
-        notes: this.extractUserNotes(reservation.notes ?? '')
+  private loadCatalog(): void {
+    this.productCatalogService.listCartaItems().subscribe({
+      next: (items) => {
+        this.cartaItems = items.map((item) => ({
+          productId: item.productId,
+          productName: item.productName,
+          category: item.category,
+          description: item.description,
+          unitPrice: item.unitPrice,
+          quantity: 0,
+          modificationDraft: '',
+          modifications: [],
+        }));
       },
-      { emitEvent: false }
-    );
-
-    const specialMenuMods = this.extractSpecialMenuModifications(reservation.notes ?? '');
-    const preorderItems = reservation.preorderItems ?? [];
-
-    const romanticAddon = preorderItems.some((item) => item.productId === ROMANTIC_ADDON_ID);
-    this.reservaForm.controls.romanticAddon.setValue(romanticAddon, { emitEvent: false });
-
-    const specialMenuItem = preorderItems.find((item) => SPECIAL_MENU_OPTIONS.some((menu) => menu.id === item.productId));
-
-    if (specialMenuItem) {
-      this.activePreorderTab.set('especial');
-      this.reservaForm.controls.specialMenuId.setValue(specialMenuItem.productId, { emitEvent: false });
-      this.reservaForm.controls.specialMenuQty.setValue(Math.max(1, specialMenuItem.quantity), { emitEvent: false });
-      this.specialMenuCustomizationSelection = specialMenuMods;
-    } else {
-      this.activePreorderTab.set('carta');
-      this.applyCartaPreorderItems(preorderItems);
-    }
-
-    this.previousGuests = reservation.guests;
-    this.updateAvailableZones();
-    this.syncRomanticAddonState();
-  }
-
-  private applyCartaPreorderItems(preorderItems: ReservaPreorderItem[]): void {
-    preorderItems.forEach((entry) => {
-      if (entry.productId === ROMANTIC_ADDON_ID || SPECIAL_MENU_OPTIONS.some((menu) => menu.id === entry.productId)) {
-        return;
-      }
-
-      const directItem = this.cartaItems.find((item) => item.productId === entry.productId);
-      if (directItem) {
-        directItem.quantity = entry.quantity;
-        return;
-      }
-
-      const directModId = entry.productId.split('-mod-')[0];
-      const byProductId = this.cartaItems.find((item) => item.productId === directModId);
-      const nameMatch = /^Modificación\s+(.+?):\s+(.+)$/.exec(entry.productName);
-
-      if (!byProductId && !nameMatch) {
-        return;
-      }
-
-      const targetItem = byProductId ?? this.cartaItems.find((item) => item.productName === (nameMatch?.[1] ?? ''));
-      if (!targetItem) {
-        return;
-      }
-
-      const text = nameMatch?.[2] ?? entry.productName;
-      targetItem.modifications.push({
-        id: `${targetItem.productId}-mod-edit-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
-        text,
-        quantity: entry.quantity
-      });
+      error: () => {
+        this.cartaItems = this.buildCartaItems();
+      },
     });
-  }
 
-  private extractSpecialMenuModifications(notes: string): string[] {
-    const segment = notes
-      .split('|')
-      .map((item) => item.trim())
-      .find((item) => item.startsWith('Modificaciones menú:'));
-
-    if (!segment) {
-      return [];
-    }
-
-    return segment
-      .replace('Modificaciones menú:', '')
-      .split(',')
-      .map((item) => item.trim())
-      .filter(Boolean);
-  }
-
-  private extractUserNotes(notes: string): string {
-    if (!notes) {
-      return '';
-    }
-
-    return notes
-      .split('|')
-      .map((item) => item.trim())
-      .filter((item) => item && item !== `${ROMANTIC_ADDON_LABEL} (+$20.000)` && !item.startsWith('Modificaciones menú:'))
-      .join(' | ');
-  }
-
-  private canEditReservation(reservation: Reserva): boolean {
-    const allowedStatus = reservation.status === 'PENDING' || reservation.status === 'CONFIRMED';
-    if (!allowedStatus) {
-      return false;
-    }
-
-    const reservationDateTime = this.toReservationDateTime(reservation).getTime();
-    if (reservationDateTime <= Date.now()) {
-      return false;
-    }
-
-    const modificationCutoff = new Date(`${reservation.date}T16:00:00`).getTime();
-    return Date.now() < modificationCutoff;
-  }
-
-  private hasExtraServicesFromReservation(reservation: Reserva): boolean {
-    const preorderItems = reservation.preorderItems ?? [];
-    const hasRomanticAddon = preorderItems.some((item) => item.productId === ROMANTIC_ADDON_ID);
-    const hasSpecialMenu = preorderItems.some((item) => SPECIAL_MENU_OPTIONS.some((menu) => menu.id === item.productId));
-    return hasRomanticAddon || hasSpecialMenu;
-  }
-
-  private toReservationDateTime(reservation: Reserva): Date {
-    return new Date(`${reservation.date}T${reservation.time}:00`);
+    this.productCatalogService.listSpecialMenus().subscribe({
+      next: (menus) => {
+        this.specialMenus = menus;
+      },
+      error: () => {
+        this.specialMenus = [];
+      },
+    });
   }
 
   private redirectToWhatsapp(): void {
@@ -1873,7 +1629,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private selectedDecoration(): DecorationOption | undefined {
-    return DECORATION_OPTIONS.find((item) => item.id === this.reservaForm.controls.decorationId.value);
+    return this.availableDecorations().find((item) => item.id === this.reservaForm.controls.decorationId.value);
   }
 
   private getFixedZoneForDecoration(): ZoneOption | undefined {
@@ -1886,7 +1642,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private getZoneById(zoneId: string): ZoneOption | undefined {
-    return ZONE_OPTIONS.find((item) => item.id === zoneId);
+    return this.availableZones().find((item) => item.id === zoneId);
   }
 
   private getEffectiveZoneId(): string {
@@ -1941,21 +1697,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private buildCartaItems(): CartaItemState[] {
-    return MOCK_PRODUCTOS
-      .filter((item) => item.status === 'ACTIVE')
-      .map((item) => {
-        const detail = PRODUCT_DETAILS[item.id];
-        return {
-          productId: item.id,
-          productName: item.name,
-          category: detail?.category ?? (item.type === 'PREPARATION' ? 'Platos' : 'Bebidas'),
-          description: detail?.description ?? 'Preparación disponible en la carta del día.',
-          unitPrice: item.price,
-          quantity: 0,
-          modificationDraft: '',
-          modifications: []
-        };
-      });
+    return [];
+  }
+
+  private toOptionImage(seed: string): string {
+    return `https://picsum.photos/seed/${seed}/360/220`;
   }
 
   private showFloating(message: string): void {

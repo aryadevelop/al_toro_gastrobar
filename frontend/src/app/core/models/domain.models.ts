@@ -49,6 +49,9 @@ export interface ReservaPreorderItem {
   productId: string;
   productName: string;
   quantity: number;
+  description?: string;
+  isSpecialMenu?: boolean;
+  modificationOptionIds?: string[];
 }
 
 export interface Mesa {
