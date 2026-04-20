@@ -63,3 +63,6 @@ desktop.ini
 *.bak
 logs/
 .claude/
+
+# Git worktrees
+.worktrees/

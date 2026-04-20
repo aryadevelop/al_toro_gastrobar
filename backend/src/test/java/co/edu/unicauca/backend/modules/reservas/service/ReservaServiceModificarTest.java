@@ -109,7 +109,7 @@ class ReservaServiceModificarTest {
             }
         }
 
-        LocalDateTime llegadaManana = LocalDate.now().plusDays(1).atTime(19, 0);
+        LocalDateTime llegadaManana = LocalDate.now().plusDays(2).atTime(19, 0);
 
         reservaBasicaConfirmada = Reserva.builder()
                 .reservaId(RESERVA_ID)
@@ -418,7 +418,7 @@ class ReservaServiceModificarTest {
             Reserva reservaConDec = Reserva.builder()
                     .reservaId(RESERVA_ID)
                     .cliente(reservaEspecialPendiente.getCliente())
-                    .reservaFechaHoraLlegada(LocalDate.now().plusDays(1).atTime(19, 0))
+                    .reservaFechaHoraLlegada(LocalDate.now().plusDays(2).atTime(19, 0))
                     .reservaNumeroPersonas(2)
                     .reservaEstado(EstadoReserva.PENDIENTE)
                     .reservaTipo(TipoReserva.ESPECIAL)
@@ -438,7 +438,7 @@ class ReservaServiceModificarTest {
 
             // Request con la misma decoración y mismas personas → valor anterior == valor nuevo
             ModificarReservaRequest reqMismaDecoracion = buildRequest(
-                    LocalDate.now().plusDays(1).atTime(19, 0), 2, 5L);
+                    LocalDate.now().plusDays(2).atTime(19, 0), 2, 5L);
 
             ModificarReservaResponse respuesta =
                     service.modificarReserva(RESERVA_ID, EMAIL, reqMismaDecoracion);
@@ -455,7 +455,7 @@ class ReservaServiceModificarTest {
             Reserva reservaConDecAnterior = Reserva.builder()
                     .reservaId(RESERVA_ID)
                     .cliente(reservaEspecialPendiente.getCliente())
-                    .reservaFechaHoraLlegada(LocalDate.now().plusDays(1).atTime(19, 0))
+                    .reservaFechaHoraLlegada(LocalDate.now().plusDays(2).atTime(19, 0))
                     .reservaNumeroPersonas(2)
                     .reservaEstado(EstadoReserva.PENDIENTE)
                     .reservaTipo(TipoReserva.ESPECIAL)
@@ -474,7 +474,7 @@ class ReservaServiceModificarTest {
                     .thenReturn(respuestaMock);
 
             ModificarReservaRequest reqNuevaDecoracion = buildRequest(
-                    LocalDate.now().plusDays(1).atTime(19, 0), 2, 6L);
+                    LocalDate.now().plusDays(2).atTime(19, 0), 2, 6L);
 
             ModificarReservaResponse respuesta =
                     service.modificarReserva(RESERVA_ID, EMAIL, reqNuevaDecoracion);
@@ -522,7 +522,7 @@ class ReservaServiceModificarTest {
                             .requiereWhatsApp(true).mensajeWhatsApp("msg").build());
 
             ModificarReservaRequest reqMenuEspecial = buildRequestConMenuEspecial(
-                    LocalDate.now().plusDays(1).atTime(19, 0), 2);
+                    LocalDate.now().plusDays(2).atTime(19, 0), 2);
 
             ModificarReservaResponse respuesta =
                     service.modificarReserva(RESERVA_ID, EMAIL, reqMenuEspecial);
@@ -550,7 +550,7 @@ class ReservaServiceModificarTest {
                             .requiereWhatsApp(true).mensajeWhatsApp("msg").build());
 
             ModificarReservaRequest reqMenuEspecial = buildRequestConMenuEspecial(
-                    LocalDate.now().plusDays(1).atTime(19, 0), 2);
+                    LocalDate.now().plusDays(2).atTime(19, 0), 2);
 
             service.modificarReserva(RESERVA_ID, EMAIL, reqMenuEspecial);
 
