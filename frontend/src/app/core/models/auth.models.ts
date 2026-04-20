@@ -27,5 +27,16 @@ export interface AuthResponse {
     accessToken: string;
     refreshToken: string;
     tokenType?: 'Bearer';
+    expiresIn?: number;
     user: User;
+}
+
+export interface BackendAuthUser {
+    id: string;
+    nombre: string;
+    email: string;
+    role: string;
+    roles?: string[];
+    status: string;
+    createdAt: string;
 }

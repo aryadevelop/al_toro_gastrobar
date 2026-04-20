@@ -1,12 +1,9 @@
 ﻿import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
-import { combineLatest } from 'rxjs';
-import { Comanda, ComandaItem, Pago, Reserva, Venta } from '../../../../core/models/domain.models';
+import { Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
 import { AuthService } from '../../../../core/services/auth.service';
-import { ComandaService } from '../../../../core/services/comanda.service';
-import { ReservationService } from '../../../../core/services/reservation.service';
-import { SalesService } from '../../../../core/services/sales.service';
+import { ReservationDetailData, ReservationService } from '../../../../core/services/reservation.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
 @Component({
@@ -26,14 +23,13 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         <p><strong>Decoración seleccionada:</strong> {{ reservation()!.decorationName || 'No aplica' }}</p>
 
         <section class="detail-section">
-          <h4>Productos de la comanda final</h4>
+          <h4>Pre-orden registrada</h4>
 
-          <div *ngIf="comandaItems().length > 0; else noComanda">
-            <article class="line-item" *ngFor="let item of comandaItems()">
+          <div *ngIf="preOrderItems().length > 0; else noComanda">
+            <article class="line-item" *ngFor="let item of preOrderItems()">
               <span>{{ item.productName }} x {{ item.quantity }}</span>
               <span>
-                {{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}
-                ({{ item.quantity * item.unitPrice | currency:'COP':'symbol':'1.0-0' }})
+                {{ item.description || 'Sin observaciones' }}
               </span>
             </article>
           </div>
@@ -58,7 +54,8 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           </ng-template>
         </section>
 
-        <p class="total-row"><strong>Total de la cuenta:</strong> {{ totalSale() | currency:'COP':'symbol':'1.0-0' }}</p>
+          <p class="total-row"><strong>Total pre-orden:</strong> {{ preOrderTotal() | currency:'COP':'symbol':'1.0-0' }}</p>
+          <p class="total-row"><strong>Total abonado:</strong> {{ totalPaid() | currency:'COP':'symbol':'1.0-0' }}</p>
 
         <div class="detail-actions">
           <a class="btn-secondary" routerLink="/app/cliente">Volver al dashboard</a>
@@ -128,15 +125,12 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 })
 export class ReservaDetailPageComponent implements OnInit {
   readonly reservation = signal<Reserva | null>(null);
-  readonly comanda = signal<Comanda | null>(null);
-  readonly sale = signal<Venta | null>(null);
+  readonly detail = signal<ReservationDetailData | null>(null);
 
   constructor(
     private readonly activatedRoute: ActivatedRoute,
     private readonly authService: AuthService,
     private readonly reservationService: ReservationService,
-    private readonly comandaService: ComandaService,
-    private readonly salesService: SalesService,
     private readonly router: Router
   ) {}
 
@@ -149,43 +143,32 @@ export class ReservaDetailPageComponent implements OnInit {
 
     const reservationId = this.activatedRoute.snapshot.paramMap.get('id') ?? '';
 
-    combineLatest([
-      this.reservationService.listByCliente(currentUser.id),
-      this.comandaService.list(),
-      this.salesService.list()
-    ]).subscribe(([reservations, comandas, sales]) => {
-      const reservation = reservations.find((item) => item.id === reservationId) ?? null;
-      this.reservation.set(reservation);
-
-      if (!reservation) {
-        this.comanda.set(null);
-        this.sale.set(null);
-        return;
+    this.reservationService.getDetail(reservationId).subscribe({
+      next: (detail) => {
+        this.detail.set(detail);
+        this.reservation.set(detail.reservation);
+      },
+      error: () => {
+        this.detail.set(null);
+        this.reservation.set(null);
       }
-
-      const comanda = comandas.find((item) => item.reservaId === reservation.id) ?? null;
-      this.comanda.set(comanda);
-
-      if (!comanda) {
-        this.sale.set(null);
-        return;
-      }
-
-      const sale = sales.find((item) => item.comandaId === comanda.id && item.clienteId === currentUser.id) ?? null;
-      this.sale.set(sale);
     });
   }
 
-  comandaItems(): ComandaItem[] {
-    return this.comanda()?.items ?? [];
+  preOrderItems(): ReservaPreorderItem[] {
+    return this.reservation()?.preorderItems ?? [];
   }
 
   payments(): Pago[] {
-    return this.sale()?.payments ?? [];
+    return this.detail()?.payments ?? [];
   }
 
-  totalSale(): number {
-    return this.sale()?.total ?? 0;
+  preOrderTotal(): number {
+    return this.detail()?.preOrderTotal ?? 0;
+  }
+
+  totalPaid(): number {
+    return this.detail()?.totalPaid ?? 0;
   }
 
   formatReservationDateTime(): string {

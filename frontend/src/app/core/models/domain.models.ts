@@ -36,6 +36,7 @@ export interface Reserva {
   date: string;
   time: string;
   status: 'PENDING' | 'CONFIRMED' | 'ARRIVED' | 'CANCELLED' | 'COMPLETED';
+  type?: 'BASIC' | 'SPECIAL';
   tableCode?: string;
   decorationId?: string;
   decorationName?: string;
@@ -49,6 +50,9 @@ export interface ReservaPreorderItem {
   productId: string;
   productName: string;
   quantity: number;
+  description?: string;
+  isSpecialMenu?: boolean;
+  modificationOptionIds?: string[];
 }
 
 export interface Mesa {

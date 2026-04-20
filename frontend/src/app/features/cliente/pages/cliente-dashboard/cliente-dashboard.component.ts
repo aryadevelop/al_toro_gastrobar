@@ -48,7 +48,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
           <p><strong>Estado:</strong> {{ getStatusLabel(reservation.status) }}</p>
           <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
-            Ya no es posible modificar esta reserva. Solo puedes cancelarla.
+            {{ getModificationCutoffMessage(reservation) }}
           </p>
 
           <div class="reservation-actions">
@@ -245,15 +245,14 @@ export class ClienteDashboardComponent implements OnInit {
   onModifyReservation(reservation: Reserva): void {
     if (!this.canModifyReservation(reservation)) {
       if (this.isModificationCutoffReached(reservation)) {
-        this.flashMessage.set('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+        this.flashMessage.set(this.getModificationCutoffMessage(reservation));
         this.showFlash.set(true);
         setTimeout(() => this.showFlash.set(false), 3500);
       }
       return;
     }
 
-    const reservationId = reservation.id;
-    void this.router.navigate(['/app/cliente/reserva/edit', reservationId]);
+    void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
   }
 
   onCancelReservation(reservation: Reserva): void {
@@ -261,16 +260,9 @@ export class ClienteDashboardComponent implements OnInit {
       return;
     }
 
-    if (!window.confirm('¿Deseas cancelar esta reserva?')) {
-      return;
-    }
-
-    this.reservationService.update(reservation.id, { status: 'CANCELLED' }).subscribe(() => {
-      this.flashMessage.set('Reserva cancelada correctamente.');
-      this.showFlash.set(true);
-      setTimeout(() => this.showFlash.set(false), 3500);
-      this.loadDashboardData();
-    });
+    this.flashMessage.set('Cancelar reservas aún no está habilitado en backend.');
+    this.showFlash.set(true);
+    setTimeout(() => this.showFlash.set(false), 3500);
   }
 
   canModifyReservation(reservation: Reserva): boolean {
@@ -350,17 +342,33 @@ export class ClienteDashboardComponent implements OnInit {
   }
 
   isModificationCutoffReached(reserva: Reserva): boolean {
-    const sameDate = new Date(`${reserva.date}T00:00:00`).toDateString() === new Date().toDateString();
-    if (!sameDate) {
-      return false;
+    const cutoff = this.getModificationCutoffDate(reserva);
+    return Date.now() >= cutoff.getTime();
+  }
+
+  getModificationCutoffMessage(reserva: Reserva): string {
+    if (reserva.type === 'SPECIAL') {
+      return 'Esta reserva especial solo se puede modificar hasta las 11:00 p.m. del día anterior.';
     }
 
-    const cutoff = new Date(`${reserva.date}T16:00:00`).getTime();
-    return Date.now() >= cutoff;
+    return 'Esta reserva básica solo se puede modificar hasta la 1:00 p.m. del mismo día.';
   }
 
   private toDateTime(reserva: Reserva): Date {
     return new Date(`${reserva.date}T${reserva.time}:00`);
+  }
+
+  private getModificationCutoffDate(reserva: Reserva): Date {
+    const dayStart = new Date(`${reserva.date}T00:00:00`);
+
+    if (reserva.type === 'SPECIAL') {
+      dayStart.setDate(dayStart.getDate() - 1);
+      dayStart.setHours(23, 0, 0, 0);
+      return dayStart;
+    }
+
+    dayStart.setHours(13, 0, 0, 0);
+    return dayStart;
   }
 }
 
