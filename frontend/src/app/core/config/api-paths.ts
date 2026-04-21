@@ -17,6 +17,7 @@ export const API_PATHS = {
         disponibilidad: `${API}/reservas/disponibilidad`,
         crear: `${API}/reservas`,
         modificar: (reservaId: string | number) => `${API}/reservas/${reservaId}`,
+        cancelar: (reservaId: string | number) => `${API}/reservas/${reservaId}/cancelar`,
         futuras: `${API}/reservas/cliente/futuras`,
         canceladasDevueltas: `${API}/reservas/cliente/canceladas-devueltas`,
         detalle: (reservaId: string | number) => `${API}/reservas/${reservaId}/detalle`,
