@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
@@ -131,7 +132,37 @@ public class ReservaController {
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // TODO: cancelar reservas futuras
+    /**
+     * Cancela una reserva futura del cliente autenticado.
+     *
+     * <p>Solo el cliente propietario puede cancelar su reserva ({@code ROLE_CLIENTE}).
+     * El email del cliente se toma del token de autenticación, nunca del body ni de
+     * query params.
+     *
+     * <p>Cuando {@code requiereWhatsApp} es {@code true} en la respuesta, el frontend
+     * debe redirigir al cliente al chat de WhatsApp de la empresa con el mensaje
+     * precompuesto para gestionar el reembolso del abono.
+     *
+     * <p>A diferencia de la modificación, no existe hora límite para cancelar: se puede
+     * cancelar en cualquier momento mientras el estado sea {@code PENDIENTE} o
+     * {@code CONFIRMADA}.
+     *
+     * @param reservaId      identificador de la reserva a cancelar
+     * @param authentication contexto de seguridad del request
+     * @return {@code 200 OK} con el estado final de la reserva cancelada y el indicador
+     *         de redirección a WhatsApp
+     */
+    @PatchMapping("/{reservaId}/cancelar")
+    @PreAuthorize("hasRole('CLIENTE')")
+    @Operation(summary = "Cancelar una reserva futura del cliente")
+    public ResponseEntity<ApiResponse<CancelarReservaResponse>> cancelarReserva(
+            @PathVariable Long reservaId,
+            Authentication authentication) {
+
+        String emailCliente = authentication.getName();
+        CancelarReservaResponse response = reservaService.cancelarReserva(reservaId, emailCliente);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 
     /**
      * Retorna las reservas futuras activas del cliente, ordenadas de la más próxima a la más lejana.
