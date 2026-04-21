@@ -103,7 +103,7 @@ CREATE TABLE Usuario_Rol (
     PRIMARY KEY (usuario_id, rol_nombre),
     CONSTRAINT fk_usuario_rol_usuario FOREIGN KEY (usuario_id)
         REFERENCES Usuario(usuario_id) ON DELETE CASCADE,
-    CONSTRAINT chk_rol_nombre CHECK (rol_nombre IN ('CLIENTE', 'MESERO', 'CAJERO', 'COCINERO', 'BARTENDER', 'ADM')),
+    CONSTRAINT chk_rol_nombre CHECK (rol_nombre IN ('CLIENTE', 'MESERO', 'CAJERO', 'COCINERO', 'BARTENDER', 'ADMIN')),
     CONSTRAINT chk_rol_estado CHECK (rol_estado IN ('ACTIVO', 'INACTIVO'))
 );
 
@@ -725,14 +725,14 @@ FOR EACH ROW EXECUTE FUNCTION fn_visita_cliente_consistency();
 
 COMMENT ON TRIGGER trg_visita_cliente_consistency ON restaurante.Visita IS 'Garantiza que Visita.cliente_id sea coherente con su Reserva.';
 
--- Trigger: valida que admin_id corresponda a un empleado con rol ADM activo
+-- Trigger: valida que admin_id corresponda a un empleado con rol ADMIN activo
 CREATE OR REPLACE FUNCTION validar_bloque_admin()
 RETURNS TRIGGER AS $$
 BEGIN
     IF NOT EXISTS (
         SELECT 1 FROM Usuario_Rol
         WHERE usuario_id = NEW.admin_id
-          AND rol_nombre = 'ADM'
+          AND rol_nombre = 'ADMIN'
           AND rol_estado = 'ACTIVO'
     ) THEN
         RAISE EXCEPTION 'El usuario % no es un administrador activo', NEW.admin_id;

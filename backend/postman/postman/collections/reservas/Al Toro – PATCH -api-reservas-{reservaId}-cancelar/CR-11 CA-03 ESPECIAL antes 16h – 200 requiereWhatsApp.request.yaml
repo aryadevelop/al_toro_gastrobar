@@ -1,0 +1,96 @@
+$kind: http-request
+name: CR-11 CA-03 ESPECIAL antes 16h – 200 requiereWhatsApp=true
+description: |
+  CA-03: Reserva ESPECIAL cuya fecha de llegada es 2+ años en el futuro.
+  La hora límite (16:00 de ese día lejano) nunca ha pasado → requiereWhatsApp=true.
+  El beforeRequest crea una reserva BASICA y luego la convierte a ESPECIAL añadiéndole
+  una decoración con costo, luego cancela la ESPECIAL resultante.
+  Resultado esperado: 200, tipo=ESPECIAL, requiereWhatsApp=true, mensajeWhatsApp presente.
+  Prerequisito: decoracionConCostoId con ID de decoración con costo adicional > 0.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.environment.set('decoracionConCostoId', pm.environment.get('decoracionConCostoId') || 1);
+
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        // Paso 1: crear reserva BASICA
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('CR-11: creación BASICA falló', e2, r2 && r2.code);
+            return;
+          }
+          const reservaId = r2.json().data.reservaId;
+
+          // Paso 2: modificar a ESPECIAL añadiendo decoración con costo
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId,
+            method: 'PUT',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+            body: { mode: 'raw', raw: JSON.stringify({
+              fechaHoraLlegada: fecha,
+              numeroPersonas: 2,
+              decoracionId: parseInt(pm.environment.get('decoracionConCostoId')),
+              zonaId: 2
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('tmpReservaId', r3.json().data.reservaId);
+            } else {
+              // Si la modificación falló, usar la BASICA directamente (fallback)
+              console.warn('CR-11: modificación a ESPECIAL falló', e3, r3 && r3.code);
+              pm.environment.set('tmpReservaId', reservaId);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CA-03: cancelar ESPECIAL antes 16h → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('CA-03: tipo=ESPECIAL, estado=CANCELADA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('ESPECIAL');
+        pm.expect(data.estado).to.eql('CANCELADA');
+      });
+      pm.test('CA-03: requiereWhatsApp=true con mensaje de reembolso', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.requiereWhatsApp).to.be.true;
+        pm.expect(data.mensajeWhatsApp).to.be.a('string').and.not.empty;
+        pm.expect(data.mensajeWhatsApp).to.include('reembolso');
+      });
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 11000

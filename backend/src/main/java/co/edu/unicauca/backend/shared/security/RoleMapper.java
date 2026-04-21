@@ -20,14 +20,14 @@ public final class RoleMapper {
     private static final Map<RolNombre, Integer> ROLE_PRIORITY = new EnumMap<>(RolNombre.class);
 
     static {
-        FRONTEND_ROLE_NAMES.put(RolNombre.ADM, "ADMIN");
+        FRONTEND_ROLE_NAMES.put(RolNombre.ADMIN, "ADMIN");
         FRONTEND_ROLE_NAMES.put(RolNombre.CAJERO, "CAJERO");
         FRONTEND_ROLE_NAMES.put(RolNombre.MESERO, "MESERO");
         FRONTEND_ROLE_NAMES.put(RolNombre.COCINERO, "PRODUCCION");
         FRONTEND_ROLE_NAMES.put(RolNombre.BARTENDER, "PRODUCCION");
         FRONTEND_ROLE_NAMES.put(RolNombre.CLIENTE, "CLIENTE");
 
-        ROLE_PRIORITY.put(RolNombre.ADM, 1);
+        ROLE_PRIORITY.put(RolNombre.ADMIN, 1);
         ROLE_PRIORITY.put(RolNombre.CAJERO, 2);
         ROLE_PRIORITY.put(RolNombre.MESERO, 3);
         ROLE_PRIORITY.put(RolNombre.COCINERO, 4);

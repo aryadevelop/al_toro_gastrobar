@@ -168,3 +168,6 @@ values:
   - key: refreshToken
     enabled: true
     value: ''
+  - key: tmpReservaIdAjena
+    enabled: true
+    value: ''

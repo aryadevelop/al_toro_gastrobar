@@ -73,5 +73,6 @@ scripts:
       pm.test('Reserva de otro cliente → 403', function () {
         pm.response.to.have.status(403);
       });
+      pm.environment.unset('reservaIdOtroCliente');
     language: text/javascript
 order: 7000

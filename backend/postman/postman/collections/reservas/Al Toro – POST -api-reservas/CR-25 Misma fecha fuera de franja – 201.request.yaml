@@ -8,6 +8,7 @@ description: |-
   **Dependencia de seed:** V3 define bloqueo `2026-12-22` con franja 19:00-21:00.
   `{{fechaBloqueadaFranjaFuera}}` = `2026-12-22T17:00:00` está antes de la franja.
   **Resultado esperado:** 201 Created.
+  **Nota:** el afterResponse cancela la reserva creada para no acumular datos en esa fecha fija.
 url: "{{baseUrl}}/api/reservas"
 method: POST
 headers:
@@ -21,10 +22,42 @@ body:
       "numeroPersonas": 2
     }
 scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('CR-25: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
   - type: afterResponse
     code: |-
       pm.test('El sistema acepta la reserva fuera de la franja bloqueada con 201', function () {
         pm.response.to.have.status(201);
       });
+      const body = pm.response.json();
+      const reservaId = body && body.data && body.data.reservaId;
+      if (reservaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup CR-25: cancelar reserva ' + reservaId + ' falló', r && r.code);
+          }
+        });
+      }
     language: text/javascript
 order: 25000

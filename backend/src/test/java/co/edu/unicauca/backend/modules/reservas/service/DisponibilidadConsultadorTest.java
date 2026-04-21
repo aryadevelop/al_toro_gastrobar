@@ -5,14 +5,12 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibl
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
-import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.mapper.ReservaMapper;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
-import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

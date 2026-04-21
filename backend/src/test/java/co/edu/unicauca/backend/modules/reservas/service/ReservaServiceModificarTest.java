@@ -579,20 +579,6 @@ class ReservaServiceModificarTest {
 
     // ─── Utilidades de test ───────────────────────────────────────────────────
 
-    private Zona zonaConCapacidad(Long id, int capacidad) {
-        Zona z = new Zona();
-        try {
-            java.lang.reflect.Field fId = Zona.class.getDeclaredField("zonaId");
-            fId.setAccessible(true);
-            fId.set(z, id);
-            java.lang.reflect.Field fCap = Zona.class.getDeclaredField("zonaCapacidadPersonas");
-            fCap.setAccessible(true);
-            fCap.set(z, capacidad);
-        } catch (Exception e) {
-            throw new RuntimeException(e);
-        }
-        return z;
-    }
 
     private Decoracion decoracionConCosto(Long id, BigDecimal costo) {
         Decoracion d = new Decoracion();

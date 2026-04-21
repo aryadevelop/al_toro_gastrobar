@@ -22,7 +22,6 @@ import co.edu.unicauca.backend.shared.enums.MetodoPago;
 import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoProducto;
-import jakarta.validation.ConstraintViolation;
 import jakarta.validation.Validation;
 import jakarta.validation.Validator;
 import org.junit.jupiter.api.BeforeEach;

@@ -1,0 +1,51 @@
+$kind: http-request
+name: CR-12 CA-04 ESPECIAL después 16h – 200 sin WhatsApp
+description: |
+  CA-04: Reserva ESPECIAL cuya fecha de llegada ya pasó las 16:00 → sin reembolso, sin WhatsApp.
+  Resultado esperado: 200, tipo=ESPECIAL, estado=CANCELADA, requiereWhatsApp=false, mensajeWhatsApp ausente.
+
+  Reserva 20 insertada por V5__cr_test_seed.sql:
+    ESPECIAL PENDIENTE para andres.morales@gmail.com con fecha NOW() - 1 día.
+
+  Este test consume la reserva. Restaurar con ./mvnw flyway:clean flyway:migrate si es necesario.
+url: "{{baseUrl}}/api/reservas/20/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('CR-12: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CA-04: cancelar ESPECIAL después 16h → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('CA-04: tipo=ESPECIAL, estado=CANCELADA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('ESPECIAL');
+        pm.expect(data.estado).to.eql('CANCELADA');
+      });
+      pm.test('CA-04: requiereWhatsApp=false y mensajeWhatsApp ausente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.requiereWhatsApp).to.be.false;
+        pm.expect(data.mensajeWhatsApp).to.be.undefined;
+      });
+    language: text/javascript
+order: 12000

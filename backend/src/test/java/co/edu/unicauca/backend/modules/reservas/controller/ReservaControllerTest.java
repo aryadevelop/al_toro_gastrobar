@@ -1,7 +1,11 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
+import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -32,7 +36,9 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.verify;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.put;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
@@ -194,6 +200,128 @@ class ReservaControllerTest {
 
             mockMvc.perform(get("/api/reservas/1/detalle"))
                     .andExpect(status().isOk());
+        }
+    }
+
+    // ── PATCH /{reservaId}/cancelar ───────────────────────────────────────────
+
+    @Nested
+    @DisplayName("PATCH /api/reservas/{reservaId}/cancelar")
+    class CancelarReserva {
+
+        private final Long RESERVA_ID = 5L;
+
+        private CancelarReservaResponse responseBasicaSinWa() {
+            return CancelarReservaResponse.builder()
+                    .reservaId(RESERVA_ID).estado("CANCELADA").tipo("BASICA")
+                    .requiereWhatsApp(false).mensajeWhatsApp(null).build();
+        }
+
+        private CancelarReservaResponse responseBasicaConWa() {
+            return CancelarReservaResponse.builder()
+                    .reservaId(RESERVA_ID).estado("CANCELADA").tipo("BASICA")
+                    .requiereWhatsApp(true)
+                    .mensajeWhatsApp("Comunícate para gestionar el reembolso de tu abono.")
+                    .build();
+        }
+
+        private CancelarReservaResponse responseEspecialSinWa() {
+            return CancelarReservaResponse.builder()
+                    .reservaId(RESERVA_ID).estado("CANCELADA").tipo("ESPECIAL")
+                    .requiereWhatsApp(false).mensajeWhatsApp(null).build();
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("Reserva no encontrada → 404")
+        void reservaNoEncontrada_404() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenThrow(new ResourceNotFoundException("Reserva", RESERVA_ID));
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("Reserva de otro cliente → 403 Forbidden")
+        void reservaOtroCliente_403() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenThrow(new BusinessException(ErrorCode.ACCESS_DENIED,
+                            "Solo puedes cancelar tus propias reservas.",
+                            org.springframework.http.HttpStatus.FORBIDDEN));
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("Reserva ya cancelada → 422 Unprocessable Entity")
+        void reservaYaCancelada_422() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenThrow(new BusinessException(ErrorCode.INVALID_STATE,
+                            "No es posible cancelar esta reserva.",
+                            org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY));
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isUnprocessableEntity());
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("CA-01: BASICA sin abono → 200 OK, requiereWhatsApp=false")
+        void basicaSinAbono_200SinWhatsApp() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenReturn(responseBasicaSinWa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.reservaId").value(RESERVA_ID))
+                    .andExpect(jsonPath("$.data.estado").value("CANCELADA"))
+                    .andExpect(jsonPath("$.data.tipo").value("BASICA"))
+                    .andExpect(jsonPath("$.data.requiereWhatsApp").value(false))
+                    .andExpect(jsonPath("$.data.mensajeWhatsApp").doesNotExist());
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("CA-02: BASICA con abono → 200 OK, requiereWhatsApp=true con mensaje")
+        void basicaConAbono_200ConWhatsApp() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenReturn(responseBasicaConWa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.requiereWhatsApp").value(true))
+                    .andExpect(jsonPath("$.data.mensajeWhatsApp").isString());
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("CA-04: ESPECIAL después 16h → 200 OK, requiereWhatsApp=false")
+        void especialDespues16h_200SinWhatsApp() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenReturn(responseEspecialSinWa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.tipo").value("ESPECIAL"))
+                    .andExpect(jsonPath("$.data.requiereWhatsApp").value(false));
+        }
+
+        @Test
+        @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
+        @DisplayName("El email se toma del token, no del cuerpo de la petición")
+        void emailDelToken_noDelBody() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
+                    .thenReturn(responseBasicaSinWa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isOk());
+
+            verify(reservaService).cancelarReserva(eq(RESERVA_ID), eq("cliente@test.com"));
         }
     }
 }

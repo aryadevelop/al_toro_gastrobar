@@ -4,9 +4,8 @@ description: |-
   **Criterio de Aceptación:** Autorización por rol — `MESERO` está incluido en el `@PreAuthorize`
   del controller y, al no ser `CLIENTE`, no aplica restricción de ownership.
   **Objetivo:** Verificar que un MESERO puede consultar el detalle de cualquier reserva.
-  **Pre-condición:** Ninguna externa. El pre-request crea una reserva a nombre de un CLIENTE
-  cualquiera (`emailCliente`) y captura su `reservaId` en `tmpReservaId`. La petición principal
-  usa `meseroToken` para consultarla.
+  **Pre-condición:** Ninguna externa. El pre-request hace login autónomo como MESERO y como
+  CLIENTE (para crear la reserva). El afterResponse cancela la reserva creada.
   **Resultado esperado:** 200 OK · `reservaId` coincide con la reserva creada.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
 method: GET
@@ -23,31 +22,59 @@ scripts:
       d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
       const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
 
+      // Login MESERO (para el request GET)
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/reservas',
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
-        },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('Pre-request RE-07: login MESERO falló', err, res && res.code);
+        }
+      });
+
+      // Login CLIENTE → crear reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err2, res2) {
+        if (err2 || !res2 || res2.code !== 200) {
+          console.warn('Pre-request RE-07: login CLIENTE falló', err2, res2 && res2.code);
+          return;
+        }
+        const token = res2.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: { mode: 'raw', raw: JSON.stringify({
             emailCliente: pm.environment.get('emailCliente'),
             fechaHoraLlegada: fechaHora,
             numeroPersonas: 2,
-            zonaId: null,
-            decoracionId: null,
-            notas: null,
-            preOrden: null
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 201) {
-          console.warn('Pre-request RE-07: creación de reserva falló', err, res && res.code, res && res.text());
-          return;
-        }
-        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+            zonaId: null, decoracionId: null, notas: null, preOrden: null
+          })}
+        }, function (e3, r3) {
+          if (!e3 && r3 && r3.code === 201) {
+            pm.environment.set('tmpReservaId', r3.json().data.reservaId);
+          } else {
+            console.warn('Pre-request RE-07: creación de reserva falló', e3, r3 && r3.code, r3 && r3.text());
+          }
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -60,6 +87,18 @@ scripts:
           .to.eql(String(pm.environment.get('tmpReservaId')));
       });
 
+      const reservaId = pm.environment.get('tmpReservaId');
+      if (reservaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup RE-07: cancelar reserva ' + reservaId + ' falló', r && r.code);
+          }
+        });
+      }
       pm.environment.unset('tmpReservaId');
     language: text/javascript
 order: 7000

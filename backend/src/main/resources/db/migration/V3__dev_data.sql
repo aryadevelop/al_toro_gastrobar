@@ -74,16 +74,16 @@ INSERT INTO Cliente (usuario_id, cliente_nombre, cliente_telefono, cliente_direc
 -- =====================================================
 INSERT INTO Usuario_Rol (usuario_id, rol_nombre, rol_estado) VALUES
 -- Admin
-(1,  'ADM',       'ACTIVO'),
+(1,  'ADMIN',       'ACTIVO'),
 -- Cajeros
 (2,  'CAJERO',    'ACTIVO'),
 (2,  'MESERO',    'ACTIVO'),
 (2,  'BARTENDER', 'ACTIVO'),
-(2,  'ADM',       'INACTIVO'),
+(2,  'ADMIN',       'INACTIVO'),
 (3,  'CAJERO',    'ACTIVO'),
 -- Meseros
 (4,  'MESERO',    'ACTIVO'),
-(4,  'ADM',       'ACTIVO'),
+(4,  'ADMIN',       'ACTIVO'),
 (5,  'MESERO',    'ACTIVO'),
 (6,  'MESERO',    'ACTIVO'),
 -- Cocineros

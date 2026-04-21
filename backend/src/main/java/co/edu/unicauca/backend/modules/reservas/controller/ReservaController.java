@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
@@ -30,13 +31,6 @@ import java.util.List;
  *
  * <p>Expone los endpoints bajo {@code /api/reservas} y delega toda la lógica
  * de negocio en {@link ReservaService}.
- *
- * <p><b>Regla de ownership:</b> Los endpoints que operan sobre datos de un cliente específico
- * aplican la siguiente lógica: si el solicitante tiene rol {@code CLIENTE}, solo puede acceder
- * a sus propios datos (el email/ID se toma del token, no del body o query param). Otros roles
- * ({@code CAJERO}, {@code ADM}, etc.) pueden acceder a datos de cualquier cliente. Esta lógica
- * está codificada aunque el endpoint hoy solo permita {@code CLIENTE}, para que cuando se amplíe
- * el {@code @PreAuthorize} en el futuro, el acceso multi-cliente funcione sin cambios adicionales.
  *
  * @see ReservaService
  */
@@ -75,8 +69,7 @@ public class ReservaController {
      *
      * <p>Si el solicitante tiene rol {@code CLIENTE}, el email de la reserva se toma
      * del token de autenticación, ignorando el campo {@code emailCliente} del body.
-     * Otros roles pueden especificar el email en el body
-     * para crear reservas a nombre de otro cliente.
+     * Otros roles pueden especificar el email en el body para crear reservas a nombre de otro cliente.
      *
      * @param request        datos de la reserva (fecha, zona, decoración y pre-orden opcional)
      * @param authentication contexto de seguridad del request
@@ -89,9 +82,8 @@ public class ReservaController {
             @Valid @RequestBody CrearReservaRequest request,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        String emailEfectivo = esCliente ? authentication.getName() : request.getEmailCliente();
+        String emailSiCliente = emailSiCliente(authentication);
+        String emailEfectivo = emailSiCliente != null ? emailSiCliente : request.getEmailCliente();
 
         ReservaResponse response = reservaService.crearReserva(emailEfectivo, request);
         return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created("Reserva creada exitosamente", response));
@@ -119,19 +111,47 @@ public class ReservaController {
      * @return {@code 200 OK} con los datos de la reserva resultante
      */
     @PutMapping("/{reservaId}")
-    @PreAuthorize("hasRole('CLIENTE')")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
     @Operation(summary = "Modificar una reserva futura del cliente")
     public ResponseEntity<ApiResponse<ModificarReservaResponse>> modificarReserva(
             @PathVariable Long reservaId,
             @Valid @RequestBody ModificarReservaRequest request,
             Authentication authentication) {
 
-        String emailCliente = authentication.getName();
-        ModificarReservaResponse response = reservaService.modificarReserva(reservaId, emailCliente, request);
+        ModificarReservaResponse response = reservaService.modificarReserva(reservaId, emailSiCliente(authentication), request);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
-    // TODO: cancelar reservas futuras
+    /**
+     * Cancela una reserva futura del cliente autenticado.
+     *
+     * <p>Solo el cliente propietario puede cancelar su reserva ({@code ROLE_CLIENTE}).
+     * El email del cliente se toma del token de autenticación, nunca del body ni de
+     * query params.
+     *
+     * <p>Cuando {@code requiereWhatsApp} es {@code true} en la respuesta, el frontend
+     * debe redirigir al cliente al chat de WhatsApp de la empresa con el mensaje
+     * precompuesto para gestionar el reembolso del abono.
+     *
+     * <p>A diferencia de la modificación, no existe hora límite para cancelar: se puede
+     * cancelar en cualquier momento mientras el estado sea {@code PENDIENTE} o
+     * {@code CONFIRMADA}.
+     *
+     * @param reservaId      identificador de la reserva a cancelar
+     * @param authentication contexto de seguridad del request
+     * @return {@code 200 OK} con el estado final de la reserva cancelada y el indicador
+     *         de redirección a WhatsApp
+     */
+    @PatchMapping("/{reservaId}/cancelar")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
+    @Operation(summary = "Cancelar una reserva futura del cliente")
+    public ResponseEntity<ApiResponse<CancelarReservaResponse>> cancelarReserva(
+            @PathVariable Long reservaId,
+            Authentication authentication) {
+
+        CancelarReservaResponse response = reservaService.cancelarReserva(reservaId, emailSiCliente(authentication));
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
 
     /**
      * Retorna las reservas futuras activas del cliente, ordenadas de la más próxima a la más lejana.
@@ -201,11 +221,7 @@ public class ReservaController {
             @PathVariable Long reservaId,
             Authentication authentication) {
 
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        String emailAutenticado = esCliente ? authentication.getName() : null;
-
-        ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailAutenticado);
+        ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailSiCliente(authentication));
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
@@ -213,20 +229,28 @@ public class ReservaController {
      * Valida que el cliente autenticado sea el propietario del recurso solicitado.
      *
      * <p>Solo aplica restricción cuando el solicitante tiene rol {@code CLIENTE}. Otros roles
-     * (ADM, CAJERO, etc.) pueden acceder a recursos de cualquier cliente sin restricción.
+     * pueden acceder a recursos de cualquier cliente sin restricción.
      *
      * @param emailPropietario email del propietario del recurso
-     * @param authentication   contexto de autenticación del request actual
+     * @param authentication contexto de autenticación del request actual
      * @throws BusinessException con HTTP 403 si el cliente autenticado no es el propietario
      */
     private void validarOwnershipCliente(String emailPropietario, Authentication authentication) {
-        // Solo aplica la restricción cuando el solicitante es CLIENTE
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        // Compara ignorando mayúsculas para evitar falsos negativos por capitalización
-        if (esCliente && !authentication.getName().equalsIgnoreCase(emailPropietario)) {
+        if (emailSiCliente(authentication) != null
+                && !authentication.getName().equalsIgnoreCase(emailPropietario)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
                     "Solo puedes consultar tus propias reservas.", HttpStatus.FORBIDDEN);
         }
+    }
+
+    /**
+     * Retorna el email del usuario autenticado si tiene rol {@code CLIENTE}; {@code null} en
+     * caso contrario. Permite que los endpoints con múltiples roles distingan si deben aplicar
+     * restricción de ownership (CLIENTE) o acceso libre (otros roles).
+     */
+    private String emailSiCliente(Authentication authentication) {
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+        return esCliente ? authentication.getName() : null;
     }
 }
