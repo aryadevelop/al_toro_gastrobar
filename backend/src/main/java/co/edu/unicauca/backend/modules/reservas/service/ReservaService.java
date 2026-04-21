@@ -8,6 +8,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
@@ -70,10 +71,10 @@ public class ReservaService {
     private static final String MSG_DISPONIBILIDAD_CAMBIO = "Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.";
     private static final String MSG_FUERA_HORARIO = "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. " + "Por favor elija otra fecha u hora.";
     private static final String MSG_ANTICIPACION_MINIMA = "La reserva debe realizarse con al menos un día de anticipación.";
-    private static final LocalTime HORA_APERTURA           = LocalTime.of(17, 0);
-    private static final LocalTime HORA_CIERRE             = LocalTime.of(22, 0);
+    private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
     private static final LocalTime HORA_LIMITE_MENU_ESPECIAL = LocalTime.of(23, 0);
-    private static final LocalTime HORA_LIMITE_ESTANDAR      = LocalTime.of(16, 0);
+    private static final LocalTime HORA_LIMITE_ESTANDAR = LocalTime.of(16, 0);
 
     private final ReservaRepository reservaRepository;
     private final DecoracionRepository decoracionRepository;
@@ -81,8 +82,8 @@ public class ReservaService {
     private final ClienteRepository clienteRepository;
     private final ComandaRepository comandaRepository;
     private final ComandaItemRepository comandaItemRepository;
-    private final ReservaMapper reservaMapper;
     private final AbonoRepository abonoRepository;
+    private final ReservaMapper reservaMapper;
     private final ReservaValidador reservaValidador;
     private final DisponibilidadConsultador disponibilidadConsultador;
     private final PreOrdenGestor preOrdenGestor;
@@ -271,6 +272,72 @@ public class ReservaService {
                 .filter(r -> estadosTerminales.contains(r.getReservaEstado()))
                 .map(reservaMapper::toResumen)
                 .collect(Collectors.toList());
+    }
+
+    // -----------------------------------------------------------------------
+    // CRUD - DELETE (cancelación)
+    // -----------------------------------------------------------------------
+
+    /**
+     * Cancela una reserva activa del cliente, actualizando su estado a
+     * {@link EstadoReserva#CANCELADA}.
+     *
+     * <p>Reglas de redirección a WhatsApp según tipo y momento de cancelación:
+     * <ul>
+     *   <li><b>BÁSICA sin abono neto</b>: no requiere WhatsApp (CA-01).</li>
+     *   <li><b>BÁSICA con abono neto &gt; 0</b>: requiere WhatsApp para gestionar el
+     *       reembolso (CA-02).</li>
+     *   <li><b>ESPECIAL antes de las 16:00 del día de la reserva</b>: requiere
+     *       WhatsApp para gestionar el reembolso (CA-03).</li>
+     *   <li><b>ESPECIAL después/igual a las 16:00 del día de la reserva</b>: sin
+     *       reembolso, no requiere WhatsApp (CA-04).</li>
+     * </ul>
+     *
+     * <p>A diferencia de la modificación, no hay hora límite para cancelar: se puede
+     * cancelar en cualquier momento mientras el estado sea {@code PENDIENTE} o
+     * {@code CONFIRMADA}.
+     *
+     * @param reservaId    identificador de la reserva a cancelar
+     * @param emailCliente email del cliente autenticado (tomado del token)
+     * @return {@link CancelarReservaResponse} con el estado final y el indicador de WhatsApp
+     * @throws ResourceNotFoundException si la reserva no existe
+     * @throws BusinessException         si el cliente no es el propietario (403)
+     *                                   o el estado no es cancelable (422)
+     */
+    @Transactional
+    public CancelarReservaResponse cancelarReserva(Long reservaId, String emailCliente) {
+
+        // 1. Verificar existencia de la reserva
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        // 2. Validar ownership y estado activo (PENDIENTE o CONFIRMADA)
+        reservaValidador.validarElegibilidadCancelacion(reserva, emailCliente);
+
+        // 3. Cambiar estado a CANCELADA y persistir
+        reserva.setReservaEstado(EstadoReserva.CANCELADA);
+        Reserva guardada = reservaRepository.save(reserva);
+
+        // 4. Determinar política de reembolso según tipo y momento de cancelación
+        boolean esEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
+        boolean requiereWhatsApp;
+
+        if (esEspecial) {
+            // ESPECIAL: el límite de 16:00 del día de la reserva define si hay reembolso (CA-03/CA-04)
+            LocalDateTime limite16h = reserva.getReservaFechaHoraLlegada()
+                    .toLocalDate().atTime(HORA_LIMITE_ESTANDAR);
+            requiereWhatsApp = LocalDateTime.now().isBefore(limite16h);
+        } else {
+            // BÁSICA: depende de si hay abono neto pendiente de reembolso (CA-01/CA-02)
+            requiereWhatsApp = calcularAbonoNeto(reservaId).compareTo(BigDecimal.ZERO) > 0;
+        }
+
+        String mensajeWhatsApp = requiereWhatsApp
+                ? mensajeWhatsAppBuilder.construirMensaje(guardada,
+                        MensajeWhatsAppBuilder.MSG_WA_CANCELACION_REEMBOLSO)
+                : null;
+
+        return reservaMapper.toCancelarResponse(guardada, requiereWhatsApp, mensajeWhatsApp);
     }
 
     // -----------------------------------------------------------------------
