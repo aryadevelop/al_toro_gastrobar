@@ -13,6 +13,9 @@ scripts:
     code: |-
       pm.test('Status 204 – Sesión cerrada exitosamente', () => pm.response.to.have.status(204));
 
+      // Preservar el accessToken para casos de reutilización post-logout
+      pm.environment.set('savedAccessToken', pm.environment.get('accessToken'));
+
       // Preservar el refreshToken para CC-03 antes de eliminarlo del entorno
       pm.environment.set('savedRefreshToken', pm.environment.get('refreshToken'));
 

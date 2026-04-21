@@ -1,0 +1,20 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CC-08
+  **Objetivo:** Verificar que /logout rechaza un header Authorization con esquema Bearer pero sin token.
+  **Pre-condición:** Ninguna.
+  **Resultado esperado:** HTTP 401.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+headers:
+  Authorization: Bearer
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Bearer vacío rechazado', () => pm.response.to.have.status(401));
+
+      // Limpieza defensiva de variables temporales
+      pm.environment.unset('savedAccessToken');
+      pm.environment.unset('savedRefreshToken');
+    language: text/javascript
+order: 8000
