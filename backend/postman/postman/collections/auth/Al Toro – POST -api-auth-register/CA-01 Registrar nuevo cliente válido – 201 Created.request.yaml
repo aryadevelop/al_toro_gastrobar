@@ -1,0 +1,44 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar que un cliente se registra correctamente y el sistema responde 201 con la estructura esperada.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan Carlos Perez",
+      "telefono": "3001234{{$randomInt}}",
+      "email": "registro.ca01.{{$timestamp}}@example.com",
+      "password": "SecurePass123!",
+      "passwordConfirmation": "SecurePass123!",
+      "aceptaTerminos": true,
+      "fechaNacimiento": "1990-05-15"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – Registro exitoso', () => pm.response.to.have.status(201));
+
+      const body = pm.response.json();
+
+      pm.test('Estructura base de respuesta', () => {
+        pm.expect(body).to.have.property('success', true);
+        pm.expect(body).to.have.property('message');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('Datos mínimos del usuario registrado', () => {
+        pm.expect(body.user).to.have.property('id');
+        pm.expect(body.user).to.have.property('nombre');
+        pm.expect(body.user).to.have.property('email');
+        pm.expect(body.user).to.have.property('telefono');
+        pm.expect(body.user).to.have.property('role');
+      });
+
+      pm.test('Rol del usuario registrado es CLIENTE', () => pm.expect(body.user.role).to.eql('CLIENTE'));
+    language: text/javascript
+order: 1000

@@ -2,7 +2,9 @@ package co.edu.unicauca.backend.modules.auth.service;
 
 import co.edu.unicauca.backend.modules.auth.dto.request.LoginRequest;
 import co.edu.unicauca.backend.modules.auth.dto.request.RefreshTokenRequest;
+import co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest;
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthResponse;
+import co.edu.unicauca.backend.modules.auth.dto.response.RegisterResponse;
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthUserResponse;
 import co.edu.unicauca.backend.modules.auth.entity.Sesion;
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
@@ -230,6 +232,115 @@ public class AuthService {
         List<Sesion> activeSessions = sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(usuario.getUsuarioId());
         activeSessions.forEach(session -> session.setSesionActiva(false));
         sesionRepository.saveAll(activeSessions);
+    }
+
+    /**
+     * Registra una nueva cuenta de cliente en el sistema.
+     *
+     * <p>Flujo de ejecución:
+     * <ol>
+     *   <li>Valida que las contraseñas coincidan.</li>
+     *   <li>Normaliza el email a minúsculas y verifica que no esté duplicado.</li>
+     *   <li>Verifica que el teléfono no esté duplicado.</li>
+     *   <li>Crea la entidad {@link Usuario} con la contraseña cifrada con BCrypt.</li>
+     *   <li>Crea la entidad {@link Cliente} asociada con el perfil extendido.</li>
+     *   <li>Asigna el rol {@code CLIENTE} como activo.</li>
+     *   <li>Retorna una respuesta con los datos básicos del usuario registrado.</li>
+     * </ol>
+     *
+     * @param request payload con los datos de registro (nombre, correo, teléfono, contraseña, términos)
+     * @return {@link RegisterResponse} con datos mínimos del usuario registrado y mensaje de éxito
+     * @throws BusinessException si las contraseñas no coinciden ({@code 400}),
+     *                           el correo ya existe ({@code 409}),
+     *                           o el teléfono ya existe ({@code 409})
+     */
+    public RegisterResponse register(RegisterRequest request) {
+        // 1. Valida que las contraseñas coincidan
+        if (!request.getPassword().equals(request.getPasswordConfirmation())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR, 
+                "Las contraseñas no coinciden", HttpStatus.BAD_REQUEST);
+        }
+
+        // 2. Normaliza el email y verifica duplicado
+        String email = normalizeEmail(request.getEmail());
+        if (usuarioRepository.findByUsuarioEmail(email).isPresent()) {
+            throw new BusinessException(ErrorCode.ENTITY_ALREADY_EXISTS, 
+                "Este correo electrónico ya está registrado. Por favor inicia sesión o utiliza otro correo", 
+                HttpStatus.CONFLICT);
+        }
+
+        // 3. Verifica que el teléfono no esté duplicado
+        if (clienteRepository.existsByClienteTelefono(request.getTelefono())) {
+            throw new BusinessException(ErrorCode.ENTITY_ALREADY_EXISTS, 
+                "Este número de teléfono ya está registrado. Por favor utiliza otro", 
+                HttpStatus.CONFLICT);
+        }
+
+        // 4. Crea la entidad Usuario con la contraseña cifrada
+        String hashedPassword = passwordEncoder.encode(request.getPassword());
+        Usuario usuario = usuarioRepository.save(Usuario.builder()
+                .usuarioEmail(email)
+                .usuarioPassword(hashedPassword)
+                .build());
+
+        // 5. Crea la entidad Cliente con el perfil extendido
+        LocalDateTime ahora = LocalDateTime.now();
+        Cliente cliente = Cliente.builder()
+                .usuario(usuario)
+                .clienteNombre(request.getNombre())
+                .clienteTelefono(request.getTelefono())
+                .clienteAceptaTerminos(request.getAceptaTerminos())
+                .clienteFechaAceptacion(ahora)
+                .build();
+
+        // Agrega fecha de nacimiento si se proporciona
+        if (request.getFechaNacimiento() != null && !request.getFechaNacimiento().isBlank()) {
+            java.time.LocalDate fechaNacimiento;
+            try {
+                // Formato estricto esperado: YYYY-MM-DD
+                fechaNacimiento = java.time.LocalDate.parse(request.getFechaNacimiento());
+            } catch (java.time.format.DateTimeParseException ex) {
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "El formato de la fecha debe ser YYYY-MM-DD",
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            java.time.LocalDate hoy = java.time.LocalDate.now();
+            java.time.LocalDate fechaMinima = hoy.minusYears(100);
+            if (fechaNacimiento.isBefore(fechaMinima) || fechaNacimiento.isAfter(hoy)) {
+                throw new BusinessException(
+                        ErrorCode.VALIDATION_ERROR,
+                        "La fecha de nacimiento debe estar entre hoy y hasta 100 años atrás",
+                        HttpStatus.BAD_REQUEST);
+            }
+
+            cliente.setClienteFechaNacimiento(fechaNacimiento);
+        }
+
+        cliente = clienteRepository.save(cliente);
+
+        // 6. Asigna el rol CLIENTE como activo
+        UsuarioRol rolCliente = UsuarioRol.builder()
+            .usuarioId(usuario.getUsuarioId())
+                .usuario(usuario)
+                .rolNombre(RolNombre.CLIENTE)
+                .rolEstado(RolEstado.ACTIVO)
+                .build();
+        usuarioRolRepository.save(rolCliente);
+
+        // 7. Construye y devuelve la respuesta
+        return RegisterResponse.builder()
+                .success(true)
+                .message("Cuenta creada exitosamente. Bienvenido a Al Toro Gastrobar")
+                .user(RegisterResponse.UserRegistrationData.builder()
+                        .id(String.valueOf(usuario.getUsuarioId()))
+                        .nombre(cliente.getClienteNombre())
+                        .email(usuario.getUsuarioEmail())
+                        .telefono(cliente.getClienteTelefono())
+                        .role(RoleMapper.toFrontendRole(RolNombre.CLIENTE))
+                        .build())
+                .build();
     }
 
     // -----------------------------------------------------------------------

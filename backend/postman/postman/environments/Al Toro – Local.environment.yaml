@@ -162,10 +162,10 @@ values:
   - key: loginExpiresIn
     enabled: true
     value: ''
-  - key: accessToken
+  - key: savedAccessToken
     enabled: true
     value: ''
-  - key: refreshToken
+  - key: savedRefreshToken
     enabled: true
     value: ''
   - key: tmpReservaIdAjena

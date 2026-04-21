@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-10
+  **Objetivo:** Validar rechazo para fecha de nacimiento de menor de edad.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Cliente Menor",
+      "telefono": "3001111119",
+      "email": "ca10.{{$timestamp}}@example.com",
+      "password": "ValidPass123!",
+      "passwordConfirmation": "ValidPass123!",
+      "aceptaTerminos": true,
+      "fechaNacimiento": "2010-05-15"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Menor de edad', () => pm.response.to.have.status(400));
+
+      const body = pm.response.json();
+
+      pm.test('Código de validación', () => pm.expect(body.code).to.eql('VAL-001'));
+    language: text/javascript
+order: 1009

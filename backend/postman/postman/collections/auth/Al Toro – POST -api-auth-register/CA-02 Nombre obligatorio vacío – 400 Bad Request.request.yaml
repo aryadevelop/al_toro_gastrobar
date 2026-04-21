@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-02
+  **Objetivo:** Validar que el campo nombre es obligatorio.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "",
+      "telefono": "3001111111",
+      "email": "ca02.{{$timestamp}}@example.com",
+      "password": "ValidPass123!",
+      "passwordConfirmation": "ValidPass123!",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Nombre obligatorio', () => pm.response.to.have.status(400));
+
+      const body = pm.response.json();
+
+      pm.test('Código de error de validación', () => pm.expect(body.code).to.eql('VAL-001'));
+      pm.test('Mensaje de campo vacío', () => pm.expect(body.message.toLowerCase()).to.include('vacio'));
+    language: text/javascript
+order: 1001
