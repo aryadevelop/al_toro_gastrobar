@@ -1,0 +1,43 @@
+$kind: http-request
+name: CR-08 Reserva ya cancelada – 422 Unprocessable Entity
+description: |
+  Intento de cancelar una reserva que ya está en estado CANCELADA o DEVUELTA.
+  El servicio lanza BusinessException(INVALID_STATE).
+  Resultado esperado: 422 Unprocessable Entity.
+  Prerequisito: reservaIdCancelada debe apuntar a una reserva con estado CANCELADA o DEVUELTA.
+url: "{{baseUrl}}/api/reservas/{{reservaIdCancelada}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('CR-08: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva ya cancelada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.test('Mensaje de error de estado inválido', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.message).to.include('cancelar esta reserva');
+      });
+    language: text/javascript
+order: 8000

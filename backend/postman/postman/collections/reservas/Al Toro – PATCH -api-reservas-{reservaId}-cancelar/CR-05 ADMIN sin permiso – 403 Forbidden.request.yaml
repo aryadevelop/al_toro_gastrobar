@@ -1,0 +1,33 @@
+$kind: http-request
+name: CR-05 ADMIN sin permiso – 403 Forbidden
+url: "{{baseUrl}}/api/reservas/1/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailAdmin'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('CR-05: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('ADMIN no puede cancelar reservas → 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 5000

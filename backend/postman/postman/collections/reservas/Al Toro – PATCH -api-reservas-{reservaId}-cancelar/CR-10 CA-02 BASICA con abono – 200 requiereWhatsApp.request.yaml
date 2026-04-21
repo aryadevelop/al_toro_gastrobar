@@ -1,0 +1,57 @@
+$kind: http-request
+name: CR-10 CA-02 BASICA con abono – 200 requiereWhatsApp=true
+description: |
+  CA-02: Reserva BASICA que ya tiene un abono neto > 0 → se cancela y requiere gestión de reembolso por WhatsApp.
+  Resultado esperado: 200, estado=CANCELADA, tipo=BASICA, requiereWhatsApp=true, mensajeWhatsApp presente.
+  Prerequisito: reservaIdBasicaConAbono debe apuntar a una reserva BASICA en estado PENDIENTE/CONFIRMADA
+  con al menos un abono registrado. Obtener con:
+    SELECT r.reserva_id
+    FROM restaurante.reserva r
+    JOIN restaurante.abono a ON a.reserva_id = r.reserva_id
+    WHERE r.reserva_tipo = 'BASICA'
+      AND r.reserva_estado IN ('PENDIENTE','CONFIRMADA')
+    LIMIT 1;
+  Nota: este test consume la reserva (la cancela). Si no hay seed disponible, restaurar con
+  ./mvnw flyway:clean flyway:migrate y usar un ID diferente.
+url: "{{baseUrl}}/api/reservas/{{reservaIdBasicaConAbono}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('CR-10: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CA-02: cancelar BASICA con abono → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('CA-02: estado=CANCELADA, tipo=BASICA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estado).to.eql('CANCELADA');
+        pm.expect(data.tipo).to.eql('BASICA');
+      });
+      pm.test('CA-02: requiereWhatsApp=true con mensaje de reembolso', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.requiereWhatsApp).to.be.true;
+        pm.expect(data.mensajeWhatsApp).to.be.a('string').and.not.empty;
+        pm.expect(data.mensajeWhatsApp).to.include('reembolso');
+      });
+    language: text/javascript
+order: 10000

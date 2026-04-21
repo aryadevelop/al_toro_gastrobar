@@ -1,0 +1,72 @@
+$kind: http-request
+name: CR-09 CA-01 BASICA sin abono – 200 OK sin WhatsApp
+description: |
+  CA-01: Reserva BASICA sin abono neto → se cancela sin requerir WhatsApp.
+  El beforeRequest crea una reserva BASICA nueva y guarda su ID en tmpReservaId.
+  Resultado esperado: 200, estado=CANCELADA, tipo=BASICA, requiereWhatsApp=false, mensajeWhatsApp ausente.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+          } else {
+            console.warn('CR-09: creación de reserva falló', e2, r2 && r2.code);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CA-01: cancelar BASICA sin abono → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('CA-01: estado=CANCELADA, tipo=BASICA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estado).to.eql('CANCELADA');
+        pm.expect(data.tipo).to.eql('BASICA');
+      });
+      pm.test('CA-01: requiereWhatsApp=false y mensajeWhatsApp ausente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.requiereWhatsApp).to.be.false;
+        pm.expect(data.mensajeWhatsApp).to.be.undefined;
+      });
+      pm.test('CA-01: reservaId coincide', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.reservaId).to.eql(parseInt(pm.environment.get('tmpReservaId')));
+      });
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 9000
