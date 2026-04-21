@@ -12,7 +12,7 @@ package co.edu.unicauca.backend.shared.enums;
  *   <li>{@code CAJERO} — empleado de caja; cierra cuentas y gestiona pagos.</li>
  *   <li>{@code COCINERO} — empleado de cocina; atiende comandas de la estación COCINA.</li>
  *   <li>{@code BARTENDER} — empleado de barra; atiende comandas de la estación BARRA.</li>
- *   <li>{@code ADM} — administrador con acceso completo al sistema.</li>
+ *   <li>{@code ADMIN} — administrador con acceso completo al sistema.</li>
  * </ul>
  */
 public enum RolNombre {
@@ -21,7 +21,7 @@ public enum RolNombre {
     CAJERO("Cajero"),
     COCINERO("Cocinero"),
     BARTENDER("Bartender"),
-    ADM("Administrador");
+    ADMIN("Administrador");
 
     private final String descripcion;
 

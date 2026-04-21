@@ -90,7 +90,7 @@ class AuthServiceTest {
             when(usuarioRepository.findByUsuarioEmail("admin@altoro.com")).thenReturn(Optional.of(admin));
             when(passwordEncoder.matches("Al.Toro2026!", "$2b$hash")).thenReturn(true);
             when(usuarioRolRepository.findByUsuarioIdAndRolEstado(1L, RolEstado.ACTIVO))
-                    .thenReturn(List.of(usuarioRol(1L, RolNombre.ADM, RolEstado.ACTIVO)));
+                    .thenReturn(List.of(usuarioRol(1L, RolNombre.ADMIN, RolEstado.ACTIVO)));
             when(sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(1L))
                     .thenReturn(List.of(Sesion.builder().sesionId(99L).usuario(admin).sesionActiva(true).sesionToken("old").build()));
 
