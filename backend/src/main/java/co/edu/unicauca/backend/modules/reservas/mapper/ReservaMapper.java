@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -238,6 +239,29 @@ public class ReservaMapper {
                         .tipo(a.getAbonoTipo().name())
                         .build())
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Convierte una {@link Reserva} cancelada en su DTO de respuesta para la operación de
+     * cancelación.
+     *
+     * @param reserva           entidad actualizada con estado {@code CANCELADA}
+     * @param requiereWhatsApp  {@code true} si el cliente debe gestionar el reembolso por WhatsApp
+     * @param mensajeWhatsApp   mensaje precompuesto para el chat; {@code null} si no aplica
+     * @return {@link CancelarReservaResponse} con los datos de la reserva cancelada
+     */
+    public CancelarReservaResponse toCancelarResponse(Reserva reserva,
+                                                       boolean requiereWhatsApp,
+                                                       String mensajeWhatsApp) {
+        return CancelarReservaResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .requiereWhatsApp(requiereWhatsApp)
+                .mensajeWhatsApp(mensajeWhatsApp)
+                .build();
     }
 
     /**
