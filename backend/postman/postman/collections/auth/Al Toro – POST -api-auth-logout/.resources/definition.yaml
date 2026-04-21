@@ -18,6 +18,11 @@ description: |-
   | CC-01 | Solicitud sin token JWT | 401 |
   | CC-02 | Cierre de sesión con token válido | 204 |
   | CC-03 | Intento de refresh tras logout (sesión inactiva) | 401 |
+  | CC-04 | Reutilización de access token tras logout en /me | 401 |
+  | CC-05 | Segundo logout con access token invalidado | 401 |
+  | CC-06 | Uso de refresh token como Bearer en /logout | 401 |
+  | CC-07 | Header Authorization sin prefijo Bearer | 401 |
+  | CC-08 | Header Authorization Bearer vacío | 401 |
 scripts:
   - type: http:beforeRequest
     code: |-
