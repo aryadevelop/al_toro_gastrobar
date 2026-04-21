@@ -2,13 +2,16 @@ package co.edu.unicauca.backend.modules.auth.controller;
 
 import co.edu.unicauca.backend.modules.auth.dto.request.LoginRequest;
 import co.edu.unicauca.backend.modules.auth.dto.request.RefreshTokenRequest;
+import co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest;
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthResponse;
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthUserResponse;
+import co.edu.unicauca.backend.modules.auth.dto.response.RegisterResponse;
 import co.edu.unicauca.backend.modules.auth.service.AuthService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
@@ -25,6 +28,8 @@ import org.springframework.web.bind.annotation.RestController;
  *
  * <p>Comportamiento general:
  * <ul>
+ *   <li><b>Register:</b> registra una nueva cuenta de cliente con datos personales
+ *       y asigna el rol CLIENTE.</li>
  *   <li><b>Login:</b> valida credenciales, gestiona sesiones activas y devuelve
  *       un par de tokens (access + refresh).</li>
  *   <li><b>Refresh:</b> rota el par de tokens sin requerir contraseña, siempre
@@ -34,8 +39,8 @@ import org.springframework.web.bind.annotation.RestController;
  *   <li><b>Logout:</b> invalida todas las sesiones activas del usuario autenticado.</li>
  * </ul>
  *
- * <p>Los endpoints {@code /login} y {@code /refresh} son públicos; los demás
- * requieren un access token válido en el header {@code Authorization: Bearer <token>}.
+ * <p>Los endpoints {@code /register}, {@code /login} y {@code /refresh} son públicos; 
+ * los demás requieren un access token válido en el header {@code Authorization: Bearer <token>}.
  *
  * @see AuthService
  */
@@ -46,6 +51,21 @@ import org.springframework.web.bind.annotation.RestController;
 public class AuthController {
 
     private final AuthService authService;
+
+    /**
+     * Registra una nueva cuenta de cliente en el sistema.
+     *
+     * <p>Valida los datos de entrada, verifica que el correo y teléfono no estén
+     * duplicados, crea las entidades de usuario y cliente, y asigna el rol CLIENTE.
+     *
+     * @param request datos de registro (nombre, correo, teléfono, contraseña, términos)
+     * @return {@link RegisterResponse} con datos mínimos del usuario creado
+     */
+    @PostMapping("/register")
+    @Operation(summary = "Registrar una nueva cuenta de cliente")
+    public ResponseEntity<RegisterResponse> register(@Valid @RequestBody RegisterRequest request) {
+        return ResponseEntity.status(HttpStatus.CREATED).body(authService.register(request));
+    }
 
     /**
      * Autentica al usuario con email y contraseña y devuelve un par de tokens JWT.

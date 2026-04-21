@@ -23,4 +23,12 @@ public interface ClienteRepository extends JpaRepository<Cliente, Long> {
      * @return cliente asociado al correo indicado, o vacío si no existe
      */
     Optional<Cliente> findByUsuario_UsuarioEmail(String email);
+
+    /**
+     * Verifica si existe un cliente registrado con el teléfono indicado.
+     *
+     * @param telefono número de teléfono a verificar
+     * @return {@code true} si el teléfono ya está registrado; {@code false} en caso contrario
+     */
+    boolean existsByClienteTelefono(String telefono);
 }
