@@ -1,0 +1,19 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CC-05
+  **Objetivo:** Verificar que un segundo intento de logout con el mismo access token (ya invalidado) es rechazado por el sistema.
+  **Pre-condición:** CC-02 debe haberse ejecutado previamente (almacena `savedAccessToken` en el entorno).
+  **Resultado esperado:** HTTP 401.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+headers:
+  Authorization: Bearer {{savedAccessToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Segundo logout rechazado por token invalidado', () => pm.response.to.have.status(401));
+
+      // Limpiar variable temporal
+      pm.environment.unset('savedAccessToken');
+    language: text/javascript
+order: 5000

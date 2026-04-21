@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CC-06
+  **Objetivo:** Verificar que el endpoint /logout no acepta refresh tokens en el header Authorization.
+  **Pre-condición:** CC-02 debe haberse ejecutado previamente (almacena `savedRefreshToken` en el entorno).
+  **Resultado esperado:** HTTP 401.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+headers:
+  Authorization: Bearer {{savedRefreshToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Refresh token rechazado en endpoint logout', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 6000
