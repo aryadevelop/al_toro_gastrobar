@@ -1,20 +1,14 @@
 $kind: http-request
 name: CR-12 CA-04 ESPECIAL después 16h – 200 sin WhatsApp
 description: |
-  CA-04: Reserva ESPECIAL cuya fecha de llegada ya pasó las 16:00 → no hay reembolso, sin WhatsApp.
-  La hora límite de reembolso (16:00 del día de llegada) ya transcurrió: se usa una reserva
-  seed ESPECIAL con fecha en el pasado que sigue en estado PENDIENTE/CONFIRMADA en BD.
+  CA-04: Reserva ESPECIAL cuya fecha de llegada ya pasó las 16:00 → sin reembolso, sin WhatsApp.
   Resultado esperado: 200, tipo=ESPECIAL, estado=CANCELADA, requiereWhatsApp=false, mensajeWhatsApp ausente.
-  Prerequisito: reservaIdEspecialPasada debe apuntar a una reserva ESPECIAL PENDIENTE/CONFIRMADA
-  cuya fecha de llegada sea anterior a ahora (pasadas las 16:00 de ese día). Obtener con:
-    SELECT reserva_id
-    FROM restaurante.reserva
-    WHERE reserva_tipo = 'ESPECIAL'
-      AND reserva_estado IN ('PENDIENTE','CONFIRMADA')
-      AND reserva_fecha_hora_llegada < NOW()
-    LIMIT 1;
-  Si no existe en seed, insertar manualmente o restaurar y modificar la fecha de una reserva ESPECIAL.
-url: "{{baseUrl}}/api/reservas/{{reservaIdEspecialPasada}}/cancelar"
+
+  Reserva 20 insertada por V5__cr_test_seed.sql:
+    ESPECIAL PENDIENTE para andres.morales@gmail.com con fecha NOW() - 1 día.
+
+  Este test consume la reserva. Restaurar con ./mvnw flyway:clean flyway:migrate si es necesario.
+url: "{{baseUrl}}/api/reservas/20/cancelar"
 method: PATCH
 headers:
   Authorization: Bearer {{clienteToken}}

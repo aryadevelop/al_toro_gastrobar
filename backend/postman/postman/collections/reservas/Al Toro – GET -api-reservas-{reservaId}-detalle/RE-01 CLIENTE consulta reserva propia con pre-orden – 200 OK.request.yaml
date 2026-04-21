@@ -4,9 +4,9 @@ description: |-
   **Criterio de Aceptación:** HE-02-HU-03-CA-07 (detalle reserva con pre-orden)
   **Objetivo:** Verificar que el detalle de una reserva propia incluye los ítems de pre-orden
   (`preOrdenItems` con `productoNombre`, `cantidad`, `precioUnitario`) y el `preOrdenTotal`.
-  **Pre-condición:** Ninguna externa. El pre-request crea la reserva con pre-orden de forma
-  autónoma usando el `clienteToken` ya emitido por el pre-request de carpeta y captura el
-  `reservaId` resultante en una variable temporal `tmpReservaId`.
+  **Pre-condición:** Ninguna externa. El pre-request hace login autónomo, crea la reserva con
+  pre-orden y captura el `reservaId` resultante en `tmpReservaId`. El afterResponse cancela
+  la reserva para evitar acumulación de datos.
   **Resultado esperado:** 200 OK · campos base presentes · `preOrdenItems` array no vacío con
   los campos esperados · `preOrdenTotal` > 0 · variable temporal limpiada al final.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
@@ -16,8 +16,6 @@ headers:
 scripts:
   - type: beforeRequest
     code: |-
-      // Genera una fecha futura aleatoria dentro del horario de atención (17h–21h) para
-      // evitar agotar capacidad cuando el suite se corre repetidas veces.
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
       d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
@@ -27,32 +25,40 @@ scripts:
       const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
 
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/reservas',
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
-        header: {
-          'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + pm.environment.get('clienteToken')
-        },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request RE-01: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: { mode: 'raw', raw: JSON.stringify({
             emailCliente: pm.environment.get('emailCliente'),
             fechaHoraLlegada: fechaHora,
             numeroPersonas: 2,
-            zonaId: null,
-            decoracionId: null,
-            notas: null,
-            preOrden: [
-              { productoId: 1, cantidad: 2, descripcion: 'Sin cebolla', esMenuEspecial: false, opcionesModificacion: null }
-            ]
-          })
-        }
-      }, (err, res) => {
-        if (err || !res || res.code !== 201) {
-          console.warn('Pre-request RE-01: creación de reserva falló', err, res && res.code, res && res.text());
-          return;
-        }
-        pm.environment.set('tmpReservaId', res.json().data.reservaId);
+            zonaId: null, decoracionId: null, notas: null,
+            preOrden: [{ productoId: 1, cantidad: 2, descripcion: 'Sin cebolla', esMenuEspecial: false, opcionesModificacion: null }]
+          })}
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+          } else {
+            console.warn('Pre-request RE-01: creación de reserva falló', e2, r2 && r2.code, r2 && r2.text());
+          }
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -79,6 +85,18 @@ scripts:
         pm.expect(pm.response.json().data.preOrdenTotal).to.be.above(0);
       });
 
+      const reservaId = pm.environment.get('tmpReservaId');
+      if (reservaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup RE-01: cancelar reserva ' + reservaId + ' falló', r && r.code);
+          }
+        });
+      }
       pm.environment.unset('tmpReservaId');
     language: text/javascript
 order: 1000

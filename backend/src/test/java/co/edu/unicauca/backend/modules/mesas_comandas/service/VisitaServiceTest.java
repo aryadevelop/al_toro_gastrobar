@@ -5,7 +5,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalle
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
-import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
@@ -13,7 +12,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaReposito
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
-import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.VentaRepository;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;

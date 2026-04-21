@@ -49,15 +49,16 @@ public class ReservaValidador {
      * código de error correspondiente ({@code ACCESS_DENIED} o {@code INVALID_STATE}).</p>
      *
      * @param reserva       entidad de la reserva a validar
-     * @param emailCliente  correo del cliente autenticado que intenta modificar
+     * @param emailCliente  correo del cliente autenticado; {@code null} si el solicitante es ADMIN
+     *                      (en ese caso se omite la verificación de ownership)
      * @throws BusinessException si el cliente no es dueño de la reserva o si el estado
      *                           de la reserva no es PENDIENTE ni CONFIRMADA
      */
     public void validarElegibilidadModificacion(Reserva reserva, String emailCliente) {
 
-        // Verificar que el email del cliente autenticado coincide con el dueño de la reserva
-        if (!reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
-            // El cliente no es el dueño de la reserva: denegar acceso
+        // ADMIN (emailCliente == null) puede modificar cualquier reserva sin restricción de ownership
+        if (emailCliente != null
+                && !reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
                     "Solo puedes modificar tus propias reservas.", HttpStatus.FORBIDDEN);
         }
@@ -130,13 +131,15 @@ public class ReservaValidador {
      * en {@link ReservaService#cancelarReserva} según tipo y momento de cancelación.</p>
      *
      * @param reserva       entidad de la reserva a cancelar
-     * @param emailCliente  correo del cliente autenticado que intenta cancelar
+     * @param emailCliente  correo del cliente autenticado; {@code null} si el solicitante es ADMIN
+     *                      (en ese caso se omite la verificación de ownership)
      * @throws BusinessException si el cliente no es dueño (403) o el estado no es activo (422)
      */
     public void validarElegibilidadCancelacion(Reserva reserva, String emailCliente) {
 
-        // Verificar que el email del cliente autenticado coincide con el dueño de la reserva
-        if (!reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
+        // ADMIN (emailCliente == null) puede cancelar cualquier reserva sin restricción de ownership
+        if (emailCliente != null
+                && !reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
             throw new BusinessException(ErrorCode.ACCESS_DENIED,
                     "Solo puedes cancelar tus propias reservas.", HttpStatus.FORBIDDEN);
         }

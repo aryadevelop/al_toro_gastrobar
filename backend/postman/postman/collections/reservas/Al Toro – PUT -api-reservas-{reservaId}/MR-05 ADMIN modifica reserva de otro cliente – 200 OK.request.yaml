@@ -1,0 +1,98 @@
+$kind: http-request
+name: MR-05 ADMIN modifica reserva de otro cliente – 200 OK
+description: |
+  ADMIN puede modificar cualquier reserva sin restricción de ownership.
+  El beforeRequest crea una reserva BASICA a nombre del cliente seed y luego
+  el ADMIN la modifica con su propio token cambiando el número de personas.
+  Resultado esperado: 200, tipo=BASICA, requiereWhatsApp=false.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 5
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+
+      // Paso 1: cliente crea la reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('MR-05: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+
+          // Paso 2: ADMIN obtiene su token
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailAdmin'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('adminToken', r3.json().accessToken);
+            } else {
+              console.warn('MR-05: login ADMIN falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('ADMIN modifica reserva de otro cliente → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('tipo=BASICA, numeroPersonas=5', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.numeroPersonas).to.eql(5);
+        pm.expect(data.requiereWhatsApp).to.be.false;
+      });
+      pm.test('reservaId y fecha coinciden', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.reservaId).to.eql(parseInt(pm.environment.get('tmpReservaId')));
+        pm.expect(data.fechaHoraLlegada).to.eql(pm.environment.get('tmpFechaLibre'));
+      });
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 5000

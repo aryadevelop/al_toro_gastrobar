@@ -13,7 +13,7 @@ description: |
     LIMIT 1;
   Nota: este test consume la reserva (la cancela). Si no hay seed disponible, restaurar con
   ./mvnw flyway:clean flyway:migrate y usar un ID diferente.
-url: "{{baseUrl}}/api/reservas/{{reservaIdBasicaConAbono}}/cancelar"
+url: "{{baseUrl}}/api/reservas/19/cancelar"
 method: PATCH
 headers:
   Authorization: Bearer {{clienteToken}}
