@@ -288,4 +288,71 @@ class ReservaValidadorTest {
             assertThat(validador.tieneDecoracionConCosto(dec)).isTrue();
         }
     }
+
+    // ── validarElegibilidadCancelacion ────────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarElegibilidadCancelacion — ownership + estado")
+    class ValidarElegibilidadCancelacion {
+
+        @Test
+        @DisplayName("Propietario con estado PENDIENTE → no lanza excepción")
+        void propietarioPendiente_noLanza() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.PENDIENTE);
+
+            assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, "cliente@altoro.com"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Propietario con estado CONFIRMADA → no lanza excepción")
+        void propietarioConfirmada_noLanza() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+
+            assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, "cliente@altoro.com"))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Email no coincide con propietario → BusinessException 403 FORBIDDEN")
+        void emailDistinto_lanzaForbidden() {
+            Reserva reserva = reservaCon("otro@altoro.com", EstadoReserva.PENDIENTE);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadCancelacion(reserva, "cliente@altoro.com"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.FORBIDDEN));
+        }
+
+        @Test
+        @DisplayName("Estado CANCELADA → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void estadoCancelada_lanzaUnprocessable() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CANCELADA);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadCancelacion(reserva, "cliente@altoro.com"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("Estado DEVUELTA → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void estadoDevuelta_lanzaUnprocessable() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.DEVUELTA);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadCancelacion(reserva, "cliente@altoro.com"))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("Email coincide en mayúsculas → no lanza (comparación case-insensitive)")
+        void emailMayusculas_noLanza() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+
+            assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, "CLIENTE@ALTORO.COM"))
+                    .doesNotThrowAnyException();
+        }
+    }
 }

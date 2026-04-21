@@ -118,6 +118,38 @@ public class ReservaValidador {
     }
 
     // -----------------------------------------------------------------------
+    // Validación de elegibilidad de cancelación
+    // -----------------------------------------------------------------------
+
+    /**
+     * Valida que el cliente sea el dueño de la reserva y que esta se encuentre en un estado
+     * que permita cancelación (PENDIENTE o CONFIRMADA).
+     *
+     * <p>A diferencia de la modificación, la cancelación no tiene restricción de hora límite;
+     * siempre es posible cancelar una reserva activa. La política de reembolso se determina
+     * en {@link ReservaService#cancelarReserva} según tipo y momento de cancelación.</p>
+     *
+     * @param reserva       entidad de la reserva a cancelar
+     * @param emailCliente  correo del cliente autenticado que intenta cancelar
+     * @throws BusinessException si el cliente no es dueño (403) o el estado no es activo (422)
+     */
+    public void validarElegibilidadCancelacion(Reserva reserva, String emailCliente) {
+
+        // Verificar que el email del cliente autenticado coincide con el dueño de la reserva
+        if (!reserva.getCliente().getUsuario().getUsuarioEmail().equalsIgnoreCase(emailCliente)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes cancelar tus propias reservas.", HttpStatus.FORBIDDEN);
+        }
+
+        // Solo se pueden cancelar reservas activas (PENDIENTE o CONFIRMADA)
+        List<EstadoReserva> estadosActivos = List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
+        if (!estadosActivos.contains(reserva.getReservaEstado())) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "No es posible cancelar esta reserva.", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    // -----------------------------------------------------------------------
     // Validación de compatibilidad decoración-zona
     // -----------------------------------------------------------------------
 
