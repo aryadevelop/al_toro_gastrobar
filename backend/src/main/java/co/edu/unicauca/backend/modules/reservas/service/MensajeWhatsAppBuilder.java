@@ -57,6 +57,13 @@ public class MensajeWhatsAppBuilder {
             "La reserva fue modificada correctamente. Comunícate si deseas ajustar el abono.";
 
     /**
+     * Nota para cuando una reserva es cancelada y el cliente tiene un abono pendiente
+     * de reembolso que debe gestionar directamente con el restaurante.
+     */
+    public static final String MSG_WA_CANCELACION_REEMBOLSO =
+            "Comunícate para gestionar el reembolso de tu abono.";
+
+    /**
      * Formateador usado para presentar la fecha y hora de la reserva en el
      * mensaje de WhatsApp.
      */
