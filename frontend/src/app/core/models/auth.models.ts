@@ -14,6 +14,28 @@ export interface RegisterRequest {
     password: string;
 }
 
+export interface BackendRegisterRequest {
+    email: string;
+    nombre: string;
+    telefono: string;
+    password: string;
+    passwordConfirmation: string;
+    aceptaTerminos: boolean;
+    fechaNacimiento?: string;
+}
+
+export interface BackendRegisterResponse {
+    success: boolean;
+    message: string;
+    user: {
+        id: string;
+        nombre: string;
+        email: string;
+        telefono: string;
+        role: string;
+    };
+}
+
 export interface UpdateProfileRequest {
     fullName: string;
     email: string;

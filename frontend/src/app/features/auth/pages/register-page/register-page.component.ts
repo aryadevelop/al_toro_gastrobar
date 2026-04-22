@@ -284,12 +284,23 @@ export class RegisterPageComponent implements OnInit, OnDestroy {
         error: (error: HttpErrorResponse) => {
           this.loading.set(false);
 
+          const backendMessage =
+            (typeof error.error?.message === 'string' && error.error.message.trim().length > 0
+              ? error.error.message
+              : '') ||
+            (typeof error.error === 'string' && error.error.trim().length > 0 ? error.error : '');
+
           if (error.status === 409) {
-            this.setDuplicateEmailError();
+            const isDuplicateEmail = backendMessage.toLowerCase().includes('correo');
+            if (isDuplicateEmail) {
+              this.setDuplicateEmailError();
+            } else {
+              this.formMessage.set(backendMessage || 'Ya existe una cuenta con estos datos.');
+            }
             return;
           }
 
-          this.formMessage.set('No fue posible completar el registro. Intenta nuevamente.');
+          this.formMessage.set(backendMessage || 'No fue posible completar el registro. Intenta nuevamente.');
         }
       });
   }

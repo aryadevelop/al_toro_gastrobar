@@ -59,6 +59,14 @@ const MAX_QTY_PER_ITEM = 250;
 const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
 const DEFAULT_OPTION_IMAGE = 'https://picsum.photos/seed/altoro-option/360/220';
+const RESERVATION_HOURS = [
+  { value: '17:00', label: '5:00 p.m.' },
+  { value: '18:00', label: '6:00 p.m.' },
+  { value: '19:00', label: '7:00 p.m.' },
+  { value: '20:00', label: '8:00 p.m.' },
+  { value: '21:00', label: '9:00 p.m.' },
+  { value: '22:00', label: '10:00 p.m.' },
+] as const;
 
 const DECORATION_OPTIONS: DecorationOption[] = [];
 const ZONE_OPTIONS: ZoneOption[] = [];
@@ -91,7 +99,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
               <label class="form-label">
                 <span>Hora *</span>
-                <input class="input-field" type="time" min="17:00" max="22:00" step="1800" formControlName="time" />
+                <select class="input-field" formControlName="time">
+                  <option value="" disabled>Selecciona una hora</option>
+                  <option *ngFor="let slot of reservationHours" [value]="slot.value">{{ slot.label }}</option>
+                </select>
               </label>
             </section>
 
@@ -858,6 +869,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly romanticAddonLabel = ROMANTIC_ADDON_LABEL;
   readonly specialMenuHintMessage = SPECIAL_MENU_HINT_MESSAGE;
   readonly whatsappNote = WHATSAPP_NOTE;
+  readonly reservationHours = RESERVATION_HOURS;
   specialMenus: SpecialMenuOption[] = [...SPECIAL_MENU_OPTIONS];
 
   readonly reservaForm = this.formBuilder.nonNullable.group({
@@ -1711,7 +1723,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.reservaForm.patchValue(
       {
         date: reservation.date,
-        time: reservation.time,
+        time: this.normalizeToAllowedHour(reservation.time),
         guests: reservation.guests,
         decorationId: reservation.decorationId ?? '',
         zoneId: reservation.zoneId ?? '',
@@ -1853,6 +1865,25 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   private buildCartaItems(): CartaItemState[] {
     return [];
+  }
+
+  private normalizeToAllowedHour(rawTime: string): string {
+    if (this.reservationHours.some((slot) => slot.value === rawTime)) {
+      return rawTime;
+    }
+
+    const [rawHour, rawMinute] = rawTime.split(':').map((value) => Number(value));
+    if (!Number.isFinite(rawHour) || !Number.isFinite(rawMinute)) {
+      return this.reservationHours[0].value;
+    }
+
+    const hourWithRounding = rawMinute >= 30 ? rawHour + 1 : rawHour;
+    const clampedHour = Math.max(17, Math.min(22, hourWithRounding));
+    const normalized = `${String(clampedHour).padStart(2, '0')}:00`;
+
+    return this.reservationHours.some((slot) => slot.value === normalized)
+      ? normalized
+      : this.reservationHours[0].value;
   }
 
   private toOptionImage(seed: string): string {
