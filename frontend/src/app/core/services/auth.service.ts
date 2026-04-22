@@ -1,12 +1,20 @@
 import { computed, inject, Injectable, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, finalize, map, of, throwError } from 'rxjs';
+import { Observable, catchError, finalize, map, of, switchMap, throwError } from 'rxjs';
 
 import { API_PATHS } from '../config/api-paths';
 import { ROLE_LANDING_ROUTE } from '../config/role-routes';
 import { StorageService } from './storage.service';
 import { Role, User } from '../models/domain.models';
-import { AuthResponse, BackendAuthUser, LoginCredentials, RegisterRequest, UpdateProfileRequest } from '../models/auth.models';
+import {
+  AuthResponse,
+  BackendAuthUser,
+  BackendRegisterRequest,
+  BackendRegisterResponse,
+  LoginCredentials,
+  RegisterRequest,
+  UpdateProfileRequest,
+} from '../models/auth.models';
 
 type AuthApiResponse = Omit<AuthResponse, 'user'> & { user: BackendAuthUser | User };
 
@@ -32,8 +40,17 @@ export class AuthService {
   }
 
   register(data: RegisterRequest): Observable<User> {
-    return this.http.post<AuthApiResponse>(API_PATHS.auth.register, data).pipe(
-      map((response) => this.applyAuthResponse(response))
+    const registerPayload: BackendRegisterRequest = {
+      email: data.email.trim(),
+      nombre: data.fullName.trim(),
+      telefono: data.phone.trim(),
+      password: data.password,
+      passwordConfirmation: data.password,
+      aceptaTerminos: true,
+    };
+
+    return this.http.post<BackendRegisterResponse>(API_PATHS.auth.register, registerPayload).pipe(
+      switchMap(() => this.login({ email: data.email.trim(), password: data.password }))
     );
   }
 

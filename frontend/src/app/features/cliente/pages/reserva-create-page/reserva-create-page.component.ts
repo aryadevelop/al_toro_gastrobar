@@ -59,6 +59,14 @@ const MAX_QTY_PER_ITEM = 250;
 const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
 const DEFAULT_OPTION_IMAGE = 'https://picsum.photos/seed/altoro-option/360/220';
+const RESERVATION_HOURS = [
+  { value: '17:00', label: '5:00 p.m.' },
+  { value: '18:00', label: '6:00 p.m.' },
+  { value: '19:00', label: '7:00 p.m.' },
+  { value: '20:00', label: '8:00 p.m.' },
+  { value: '21:00', label: '9:00 p.m.' },
+  { value: '22:00', label: '10:00 p.m.' },
+] as const;
 
 const DECORATION_OPTIONS: DecorationOption[] = [];
 const ZONE_OPTIONS: ZoneOption[] = [];
@@ -91,7 +99,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
               <label class="form-label">
                 <span>Hora *</span>
-                <input class="input-field" type="time" min="17:00" max="22:00" step="1800" formControlName="time" />
+                <select class="input-field" formControlName="time">
+                  <option value="" disabled>Selecciona una hora</option>
+                  <option *ngFor="let slot of reservationHours" [value]="slot.value">{{ slot.label }}</option>
+                </select>
               </label>
             </section>
 
@@ -180,87 +191,107 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
               <ng-container *ngIf="activePreorderTab() === 'carta'; else specialMenuTab">
                 <section class="menu-category">
-                  <h4>Platos</h4>
-                  <article class="preorder-item-card" *ngFor="let item of cartaItemsByCategory('Platos')">
-                    <div class="item-head">
-                      <strong>{{ item.productName }}</strong>
-                      <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
-                    </div>
-                    <p>{{ item.description }}</p>
+                  <div class="carta-category-tabs">
+                    <button
+                      type="button"
+                      class="tab-btn"
+                      [class.active]="activeCartaCategory() === 'Platos'"
+                      (click)="setCartaCategory('Platos')"
+                    >
+                      Platos ({{ selectedCartaItemsCount('Platos') }})
+                    </button>
+                    <button
+                      type="button"
+                      class="tab-btn"
+                      [class.active]="activeCartaCategory() === 'Bebidas'"
+                      (click)="setCartaCategory('Bebidas')"
+                    >
+                      Bebidas ({{ selectedCartaItemsCount('Bebidas') }})
+                    </button>
+                  </div>
 
-                    <div class="qty-controls">
-                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
-                      <input
-                        class="input-field qty-input"
-                        type="number"
-                        min="0"
-                        max="250"
-                        [value]="item.quantity"
-                        (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
-                      />
-                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
-                    </div>
+                  <button
+                    type="button"
+                    class="btn-secondary catalog-toggle"
+                    (click)="toggleCartaList()"
+                  >
+                    {{ isCartaListExpanded() ? 'Ocultar productos' : 'Desplegar productos' }}
+                  </button>
 
-                    <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
-
-                    <div class="modification-editor">
-                      <input
-                        class="input-field"
-                        type="text"
-                        [value]="item.modificationDraft"
-                        placeholder="modificaciones (opcional)"
-                        (input)="setCartaModificationDraft(item.productId, $any($event.target).value)"
-                      />
-                      <button type="button" class="btn-secondary" (click)="addCartaModification(item.productId)">Añadir</button>
-                    </div>
-
-                    <div class="modification-list" *ngIf="item.modifications.length > 0">
-                      <article class="modification-item" *ngFor="let mod of item.modifications">
-                        <div>
-                          <strong>{{ mod.text }}</strong>
-                          <small>Costo por definir por el cajero al cerrar la cuenta</small>
+                  <ng-container *ngIf="isCartaListExpanded()">
+                    <article class="preorder-item-card" *ngFor="let item of visibleCartaItems()">
+                      <div class="item-head">
+                        <div class="item-title-block">
+                          <strong>{{ item.productName }}</strong>
+                          <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
                         </div>
-                        <div class="qty-controls">
-                          <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, -1)">-</button>
-                          <input
-                            class="input-field qty-input"
-                            type="number"
-                            min="0"
-                            max="250"
-                            [value]="mod.quantity"
-                            (input)="setCartaModificationQuantity(item.productId, mod.id, $any($event.target).value)"
-                          />
-                          <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, 1)">+</button>
-                        </div>
-                      </article>
-                    </div>
-                  </article>
-                </section>
+                        <button
+                          type="button"
+                          class="btn-secondary compact-toggle"
+                          (click)="toggleCartaItemExpand(item.productId)"
+                        >
+                          {{ isCartaItemExpanded(item.productId) ? 'Ocultar' : 'Detalles' }}
+                        </button>
+                      </div>
 
-                <section class="menu-category">
-                  <h4>Bebidas</h4>
-                  <article class="preorder-item-card" *ngFor="let item of cartaItemsByCategory('Bebidas')">
-                    <div class="item-head">
-                      <strong>{{ item.productName }}</strong>
-                      <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
-                    </div>
-                    <p>{{ item.description }}</p>
+                      <div class="qty-controls">
+                        <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
+                        <input
+                          class="input-field qty-input"
+                          type="number"
+                          min="0"
+                          max="250"
+                          [value]="item.quantity"
+                          (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
+                        />
+                        <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
+                      </div>
 
-                    <div class="qty-controls">
-                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
-                      <input
-                        class="input-field qty-input"
-                        type="number"
-                        min="0"
-                        max="250"
-                        [value]="item.quantity"
-                        (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
-                      />
-                      <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
-                    </div>
+                      <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
 
-                    <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
-                  </article>
+                      <div class="item-extra" *ngIf="isCartaItemExpanded(item.productId)">
+                        <p>{{ item.description }}</p>
+
+                        <ng-container *ngIf="item.category === 'Platos'">
+                          <div class="modification-editor">
+                            <input
+                              class="input-field"
+                              type="text"
+                              [value]="item.modificationDraft"
+                              placeholder="modificaciones (opcional)"
+                              (input)="setCartaModificationDraft(item.productId, $any($event.target).value)"
+                            />
+                            <button type="button" class="btn-secondary" (click)="addCartaModification(item.productId)">Añadir</button>
+                          </div>
+
+                          <div class="modification-list" *ngIf="item.modifications.length > 0">
+                            <article class="modification-item" *ngFor="let mod of item.modifications">
+                              <div>
+                                <strong>{{ mod.text }}</strong>
+                                <small>Costo por definir por el cajero al cerrar la cuenta</small>
+                              </div>
+                              <div class="qty-controls">
+                                <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, -1)">-</button>
+                                <input
+                                  class="input-field qty-input"
+                                  type="number"
+                                  min="0"
+                                  max="250"
+                                  [value]="mod.quantity"
+                                  (input)="setCartaModificationQuantity(item.productId, mod.id, $any($event.target).value)"
+                                />
+                                <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, 1)">+</button>
+                              </div>
+                            </article>
+                          </div>
+                        </ng-container>
+                      </div>
+                    </article>
+
+                    <p class="special-menu-hint" *ngIf="visibleCartaItems().length === 0">
+                      No hay productos disponibles en esta categoría.
+                    </p>
+                  </ng-container>
                 </section>
               </ng-container>
 
@@ -537,6 +568,12 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         font-size: 0.82rem;
       }
 
+      .carta-category-tabs {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+      }
+
       .menu-category {
         display: grid;
         gap: 0.4rem;
@@ -560,7 +597,12 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         display: flex;
         justify-content: space-between;
         gap: 0.45rem;
-        align-items: center;
+        align-items: flex-start;
+      }
+
+      .item-title-block {
+        display: grid;
+        gap: 0.15rem;
       }
 
       .item-head strong {
@@ -571,6 +613,17 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         font-size: 0.8rem;
         font-weight: 700;
         color: #4d3323;
+      }
+
+      .compact-toggle {
+        padding: 0.3rem 0.48rem;
+        font-size: 0.74rem;
+        border-radius: 7px;
+      }
+
+      .item-extra {
+        display: grid;
+        gap: 0.35rem;
       }
 
       .preorder-item-card p {
@@ -852,12 +905,16 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly availableZones = signal<ZoneOption[]>([]);
   readonly showSummary = signal(false);
   readonly activePreorderTab = signal<'carta' | 'especial'>('carta');
+  readonly activeCartaCategory = signal<'Platos' | 'Bebidas'>('Platos');
+  readonly isCartaListExpanded = signal(false);
   readonly expandedSpecialMenuId = signal<string | null>(null);
+  readonly expandedCartaItems = signal<Record<string, boolean>>({});
 
   readonly romanticAddonCost = ROMANTIC_ADDON_COST;
   readonly romanticAddonLabel = ROMANTIC_ADDON_LABEL;
   readonly specialMenuHintMessage = SPECIAL_MENU_HINT_MESSAGE;
   readonly whatsappNote = WHATSAPP_NOTE;
+  readonly reservationHours = RESERVATION_HOURS;
   specialMenus: SpecialMenuOption[] = [...SPECIAL_MENU_OPTIONS];
 
   readonly reservaForm = this.formBuilder.nonNullable.group({
@@ -979,6 +1036,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     if (tab === 'carta') {
       this.clearSpecialMenuSelection();
+      this.isCartaListExpanded.set(false);
     } else {
       this.clearCartaSelection();
     }
@@ -1043,6 +1101,39 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   cartaItemsByCategory(category: 'Platos' | 'Bebidas'): CartaItemState[] {
     return this.cartaItems.filter((item) => item.category === category);
+  }
+
+  setCartaCategory(category: 'Platos' | 'Bebidas'): void {
+    if (category === this.activeCartaCategory()) {
+      return;
+    }
+
+    this.activeCartaCategory.set(category);
+    this.isCartaListExpanded.set(false);
+  }
+
+  toggleCartaList(): void {
+    this.isCartaListExpanded.set(!this.isCartaListExpanded());
+  }
+
+  visibleCartaItems(): CartaItemState[] {
+    return this.cartaItemsByCategory(this.activeCartaCategory());
+  }
+
+  selectedCartaItemsCount(category: 'Platos' | 'Bebidas'): number {
+    return this.cartaItemsByCategory(category).filter((item) => item.quantity > 0).length;
+  }
+
+  toggleCartaItemExpand(productId: string): void {
+    const expanded = this.expandedCartaItems();
+    this.expandedCartaItems.set({
+      ...expanded,
+      [productId]: !expanded[productId],
+    });
+  }
+
+  isCartaItemExpanded(productId: string): boolean {
+    return Boolean(this.expandedCartaItems()[productId]);
   }
 
   changeCartaItemQuantity(productId: string, delta: number): void {
@@ -1579,6 +1670,8 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       item.modificationDraft = '';
       item.modifications = [];
     });
+    this.isCartaListExpanded.set(false);
+    this.expandedCartaItems.set({});
   }
 
   private getDecorationsForDate(date: string): DecorationOption[] {
@@ -1711,7 +1804,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.reservaForm.patchValue(
       {
         date: reservation.date,
-        time: reservation.time,
+        time: this.normalizeToAllowedHour(reservation.time),
         guests: reservation.guests,
         decorationId: reservation.decorationId ?? '',
         zoneId: reservation.zoneId ?? '',
@@ -1744,11 +1837,19 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     this.activePreorderTab.set('carta');
+    this.activeCartaCategory.set('Platos');
+    this.isCartaListExpanded.set(false);
     items.forEach((item) => {
       const cartaItem = this.cartaItems.find((entry) => entry.productId === item.productId);
       if (!cartaItem) {
         return;
       }
+
+      this.activeCartaCategory.set(cartaItem.category);
+      this.expandedCartaItems.set({
+        ...this.expandedCartaItems(),
+        [cartaItem.productId]: true,
+      });
 
       cartaItem.quantity = Math.max(0, item.quantity);
 
@@ -1853,6 +1954,25 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   private buildCartaItems(): CartaItemState[] {
     return [];
+  }
+
+  private normalizeToAllowedHour(rawTime: string): string {
+    if (this.reservationHours.some((slot) => slot.value === rawTime)) {
+      return rawTime;
+    }
+
+    const [rawHour, rawMinute] = rawTime.split(':').map((value) => Number(value));
+    if (!Number.isFinite(rawHour) || !Number.isFinite(rawMinute)) {
+      return this.reservationHours[0].value;
+    }
+
+    const hourWithRounding = rawMinute >= 30 ? rawHour + 1 : rawHour;
+    const clampedHour = Math.max(17, Math.min(22, hourWithRounding));
+    const normalized = `${String(clampedHour).padStart(2, '0')}:00`;
+
+    return this.reservationHours.some((slot) => slot.value === normalized)
+      ? normalized
+      : this.reservationHours[0].value;
   }
 
   private toOptionImage(seed: string): string {
