@@ -4,6 +4,7 @@ import { combineLatest, map, Observable, of } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
+  BackendCancelarReservaResponse,
   BackendCrearReservaRequest,
   BackendDisponibilidadResponse,
   BackendModificarReservaResponse,
@@ -140,6 +141,29 @@ export class ReservationService {
             zonaNombre: data.zonaNombre,
             decoracionNombre: data.decoracionNombre,
             notas: data.notas,
+          });
+
+          return {
+            reservation,
+            requiresWhatsApp: Boolean(data.requiereWhatsApp),
+            whatsappMessage: data.mensajeWhatsApp,
+          } satisfies ReservationUpdateResult;
+        })
+      );
+  }
+
+  cancel(id: string): Observable<ReservationUpdateResult> {
+    return this.http
+      .patch<ApiEnvelope<BackendCancelarReservaResponse>>(API_PATHS.reservas.cancelar(id), {})
+      .pipe(
+        map((response) => {
+          const data = response.data;
+          const reservation = this.toReserva({
+            reservaId: data.reservaId,
+            fechaHoraLlegada: data.fechaHoraLlegada,
+            numeroPersonas: data.numeroPersonas,
+            estado: data.estado,
+            tipo: data.tipo,
           });
 
           return {

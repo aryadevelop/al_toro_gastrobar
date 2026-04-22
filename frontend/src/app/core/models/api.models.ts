@@ -91,6 +91,16 @@ export interface BackendModificarReservaResponse {
   mensajeWhatsApp?: string;
 }
 
+export interface BackendCancelarReservaResponse {
+  reservaId: number;
+  estado: string;
+  tipo?: string;
+  fechaHoraLlegada: string;
+  numeroPersonas: number;
+  requiereWhatsApp: boolean;
+  mensajeWhatsApp?: string;
+}
+
 export interface BackendCategoriaCarta {
   categoriaId: number;
   categoriaNombre: string;

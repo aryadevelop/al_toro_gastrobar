@@ -1,4 +1,5 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
@@ -7,12 +8,15 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ClientePointsService } from '../../../../core/services/cliente-points.service';
 import { ReservationService } from '../../../../core/services/reservation.service';
 import { VisitHistoryEntry, VisitService } from '../../../../core/services/visit.service';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+
+const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
 @Component({
   selector: 'app-reservas-history-page',
   standalone: true,
-  imports: [CommonModule, RouterLink, PageHeaderComponent],
+  imports: [CommonModule, RouterLink, PageHeaderComponent, ConfirmDialogComponent],
   template: `
     <section class="page-grid cliente-compact">
       <article class="flash-toast card" *ngIf="showFlash()">
@@ -43,6 +47,14 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
             <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
               Modificar
             </button>
+            <button
+              type="button"
+              class="btn-danger"
+              [disabled]="!canCancelReservation(reservation)"
+              (click)="onCancelReservation(reservation)"
+            >
+              Cancelar
+            </button>
           </div>
         </article>
 
@@ -70,6 +82,15 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
         </article>
       </section>
+
+      <app-confirm-dialog
+        [open]="showCancelDialog()"
+        title="Cancelar reserva"
+        message="¿Deseas cancelar esta reserva?"
+        [confirmLabel]="cancelingReservation() ? 'Cancelando...' : 'Sí, cancelar'"
+        (confirm)="onConfirmCancelReservation()"
+        (cancel)="onCancelDialog()"
+      ></app-confirm-dialog>
     </section>
   `,
   styles: [
@@ -160,6 +181,9 @@ export class ReservasHistoryPageComponent implements OnInit {
   readonly points = signal(0);
   readonly flashMessage = signal('');
   readonly showFlash = signal(false);
+  readonly showCancelDialog = signal(false);
+  readonly cancelingReservation = signal(false);
+  readonly reservationPendingCancel = signal<Reserva | null>(null);
 
   visitHistory: VisitHistoryEntry[] = [];
   reservasFuturas: Reserva[] = [];
@@ -197,6 +221,66 @@ export class ReservasHistoryPageComponent implements OnInit {
     }
 
     void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
+  }
+
+  onCancelReservation(reservation: Reserva): void {
+    if (!this.canCancelReservation(reservation)) {
+      return;
+    }
+
+    this.reservationPendingCancel.set(reservation);
+    this.showCancelDialog.set(true);
+  }
+
+  onConfirmCancelReservation(): void {
+    const reservation = this.reservationPendingCancel();
+    if (!reservation || this.cancelingReservation()) {
+      return;
+    }
+
+    this.cancelingReservation.set(true);
+
+    this.reservationService.cancel(reservation.id).subscribe({
+      next: (result) => {
+        this.cancelingReservation.set(false);
+        this.showCancelDialog.set(false);
+        this.reservationPendingCancel.set(null);
+
+        if (result.requiresWhatsApp) {
+          this.redirectToWhatsapp(result.whatsappMessage);
+          return;
+        }
+
+        this.flashMessage.set('Reserva cancelada correctamente.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+        this.loadHistoryData();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.cancelingReservation.set(false);
+        this.showCancelDialog.set(false);
+        this.reservationPendingCancel.set(null);
+
+        const backendMessage =
+          (typeof err.error?.message === 'string' && err.error.message.trim().length > 0
+            ? err.error.message
+            : '') ||
+          (typeof err.error === 'string' && err.error.trim().length > 0 ? err.error : '');
+
+        this.flashMessage.set(backendMessage || 'No fue posible cancelar la reserva. Intenta nuevamente.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+      }
+    });
+  }
+
+  onCancelDialog(): void {
+    if (this.cancelingReservation()) {
+      return;
+    }
+
+    this.showCancelDialog.set(false);
+    this.reservationPendingCancel.set(null);
   }
 
   formatDateTime(date: Date): string {
@@ -242,6 +326,10 @@ export class ReservasHistoryPageComponent implements OnInit {
     );
   }
 
+  canCancelReservation(reservation: Reserva): boolean {
+    return this.toDateTime(reservation).getTime() > Date.now() && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
   private isModificationCutoffReached(reserva: Reserva): boolean {
     const cutoff = this.getModificationCutoffDate(reserva);
     return Date.now() >= cutoff.getTime();
@@ -266,6 +354,15 @@ export class ReservasHistoryPageComponent implements OnInit {
 
     dayStart.setHours(13, 0, 0, 0);
     return dayStart;
+  }
+
+  private redirectToWhatsapp(customMessage?: string): void {
+    const message = customMessage?.trim()
+      ? customMessage
+      : 'Hola, deseo gestionar la cancelación y posible reembolso de mi reserva en Al Toro Gastrobar.';
+
+    const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.location.href = url;
   }
 
   private loadHistoryData(): void {
