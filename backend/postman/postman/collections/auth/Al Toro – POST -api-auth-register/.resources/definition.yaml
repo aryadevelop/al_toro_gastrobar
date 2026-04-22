@@ -1,0 +1,36 @@
+$kind: collection
+name: Al Toro – POST /api/auth/register
+description: |-
+  ## Descripción
+  Endpoint de registro para crear cuentas de clientes en Al Toro Gastrobar.
+
+  ## Estructura del Cuerpo de la Solicitud
+  ```json
+  {
+    "nombre": "string",
+    "telefono": "string",
+    "email": "string",
+    "password": "string",
+    "passwordConfirmation": "string",
+    "aceptaTerminos": true,
+    "fechaNacimiento": "YYYY-MM-DD"
+  }
+  ```
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CA-01 | Registrar nuevo cliente válido | 201 |
+  | CA-02 | Validar nombre obligatorio | 400 |
+  | CA-03 | Validar nombre con solo espacios | 400 |
+  | CA-04 | Correo con formato inválido | 400 |
+  | CA-05 | Correo electrónico duplicado | 409 |
+  | CA-06 | Teléfono con formato inválido | 400 |
+  | CA-07 | Contraseña con longitud inválida | 400 |
+  | CA-08 | Confirmación de contraseña no coincide | 400 |
+  | CA-09 | Nombre con números/caracteres inválidos | 400 |
+  | CA-10 | Fecha de nacimiento con menor de edad | 400 |
+  | CA-11 | Términos y condiciones no aceptados | 400 |
+  | CA-12 | Fecha de nacimiento con formato inválido | 400 |
+  | CA-13 | Teléfono duplicado | 409 |
+order: 348946001739003

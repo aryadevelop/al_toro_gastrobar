@@ -53,12 +53,13 @@ public class SecurityConfig {
     /**
      * Rutas que no requieren autenticación.
      *
-     * <p>Incluye únicamente los endpoints de autenticación, la documentación Swagger,
-     * el health check de Actuator y el handshake del WebSocket.
+     * <p>Incluye los endpoints de autenticación (login, refresh, registro), 
+     * la documentación Swagger, el health check de Actuator y el handshake del WebSocket.
      * Todos los demás endpoints requieren un token JWT válido.
      */
     private static final String[] PUBLIC_ENDPOINTS = {
             "/api/auth/login",
+            "/api/auth/register",
             "/api/auth/refresh",
             "/swagger-ui/**",
             "/swagger-ui.html",

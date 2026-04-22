@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-05
+  **Objetivo:** Validar que no se permite registrar un correo ya existente.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Otro Cliente",
+      "telefono": "3001111114",
+      "email": "{{emailAdmin}}",
+      "password": "ValidPass123!",
+      "passwordConfirmation": "ValidPass123!",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 409 – Correo duplicado', () => pm.response.to.have.status(409));
+
+      const body = pm.response.json();
+
+      pm.test('Código ENT-002', () => pm.expect(body.code).to.eql('ENT-002'));
+      pm.test('Mensaje de correo duplicado', () => pm.expect(body.message.toLowerCase()).to.include('correo'));
+    language: text/javascript
+order: 1004

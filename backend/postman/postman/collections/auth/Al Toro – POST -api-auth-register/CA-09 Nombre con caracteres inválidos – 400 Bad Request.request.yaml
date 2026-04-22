@@ -1,0 +1,30 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-09
+  **Objetivo:** Validar rechazo de nombre con números o caracteres no permitidos.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan123",
+      "telefono": "3001111118",
+      "email": "ca09.{{$timestamp}}@example.com",
+      "password": "ValidPass123!",
+      "passwordConfirmation": "ValidPass123!",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Nombre inválido', () => pm.response.to.have.status(400));
+
+      const body = pm.response.json();
+
+      pm.test('Código de validación', () => pm.expect(body.code).to.eql('VAL-001'));
+      pm.test('Mensaje de nombre inválido', () => pm.expect(body.message.toLowerCase()).to.include('nombre'));
+    language: text/javascript
+order: 1008
