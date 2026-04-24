@@ -1,0 +1,7 @@
+$kind: collection
+name: Al Toro – PUT /api/clientes/me
+description: |-
+  Casos de prueba HU-03 para actualización de datos personales del cliente.
+
+  Incluye éxito, duplicados, validaciones de formato y autorización.
+order: 348946001739101

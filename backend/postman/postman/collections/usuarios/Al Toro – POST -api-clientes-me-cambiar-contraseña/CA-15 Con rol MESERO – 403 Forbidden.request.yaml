@@ -1,0 +1,48 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-15
+  **Objetivo:** Verificar que cambiar contraseña con rol MESERO retorna 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/me/cambiar-contraseña"
+method: POST
+headers:
+  Content-Type: application/json
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como MESERO para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero@altoro.com',
+            password: 'MeseroPass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 403 – Acceso denegado para rol no CLIENTE', () => pm.response.to.have.status(403));
+    language: text/javascript
+body:
+  type: text
+  content: |-
+    {
+      "contraseñaActual": "MeseroPass123!",
+      "nuevaContraseña": "NewPass123!",
+      "confirmacion": "NewPass123!"
+    }
+order: 3001
+

@@ -23,4 +23,4 @@ scripts:
       pm.test('Mensaje de correo electrónico requerido', () =>
         pm.expect(pm.response.json().message).to.include('Por favor ingresa tu correo electronico'));
     language: text/javascript
-order: 7000
+order: 8000

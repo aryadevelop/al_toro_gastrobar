@@ -1,0 +1,7 @@
+$kind: collection
+name: Al Toro – POST /api/clientes/me/cambiar-contraseña
+description: |-
+  Casos de prueba HU-03 para cambio de contraseña del cliente autenticado.
+
+  Incluye autenticación, autorización, validaciones y caso exitoso.
+order: 348946001739102

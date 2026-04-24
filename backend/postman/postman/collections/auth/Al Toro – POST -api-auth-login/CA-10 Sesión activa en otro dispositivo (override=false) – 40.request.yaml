@@ -25,4 +25,4 @@ scripts:
       pm.test('Mensaje informativo de sesión activa en otro dispositivo', () =>
         pm.expect(pm.response.json().message).to.eql('Ya tienes una sesión activa. ¿Deseas cerrar la otra sesión y continuar?'));
     language: text/javascript
-order: 10000
+order: 11000
