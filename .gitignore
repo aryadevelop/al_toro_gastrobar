@@ -40,6 +40,11 @@ backend/src/main/resources/application-local.properties
 backend/src/main/resources/application-prod.properties
 
 # ========================
+# Claude Code
+# ========================
+.claude/
+
+# ========================
 # IDEs y editores
 # ========================
 .idea/
@@ -47,7 +52,6 @@ backend/src/main/resources/application-prod.properties
 .vscode/
 *.suo
 *.user
-.claude/
 
 # ========================
 # Sistema operativo
@@ -62,7 +66,6 @@ desktop.ini
 *.tmp
 *.bak
 logs/
-.claude/
 
 # Git worktrees
 .worktrees/

@@ -31,8 +31,8 @@ build/
 
 ### VS Code ###
 .vscode/
+.claude/
 
-### Variables de entorno — nunca commitear secrets de prod ###
+### Variables de entorno
 .env.prod
 .env.local
-.claude/
