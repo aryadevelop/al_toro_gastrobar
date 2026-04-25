@@ -2,6 +2,8 @@ package co.edu.unicauca.backend.modules.pagos_caja.service;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.CuentaCerradaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.dto.request.CerrarCuentaRequest;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.VentaRepository;
@@ -17,6 +19,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 
 /**
  * Servicio de negocio para el registro y cierre de cuentas de visitas.
@@ -42,6 +45,7 @@ public class VentaService {
     private final VisitaRepository visitaRepository;
     private final VentaRepository ventaRepository;
     private final EmpleadoRepository empleadoRepository;
+    private final NotificacionWsPublisher wsPublisher;
 
     /**
      * Registra la venta de una visita y cierra su cuenta.
@@ -99,12 +103,24 @@ public class VentaService {
             incrementarPuntosCliente(cliente);
         }
 
-        // TODO: Verificar si se registró la hora de salida de la visita; si no, registrar la hora actual
+        // Registrar hora de cierre de la visita
+        visita.setVisitaFechaHoraFin(LocalDateTime.now());
+        visitaRepository.save(visita);
+
+        // Notificar al cliente vía WebSocket: cuenta cerrada + puntos actualizados
+        // puntosActuales se incluye para que el frontend actualice el saldo sin llamada extra
+        Integer puntosActuales = (cliente != null) ? cliente.getClientePuntos() : null;
+        wsPublisher.publicarCuentaCerrada(visita.getVisitaId(),
+                CuentaCerradaWsMessage.builder()
+                        .visitaId(visita.getVisitaId())
+                        .mensaje("La cuenta ya está cerrada. ¡Gracias por tu visita!")
+                        .puntosActuales(puntosActuales)
+                        .build());
+
         // TODO: Cambiar estado de mesa a disponible
         // TODO: Verificar que las notificaciones hayan sido atendidas antes de cerrar
         // TODO: Cerrar comandas abiertas de la visita
         // TODO: Verificar todos los estados relacionados con la visita antes de cerrarla
-        // TODO: Notificar cierre de visita al dashboard del cliente vía WebSocket (+1 punto, mover a historial)
         // TODO: Actualizar dashboard de mesas: retirar la mesa de ocupadas y marcarla como disponible
     }
 
