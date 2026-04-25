@@ -171,3 +171,9 @@ values:
   - key: tmpNotificacionId
     enabled: true
     value: ''
+  - key: tmpNotificacionCreada
+    enabled: true
+    value: ''
+  - key: accessToken
+    enabled: true
+    value: ''
