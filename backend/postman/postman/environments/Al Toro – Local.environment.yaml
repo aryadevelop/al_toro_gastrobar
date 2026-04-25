@@ -159,15 +159,21 @@ values:
   - key: decoracionConCostoId2
     enabled: true
     value: ''
+  - key: tmpReservaIdAjena
+    enabled: true
+    value: ''
   - key: loginExpiresIn
     enabled: true
     value: ''
-  - key: savedAccessToken
+  - key: refreshToken
     enabled: true
     value: ''
-  - key: savedRefreshToken
+  - key: tmpNotificacionId
     enabled: true
     value: ''
-  - key: tmpReservaIdAjena
+  - key: tmpNotificacionCreada
+    enabled: true
+    value: ''
+  - key: accessToken
     enabled: true
     value: ''

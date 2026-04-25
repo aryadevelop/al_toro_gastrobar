@@ -1,0 +1,49 @@
+$kind: http-request
+name: OA-02 CLIENTE con visita pero verificar estructura – 200 OK
+description: |-
+  **Criterio de Aceptación:** Dashboard funciona correctamente con cualquier cantidad de ítems.
+  **Objetivo:** Verificar estructura de respuesta independiente de cantidad de ítems.
+  **Pre-condición:** Cliente andres.morales@gmail.com tiene visita activa (ID 11).
+  **Resultado esperado:** 200 OK con estructura correcta de items[] (vacío o con datos).
+  **Nota:** Seed V3 no tiene visitas activas sin ítems. Este test verifica estructura.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE - andres.morales@gmail.com (visitaId 11)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'andres.morales@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OA-02: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna estado de visita con 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta tiene estructura correcta de items[]', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('items').that.is.an('array');
+        pm.expect(body.data).to.have.property('total');
+        pm.expect(body.data).to.have.property('visitaCerrada').that.is.false;
+      });
+    language: text/javascript
+order: 2000

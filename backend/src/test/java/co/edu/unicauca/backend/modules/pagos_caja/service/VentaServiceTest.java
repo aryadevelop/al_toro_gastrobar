@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.pagos_caja.service;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.dto.request.CerrarCuentaRequest;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.VentaRepository;
@@ -53,6 +54,9 @@ class VentaServiceTest {
 
     @Mock
     EmpleadoRepository empleadoRepository;
+
+    @Mock
+    NotificacionWsPublisher wsPublisher;
 
     @InjectMocks
     VentaService ventaService;

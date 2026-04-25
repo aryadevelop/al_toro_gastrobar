@@ -1,0 +1,42 @@
+$kind: http-request
+name: NC-04 CLIENTE intenta atender – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Control de acceso — solo MESERO y ADMIN pueden atender.
+  **Objetivo:** Verificar que CLIENTE no puede usar este endpoint.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/notificaciones/1/atender"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'carlos.perez@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('NC-04: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza al CLIENTE con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 4000

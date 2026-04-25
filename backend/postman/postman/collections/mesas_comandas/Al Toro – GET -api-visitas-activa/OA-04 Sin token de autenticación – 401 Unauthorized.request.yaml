@@ -1,0 +1,17 @@
+$kind: http-request
+name: OA-04 Sin token de autenticación – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** Control de acceso — endpoint protegido requiere autenticación.
+  **Objetivo:** Verificar que sin token JWT se rechaza con 401.
+  **Pre-condición:** Ninguna.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza petición sin token con 401', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 4000

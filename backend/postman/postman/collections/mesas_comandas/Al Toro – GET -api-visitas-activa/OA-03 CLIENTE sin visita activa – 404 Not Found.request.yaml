@@ -1,0 +1,46 @@
+$kind: http-request
+name: OA-03 CLIENTE sin visita activa – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** El endpoint rechaza con 404 cuando el cliente no tiene visita activa.
+  **Objetivo:** Verificar manejo correcto de caso cuando no hay visita en curso.
+  **Pre-condición:** Cliente seed sofia.ramirez@gmail.com no tiene visita activa (solo historial).
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE sin visita activa
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'sofia.ramirez@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OA-03: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 404 cuando no hay visita activa', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('El mensaje de error es descriptivo', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('visita activa');
+      });
+    language: text/javascript
+order: 3000

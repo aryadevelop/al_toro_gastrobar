@@ -1,0 +1,47 @@
+$kind: http-request
+name: OA-05 MESERO con emailCliente válido – 200 OK
+description: |-
+  **Criterio de Aceptación:** Empleados pueden consultar visita activa de cualquier cliente con el parámetro emailCliente.
+  **Objetivo:** Verificar que MESERO puede consultar visita de otro cliente.
+  **Pre-condición:** `meseroToken` disponible. Cliente carlos.perez@gmail.com tiene visita activa.
+  **Resultado esperado:** 200 OK con estado completo.
+url: "{{baseUrl}}/api/visitas/activa?emailCliente=carlos.perez@gmail.com"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('OA-05: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El MESERO puede consultar visita de otro cliente con 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta contiene el estado completo', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data).to.have.property('items').that.is.an('array');
+      });
+    language: text/javascript
+order: 5000

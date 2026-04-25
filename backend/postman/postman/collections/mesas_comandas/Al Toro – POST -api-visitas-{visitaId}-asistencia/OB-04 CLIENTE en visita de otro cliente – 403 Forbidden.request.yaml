@@ -1,0 +1,46 @@
+$kind: http-request
+name: OB-04 CLIENTE en visita de otro cliente – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Validación de ownership — solo el dueño puede solicitar asistencia.
+  **Objetivo:** Verificar que un cliente no puede solicitar asistencia para visita de otro.
+  **Pre-condición:** Cliente andres.morales@gmail.com tiene visita activa (ID 11). Cliente autenticado es juan.torres@gmail.com.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/visitas/11/asistencia"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login de cliente diferente al dueño de la visita
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'juan.torres@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OB-04: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza acceso a visita de otro cliente con 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El mensaje indica falta de acceso', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('acceso');
+      });
+    language: text/javascript
+order: 4000

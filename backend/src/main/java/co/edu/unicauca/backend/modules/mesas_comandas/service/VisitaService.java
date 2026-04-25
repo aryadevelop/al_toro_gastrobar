@@ -33,9 +33,9 @@ import java.util.stream.Collectors;
 /**
  * Servicio de negocio para la consulta del historial y detalle de visitas del cliente.
  *
- * <p>Implementa los criterios de aceptación CA-05 (historial de visitas) y CA-07
- * (detalle de una visita). Consolida datos de visitas con reserva y walk-ins,
- * accediendo a repositorios de los módulos {@code reservas} y {@code pagos_caja}.
+ * <p>Implementa historial de visitas y detalle de una visita. 
+ * Consolida datos de visitas con reserva y walk-ins, accediendo a repositorios de los módulos 
+ * {@code reservas} y {@code pagos_caja}.
  *
  * @see VisitaMapper
  */

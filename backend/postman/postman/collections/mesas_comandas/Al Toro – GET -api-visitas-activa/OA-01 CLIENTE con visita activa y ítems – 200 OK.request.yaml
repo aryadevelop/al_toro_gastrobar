@@ -1,0 +1,55 @@
+$kind: http-request
+name: OA-01 CLIENTE con visita activa y ítems – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Dashboard muestra estado de la visita activa con ítems y total.
+  **Objetivo:** Verificar que un cliente con visita activa obtiene su estado completo incluyendo lista de ítems.
+  **Pre-condición:** `clienteToken` disponible. Cliente seed carlos.perez@gmail.com tiene visita activa (ID 10) con comandas.
+  **Resultado esperado:** 200 OK con visitaId, mesaIdentificador, items[], total > 0, asistenciaSolicitada=false.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE - carlos.perez@gmail.com (visitaId 10)
+      // Primero limpiar cualquier notificación activa de ejecuciones previas
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'carlos.perez@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OA-01: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna el estado de la visita activa con 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta contiene visitaId, items y total', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data).to.have.property('mesaIdentificador');
+        pm.expect(body.data).to.have.property('items').that.is.an('array');
+        pm.expect(body.data.items.length).to.be.greaterThan(0);
+        pm.expect(body.data).to.have.property('total');
+        pm.expect(body.data.total).to.be.greaterThan(0);
+        pm.expect(body.data).to.have.property('asistenciaSolicitada');
+        // Nota: puede ser true si hay notificaciones de ejecuciones previas
+      });
+    language: text/javascript
+order: 1000

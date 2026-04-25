@@ -1,0 +1,47 @@
+$kind: http-request
+name: NC-02 MESERO intenta atender ya atendida – 409 Conflict
+description: |-
+  **Criterio de Aceptación:** No se puede atender una notificación ya atendida.
+  **Objetivo:** Verificar validación de estado de notificación.
+  **Pre-condición:** NC-01 debe ejecutarse primero para atender la notificación.
+  **Resultado esperado:** 409 Conflict.
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionParaAtender}}/atender"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('NC-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 409 notificación ya atendida', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('El mensaje indica que ya fue atendida', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.match(/atendida|estado/i);
+      });
+      pm.environment.unset('tmpNotificacionParaAtender');
+    language: text/javascript
+order: 2000
