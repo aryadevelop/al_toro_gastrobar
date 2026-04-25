@@ -1,0 +1,73 @@
+$kind: collection
+name: Al Toro – GET /api/visitas/activa
+description: |-
+  # GET /api/visitas/activa
+
+  Retorna el estado actual de la visita activa: ítems, total acumulado y estado del botón de asistencia.
+
+  **Criterios de Aceptación cubiertos:** CA-01 (contenido del dashboard), CA-06 (recarga mantiene estado).
+
+  **Control de acceso:**
+  - CLIENTE: usa su propio token, sin parámetros adicionales.
+  - MESERO/CAJERO/ADMIN: requiere ?emailCliente=. Sin parámetro → 400.
+  - Sin token → 401.
+
+  **Campos de EstadoVisitaResponse:** visitaId, mesaIdentificador (nullable), visitaCerrada, items[], total, asistenciaSolicitada, notificacionAsistenciaId (nullable)
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección (CLIENTE, MESERO).
+  - **Visitas activas seed:** Los casos usan visitas del seed V3 (IDs 10, 11, 12).
+    - Visita 10 (carlos.perez@gmail.com): con ítems, mesa M-02
+    - Visita 12 (juan.torres@gmail.com): con ítems, mesa T-04
+  - **Cliente sin visita activa:** se usa un cliente seed que no tiene visita activa (laura.gomez@gmail.com).
+  - **Asistencia solicitada (OA-08, OB-06):** El test OB-01 crea la solicitud vía POST; OA-08 y OB-06 la consultan.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | OA-01 | CLIENTE con visita activa y ítems — 200 OK (CA-01) | 200 |
+  | OA-02 | CLIENTE sin ítems en visita — 200 OK lista vacía | 200 |
+  | OA-03 | CLIENTE sin visita activa — 404 Not Found | 404 |
+  | OA-04 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | OA-05 | MESERO con emailCliente válido — 200 OK | 200 |
+  | OA-06 | MESERO sin emailCliente — 400 Bad Request | 400 |
+  | OA-07 | Segunda llamada retorna datos consistentes (CA-06) | 200 |
+  | OA-08 | CLIENTE con asistencia solicitada — valida notificacionId (WS) | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: CLIENTE, MESERO
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OA pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

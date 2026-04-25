@@ -1,0 +1,91 @@
+$kind: http-request
+name: OB-01 CLIENTE solicita asistencia – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-04 — Cliente puede solicitar asistencia de mesero.
+  **Objetivo:** Verificar creación exitosa de solicitud de asistencia.
+  **Pre-condición:** `clienteToken` disponible. Cliente juan.torres@gmail.com tiene visita activa (ID 12) con mesa asignada.
+  **Resultado esperado:** 201 Created con notificacionId. Evento WS `AsistenciaSolicitadaWsMessage` publicado en /topic/mesas/asistencia.
+  **Efecto observable:** GET /api/visitas/activa mostrará asistenciaSolicitada=true (validado en OA-08, OB-06).
+url: "{{baseUrl}}/api/visitas/12/asistencia"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE y limpieza de notificaciones activas previas
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'juan.torres@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+
+          // Verificar si hay notificación activa y limpiarla
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/visitas/activa',
+            method: 'GET',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, (err2, res2) => {
+            if (!err2 && res2 && res2.code === 200) {
+              const estado = res2.json().data;
+              if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+                // Limpiar notificación activa con login de mesero
+                pm.sendRequest({
+                  url: pm.environment.get('baseUrl') + '/api/auth/login',
+                  method: 'POST',
+                  header: { 'Content-Type': 'application/json' },
+                  body: {
+                    mode: 'raw',
+                    raw: JSON.stringify({
+                      email: pm.environment.get('emailMesero'),
+                      password: pm.environment.get('passwordValida'),
+                      forceSessionOverride: true
+                    })
+                  }
+                }, (err3, res3) => {
+                  if (!err3 && res3 && res3.code === 200) {
+                    pm.sendRequest({
+                      url: pm.environment.get('baseUrl') + '/api/notificaciones/' + estado.notificacionAsistenciaId + '/atender',
+                      method: 'PATCH',
+                      header: { 'Authorization': 'Bearer ' + res3.json().accessToken }
+                    }, (err4, res4) => {
+                      if (err4 || !res4 || res4.code !== 200) {
+                        console.warn('OB-01: limpieza de notificación previa falló', err4, res4 && res4.code);
+                      }
+                    });
+                  }
+                });
+              }
+            }
+          });
+        } else {
+          console.warn('OB-01: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la solicitud de asistencia con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La respuesta contiene notificacionId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('notificacionId');
+        pm.expect(body.data.notificacionId).to.be.a('number');
+        pm.expect(body.data.estado).to.equal('ACTIVA');
+        // Guardar ID para tests posteriores
+        pm.environment.set('tmpNotificacionCreada', body.data.notificacionId);
+      });
+    language: text/javascript
+order: 1000

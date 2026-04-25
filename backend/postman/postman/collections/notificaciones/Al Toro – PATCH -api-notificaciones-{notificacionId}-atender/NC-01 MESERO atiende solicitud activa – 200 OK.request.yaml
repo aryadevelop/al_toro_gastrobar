@@ -1,0 +1,47 @@
+$kind: http-request
+name: NC-01 MESERO atiende solicitud activa – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-05 — Mesero puede marcar solicitud de asistencia como atendida.
+  **Objetivo:** Verificar atención exitosa de notificación.
+  **Pre-condición:** `meseroToken` disponible. OB-01 debe ejecutarse primero para crear la notificación. El ID se obtiene de tmpNotificacionParaAtender (seteado por OB-06).
+  **Resultado esperado:** 200 OK. Evento WS `AsistenciaAtendidaWsMessage` publicado al cliente.
+  **Efecto observable:** GET /api/visitas/activa mostrará asistenciaSolicitada=false (validado en NC-05).
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionParaAtender}}/atender"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('NC-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El MESERO atiende la solicitud con 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El mensaje confirma que fue atendida', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('atendida');
+      });
+    language: text/javascript
+order: 1000

@@ -289,6 +289,15 @@ When a URL contains a fixed seed email (e.g., `sinpuntos@altoro.com`), write it 
 ### Dynamic client selection for points tests
 Tests requiring a client with `puntosActuales > 0` (PC-05, PC-06, PC-09) iterate the seed pool (IDs 11..22) via `GET /api/clientes/{id}/puntos` until a valid one is found. Each redemption exhausts one client from the pool; when empty, run `./mvnw flyway:clean flyway:migrate`.
 
+### Running Postman collections
+
+**Prerequisite:** Clean test state by running the cleanup script before executing tests:
+```bash
+psql -U postgres -d altoro_db -f postman/cleanup-notificaciones.sql
+```
+
+This script marks all active `ATENCION` notifications as `ATENDIDA`, ensuring tests start from a clean state.
+
 ### Postman collections by module
 Collections live in `backend/postman/postman/collections/`:
 
@@ -302,6 +311,9 @@ Collections live in `backend/postman/postman/collections/`:
 | `reservas/Al Toro – GET -api-reservas-{id}-detalle/` | `GET /api/reservas/{reservaId}/detalle` |
 | `mesas_comandas/Al Toro – GET -api-visitas-cliente-historial/` | `GET /api/visitas/cliente/historial` |
 | `mesas_comandas/Al Toro – GET -api-visitas-cliente-{id}-detalle/` | `GET /api/visitas/cliente/{visitaId}/detalle` |
+| `mesas_comandas/Al Toro – GET -api-visitas-activa/` | `GET /api/visitas/activa` (8 tests) |
+| `mesas_comandas/Al Toro – POST -api-visitas-{visitaId}-asistencia/` | `POST /api/visitas/{visitaId}/asistencia` (6 tests) |
+| `notificaciones/Al Toro – PATCH -api-notificaciones-{notificacionId}-atender/` | `PATCH /api/notificaciones/{notificacionId}/atender` (5 tests) |
 | `usuarios/Al Toro – GET -api-clientes-me-puntos/` | `GET /api/clientes/me/puntos` |
 | `usuarios/Al Toro – GET -api-clientes-{clienteId}-puntos/` | `GET /api/clientes/{clienteId}/puntos` |
 | `usuarios/Al Toro – POST -api-clientes-{clienteId}-canje-puntos/` | `POST /api/clientes/{clienteId}/canje-puntos` |

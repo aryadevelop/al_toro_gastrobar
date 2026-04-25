@@ -1,0 +1,50 @@
+$kind: http-request
+name: OB-06 Verificar GET refleja asistencia solicitada – 200 OK
+description: |-
+  **Criterio de Aceptación:** Validar efecto observable del evento WS AsistenciaSolicitadaWsMessage.
+  **Objetivo:** Después de POST asistencia (OB-01), verificar que GET /visitas/activa refleja el cambio.
+  **Pre-condición:** OB-01 debe ejecutarse primero. Cliente juan.torres@gmail.com tiene visita activa con solicitud de asistencia.
+  **Resultado esperado:** 200 OK con asistenciaSolicitada=true, notificacionAsistenciaId != null.
+  **Nota:** Este test valida indirectamente que el mensaje WS se publicó correctamente con los datos de la notificación.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'juan.torres@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OB-06: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('GET /visitas/activa retorna estado con asistencia solicitada', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('asistenciaSolicitada=true y notificacionId poblado (efecto WS validado)', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.asistenciaSolicitada).to.be.true;
+        pm.expect(body.data.notificacionAsistenciaId).to.not.be.null;
+        // Guardar ID para tests de PATCH atender
+        pm.environment.set('tmpNotificacionParaAtender', body.data.notificacionAsistenciaId);
+      });
+    language: text/javascript
+order: 6000
