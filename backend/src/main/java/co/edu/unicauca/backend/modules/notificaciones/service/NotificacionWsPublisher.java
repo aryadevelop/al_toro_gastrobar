@@ -14,8 +14,8 @@ import org.springframework.stereotype.Service;
  * <p>Tópicos:
  * <ul>
  *   <li>{@code /topic/visita/{visitaId}/orden} — actualización de ítems de comanda.</li>
- *   <li>{@code /topic/visita/{visitaId}/cuenta} — cuenta cerrada (incluye puntos actualizados).</li>
- *   <li>{@code /topic/visita/{visitaId}/asistencia} — asistencia atendida (CA-05).</li>
+ *   <li>{@code /topic/visita/{visitaId}/cuenta} — cuenta cerrada.</li>
+ *   <li>{@code /topic/visita/{visitaId}/asistencia} — asistencia atendida.</li>
  *   <li>{@code /topic/mesas/asistencia} — broadcast a empleados.</li>
  * </ul>
  */
@@ -27,7 +27,7 @@ public class NotificacionWsPublisher {
 
     /**
      * Notifica al cliente que la lista de ítems de su visita cambió.
-     * Call site: servicio de creación/modificación de comanda (HU siguiente).
+     * Call site: servicio de creación/modificación de comanda.
      */
     public void publicarVisitaActualizada(Long visitaId, VisitaActualizadaWsMessage mensaje) {
         messagingTemplate.convertAndSend("/topic/visita/" + visitaId + "/orden", mensaje);

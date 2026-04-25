@@ -31,7 +31,6 @@ import java.util.stream.Collectors;
  *
  * <p>Permite al cliente (y a empleados autorizados) ver los ítems pedidos,
  * el total acumulado y si hay una solicitud de asistencia pendiente.
- * La conversión entity→DTO se delega a {@link VisitaEstadoMapper}.
  *
  * @see EstadoVisitaResponse
  * @see VisitaEstadoMapper
@@ -82,7 +81,7 @@ public class VisitaEstadoService {
         // Obtiene todas las comandas de la visita
         List<Comanda> comandas = comandaRepository.findByVisita_VisitaId(visitaId);
 
-        // Mapea ítems excluyendo comandas en estado PRE_RESERVA (pendientes de inicio de visita)
+        // Mapea ítems excluyendo comandas en estado PRE_RESERVA
         List<ItemVisitaResponse> items = comandas.stream()
                 .filter(c -> c.getComandaEstado() != EstadoComanda.PRE_RESERVA)
                 .flatMap(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId())

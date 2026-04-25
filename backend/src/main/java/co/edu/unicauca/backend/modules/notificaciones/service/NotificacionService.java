@@ -122,7 +122,7 @@ public class NotificacionService {
      * re-habilite el botón "Solicitar asistencia".
      *
      * @param notificacionId identificador de la notificación a atender
-     * @param emailEmpleado  correo del mesero autenticado (para auditoría futura)
+     * @param emailEmpleado  correo del mesero autenticado
      * @throws ResourceNotFoundException si la notificación no existe
      * @throws BusinessException         si la notificación ya fue atendida
      */
@@ -138,7 +138,7 @@ public class NotificacionService {
                     "Esta solicitud de asistencia ya fue atendida.",
                     HttpStatus.CONFLICT);
         }
-
+        
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 

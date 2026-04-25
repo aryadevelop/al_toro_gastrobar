@@ -24,7 +24,7 @@ public class EstadoVisitaResponse {
     /** {@code true} si la cuenta ya fue cerrada (visitaFechaHoraFin != null). */
     private final boolean visitaCerrada;
 
-    /** Lista de ítems de la visita (todas las comandas activas). */
+    /** Lista de ítems de la visita. */
     private final List<ItemVisitaResponse> items;
 
     /** Suma de todos los subtotales; {@code BigDecimal.ZERO} si no hay ítems. */
@@ -32,7 +32,7 @@ public class EstadoVisitaResponse {
 
     /**
      * {@code true} si hay una notificación ATENCION ACTIVA para esta mesa.
-     * El frontend usa este campo al recargar para saber si el botón está deshabilitado.
+     * El frontend puede usar este campo al recargar para saber si el botón está deshabilitado.
      */
     private final boolean asistenciaSolicitada;
 

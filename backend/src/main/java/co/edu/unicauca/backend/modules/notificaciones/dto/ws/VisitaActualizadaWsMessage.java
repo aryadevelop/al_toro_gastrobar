@@ -11,7 +11,6 @@ import java.util.List;
  * Mensaje WebSocket publicado en {@code /topic/visita/{visitaId}/orden} cuando
  * el mesero agrega o modifica ítems de comanda.
  *
- * <p>El call site se añadirá en la HU de creación de visita (mesa).
  */
 @Getter
 @Builder

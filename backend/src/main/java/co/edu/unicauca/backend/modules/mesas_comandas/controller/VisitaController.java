@@ -131,7 +131,7 @@ public class VisitaController {
      *
      * <p>Crea una notificación {@code ATENCION} en la DB y publica un broadcast
      * WebSocket en {@code /topic/mesas/asistencia} para todos los empleados conectados.
-     * Devuelve 409 si ya existe una solicitud activa para la misma mesa (CA-04).
+     * Devuelve 409 si ya existe una solicitud activa para la misma mesa.
      *
      * @param visitaId       identificador de la visita activa del cliente
      * @param authentication contexto de seguridad del request

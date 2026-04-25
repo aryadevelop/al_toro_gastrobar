@@ -108,7 +108,6 @@ public class VentaService {
         visitaRepository.save(visita);
 
         // Notificar al cliente vía WebSocket: cuenta cerrada + puntos actualizados
-        // puntosActuales se incluye para que el frontend actualice el saldo sin llamada extra
         Integer puntosActuales = (cliente != null) ? cliente.getClientePuntos() : null;
         wsPublisher.publicarCuentaCerrada(visita.getVisitaId(),
                 CuentaCerradaWsMessage.builder()
@@ -133,9 +132,9 @@ public class VentaService {
      * @param cliente cliente que realizó la visita
      */
     private void incrementarPuntosCliente(Cliente cliente) {
-        // Suma al saldo actual (puede decrementarse en futuros canjes)
+        // Suma al saldo actual
         cliente.setClientePuntos(cliente.getClientePuntos() + 1);
-        // Suma al acumulado histórico (invariante: nunca disminuye)
+        // Suma al acumulado histórico
         cliente.setClientePuntosAcumulados(cliente.getClientePuntosAcumulados() + 1);
     }
 }
