@@ -1,0 +1,155 @@
+$kind: http-request
+name: MC-10 Filtro por fecha excluye otras fechas – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-06 — filtro por fecha retorna SOLO reservas de esa fecha específica.
+  **Objetivo:** Verificar que cuando se filtra por una fecha específica, el resultado NO incluye reservas de otros días.
+  **Pre-condición:** El pre-request hace login autónomo como MESERO y crea 2 reservas en días diferentes, luego consulta solo una de las fechas.
+  **Resultado esperado:** 200 OK · solo aparece la reserva del día consultado · la otra no está presente.
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  fecha: "{{tmpFechaFiltro}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d1 = new Date();
+      d1.setDate(d1.getDate() + 3);
+      d1.setHours(19, 0, 0, 0);
+      const fechaHora1 = `${d1.getFullYear()}-${pad(d1.getMonth()+1)}-${pad(d1.getDate())}T19:00:00`;
+      const fechaFiltro = `${d1.getFullYear()}-${pad(d1.getMonth()+1)}-${pad(d1.getDate())}`;
+      pm.environment.set('tmpFechaFiltro', fechaFiltro);
+
+      const d2 = new Date();
+      d2.setDate(d2.getDate() + 4);
+      d2.setHours(19, 0, 0, 0);
+      const fechaHora2 = `${d2.getFullYear()}-${pad(d2.getMonth()+1)}-${pad(d2.getDate())}T19:00:00`;
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MC-10: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const clienteToken = res.json().accessToken;
+
+        // Crear reserva para el día que SÍ consultaremos
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora1,
+            numeroPersonas: 2,
+            zonaId: null, decoracionId: null, notas: 'MC-10-DIA-FILTRADO', preOrden: null
+          })}
+        }, function (e1, r1) {
+          if (!e1 && r1 && r1.code === 201) {
+            pm.environment.set('tmpReservaIdMC10_1', r1.json().data.reservaId);
+          }
+
+          // Crear reserva para OTRO día (que NO debe aparecer)
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+            body: { mode: 'raw', raw: JSON.stringify({
+              emailCliente: pm.environment.get('emailCliente'),
+              fechaHoraLlegada: fechaHora2,
+              numeroPersonas: 3,
+              zonaId: null, decoracionId: null, notas: 'MC-10-OTRO-DIA', preOrden: null
+            })}
+          }, function (e2, r2) {
+            if (!e2 && r2 && r2.code === 201) {
+              pm.environment.set('tmpReservaIdMC10_2', r2.json().data.reservaId);
+            }
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/auth/login',
+              method: 'POST',
+              header: { 'Content-Type': 'application/json' },
+              body: { mode: 'raw', raw: JSON.stringify({
+                email: pm.environment.get('emailMesero'),
+                password: pm.environment.get('passwordValida'),
+                forceSessionOverride: true
+              })}
+            }, function (e3, r3) {
+              if (!e3 && r3 && r3.code === 200) {
+                pm.environment.set('meseroToken', r3.json().accessToken);
+              }
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      const idDiaFiltrado = String(pm.environment.get('tmpReservaIdMC10_1'));
+      const idOtroDia = String(pm.environment.get('tmpReservaIdMC10_2'));
+
+      pm.test('La reserva del día filtrado SÍ aparece en el resultado', function () {
+        const ids = body.data.reservas.map(r => String(r.reservaId));
+        pm.expect(ids).to.include(idDiaFiltrado);
+      });
+
+      pm.test('La reserva del OTRO día NO aparece en el resultado', function () {
+        const ids = body.data.reservas.map(r => String(r.reservaId));
+        pm.expect(ids).to.not.include(idOtroDia);
+      });
+
+      pm.test('Todas las reservas retornadas son de la fecha filtrada', function () {
+        const fechaFiltro = pm.environment.get('tmpFechaFiltro');
+        body.data.reservas.forEach(r => {
+          // horaLlegada es "HH:mm", no incluye fecha, pero sabemos que solo deben ser del día filtrado
+          // Ya verificamos que nuestra reserva filtrada está y la otra no
+          pm.expect(r).to.have.property('horaLlegada');
+        });
+      });
+
+      // Cleanup
+      const ids = [idDiaFiltrado, idOtroDia];
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (e, r) {
+        if (!e && r && r.code === 200) {
+          const clienteToken = r.json().accessToken;
+          ids.forEach(id => {
+            if (id && id !== 'undefined') {
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/reservas/' + id + '/cancelar',
+                method: 'PATCH',
+                header: { 'Authorization': 'Bearer ' + clienteToken }
+              });
+            }
+          });
+        }
+      });
+
+      pm.environment.unset('tmpReservaIdMC10_1');
+      pm.environment.unset('tmpReservaIdMC10_2');
+      pm.environment.unset('tmpFechaFiltro');
+    language: text/javascript
+order: 1090

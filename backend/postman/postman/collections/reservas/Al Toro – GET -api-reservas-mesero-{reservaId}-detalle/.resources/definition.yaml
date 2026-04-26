@@ -1,0 +1,67 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/mesero/{reservaId}/detalle
+description: |-
+  Retorna el detalle completo de una reserva para meseros, incluyendo teléfono del cliente.
+
+  **Criterio de Aceptación cubierto:** PA-78-CA-04 a CA-09 (detalle de reserva para mesero).
+
+  **Roles autorizados:** `MESERO`, `ADMIN`.
+
+  **Encabezados requeridos:** `Authorization: Bearer <token-según-rol>`
+
+  **Campos de la respuesta `ReservaDetalleResponse`:**
+  - Siempre presentes: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`, `clienteTelefono`
+  - Opcionales: `zonaNombre`, `decoracionNombre`, `notas`, `clienteNombre`
+  - Opcionales pre-orden: `preOrdenItems` (con `modificaciones` para menús especiales), `preOrdenTotal`
+  - Opcionales abonos: `abonos`, `totalAbonado`
+
+  **Independencia de los casos:**
+  Cada request se autoabastece mediante login autónomo. El hook de colección gestiona tokens de MESERO y ADMIN.
+
+  **Tabla de casos:**
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MD-01 | MESERO consulta detalle con pre-orden y abonos | 200 |
+  | MD-02 | MESERO consulta reserva básica sin pre-orden | 200 |
+  | MD-03 | ADMIN consulta detalle | 200 |
+  | MD-04 | CLIENTE sin permiso | 403 |
+  | MD-05 | Sin token | 401 |
+  | MD-06 | Reserva inexistente | 404 |
+  | MD-07 | Detalle incluye modificaciones de menú especial | 200 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente para evitar race condition.
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request MD: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

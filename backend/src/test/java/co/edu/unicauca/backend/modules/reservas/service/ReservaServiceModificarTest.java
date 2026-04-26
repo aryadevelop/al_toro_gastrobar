@@ -1,9 +1,9 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
-import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
@@ -67,6 +67,7 @@ class ReservaServiceModificarTest {
     @Mock DisponibilidadConsultador disponibilidadConsultador;
     @Mock PreOrdenGestor preOrdenGestor;
     @Mock MensajeWhatsAppBuilder mensajeWhatsAppBuilder;
+    @Mock NotificacionWsPublisher wsPublisher;
 
     @InjectMocks
     ReservaService service;

@@ -5,6 +5,8 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
@@ -38,6 +40,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.time.format.DateTimeFormatter;
 import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -88,6 +91,7 @@ public class ReservaService {
     private final DisponibilidadConsultador disponibilidadConsultador;
     private final PreOrdenGestor preOrdenGestor;
     private final MensajeWhatsAppBuilder mensajeWhatsAppBuilder;
+    private final NotificacionWsPublisher wsPublisher;
 
     // -----------------------------------------------------------------------
     // Disponibilidad
@@ -172,6 +176,12 @@ public class ReservaService {
         // Si se incluye pre-orden, persistirla como comanda en estado PRE_RESERVA vinculada a la reserva creada
         if (request.getPreOrden() != null && !request.getPreOrden().isEmpty()) {
             preOrdenGestor.persistirPreOrden(guardada, request.getPreOrden());
+        }
+
+        // Publicar evento WS si la reserva está activa
+        if (guardada.getReservaEstado() == EstadoReserva.CONFIRMADA
+                || guardada.getReservaEstado() == EstadoReserva.PENDIENTE) {
+            publicarCambioReserva(guardada, "CREADA");
         }
 
         // Si la reserva es ESPECIAL, se requiere enviar mensaje de WhatsApp para coordinar el anticipo
@@ -375,6 +385,12 @@ public class ReservaService {
                 anteriorEraEspecial, nuevoEsEspecial,
                 valorAnterior, nuevaDecoracion,
                 reservaResultado, request.getNumeroPersonas(), reservaId);
+
+        // Publicar evento WS si la reserva sigue activa
+        if (reservaResultado.getReservaEstado() == EstadoReserva.CONFIRMADA
+                || reservaResultado.getReservaEstado() == EstadoReserva.PENDIENTE) {
+            publicarCambioReserva(reservaResultado, "MODIFICADA");
+        }
 
         return reservaMapper.toModificarResponse(reservaResultado, mensajeWhatsApp != null, mensajeWhatsApp);
     }
@@ -803,5 +819,29 @@ public class ReservaService {
     private DisponibilidadResponse consultarDisponibilidadParaModificacion(
             LocalDateTime fechaHora, Long excludeReservaId) {
         return disponibilidadConsultador.consultarParaModificacion(fechaHora, 0, excludeReservaId, HORA_APERTURA, HORA_CIERRE);
+    }
+
+    /**
+     * Publica un evento WebSocket de cambio en reserva activa.
+     *
+     * @param reserva     reserva que cambió
+     * @param tipoEvento  tipo de evento ({@code CREADA} o {@@code MODIFICADA})
+     */
+    private void publicarCambioReserva(Reserva reserva, String tipoEvento) {
+        String horaLlegada = reserva.getReservaFechaHoraLlegada()
+                .format(DateTimeFormatter.ofPattern("HH:mm"));
+        String zonaNombre = reserva.getZona() != null
+                ? reserva.getZona().getZonaNombre()
+                : null;
+
+        ReservaActualizadaWsMessage mensaje = ReservaActualizadaWsMessage.builder()
+                .reservaId(reserva.getReservaId())
+                .tipoEvento(tipoEvento)
+                .clienteNombre(reserva.getCliente().getClienteNombre())
+                .horaLlegada(horaLlegada)
+                .zonaNombre(zonaNombre)
+                .build();
+
+        wsPublisher.publicarReservaActualizada(mensaje);
     }
 }

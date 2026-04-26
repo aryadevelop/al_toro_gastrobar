@@ -1,0 +1,37 @@
+$kind: http-request
+name: MC-12 Identificador inexistente – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** CA-03 — cuando se busca por identificador inexistente, se retorna error de negocio.
+  **Objetivo:** Verificar que el sistema retorna 404 con mensaje específico cuando el identificador no existe.
+  **Pre-condición:** Se usa un identificador de reserva que no existe (99999999).
+  **Resultado esperado:** 404 NOT_FOUND · mensaje: "No hay reservas programadas para esta fecha".
+url: "{{baseUrl}}/api/reservas/mesero/consulta?identificador=99999999"
+method: GET
+headers:
+  - key: Authorization
+    value: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: >-
+      pm.test('El sistema retorna HTTP 404', function () {
+        pm.response.to.have.status(404);
+      });
+
+
+      const body = pm.response.json();
+
+      pm.test('El campo success es false', function () {
+        pm.expect(body.success).to.be.false;
+      });
+
+
+      pm.test('El mensaje es el esperado', function () {
+        pm.expect(body.message).to.equal('No hay reservas programadas para esta fecha');
+      });
+
+
+      pm.test('El código de error es ENT-001', function () {
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 2070

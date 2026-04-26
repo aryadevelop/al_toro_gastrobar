@@ -1,0 +1,72 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/mesero/consulta
+description: |-
+  Lista las reservas activas del día con resumen por zona.
+
+  **Criterio de Aceptación cubierto:** PA-78-CA-01 a CA-03 (consulta de reservas con filtros).
+
+  **Roles autorizados:** `MESERO`, `ADMIN`.
+
+  **Encabezados requeridos:** `Authorization: Bearer <token-según-rol>`
+
+  **Parámetros opcionales:**
+  - `fecha` (LocalDate): filtra por fecha específica; si omite, usa hoy
+  - `identificador` (Long): busca por ID de reserva; si se proporciona, ignora fecha
+
+  **Campos de la respuesta `ListadoReservasResponse`:**
+  - `reservas`: lista de `ReservaConsultaResponse` (reservaId, horaLlegada, clienteNombre, numeroPersonas, zonaNombre, tipo, tienePreOrden)
+  - `resumenZonas`: lista de `ResumenZonaResponse` (zonaId, zonaNombre, cantidadReservas)
+
+  **Independencia de los casos:**
+  Cada request se autoabastece mediante login autónomo. El hook de colección gestiona tokens de MESERO y ADMIN.
+
+  **Tabla de casos:**
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MC-01 | MESERO consulta reservas del día actual | 200 |
+  | MC-02 | MESERO consulta reservas de fecha específica | 200 |
+  | MC-03 | MESERO consulta por identificador | 200 |
+  | MC-04 | ADMIN consulta reservas | 200 |
+  | MC-05 | CLIENTE sin permiso | 403 |
+  | MC-06 | Sin token | 401 |
+  | MC-07 | No hay reservas para la fecha | 404 |
+  | MC-08 | Identificador inexistente | 404 |
+  | MC-09 | Resumen agrupa correctamente por zona | 200 |
+  | MC-10 | Resumen incluye "Sin asignar" | 200 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente para evitar race condition.
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request MC: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

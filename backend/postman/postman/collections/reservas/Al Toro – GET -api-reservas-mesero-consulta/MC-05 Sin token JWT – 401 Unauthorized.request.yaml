@@ -1,0 +1,21 @@
+$kind: http-request
+name: MC-05 Sin token JWT – 401 Unauthorized
+description: |-
+  **Objetivo:** Verificar que el endpoint requiere autenticación y rechaza solicitudes sin token JWT.
+  **Pre-condición:** Ninguna.
+  **Resultado esperado:** 401 Unauthorized · sin acceso a datos.
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 401', function () {
+        pm.response.to.have.status(401);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es false', function () {
+        pm.expect(body.success).to.be.false;
+      });
+    language: text/javascript
+order: 1040

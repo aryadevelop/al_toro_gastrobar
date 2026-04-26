@@ -165,4 +165,50 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("fin") LocalDateTime fin,
             @Param("estados") List<EstadoReserva> estados,
             @Param("excludeReservaId") Long excludeReservaId);
+
+    /**
+     * Devuelve todas las reservas activas (CONFIRMADA/PENDIENTE) de un día específico,
+     * ordenadas por hora de llegada ascendente.
+     *
+     * <p>Usado por meseros para consultar el listado del día.
+     *
+     * @param inicio inicio del día (00:00:00)
+     * @param fin fin del día (23:59:59)
+     * @param estados    estados a considerar como activos
+     * @return lista de reservas activas del día; vacía si no hay ninguna
+     */
+    @Query("SELECT r FROM Reserva r " +
+           "LEFT JOIN FETCH r.cliente c " +
+           "LEFT JOIN FETCH c.usuario u " +
+           "LEFT JOIN FETCH r.zona z " +
+           "LEFT JOIN FETCH r.decoracion d " +
+           "WHERE r.reservaFechaHoraLlegada BETWEEN :inicio AND :fin " +
+           "AND r.reservaEstado IN :estados " +
+           "ORDER BY r.reservaFechaHoraLlegada ASC")
+    List<Reserva> findReservasActivasDelDia(
+            @Param("inicio") LocalDateTime inicio,
+            @Param("fin") LocalDateTime fin,
+            @Param("estados") List<EstadoReserva> estados);
+
+    /**
+     * Devuelve todas las reservas activas que coincidan con un identificador específico,
+     * sin importar la fecha.
+     *
+     * <p>Usado por meseros para buscar reservas por ID.
+     *
+     * @param reservaId  identificador a buscar
+     * @param estados    estados a considerar como activos
+     * @return lista de reservas que coincidan; vacía si no se encuentra
+     */
+    @Query("SELECT r FROM Reserva r " +
+           "LEFT JOIN FETCH r.cliente c " +
+           "LEFT JOIN FETCH c.usuario u " +
+           "LEFT JOIN FETCH r.zona z " +
+           "LEFT JOIN FETCH r.decoracion d " +
+           "WHERE r.reservaId = :reservaId " +
+           "AND r.reservaEstado IN :estados " +
+           "ORDER BY r.reservaFechaHoraLlegada ASC")
+    List<Reserva> findReservasActivasPorIdentificador(
+            @Param("reservaId") Long reservaId,
+            @Param("estados") List<EstadoReserva> estados);
 }

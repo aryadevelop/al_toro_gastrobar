@@ -1,0 +1,151 @@
+$kind: http-request
+name: MC-09 Verificar agrupamiento por zona – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-03 — el listado incluye resumen numérico agrupado por zona.
+  **Objetivo:** Verificar que el campo resumenZonas contiene el conteo correcto de reservas por zona y que la suma de cantidades coincide con el total de reservas retornadas.
+  **Pre-condición:** El pre-request hace login autónomo como MESERO y crea 2 reservas en zonas diferentes para el mismo día.
+  **Resultado esperado:** 200 OK · resumenZonas contiene 2+ entradas · suma de cantidades ≥ 2 (las creadas + otras existentes).
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  fecha: "{{tmpFechaAgrupamiento}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setDate(d.getDate() + 2);
+      d.setHours(19, 0, 0, 0);
+      const fechaHora1 = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+      const fechaHora2 = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T20:00:00`;
+      const fechaConsulta = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      pm.environment.set('tmpFechaAgrupamiento', fechaConsulta);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MC-09: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const clienteToken = res.json().accessToken;
+
+        // Crear primera reserva (sin zona - irá a "Sin asignar")
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora1,
+            numeroPersonas: 2,
+            zonaId: null, decoracionId: null, notas: 'MC-09-1', preOrden: null
+          })}
+        }, function (e1, r1) {
+          if (!e1 && r1 && r1.code === 201) {
+            pm.environment.set('tmpReservaIdMC09_1', r1.json().data.reservaId);
+          }
+
+          // Crear segunda reserva (sin zona también - para incrementar contador)
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+            body: { mode: 'raw', raw: JSON.stringify({
+              emailCliente: pm.environment.get('emailCliente'),
+              fechaHoraLlegada: fechaHora2,
+              numeroPersonas: 3,
+              zonaId: null, decoracionId: null, notas: 'MC-09-2', preOrden: null
+            })}
+          }, function (e2, r2) {
+            if (!e2 && r2 && r2.code === 201) {
+              pm.environment.set('tmpReservaIdMC09_2', r2.json().data.reservaId);
+            }
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/auth/login',
+              method: 'POST',
+              header: { 'Content-Type': 'application/json' },
+              body: { mode: 'raw', raw: JSON.stringify({
+                email: pm.environment.get('emailMesero'),
+                password: pm.environment.get('passwordValida'),
+                forceSessionOverride: true
+              })}
+            }, function (e3, r3) {
+              if (!e3 && r3 && r3.code === 200) {
+                pm.environment.set('meseroToken', r3.json().accessToken);
+              }
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es true', function () {
+        pm.expect(body.success).to.be.true;
+      });
+
+      pm.test('resumenZonas es un array con al menos 1 zona', function () {
+        pm.expect(body.data.resumenZonas).to.be.an('array');
+        pm.expect(body.data.resumenZonas.length).to.be.at.least(1);
+      });
+
+      pm.test('Cada resumen contiene zonaNombre y cantidadReservas', function () {
+        body.data.resumenZonas.forEach(zona => {
+          pm.expect(zona).to.have.property('zonaNombre');
+          pm.expect(zona).to.have.property('cantidadReservas');
+          pm.expect(zona.cantidadReservas).to.be.a('number').and.to.be.at.least(1);
+        });
+      });
+
+      pm.test('La suma de cantidades en resumenZonas coincide con el total de reservas', function () {
+        const totalEnResumen = body.data.resumenZonas.reduce((acc, z) => acc + z.cantidadReservas, 0);
+        pm.expect(totalEnResumen).to.equal(body.data.reservas.length);
+      });
+
+      // Cleanup
+      const ids = [pm.environment.get('tmpReservaIdMC09_1'), pm.environment.get('tmpReservaIdMC09_2')];
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (e, r) {
+        if (!e && r && r.code === 200) {
+          const clienteToken = r.json().accessToken;
+          ids.forEach(id => {
+            if (id && id !== 'undefined') {
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/reservas/' + id + '/cancelar',
+                method: 'PATCH',
+                header: { 'Authorization': 'Bearer ' + clienteToken }
+              });
+            }
+          });
+        }
+      });
+
+      pm.environment.unset('tmpReservaIdMC09_1');
+      pm.environment.unset('tmpReservaIdMC09_2');
+      pm.environment.unset('tmpFechaAgrupamiento');
+    language: text/javascript
+order: 1080

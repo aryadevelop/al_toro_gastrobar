@@ -104,7 +104,7 @@ values:
     value: ''
   - key: reservaIdConPreOrden
     enabled: true
-    value: ''
+    value: '10'
   - key: reservaIdCancelada
     enabled: true
     value: '6'
@@ -150,9 +150,6 @@ values:
   - key: clienteSinPuntosToken
     enabled: true
     value: ''
-  - key: reservaIdOtroCliente
-    enabled: true
-    value: ''
   - key: decoracionConCostoId
     enabled: true
     value: ''
@@ -175,5 +172,8 @@ values:
     enabled: true
     value: ''
   - key: accessToken
+    enabled: true
+    value: ''
+  - key: historialSnapshot
     enabled: true
     value: ''

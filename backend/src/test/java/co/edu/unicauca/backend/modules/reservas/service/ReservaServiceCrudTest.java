@@ -4,6 +4,7 @@ import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
@@ -63,6 +64,7 @@ class ReservaServiceCrudTest {
     @Mock DisponibilidadConsultador disponibilidadConsultador;
     @Mock PreOrdenGestor preOrdenGestor;
     @Mock MensajeWhatsAppBuilder mensajeWhatsAppBuilder;
+    @Mock NotificacionWsPublisher wsPublisher;
 
     @InjectMocks
     ReservaService service;

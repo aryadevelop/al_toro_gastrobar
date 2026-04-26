@@ -189,6 +189,7 @@ public class ReservaMapper {
                 .decoracionNombre(reserva.getDecoracion() != null
                         ? reserva.getDecoracion().getDecoracionNombre() : null)
                 .notas(reserva.getReservaNotas())
+                .clienteTelefono(reserva.getCliente() != null ? reserva.getCliente().getClienteTelefono() : null)
                 .preOrdenItems(preOrdenItems)
                 .preOrdenTotal(preOrdenTotal)
                 .abonos(abonosDto)

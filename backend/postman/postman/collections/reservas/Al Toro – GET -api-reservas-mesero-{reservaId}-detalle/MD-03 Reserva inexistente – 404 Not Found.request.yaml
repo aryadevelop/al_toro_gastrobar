@@ -1,0 +1,42 @@
+$kind: http-request
+name: MD-03 Reserva inexistente – 404 Not Found
+description: |-
+  **Objetivo:** Verificar que el sistema retorna 404 cuando se busca el detalle de una reserva que no existe.
+  **Pre-condición:** El pre-request hace login autónomo como MESERO.
+  **Resultado esperado:** 404 Not Found · sin acceso a datos.
+url: "{{baseUrl}}/api/reservas/mesero/999999/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-03: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 404', function () {
+        pm.response.to.have.status(404);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es false', function () {
+        pm.expect(body.success).to.be.false;
+      });
+    language: text/javascript
+order: 2020
