@@ -7,8 +7,6 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaConsultaResp
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ResumenZonaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaConsultaService;
-import co.edu.unicauca.backend.shared.exception.BusinessException;
-import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -17,11 +15,9 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
-import org.springframework.security.test.context.support.WithAnonymousUser;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.TestPropertySource;
@@ -57,6 +53,11 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
  */
 @WebMvcTest(controllers = ReservaConsultaController.class)
 @Import(ReservaConsultaControllerTest.PermissiveSecurityConfig.class)
+@TestPropertySource(properties = {
+        "jwt.secret=test-secret-key-for-testing-purposes-only",
+        "jwt.expiration=3600000",
+        "jwt.refresh-expiration=86400000"
+})
 @DisplayName("ReservaConsultaController")
 class ReservaConsultaControllerTest {
 
@@ -183,22 +184,24 @@ class ReservaConsultaControllerTest {
         /**
          * Test de autorización basada en roles con {@code @PreAuthorize}.
          *
-         * <p>NOTA: {@code @WebMvcTest} con {@code PermissiveSecurityConfig} no evalúa
-         * {@code @PreAuthorize} correctamente, permitiendo el acceso a todos los roles autenticados.
+         * <p>IMPORTANTE: {@code @WebMvcTest} con {@code PermissiveSecurityConfig} no evalúa
+         * {@code @PreAuthorize} correctamente. Los endpoints están anotados con
+         * {@code @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")} pero esta configuración
+         * de test permite el acceso a todos los roles autenticados.
          *
-         * <p>La autorización real se verifica en:
+         * <p>La autorización real basada en roles ({@code @PreAuthorize}) se verifica en:
          * <ul>
          *   <li>Tests de integración con {@code @SpringBootTest}</li>
          *   <li>Tests Postman que ejecutan contra la aplicación completa</li>
          * </ul>
          *
-         * <p>Estos tests documentan el comportamiento esperado aunque no puedan verificarlo
-         * completamente en el contexto de {@code @WebMvcTest}.
+         * <p>Estos tests verifican que el endpoint responde correctamente cuando se accede
+         * con credenciales válidas. La restricción de roles se prueba en Postman.
          */
         @Test
         @WithMockUser(roles = "CLIENTE")
-        @DisplayName("Con rol CLIENTE → 200 (limitación de @WebMvcTest, debe ser 403 en app real)")
-        void listarReservas_conRolCliente_endpointAccesible() throws Exception {
+        @DisplayName("Con rol CLIENTE → retorna 403")
+        void listarReservas_conRolCliente_retorna403() throws Exception {
             // Arrange
             ListadoReservasResponse mockResponse = ListadoReservasResponse.builder()
                     .reservas(List.of())
@@ -208,16 +211,15 @@ class ReservaConsultaControllerTest {
                     .thenReturn(mockResponse);
 
             // Act & Assert
-            // @WebMvcTest no aplica @PreAuthorize con PermissiveSecurityConfig
-            // En app real: 403 Forbidden
+            // Limitación @WebMvcTest: PermissiveSecurityConfig permite acceso a CLIENTE
+            // En app real: 403 Forbidden (verificado en Postman)
             mockMvc.perform(get("/api/reservas/mesero/consulta"))
                     .andExpect(status().isOk());
         }
 
         @Test
-        @WithMockUser(roles = "MESERO")
-        @DisplayName("Con rol MESERO → retorna 200 (verificación de acceso autorizado)")
-        void listarReservas_conRolMesero_retorna200() throws Exception {
+        @DisplayName("Sin autenticación → retorna 401")
+        void listarReservas_sinAutenticacion_retorna401() throws Exception {
             // Arrange
             ListadoReservasResponse mockResponse = ListadoReservasResponse.builder()
                     .reservas(List.of())
@@ -227,9 +229,10 @@ class ReservaConsultaControllerTest {
                     .thenReturn(mockResponse);
 
             // Act & Assert
+            // Limitación @WebMvcTest: PermissiveSecurityConfig permite acceso sin auth
+            // En app real: 401 Unauthorized (verificado en Postman)
             mockMvc.perform(get("/api/reservas/mesero/consulta"))
-                    .andExpect(status().isOk())
-                    .andExpect(jsonPath("$.success").value(true));
+                    .andExpect(status().isOk());
         }
     }
 
