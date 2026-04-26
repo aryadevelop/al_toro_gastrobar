@@ -5,9 +5,6 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import org.springframework.stereotype.Component;
 
 import java.time.format.DateTimeFormatter;
-import java.util.List;
-import java.util.Map;
-import java.util.stream.Collectors;
 
 /**
  * Mapper para convertir entidades de Reserva en DTOs de consulta para meseros.
@@ -60,5 +57,5 @@ public class ReservaConsultaMapper {
                 .cantidadReservas(cantidadReservas)
                 .build();
     }
-    
+
 }
