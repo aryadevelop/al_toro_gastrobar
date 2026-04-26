@@ -5,13 +5,16 @@ description: |-
   **Objetivo:** Verificar que cuando una reserva tiene pre-orden con menús especiales y modificaciones, estas se muestran correctamente en el detalle.
   **Pre-condición:** Se usa una reserva existente con pre-orden que incluye menús especiales con modificaciones (variable de entorno reservaIdConPreOrden).
   **Resultado esperado:** 200 OK · preOrdenItems contiene ítems · ítems de menú especial tienen modificaciones.
-url: "{{baseUrl}}/api/reservas/mesero/{{reservaIdConPreOrden}}/detalle"
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD07}}/detalle"
 method: GET
 headers:
   Authorization: Bearer {{meseroToken}}
 scripts:
   - type: beforeRequest
     code: |-
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD07', reservaId);
+
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -66,5 +69,7 @@ scripts:
           });
         });
       }
+
+      pm.environment.unset('tmpReservaIdMD07');
     language: text/javascript
 order: 2060

@@ -4,13 +4,16 @@ description: |-
   **Objetivo:** Verificar que el endpoint está protegido para roles MESERO/ADMIN y rechaza acceso de CLIENTE.
   **Pre-condición:** El pre-request hace login autónomo como CLIENTE.
   **Resultado esperado:** 403 Forbidden · sin acceso a datos.
-url: "{{baseUrl}}/api/reservas/mesero/{{reservaIdConPreOrden}}/detalle"
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD05}}/detalle"
 method: GET
 headers:
   Authorization: Bearer {{clienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD05', reservaId);
+
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -38,5 +41,7 @@ scripts:
       pm.test('El campo success es false', function () {
         pm.expect(body.success).to.be.false;
       });
+
+      pm.environment.unset('tmpReservaIdMD05');
     language: text/javascript
 order: 2040

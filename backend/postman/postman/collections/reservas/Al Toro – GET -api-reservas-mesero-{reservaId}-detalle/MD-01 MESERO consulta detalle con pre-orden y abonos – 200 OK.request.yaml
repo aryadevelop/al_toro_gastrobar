@@ -5,13 +5,17 @@ description: |-
   **Objetivo:** Verificar que un MESERO obtiene el detalle completo de una reserva con pre-orden, abonos y teléfono del cliente.
   **Pre-condición:** El pre-request hace login autónomo como MESERO y consulta una reserva ESPECIAL existente con pre-orden.
   **Resultado esperado:** 200 OK · detalle contiene clienteTelefono, preOrdenItems y abonos.
-url: "{{baseUrl}}/api/reservas/mesero/{{reservaIdConPreOrden}}/detalle"
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD01}}/detalle"
 method: GET
 headers:
   Authorization: Bearer {{meseroToken}}
 scripts:
   - type: beforeRequest
     code: |-
+      // Usar reservaIdConPreOrden del ambiente (pre-configurado en V3_dev_data.sql)
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD01', reservaId);
+
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -72,5 +76,7 @@ scripts:
           });
         });
       }
+
+      pm.environment.unset('tmpReservaIdMD01');
     language: text/javascript
 order: 2000

@@ -9,14 +9,19 @@ url: "{{baseUrl}}/api/reservas/mesero/consulta"
 method: GET
 headers:
   Authorization: Bearer {{adminToken}}
+queryParams:
+  fecha: "{{tmpFechaConsultaMC07}}"
 scripts:
   - type: beforeRequest
     code: |-
-      // Crear reserva para hoy para garantizar que haya datos
+      // Crear reserva para mañana para garantizar que esté en el futuro
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
+      d.setDate(d.getDate() + 1);  // Mañana
       d.setHours(19, 0, 0, 0);
       const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+      const fechaConsulta = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      pm.environment.set('tmpFechaConsultaMC07', fechaConsulta);
 
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
@@ -115,5 +120,6 @@ scripts:
       }
 
       pm.environment.unset('tmpReservaIdMC07');
+      pm.environment.unset('tmpFechaConsultaMC07');
     language: text/javascript
 order: 1060

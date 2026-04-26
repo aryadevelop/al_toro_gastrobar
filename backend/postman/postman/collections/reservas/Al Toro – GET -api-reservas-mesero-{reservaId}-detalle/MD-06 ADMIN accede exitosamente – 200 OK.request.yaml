@@ -4,13 +4,16 @@ description: |-
   **Objetivo:** Verificar que un usuario con rol ADMIN puede acceder al detalle de reservas.
   **Pre-condición:** El pre-request hace login autónomo como ADMIN.
   **Resultado esperado:** 200 OK · detalle completo incluyendo clienteTelefono.
-url: "{{baseUrl}}/api/reservas/mesero/{{reservaIdConPreOrden}}/detalle"
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD06}}/detalle"
 method: GET
 headers:
   Authorization: Bearer {{adminToken}}
 scripts:
   - type: beforeRequest
     code: |-
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD06', reservaId);
+
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -49,5 +52,7 @@ scripts:
       pm.test('clienteTelefono está presente', function () {
         pm.expect(body.data.clienteTelefono).to.exist;
       });
+
+      pm.environment.unset('tmpReservaIdMD06');
     language: text/javascript
 order: 2050
