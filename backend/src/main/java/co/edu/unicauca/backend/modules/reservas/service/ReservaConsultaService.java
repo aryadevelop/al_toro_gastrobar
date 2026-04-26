@@ -64,6 +64,7 @@ public class ReservaConsultaService {
      * @param fecha         fecha a consultar; {@code null} para hoy
      * @param identificador ID de reserva a buscar; {@code null} para listar por fecha
      * @return {@link ListadoReservasResponse} con reservas y resumen por zona
+     * @throws BusinessException si no hay reservas programadas para la fecha o identificador
      */
     public ListadoReservasResponse listarReservasDelDia(LocalDate fecha, Long identificador) {
         List<Reserva> reservas;
@@ -84,6 +85,15 @@ public class ReservaConsultaService {
                     inicio,
                     fin,
                     List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
+            );
+        }
+
+        // Validar que se encontraron reservas
+        if (reservas.isEmpty()) {
+            throw new BusinessException(
+                    ErrorCode.ENTITY_NOT_FOUND,
+                    "No hay reservas programadas para esta fecha",
+                    HttpStatus.NOT_FOUND
             );
         }
 
@@ -139,25 +149,32 @@ public class ReservaConsultaService {
     /**
      * Calcula el resumen de reservas por zona.
      *
-     * <p>Agrupa las reservas por {@code zonaId} y cuenta la cantidad en cada zona.
-     * Las reservas sin zona asignada ({@code null}) se excluyen del resumen.
+     * <p>Agrupa las reservas por {@code zonaNombre} y cuenta la cantidad en cada zona.
+     * Las reservas sin zona asignada se agrupan bajo el nombre "Sin asignar".
      *
      * @param reservas lista de reservas a agrupar
-     * @return lista de {@link ResumenZonaResponse} con cantidad por zona; vacía si no hay reservas con zona
+     * @return lista de {@link ResumenZonaResponse} con cantidad por zona
      */
     private List<ResumenZonaResponse> calcularResumenPorZona(List<Reserva> reservas) {
-        // Agrupar por zonaId, filtrando reservas sin zona
-        Map<Long, List<Reserva>> reservasPorZona = reservas.stream()
-                .filter(r -> r.getZona() != null)
-                .collect(Collectors.groupingBy(r -> r.getZona().getZonaId()));
+        // Agrupar por zonaNombre (usar "Sin asignar" para reservas sin zona)
+        Map<String, List<Reserva>> reservasPorZona = reservas.stream()
+                .collect(Collectors.groupingBy(r ->
+                        r.getZona() != null ? r.getZona().getZonaNombre() : "Sin asignar"
+                ));
 
         // Construir DTOs de resumen
         return reservasPorZona.entrySet().stream()
                 .map(entry -> {
-                    Long zonaId = entry.getKey();
+                    String zonaNombre = entry.getKey();
                     List<Reserva> reservasZona = entry.getValue();
-                    // Tomar el nombre de la zona de la primera reserva
-                    String zonaNombre = reservasZona.get(0).getZona().getZonaNombre();
+
+                    // Obtener zonaId (null para "Sin asignar")
+                    Long zonaId = reservasZona.stream()
+                            .filter(r -> r.getZona() != null)
+                            .findFirst()
+                            .map(r -> r.getZona().getZonaId())
+                            .orElse(null);
+
                     Integer cantidadReservas = reservasZona.size();
 
                     return reservaConsultaMapper.toResumenZona(zonaId, zonaNombre, cantidadReservas);

@@ -233,19 +233,34 @@ class ReservaConsultaServiceTest {
     }
 
     @Test
-    @DisplayName("listarReservasDelDia sin resultados retorna listas vacías")
-    void listarReservasDelDia_sinResultados_retornaListasVacias() {
+    @DisplayName("listarReservasDelDia sin resultados lanza BusinessException con mensaje específico")
+    void listarReservasDelDia_sinResultados_lanzaBusinessException() {
         // Arrange
         when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
                 .thenReturn(List.of());
 
-        // Act
-        ListadoReservasResponse response = reservaConsultaService.listarReservasDelDia(null, null);
+        // Act & Assert
+        assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("No hay reservas programadas para esta fecha")
+                .extracting("code", "status")
+                .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
+    }
 
-        // Assert
-        assertThat(response).isNotNull();
-        assertThat(response.getReservas()).isEmpty();
-        assertThat(response.getResumenZonas()).isEmpty();
+    @Test
+    @DisplayName("listarReservasDelDia con identificador inexistente lanza BusinessException")
+    void listarReservasDelDia_identificadorInexistente_lanzaBusinessException() {
+        // Arrange
+        Long identificadorInexistente = 9999L;
+        when(reservaRepository.findReservasActivasPorIdentificador(eq(identificadorInexistente), any()))
+                .thenReturn(List.of());
+
+        // Act & Assert
+        assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, identificadorInexistente))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("No hay reservas programadas para esta fecha")
+                .extracting("code", "status")
+                .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
     }
 
     // ── Tests de obtenerDetalleReserva ──────────────────────────────────────

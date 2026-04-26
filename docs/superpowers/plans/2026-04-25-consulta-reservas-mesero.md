@@ -1431,15 +1431,6 @@ private void publicarCambioReserva(Reserva reserva, String tipoEvento) {
 ```
 Resultado esperado: BUILD SUCCESS.
 
-- [ ] **Step 5: Commit manual**
-
-**Esperar a que el usuario haga commit manualmente de:**
-- `ReservaActualizadaWsMessage.java` (nuevo)
-- `NotificacionWsPublisher.java` (modificado)
-- `ReservaService.java` (modificado)
-
-Mensaje sugerido: `feat(reservas): añadir publicación WS de cambios en reservas activas (CA-09)`
-
 ---
 
 ## Task 8: Ejecutar suite completa de tests
@@ -1477,14 +1468,6 @@ Resultado esperado: BUILD SUCCESS.
 | GET | `/mesero/consulta?fecha=&identificador=` | MESERO/ADMIN | Lista reservas activas del día (o fecha especificada); busca por ID si se proporciona identificador |
 | GET | `/mesero/{reservaId}/detalle` | MESERO/ADMIN | Detalle completo de una reserva para meseros (incluye teléfono cliente y modificaciones de pre-orden) |
 ```
-
-- [ ] **Step 2: Commit manual**
-
-**Esperar a que el usuario haga commit manualmente de:**
-- `backend/CLAUDE.md` (modificado)
-
-Mensaje sugerido: `docs(backend): actualizar CLAUDE.md con endpoints de consulta de meseros`
-
 ---
 
 ## Task 10: Tests Postman

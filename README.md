@@ -44,12 +44,14 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 
 ## Arquitectura
 
-El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend usa RabbitMQ para comunicación asíncrona.
+El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend usa RabbitMQ para comunicación asíncrona y WebSocket (STOMP) para actualizaciones en tiempo real.
 
 ```
 Frontend (Angular) ──HTTP/JSON──▶ Backend (Spring Boot) ──▶ PostgreSQL
-                                          │
-                                          └──────────────▶ RabbitMQ
+       │                              │
+       │                              ├──────────────▶ RabbitMQ
+       │                              │
+       └────WebSocket/STOMP───────────┘
 ```
 
 Actualmente el backend y la infraestructura (PostgreSQL, RabbitMQ) corren en Docker.
@@ -59,16 +61,16 @@ El frontend corre localmente sin dockerizar.
 
 ## Módulos del sistema
 
-| Épica | Módulo | Actores principales |
-|-------|--------|---------------------|
-| HE-01 | Autenticación y perfiles | Todos los roles |
-| HE-02 | Reservas y consumo | Cliente |
-| HE-03 | Mesas y comandas | Mesero, Cajero |
-| HE-04 | Producción | Cocinero, Bartender |
-| HE-05 | Pagos y caja | Cajero |
-| HE-06 | Histórico y reportes | Administrador |
-| HE-07 | Inventario y decoraciones | Administrador |
-| HE-08 | Personal y clientes | Administrador |
+| Épica | Módulo | Actores principales | Estado |
+|-------|--------|---------------------|--------|
+| HE-01 | Autenticación y perfiles | Todos los roles | 🚧 En desarrollo |
+| HE-02 | Reservas y consumo | Cliente | 🚧 En desarrollo |
+| HE-03 | Mesas, comandas y consulta de reservas | Mesero, Cajero | 🚧 En desarrollo |
+| HE-04 | Producción | Cocinero, Bartender | 🚧 En desarrollo |
+| HE-05 | Pagos y caja | Cajero | 🚧 En desarrollo |
+| HE-06 | Histórico y reportes | Administrador | 📋 Pendiente |
+| HE-07 | Inventario y decoraciones | Administrador | 📋 Pendiente |
+| HE-08 | Personal y clientes | Administrador | 📋 Pendiente |
 
 ---
 
@@ -76,9 +78,9 @@ El frontend corre localmente sin dockerizar.
 
 | Rol | Acceso |
 |-----|--------|
-| Administrador | Acceso total: configuración, reportes, inventario y personal |
-| Mesero | Mesas asignadas, comandas y notificaciones |
-| Cocinero / Bartender | Comandas por estación |
+| Administrador | Acceso total: configuración, reportes, inventario, personal y consulta de reservas |
+| Mesero | Consulta de reservas activas, mesas asignadas, comandas y notificaciones en tiempo real |
+| Cocinero / Bartender | Comandas por estación (cocina/barra) |
 | Cajero | Reservas, pagos, cierre de caja y mapa de mesas |
 | Cliente | Reservas, pre-orden, historial de visitas y puntos de fidelización |
 
@@ -202,6 +204,7 @@ cd backend
 | `MAIL_USERNAME` | Usuario SMTP |
 | `MAIL_PASSWORD` | Contraseña SMTP |
 | `SPRING_PROFILES_ACTIVE` | Perfil activo: `dev` o `prod` |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos (ej: http://localhost:4200) |
 
 Los valores de dev están en [`.env`](.env.prod.example) (no se commitea).
 Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.example) como plantilla.
@@ -212,12 +215,13 @@ Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.
 
 | Característica | `dev` | `prod` |
 |---|---|---|
-| `ddl-auto` | `update` | `validate` |
+| `ddl-auto` | `validate` (Flyway) | `validate` (Flyway) |
 | Logs SQL | sí | no |
 | Swagger UI | habilitado | deshabilitado |
 | Logs nivel root | INFO/DEBUG | WARN |
 | Mensajes de error | detallados | ocultos |
 | Correo | Mailtrap | SMTP real |
+| WebSocket | habilitado | habilitado |
 
 ---
 
@@ -234,23 +238,52 @@ Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.
 
 ## Pruebas de API
 
-Las colecciones de pruebas están en `backend/postman/`:
+Las colecciones de pruebas están organizadas en `backend/postman/postman/` usando el formato YAML de **Postman for VS Code**:
 
 ```
-backend/postman/
-├── environment/
-│   └── AlToro-local.postman_environment.json   # variables compartidas (baseUrl, credenciales)
+backend/postman/postman/
+├── environments/
+│   └── Al Toro – Local.environment.yaml        # Variables de entorno (baseUrl, credenciales)
 ├── collections/
-│   ├── Auth-PA-11.postman_collection.json
-│   └── Reservas-PA-63.postman_collection.json 
+│   ├── auth/                                   # Autenticación (login, registro, logout, refresh)
+│   ├── reservas/                               # Gestión de reservas
+│   │   ├── Al Toro – GET -api-reservas-disponibilidad/
+│   │   ├── Al Toro – POST -api-reservas/
+│   │   ├── Al Toro – PUT -api-reservas-{reservaId}/
+│   │   ├── Al Toro – PATCH -api-reservas-{reservaId}-cancelar/
+│   │   ├── Al Toro – GET -api-reservas-cliente-futuras/
+│   │   ├── Al Toro – GET -api-reservas-mesero-consulta/
+│   │   └── Al Toro – GET -api-reservas-mesero-{reservaId}-detalle/
+│   ├── mesas_comandas/                         # Visitas y asistencia
+│   ├── notificaciones/                         # Atención de notificaciones
+│   ├── usuarios/                               # Puntos de fidelización
+│   └── produccion/                             # Menú y productos
 ```
+
+### Características de los tests
+
+- **Autónomos**: Cada test incluye `beforeRequest` script con login autónomo — no dependen de la colección
+- **Independientes**: Pueden ejecutarse en cualquier orden
+- **Auto-cleanup**: Los tests que crean datos los limpian automáticamente en `afterResponse`
+- **Aserciones completas**: Validan estructura, estado HTTP, campos obligatorios y reglas de negocio
+
+### Desde Postman for VS Code
+
+1. Instalar la extensión **Postman** en VS Code
+2. Abrir la carpeta `backend/postman/postman/`
+3. Seleccionar el environment **Al Toro – Local** en la barra lateral
+4. Ejecutar tests individuales o colecciones completas desde la UI
 
 ### Desde la app de Postman
 
-1. Importar `environment/AlToro-local.postman_environment.json` en Postman.
-2. Importar los archivos de `collections/`.
-3. Seleccionar el environment **Al Toro – Local** en la esquina superior derecha.
-4. Ejecutar primero la colección **Auth** (escribe el `accessToken` en el environment), luego las demás.
+Los archivos YAML son compatibles con Postman Desktop:
+
+1. Importar `environments/Al Toro – Local.environment.yaml`
+2. Importar las carpetas de `collections/` (arrastrándolas a Postman)
+3. Seleccionar el environment **Al Toro – Local**
+4. Ejecutar tests individuales o runner de colección
+
+**Nota**: Algunos tests requieren datos de seed específicos. Ejecutar `./mvnw flyway:clean flyway:migrate` desde `backend/` para resetear la BD a su estado inicial si los tests fallan por datos inconsistentes.
 
 ## Flujo de trabajo Git
 

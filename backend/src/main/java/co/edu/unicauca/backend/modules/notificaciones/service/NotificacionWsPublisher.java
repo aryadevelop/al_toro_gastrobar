@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.notificaciones.service;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.CuentaCerradaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import lombok.RequiredArgsConstructor;
 import org.springframework.messaging.simp.SimpMessagingTemplate;
@@ -17,6 +18,7 @@ import org.springframework.stereotype.Service;
  *   <li>{@code /topic/visita/{visitaId}/cuenta} — cuenta cerrada.</li>
  *   <li>{@code /topic/visita/{visitaId}/asistencia} — asistencia atendida.</li>
  *   <li>{@code /topic/mesas/asistencia} — broadcast a empleados.</li>
+ *   <li>{@code /topic/reservas/cambios} — broadcast de cambios en reservas activas.</li>
  * </ul>
  */
 @Service
@@ -56,5 +58,13 @@ public class NotificacionWsPublisher {
      */
     public void publicarAsistenciaSolicitada(AsistenciaSolicitadaWsMessage mensaje) {
         messagingTemplate.convertAndSend("/topic/mesas/asistencia", mensaje);
+    }
+
+    /**
+     * Broadcast a todos los meseros conectados que hubo un cambio en las reservas activas.
+     * Call site: ReservaService al crear o modificar una reserva CONFIRMADA/PENDIENTE.
+     */
+    public void publicarReservaActualizada(ReservaActualizadaWsMessage mensaje) {
+        messagingTemplate.convertAndSend("/topic/reservas/cambios", mensaje);
     }
 }

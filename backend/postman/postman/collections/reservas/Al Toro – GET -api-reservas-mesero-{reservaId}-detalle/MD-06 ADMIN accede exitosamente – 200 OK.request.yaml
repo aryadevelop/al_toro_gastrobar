@@ -1,0 +1,53 @@
+$kind: http-request
+name: MD-06 ADMIN accede exitosamente – 200 OK
+description: |-
+  **Objetivo:** Verificar que un usuario con rol ADMIN puede acceder al detalle de reservas.
+  **Pre-condición:** El pre-request hace login autónomo como ADMIN.
+  **Resultado esperado:** 200 OK · detalle completo incluyendo clienteTelefono.
+url: "{{baseUrl}}/api/reservas/mesero/{{reservaIdConPreOrden}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailAdmin'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('MD-06: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es true', function () {
+        pm.expect(body.success).to.be.true;
+      });
+
+      pm.test('El detalle contiene los campos obligatorios', function () {
+        const d = body.data;
+        pm.expect(d).to.include.keys([
+          'reservaId', 'fechaHoraLlegada', 'numeroPersonas', 'estado', 'tipo', 'clienteTelefono'
+        ]);
+      });
+
+      pm.test('clienteTelefono está presente', function () {
+        pm.expect(body.data.clienteTelefono).to.exist;
+      });
+    language: text/javascript
+order: 2050

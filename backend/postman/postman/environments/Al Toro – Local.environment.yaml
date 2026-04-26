@@ -104,7 +104,7 @@ values:
     value: ''
   - key: reservaIdConPreOrden
     enabled: true
-    value: ''
+    value: '10'
   - key: reservaIdCancelada
     enabled: true
     value: '6'

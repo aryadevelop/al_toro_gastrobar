@@ -120,6 +120,8 @@ Base URL: `http://localhost:8080/api`
 | GET | `/cliente/futuras?emailCliente=` | CLIENTE | PENDIENTE/CONFIRMADA reservations ordered ASC |
 | GET | `/cliente/canceladas-devueltas?emailCliente=` | CLIENTE | Cancelled/returned history |
 | GET | `/{reservaId}/detalle` | CLIENTE/ADMIN | Full detail with pre-order items and payments |
+| GET | `/mesero/consulta?fecha=&identificador=` | MESERO/ADMIN | Lista reservas activas del día (o fecha especificada); busca por ID si se proporciona identificador |
+| GET | `/mesero/{reservaId}/detalle` | MESERO/ADMIN | Detalle completo de una reserva para meseros (incluye teléfono cliente y modificaciones de pre-orden) |
 
 ### Clientes / Puntos (`/api/clientes`)
 | Method | Path | Access | Description |
