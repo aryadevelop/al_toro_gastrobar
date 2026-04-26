@@ -336,6 +336,188 @@ Collections live in `backend/postman/postman/collections/`:
 | `decoracionConCostoId2` | Same query with `OFFSET 1 LIMIT 1` |
 | `reservaIdOtroCliente` | `SELECT r.reserva_id FROM restaurante.reserva r JOIN restaurante.usuario u ON u.usuario_id = r.cliente_id WHERE u.usuario_email <> '<emailCliente>' AND r.reserva_estado IN ('PENDIENTE','CONFIRMADA') LIMIT 1` |
 
+### Reglas críticas para pruebas Postman
+
+#### 1. Variables de ambiente en URLs dinámicas
+
+**Problema:** Variables como `{{reservaId}}` pueden estar vacías al momento de construir la URL, causando URLs malformadas (`//`) que Spring Security rechaza con `RequestRejectedException: The request was rejected because the URL contained a potentially malicious String "//"`.
+
+**Solución:** Configurar variables temporales en `beforeRequest`:
+
+```yaml
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaId}}/detalle"
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Leer del ambiente con fallback a valor seed conocido
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaId', reservaId);
+      
+      // Continuar con login autónomo...
+      pm.sendRequest({ /* login */ });
+  
+  - type: afterResponse
+    code: |-
+      // Tests aquí...
+      
+      // IMPORTANTE: Limpiar variables temporales
+      pm.environment.unset('tmpReservaId');
+```
+
+**Regla:** Nunca usar `{{variableAmbiente}}` directamente en la URL si el valor puede estar vacío. Siempre configurar una variable temporal prefijada con `tmp` en el `beforeRequest`.
+
+#### 2. Crear datos dinámicos para pruebas
+
+**Problema:** Crear reservas para "hoy" falla si la hora ya pasó (`fechaHoraLlegada` debe ser futura → error `VAL-001: La fecha y hora de llegada deben ser en el futuro`).
+
+**Solución:** Usar fechas relativas que garanticen validez:
+
+```javascript
+// Para reservas futuras: SIEMPRE usar mañana, nunca "hoy"
+const pad = n => String(n).padStart(2, '0');
+const d = new Date();
+d.setDate(d.getDate() + 1);  // Mañana
+d.setHours(19, 0, 0, 0);
+const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+const fechaConsulta = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+pm.environment.set('tmpFechaConsulta', fechaConsulta);
+```
+
+**Regla:** 
+- Reservas futuras: `d.setDate(d.getDate() + 1)` (mañana)
+- Fechas pasadas/historial: `d.setDate(d.getDate() - 30)` (hace 30 días)
+- Nunca usar fechas fijas como `2026-12-25` en scripts dinámicos
+
+#### 3. Patrón completo: autonomous login + dynamic data + cleanup
+
+Ejemplo completo para una prueba que crea una reserva, la consulta, y luego limpia:
+
+```javascript
+// beforeRequest
+const pad = n => String(n).padStart(2, '0');
+const d = new Date();
+d.setDate(d.getDate() + 1);  // Mañana
+const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+pm.environment.set('tmpFechaConsulta', `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`);
+
+// 1. Login cliente
+pm.sendRequest({
+  url: pm.environment.get('baseUrl') + '/api/auth/login',
+  method: 'POST',
+  header: { 'Content-Type': 'application/json' },
+  body: { mode: 'raw', raw: JSON.stringify({
+    email: pm.environment.get('emailCliente'),
+    password: pm.environment.get('passwordValida'),
+    forceSessionOverride: true
+  })}
+}, function (err, res) {
+  const clienteToken = res.json().accessToken;
+  
+  // 2. Crear reserva
+  pm.sendRequest({
+    url: pm.environment.get('baseUrl') + '/api/reservas',
+    method: 'POST',
+    header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+    body: { mode: 'raw', raw: JSON.stringify({
+      emailCliente: pm.environment.get('emailCliente'),
+      fechaHoraLlegada: fechaHora,
+      numeroPersonas: 2,
+      zonaId: null, decoracionId: null, notas: null, preOrden: null
+    })}
+  }, function (e2, r2) {
+    if (!e2 && r2 && r2.code === 201) {
+      pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+    }
+    
+    // 3. Login final (mesero/admin) para ejecutar la prueba
+    pm.sendRequest({
+      url: pm.environment.get('baseUrl') + '/api/auth/login',
+      method: 'POST',
+      header: { 'Content-Type': 'application/json' },
+      body: { mode: 'raw', raw: JSON.stringify({
+        email: pm.environment.get('emailMesero'),
+        password: pm.environment.get('passwordValida'),
+        forceSessionOverride: true
+      })}
+    }, function (e3, r3) {
+      pm.environment.set('meseroToken', r3.json().accessToken);
+    });
+  });
+});
+
+// afterResponse
+pm.test('El sistema retorna HTTP 200', function () {
+  pm.response.to.have.status(200);
+});
+
+// ... más tests ...
+
+// Cleanup: cancelar reserva creada
+const reservaId = pm.environment.get('tmpReservaId');
+if (reservaId && reservaId !== 'undefined') {
+  pm.sendRequest({
+    url: pm.environment.get('baseUrl') + '/api/auth/login',
+    method: 'POST',
+    header: { 'Content-Type': 'application/json' },
+    body: { mode: 'raw', raw: JSON.stringify({
+      email: pm.environment.get('emailCliente'),
+      password: pm.environment.get('passwordValida'),
+      forceSessionOverride: true
+    })}
+  }, function (e, r) {
+    const clienteToken = r.json().accessToken;
+    pm.sendRequest({
+      url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+      method: 'PATCH',
+      header: { 'Authorization': 'Bearer ' + clienteToken }
+    }, function (e2, r2) {
+      if (!e2 && r2 && r2.code !== 200) {
+        console.warn('Cleanup: cancelar reserva falló', r2 && r2.code);
+      }
+    });
+  });
+}
+
+pm.environment.unset('tmpReservaId');
+pm.environment.unset('tmpFechaConsulta');
+```
+
+#### 4. Cuándo eliminar vs. modificar pruebas duplicadas
+
+Cuando el backend cambia de retornar `200 OK + lista vacía` a `404 NOT_FOUND`:
+
+- **Eliminar** pruebas que se vuelvan duplicados exactos  
+  Ejemplo: `MC-04 identificador inexistente – 200 OK lista vacía` duplica `MC-12 identificador inexistente – 404 Not Found` → eliminar MC-04
+
+- **Modificar** pruebas con propósito único  
+  Ejemplo: `MC-01 día actual` crea datos dinámicos para garantizar 200 OK → modificar para crear reserva de mañana y consultar con parámetro `fecha`
+
+#### 5. Códigos de error: enum Java ≠ JSON serializado
+
+```java
+// Backend (ErrorCode.java)
+ENTITY_NOT_FOUND("ENT-001", "El recurso solicitado no existe.")
+
+// JSON response
+{ "success": false, "code": "ENT-001", "message": "..." }
+```
+
+**Regla:** Las pruebas Postman deben verificar el código serializado (`ENT-001`), **no** el nombre del enum (`ENTITY_NOT_FOUND`):
+
+```javascript
+pm.test('El código de error es ENT-001', function () {
+  pm.expect(body.code).to.equal('ENT-001');  // ✓ Correcto
+  // NUNCA: pm.expect(body.code).to.equal('ENTITY_NOT_FOUND');
+});
+```
+
+**Mapeo de códigos comunes:**
+- `ENTITY_NOT_FOUND` → `"ENT-001"`
+- `VALIDATION_ERROR` → `"VAL-001"`
+- `UNAUTHORIZED` → `"AUTH-001"`
+- `ACCESS_DENIED` → `"AUTH-002"`
+- `BUSINESS_RULE_VIOLATION` → `"BUS-001"`
+
 ---
 
 ## Working Rules

@@ -174,3 +174,6 @@ values:
   - key: accessToken
     enabled: true
     value: ''
+  - key: historialSnapshot
+    enabled: true
+    value: ''

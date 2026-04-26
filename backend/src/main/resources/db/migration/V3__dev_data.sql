@@ -164,6 +164,8 @@ INSERT INTO Abono (cajero_id, reserva_id, abono_monto, abono_fecha_hora, abono_m
 (2, 8,  30000, NOW() - INTERVAL '5 days',  'TRANSFERENCIA', 'ANTICIPO'),
 (2, 10, 80000, NOW() - INTERVAL '3 days',  'TARJETA',       'ANTICIPO'),
 (3, 12, 50000, NOW() - INTERVAL '1 day',   'TRANSFERENCIA', 'ANTICIPO'),
+(3, 10, 50000, NOW() - INTERVAL '1 day',   'TRANSFERENCIA', 'ANTICIPO'),
+(3, 10, 50000, NOW() - INTERVAL '1 day',   'TRANSFERENCIA', 'ANTICIPO'),
 -- Anticipos para reservas que luego fueron devueltas
 (2, 15, 30000, NOW() - INTERVAL '12 days', 'EFECTIVO',      'ANTICIPO'),
 (2, 16, 80000, NOW() - INTERVAL '12 days', 'TRANSFERENCIA', 'ANTICIPO'),
