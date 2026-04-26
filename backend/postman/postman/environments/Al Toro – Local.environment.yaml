@@ -150,9 +150,6 @@ values:
   - key: clienteSinPuntosToken
     enabled: true
     value: ''
-  - key: reservaIdOtroCliente
-    enabled: true
-    value: ''
   - key: decoracionConCostoId
     enabled: true
     value: ''

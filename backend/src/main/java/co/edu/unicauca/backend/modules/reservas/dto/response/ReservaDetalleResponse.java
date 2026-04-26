@@ -86,4 +86,7 @@ public class ReservaDetalleResponse {
      * {@code null} si no se registró ningún abono.
      */
     private final BigDecimal totalAbonado;
+
+    /** Teléfono del cliente; {@code null} en consultas de cliente. */
+    private final String clienteTelefono;
 }
