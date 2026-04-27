@@ -13,12 +13,14 @@ export interface BackendDisponibilidadResponse {
     decoracionNombre?: string;
     puedeSeleccionarZona?: boolean;
     zonaIdsCompatibles?: number[];
+    imagenUrl?: string;
   }>;
   zonas: Array<{
     zonaId: number;
     nombre?: string;
     zonaNombre?: string;
     capacidad?: number;
+    imagenUrl?: string;
   }>;
 }
 
