@@ -25,6 +25,7 @@ import java.util.List;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
@@ -186,7 +187,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder()
                     .zonaId(1L).nombre("Zona 1").capacidad(10).build();
-            when(reservaMapper.toZonaDto(zona)).thenReturn(zonaDto);
+            when(reservaMapper.toZonaDto(any(Zona.class), anyInt())).thenReturn(zonaDto);
 
             DisponibilidadResponse result =
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);
@@ -214,7 +215,7 @@ class DisponibilidadConsultadorTest {
                     .zonaId(1L).nombre("Zona 1").capacidad(10).build();
             DecoracionDisponibleResponse decDto = DecoracionDisponibleResponse.builder()
                     .decoracionId(10L).nombre("Decoracion 10").build();
-            when(reservaMapper.toZonaDto(zona)).thenReturn(zonaDto);
+            when(reservaMapper.toZonaDto(any(Zona.class), anyInt())).thenReturn(zonaDto);
             when(reservaMapper.toDecoracionDto(eq(dec), anyList(), any())).thenReturn(decDto);
 
             DisponibilidadResponse result =
@@ -240,7 +241,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of(dec));
             ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder()
                     .zonaId(1L).nombre("Zona 1").capacidad(10).build();
-            when(reservaMapper.toZonaDto(zona)).thenReturn(zonaDto);
+            when(reservaMapper.toZonaDto(zona,0)).thenReturn(zonaDto);
 
             DisponibilidadResponse result =
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);
@@ -261,7 +262,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             when(decoracionRepository.findByDecoracionEstado(EstadoGenerico.ACTIVO))
                     .thenReturn(List.of());
-            when(reservaMapper.toZonaDto(any())).thenReturn(
+            when(reservaMapper.toZonaDto(any(), anyInt())).thenReturn(
                     ZonaDisponibleResponse.builder().zonaId(1L).nombre("Zona 1").capacidad(10).build());
 
             consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);
@@ -291,7 +292,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             when(decoracionRepository.findByDecoracionEstado(EstadoGenerico.ACTIVO))
                     .thenReturn(List.of());
-            when(reservaMapper.toZonaDto(any())).thenReturn(
+            when(reservaMapper.toZonaDto(any(), anyInt())).thenReturn(
                     ZonaDisponibleResponse.builder().zonaId(1L).nombre("Zona 1").capacidad(10).build());
 
             consultador.consultarParaModificacion(FECHA_HORA, 2, 99L, APERTURA, CIERRE);
@@ -317,7 +318,7 @@ class DisponibilidadConsultadorTest {
             when(decoracionZonaRepository.findByDecoracionId(20L)).thenReturn(List.of());
             DecoracionDisponibleResponse decDto = DecoracionDisponibleResponse.builder()
                     .decoracionId(20L).nombre("Decoracion 20").build();
-            when(reservaMapper.toZonaDto(any())).thenReturn(
+            when(reservaMapper.toZonaDto(any(), anyInt())).thenReturn(
                     ZonaDisponibleResponse.builder().zonaId(1L).nombre("Zona 1").capacidad(10).build());
             when(reservaMapper.toDecoracionDto(eq(dec), anyList(), any())).thenReturn(decDto);
 
@@ -353,7 +354,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder()
                     .zonaId(7L).nombre("Zona 7").capacidad(5).build();
-            when(reservaMapper.toZonaDto(zona)).thenReturn(zonaDto);
+            when(reservaMapper.toZonaDto(any(Zona.class), anyInt())).thenReturn(zonaDto);
 
             DisponibilidadResponse result =
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);
@@ -380,7 +381,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             ZonaDisponibleResponse zona2Dto = ZonaDisponibleResponse.builder()
                     .zonaId(2L).nombre("Zona 2").capacidad(5).build();
-            when(reservaMapper.toZonaDto(zona2)).thenReturn(zona2Dto);
+            when(reservaMapper.toZonaDto(zona2, 0)).thenReturn(zona2Dto);
 
             DisponibilidadResponse result =
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);

@@ -9,9 +9,8 @@ body:
   type: json
   content: |-
     {
-      "email": "cliente1@altoro.com",
-      "password": "password123",
+      "email": "andres.morales@gmail.com",
+      "password": "Al.Toro2026!",
       "forceSessionOverride": true
     }
-scripts: []
 order: 100

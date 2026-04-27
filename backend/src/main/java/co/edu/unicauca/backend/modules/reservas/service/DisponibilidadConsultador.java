@@ -13,10 +13,15 @@ import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaReposit
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
+
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -195,6 +200,14 @@ public class DisponibilidadConsultador {
             Long excludeReservaId,
             LocalTime horaApertura,
             LocalTime horaCierre) {
+        
+        if (fechaHora != null && fechaHora.isBefore(LocalDateTime.now())) {
+                throw new BusinessException(
+                        ErrorCode.BUSINESS_ERROR,
+                        "No se puede buscar diponibilidad en fechas pasadas",
+                        HttpStatus.BAD_REQUEST
+                );
+        }
 
         // Paso 1: verificar que la hora esté dentro del horario de atención
         if (!validador.esHorarioValido(fechaHora, horaApertura, horaCierre)) {
@@ -272,9 +285,14 @@ public class DisponibilidadConsultador {
                 })
                 .collect(Collectors.toList());
 
-        // Mapear las zonas libres a sus DTOs de disponibilidad
+        // Mapear las zonas libres a sus DTOs de disponibilidad con capacidad actual
         List<ZonaDisponibleResponse> zonasDto = zonasLibres.stream()
-                .map(reservaMapper::toZonaDto)
+                .map(z -> {
+                    // Obtener personas ocupadas en esta zona (0 si no hay reservas)
+                    int personasOcupadas = personasPorZona.getOrDefault(z.getZonaId(), 0);
+                    // Convertir a DTO pasando las personas ocupadas para calcular capacidad disponible
+                    return reservaMapper.toZonaDto(z, personasOcupadas);
+                })
                 .collect(Collectors.toList());
 
         // Construir y retornar la respuesta con disponibilidad positiva

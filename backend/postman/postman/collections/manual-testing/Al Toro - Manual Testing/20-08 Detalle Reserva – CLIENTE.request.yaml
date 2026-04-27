@@ -20,7 +20,7 @@ scripts:
           mode: 'raw',
           raw: JSON.stringify({
             email: 'cliente1@altoro.com',
-            password: 'password123',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }

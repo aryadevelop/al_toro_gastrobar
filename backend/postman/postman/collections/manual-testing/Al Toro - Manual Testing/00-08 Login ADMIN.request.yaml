@@ -10,8 +10,7 @@ body:
   content: |-
     {
       "email": "admin@altoro.com",
-      "password": "password123",
+      "password": "Al.Toro2026!",
       "forceSessionOverride": true
     }
-scripts: []
 order: 800

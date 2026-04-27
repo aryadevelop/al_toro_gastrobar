@@ -76,6 +76,14 @@ public class ReservaConsultaService {
                     List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
             );
         } else {
+            if (fecha != null && fecha.isBefore(LocalDate.now())) {
+                throw new BusinessException(
+                        ErrorCode.BUSINESS_ERROR,
+                        "No se pueden consultar reservas para fechas pasadas",
+                        HttpStatus.BAD_REQUEST
+                );
+            }
+
             // Si no se especifica fecha, usar hoy
             LocalDate fechaConsulta = fecha != null ? fecha : LocalDate.now();
             LocalDateTime inicio = fechaConsulta.atTime(LocalTime.MIN);
@@ -92,7 +100,7 @@ public class ReservaConsultaService {
         if (reservas.isEmpty()) {
             throw new BusinessException(
                     ErrorCode.ENTITY_NOT_FOUND,
-                    "No hay reservas programadas para esta fecha",
+                    "No hay reservas activas o pendientes para la fecha o identificador especificado",
                     HttpStatus.NOT_FOUND
             );
         }

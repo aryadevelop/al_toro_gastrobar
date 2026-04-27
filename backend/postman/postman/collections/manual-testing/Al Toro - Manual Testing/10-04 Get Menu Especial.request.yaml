@@ -16,8 +16,8 @@ scripts:
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: 'cliente1@altoro.com',
-            password: 'password123',
+            email: 'andres.morales@gmail.com',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }
@@ -28,7 +28,6 @@ scripts:
       });
     language: text/javascript
   - type: afterResponse
-    code: |-
-      pm.environment.unset('tmpClienteToken');
+    code: pm.environment.unset('tmpClienteToken');
     language: text/javascript
 order: 1040

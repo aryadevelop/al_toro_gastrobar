@@ -106,9 +106,6 @@ public class VisitaMapper {
                         .collect(Collectors.toList()))
                 .orElse(null);
 
-        // Si la venta está presente, la visita se considera cerrada; de lo contrario, sigue activa.
-        String estadoVisita = ventaOpt.isPresent() ? "CERRADA" : "ATENDIDA";
-
         // Para el detalle, se prioriza mostrar la zona de la mesa asignada. Si no hay mesa, se muestra la zona de la reserva (si existe).
         String zonaNombre = mesaOpt
                 .map(Mesa::getZona)
@@ -124,13 +121,11 @@ public class VisitaMapper {
                 .fechaHoraLlegada(visita.getVisitaFechaHoraInicio().format(FORMATTER))
                 .fechaHoraSalida(visita.getVisitaFechaHoraFin() != null ? visita.getVisitaFechaHoraFin().format(FORMATTER) : null)
                 .numeroPersonas(mesaOpt.map(Mesa::getMesaNumeroPersonas).orElse(null))
-                .estadoVisita(estadoVisita)
                 .zonaNombre(zonaNombre)
                 .mesaIdentificador(mesaOpt.map(Mesa::getMesaIdentificador).orElse(null))
                 .meseroNombre(mesaOpt.map(m -> m.getMesero().getEmpleadoNombre()).orElse(null))
                 .decoracionNombre(visita.getReserva() != null && visita.getReserva().getDecoracion() != null
                         ? visita.getReserva().getDecoracion().getDecoracionNombre() : null)
-                .notas(visita.getReserva() != null ? visita.getReserva().getReservaNotas() : null)
                 .itemsComanda(itemsDto)
                 .abonos(abonosDto)
                 .subtotalCuenta(ventaOpt.map(Venta::getVentaSubtotal).orElse(null))

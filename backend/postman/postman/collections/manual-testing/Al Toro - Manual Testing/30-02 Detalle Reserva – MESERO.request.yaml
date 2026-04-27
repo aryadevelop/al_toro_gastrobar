@@ -1,7 +1,7 @@
 $kind: http-request
 name: 30-02 Detalle Reserva – MESERO
 description: Obtener detalle completo de una reserva (mesero)
-url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaId}}/detalle"
+url: "{{baseUrl}}/api/reservas/mesero/21/detalle"
 method: GET
 headers:
   Authorization: Bearer {{tmpMeseroToken}}
@@ -20,7 +20,7 @@ scripts:
           mode: 'raw',
           raw: JSON.stringify({
             email: 'mesero1@altoro.com',
-            password: 'password123',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }

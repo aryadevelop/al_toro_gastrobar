@@ -51,23 +51,17 @@ public class VisitaDetalleResponse {
     /** Número de comensales de la reserva. */
     private final Integer numeroPersonas;
 
-    /** Estado actual de la visita. */
-    private final String estadoVisita;
-
     /** Nombre de la zona seleccionada; {@code null} si el cliente no eligió zona. */
     private final String zonaNombre;
+
+    /** Nombre de la decoración seleccionada; {@code null} si no aplica. */
+    private final String decoracionNombre;
 
     /** Etiqueta física de la mesa asignada; {@code null} si no hubo mesa. */
     private final String mesaIdentificador;
 
     /** Nombre del mesero que atendió la mesa; {@code null} si no hubo asignación. */
     private final String meseroNombre;
-
-    /** Nombre de la decoración seleccionada; {@code null} si no aplica. */
-    private final String decoracionNombre;
-
-    /** Observaciones o peticiones especiales del cliente; {@code null} si no hay notas. */
-    private final String notas;
 
     /**
      * Productos de la comanda final (suma de todas las comandas de la visita);

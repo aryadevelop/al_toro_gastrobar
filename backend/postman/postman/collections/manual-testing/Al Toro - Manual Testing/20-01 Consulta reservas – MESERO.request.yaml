@@ -3,10 +3,16 @@ name: 20-01 Consulta reservas – MESERO
 description: |-
   Consulta de reservas del día actual por mesero.
   Sin parámetro fecha = día actual. Sin identificador = todas las reservas.
-url: "{{baseUrl}}/api/reservas/mesero/consulta"
+url: "{{baseUrl}}/api/reservas/mesero/consulta?identificador=11"
 method: GET
 headers:
   Authorization: Bearer {{tmpMeseroToken}}
+queryParams:
+  - key: fecha
+    value: 2026-05-02
+    disabled: true
+  - key: identificador
+    value: "11"
 scripts:
   - type: beforeRequest
     code: |-
@@ -19,7 +25,7 @@ scripts:
           mode: 'raw',
           raw: JSON.stringify({
             email: 'mesero1@altoro.com',
-            password: 'password123',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }
@@ -30,7 +36,6 @@ scripts:
       });
     language: text/javascript
   - type: afterResponse
-    code: |-
-      pm.environment.unset('tmpMeseroToken');
+    code: pm.environment.unset('tmpMeseroToken');
     language: text/javascript
 order: 2000

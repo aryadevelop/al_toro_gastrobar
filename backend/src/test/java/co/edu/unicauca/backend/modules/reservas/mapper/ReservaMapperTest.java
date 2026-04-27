@@ -75,11 +75,11 @@ class ReservaMapperTest {
                 .zonaCapacidadPersonas(20)
                 .build();
 
-        ZonaDisponibleResponse resp = mapper.toZonaDto(zona);
+        ZonaDisponibleResponse resp = mapper.toZonaDto(zona, 5);
 
         assertThat(resp.getZonaId()).isEqualTo(1L);
         assertThat(resp.getNombre()).isEqualTo("Terraza");
-        assertThat(resp.getCapacidad()).isEqualTo(20);
+        assertThat(resp.getCapacidad()).isEqualTo(15);
     }
 
     @Test

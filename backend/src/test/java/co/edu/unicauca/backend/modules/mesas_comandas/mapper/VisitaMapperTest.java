@@ -101,7 +101,6 @@ class VisitaMapperTest {
         assertThat(resp.getVisitaId()).isEqualTo(1L);
         assertThat(resp.getItemsComanda()).isNull();
         assertThat(resp.getAbonos()).isNull();
-        assertThat(resp.getEstadoVisita()).isEqualTo("ATENDIDA");
     }
 
     @Test
@@ -119,7 +118,6 @@ class VisitaMapperTest {
 
         assertThat(resp.getTotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(75000));
         assertThat(resp.getSubtotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(80000));
-        assertThat(resp.getEstadoVisita()).isEqualTo("CERRADA");
     }
 
     @Test
