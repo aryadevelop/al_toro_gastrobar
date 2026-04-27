@@ -146,3 +146,26 @@ export interface BackendClientePuntos {
   puntosActuales: number;
   puntosAcumulados: number;
 }
+
+export interface BackendItemVisita {
+  comandaItemId: number;
+  nombreProducto: string;
+  cantidad: number;
+  estadoItem: string;
+  precioUnitario: number;
+  subtotal: number;
+}
+
+export interface BackendEstadoVisita {
+  visitaId: number;
+  mesaIdentificador?: string;
+  visitaCerrada: boolean;
+  items: BackendItemVisita[];
+  total: number;
+  asistenciaSolicitada: boolean;
+  notificacionAsistenciaId?: number;
+}
+
+export interface BackendNotificacionAsistencia {
+  notificacionId: number;
+}

@@ -1,4 +1,4 @@
-﻿import { environment } from '../../../environments/environment';
+import { environment } from '../../../environments/environment';
 
 const API = environment.apiBaseUrl;
 
@@ -25,6 +25,8 @@ export const API_PATHS = {
     visitas: {
         historial: `${API}/visitas/cliente/historial`,
         detalle: (visitaId: string | number) => `${API}/visitas/cliente/${visitaId}/detalle`,
+        activa: `${API}/visitas/activa`,
+        asistencia: (visitaId: string | number) => `${API}/visitas/${visitaId}/asistencia`,
     },
     productos: {
         carta: `${API}/productos/carta`,
