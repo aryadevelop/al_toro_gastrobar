@@ -7,8 +7,8 @@ headers:
   Authorization: Bearer {{tmpClienteToken}}
   Content-Type: application/json
 body:
-  mode: raw
-  raw: |-
+  type: json
+  content: |-
     {
       "emailCliente": null,
       "fechaHoraLlegada": "2026-12-25T19:00:00",

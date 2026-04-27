@@ -6,8 +6,8 @@ method: POST
 headers:
   Content-Type: application/json
 body:
-  mode: raw
-  raw: |-
+  type: json
+  content: |-
     {
       "email": "cliente1@altoro.com",
       "password": "password123",

@@ -7,8 +7,8 @@ headers:
   Authorization: Bearer {{tmpCajeroToken}}
   Content-Type: application/json
 body:
-  mode: raw
-  raw: |-
+  type: json
+  content: |-
     {
       "emailCajero": "cajero1@altoro.com",
       "visitaId": 1,
