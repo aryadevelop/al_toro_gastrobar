@@ -390,7 +390,7 @@ CREATE TABLE Comanda (
     visita_id BIGINT,
     reserva_id BIGINT,
     comanda_estacion VARCHAR(20),
-    comanda_fecha_hora_inicio TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    comanda_fecha_hora_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     comanda_fecha_hora_listo TIMESTAMP,
     comanda_notas TEXT,
     comanda_estado VARCHAR(20) NOT NULL,
@@ -402,8 +402,8 @@ CREATE TABLE Comanda (
         REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
     CONSTRAINT chk_comanda_contexto CHECK (visita_id IS NOT NULL OR reserva_id IS NOT NULL),
     CONSTRAINT chk_comanda_estacion CHECK (comanda_estacion IS NULL OR comanda_estacion IN ('COCINA', 'BARRA')),
-    CONSTRAINT chk_comanda_estado CHECK (comanda_estado IN ('PRE_RESERVA', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')),
-    CONSTRAINT chk_comanda_fechas CHECK (comanda_fecha_hora_listo IS NULL OR comanda_fecha_hora_listo >= comanda_fecha_hora_inicio)
+    CONSTRAINT chk_comanda_estado CHECK (comanda_estado IN ('PRE_RESERVA', 'BORRADOR', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')),
+    CONSTRAINT chk_comanda_fechas CHECK (comanda_fecha_hora_listo IS NULL OR comanda_fecha_hora_inicio IS NULL OR comanda_fecha_hora_listo >= comanda_fecha_hora_inicio)
 );
 
 COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra, o pre-órdenes de reservas (estado PRE_RESERVA)';
