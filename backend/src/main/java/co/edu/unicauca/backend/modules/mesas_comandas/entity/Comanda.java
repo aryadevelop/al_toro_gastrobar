@@ -91,11 +91,14 @@ public class Comanda extends AuditableEntity {
     @Column(name = "comanda_estacion", length = 20)
     private EstacionComanda comandaEstacion;
 
-    /** Fecha y hora en que se envió la comanda a producción. */
-    @NotNull
-    @Column(name = "comanda_fecha_hora_inicio", nullable = false)
-    @Builder.Default
-    private LocalDateTime comandaFechaHoraInicio = LocalDateTime.now();
+    /**
+     * Fecha y hora en que la comanda fue enviada a producción (cocina/barra).
+     *
+     * <p>{@code NULL} mientras la comanda está en estado {@code PRE_RESERVA} o {@code BORRADOR}.
+     * Se asigna explícitamente cuando la comanda transiciona a {@code PENDIENTE}.
+     */
+    @Column(name = "comanda_fecha_hora_inicio")
+    private LocalDateTime comandaFechaHoraInicio;
 
     /**
      * Fecha y hora en que la estación marcó la comanda como lista.
@@ -117,9 +120,7 @@ public class Comanda extends AuditableEntity {
     @PrePersist
     protected void onCreate() {
         super.onCreate();
-        if (comandaFechaHoraInicio == null) {
-            comandaFechaHoraInicio = LocalDateTime.now();
-        }
+        // comandaFechaHoraInicio se asigna explícitamente al enviar a producción
     }
 
     @Override

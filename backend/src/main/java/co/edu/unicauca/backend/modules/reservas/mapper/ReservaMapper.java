@@ -179,6 +179,7 @@ public class ReservaMapper {
 
         return ReservaDetalleResponse.builder()
                 .reservaId(reserva.getReservaId())
+                .clienteNombre(reserva.getCliente().getClienteNombre())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())

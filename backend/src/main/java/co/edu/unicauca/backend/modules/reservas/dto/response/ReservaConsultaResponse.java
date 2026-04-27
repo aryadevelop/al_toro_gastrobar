@@ -33,6 +33,9 @@ public class ReservaConsultaResponse {
     /** Número de comensales de la reserva. */
     private final Integer numeroPersonas;
 
+    /** Teléfono del cliente que realizó la reserva. */
+    private final String clienteTelefono;
+
     /** Estado actual de la reserva ({@code CONFIRMADA} o {@code PENDIENTE}). */
     private final String estado;
 }

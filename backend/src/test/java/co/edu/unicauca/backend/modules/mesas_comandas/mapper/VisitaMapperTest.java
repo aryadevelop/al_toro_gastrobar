@@ -1,11 +1,15 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.mapper;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaItemResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
+import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +33,18 @@ class VisitaMapperTest {
         return Visita.builder()
                 .visitaId(1L)
                 .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .build();
+    }
+
+    private Producto producto() {
+        return Producto.builder()
+                .productoNombre("Bandeja Paisa")
+                .build();
+    }
+
+    private Comanda comanda() {
+        return Comanda.builder()
+                .comandaId(1L)
                 .build();
     }
 
@@ -102,5 +118,80 @@ class VisitaMapperTest {
         assertThat(resp.getTotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(75000));
         assertThat(resp.getSubtotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(80000));
         assertThat(resp.getEstadoVisita()).isEqualTo("CERRADA");
+    }
+
+    @Test
+    @DisplayName("Agrupa items duplicados por nombre y descripcion en detalle de visita")
+    void agrupaItemsDuplicadosEnDetalle() {
+        // Arrange: 2 items del mismo producto con misma descripcion
+        Producto producto = producto();
+        Comanda comanda = comanda();
+
+        ComandaItem item1 = ComandaItem.builder()
+                .comandaItemId(1L)
+                .comanda(comanda)
+                .producto(producto)
+                .comandaItemCantidad(2)
+                .comandaItemPrecio(new BigDecimal("15000"))
+                .comandaItemDescripcion("Sin cebolla")
+                .build();
+
+        ComandaItem item2 = ComandaItem.builder()
+                .comandaItemId(2L)
+                .comanda(comanda)
+                .producto(producto)
+                .comandaItemCantidad(3)
+                .comandaItemPrecio(new BigDecimal("15000"))
+                .comandaItemDescripcion("Sin cebolla")
+                .build();
+
+        List<ComandaItem> items = List.of(item1, item2);
+
+        // Act
+        VisitaDetalleResponse response = mapper.toDetalle(
+                visitaBase(), items, Optional.empty(), Optional.empty(), Optional.empty());
+
+        // Assert
+        assertThat(response.getItemsComanda()).hasSize(1);
+        ComandaItemResponse itemAgrupado = response.getItemsComanda().get(0);
+        assertThat(itemAgrupado.getNombreProducto()).isEqualTo("Bandeja Paisa");
+        assertThat(itemAgrupado.getDescripcion()).isEqualTo("Sin cebolla");
+        assertThat(itemAgrupado.getCantidad()).isEqualTo(5);  // 2 + 3
+        assertThat(itemAgrupado.getSubtotal()).isEqualByComparingTo(new BigDecimal("75000")); // 15000 * 5
+    }
+
+    @Test
+    @DisplayName("No agrupa items con diferente descripcion en detalle de visita")
+    void noAgrupaItemsConDiferenteDescripcion() {
+        // Arrange: 2 items del mismo producto con DIFERENTE descripcion
+        Producto producto = producto();
+        Comanda comanda = comanda();
+
+        ComandaItem item1 = ComandaItem.builder()
+                .comandaItemId(1L)
+                .comanda(comanda)
+                .producto(producto)
+                .comandaItemCantidad(2)
+                .comandaItemPrecio(new BigDecimal("15000"))
+                .comandaItemDescripcion("Sin cebolla")
+                .build();
+
+        ComandaItem item2 = ComandaItem.builder()
+                .comandaItemId(2L)
+                .comanda(comanda)
+                .producto(producto)
+                .comandaItemCantidad(3)
+                .comandaItemPrecio(new BigDecimal("15000"))
+                .comandaItemDescripcion("Extra picante")
+                .build();
+
+        List<ComandaItem> items = List.of(item1, item2);
+
+        // Act
+        VisitaDetalleResponse response = mapper.toDetalle(
+                visitaBase(), items, Optional.empty(), Optional.empty(), Optional.empty());
+
+        // Assert: NO se agrupan, quedan 2 items separados
+        assertThat(response.getItemsComanda()).hasSize(2);
     }
 }

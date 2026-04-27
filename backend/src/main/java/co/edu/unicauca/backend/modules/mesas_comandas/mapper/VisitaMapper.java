@@ -13,7 +13,9 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -81,16 +83,7 @@ public class VisitaMapper {
             Optional<Mesa> mesaOpt) {
 
         // Convierte los items de comanda en su DTO correspondiente; si no hay detalles, se deja como null para omitir el campo en la respuesta.
-        List<ComandaItemResponse> itemsDto = itemsComanda.isEmpty() ? null :
-                itemsComanda.stream()
-                        .map(d -> ComandaItemResponse.builder()
-                                .nombreProducto(d.getProducto().getProductoNombre())
-                                .cantidad(d.getComandaItemCantidad())
-                                .precioUnitario(d.getComandaItemPrecio())
-                                .subtotal(d.getComandaItemPrecio()
-                                        .multiply(BigDecimal.valueOf(d.getComandaItemCantidad())))
-                                .build())
-                        .collect(Collectors.toList());
+        List<ComandaItemResponse> itemsDto = itemsComanda.isEmpty() ? null : agruparItems(itemsComanda);
 
         // Convierte los abonos en su DTO correspondiente; si no hay abonos, se deja como null para omitir el campo en la respuesta.
         List<AbonoItemResponse> abonosDto = abonosOpt
@@ -139,5 +132,41 @@ public class VisitaMapper {
                 .build();
     }
 
+    /**
+     * Agrupa items de comanda por (nombreProducto + descripcion) y suma cantidades.
+     *
+     * <p>Utilizado en detalle de visita para mostrar al cliente una vista consolidada
+     * de todos los items pedidos, sin importar en cuántas comandas se dividieron.
+     *
+     * @param items lista de items a agrupar
+     * @return lista de items agrupados ordenados por nombre
+     */
+    private List<ComandaItemResponse> agruparItems(List<ComandaItem> items) {
+        // Clave de agrupación: nombreProducto + "|" + descripcion (null-safe)
+        Map<String, List<ComandaItem>> agrupados = items.stream()
+            .collect(Collectors.groupingBy(item ->
+                item.getProducto().getProductoNombre() + "|" +
+                (item.getComandaItemDescripcion() != null ? item.getComandaItemDescripcion() : "")
+            ));
+
+        return agrupados.values().stream()
+            .map(grupo -> {
+                ComandaItem primero = grupo.get(0);
+                int cantidadTotal = grupo.stream()
+                    .mapToInt(ComandaItem::getComandaItemCantidad)
+                    .sum();
+
+                return ComandaItemResponse.builder()
+                    .nombreProducto(primero.getProducto().getProductoNombre())
+                    .descripcion(primero.getComandaItemDescripcion())
+                    .cantidad(cantidadTotal)
+                    .precioUnitario(primero.getComandaItemPrecio())
+                    .subtotal(primero.getComandaItemPrecio()
+                        .multiply(BigDecimal.valueOf(cantidadTotal)))
+                    .build();
+            })
+            .sorted(Comparator.comparing(ComandaItemResponse::getNombreProducto))
+            .toList();
+    }
 
 }

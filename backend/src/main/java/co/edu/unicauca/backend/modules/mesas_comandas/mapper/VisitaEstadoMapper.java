@@ -36,6 +36,7 @@ public class VisitaEstadoMapper {
         return ItemVisitaResponse.builder()
                 .comandaItemId(item.getComandaItemId())
                 .nombreProducto(item.getProducto().getProductoNombre())
+                .descripcion(item.getComandaItemDescripcion())
                 .cantidad(item.getComandaItemCantidad())
                 .estadoItem(resolverEstadoItem(estado))
                 .precioUnitario(item.getComandaItemPrecio())

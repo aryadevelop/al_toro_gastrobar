@@ -465,11 +465,6 @@ cd backend
 
 Expected: Compilación exitosa
 
-- [ ] **Step 3: Commit**
-
-esperar commit del usurio
-git commit -m "feat(dtos): añadir clienteNombre a ReservaDetalleResponse"
-
 ---
 
 ## Task 10: Actualizar ReservaConsultaMapper con clienteTelefono
@@ -495,11 +490,6 @@ cd backend
 ```
 
 Expected: Compilación exitosa
-
-- [ ] **Step 3: Commit**
-
-esperar commit del usurio
-git commit -m "feat(dtos): añadir clienteTelefono a ReservaConsultaResponse"
 
 ---
 
@@ -538,10 +528,6 @@ cd backend
 
 Expected: Compilación exitosa
 
-- [ ] **Step 3: Commit**
-
-esperar commit del usurio
-git commit -m "feat(dtos): añadir descripcion a ItemVisitaResponse"
 ---
 
 ## Task 12: Implementar agrupación SOLO en VisitaMapper
@@ -632,10 +618,6 @@ cd backend
 
 Expected: Compilación exitosa
 
-- [ ] **Step 5: Commit**
-
-esperar commit del usurio
-git commit -m "feat(mappers): implementar agrupación de items en VisitaMapper"
 ---
 
 ## Task 13: Actualizar tests baseline - VisitaEstadoServiceTest
@@ -657,11 +639,6 @@ Expected: Tests PASAN (actualmente NO hay agrupación, esto es correcto)
 Si todos los tests pasan, no hay cambios necesarios en este archivo. La adición de `descripcion` no rompe tests existentes porque:
 - El mapper sigue retornando items individuales
 - Solo añadimos un campo nuevo que puede ser null
-
-- [ ] **Step 3: Commit (si no hay cambios)**
-
-esperar commit del usurio
-git commit -m "test(visitas): verificar tests de VisitaEstadoService con descripcion"
 
 ---
 
@@ -1027,20 +1004,6 @@ git commit -m "feat(postman): crear colección de pruebas manuales"
 
 Esta colección está diseñada para **exploración manual** del backend, sin assertions automáticas.
 
-## Propósito
-
-- Verificar manualmente flujos end-to-end
-- Explorar respuestas completas de endpoints
-- Debugging de problemas específicos
-- Validar comportamiento sin necesidad de escribir tests
-
-## Diferencia con otras colecciones
-
-| Colección | Propósito | Assertions | Ejecución |
-|-----------|-----------|------------|-----------|
-| `Al Toro – GET -api-*` | Validación automática por endpoint | ✅ `pm.test()` | CI/CD + manual |
-| `Manual Testing` | Exploración manual | ❌ No assertions | Solo manual |
-
 ## Cómo usar
 
 ### 1. Configurar ambiente
@@ -1099,49 +1062,6 @@ Cada request tiene login automático en `beforeRequest`, por lo que:
 ### 20 - Reservas (Mesero)
 - `20-01 Consulta reservas – MESERO` — Reservas del día
 
-## Verificar agrupación de items
-
-Para verificar que la agrupación funciona correctamente:
-
-1. Ejecutar `10-02 Detalle visita – CLIENTE` con un `visitaId` que tenga items duplicados
-2. Inspeccionar el campo `itemsComanda` en la respuesta
-3. Verificar que items con mismo `nombreProducto` + `descripcion` estén agrupados
-4. Verificar que `cantidad` sea la suma de ambas comandas
-
-**Ejemplo de respuesta esperada:**
-
-```json
-{
-  "data": {
-    "itemsComanda": [
-      {
-        "nombreProducto": "Bandeja Paisa",
-        "descripcion": "Sin cebolla",
-        "cantidad": 5,
-        "precioUnitario": 15000,
-        "subtotal": 75000
-      }
-    ]
-  }
-}
-```
-
-Si originalmente había 2 comandas con 2 y 3 unidades respectivamente, ahora aparece 1 item con cantidad 5.
-
-## Comparar con estado activa (sin agrupación)
-
-Para ver la diferencia entre agrupado vs sin agrupar:
-
-1. Ejecutar `10-01 Estado visita activa – CLIENTE`
-2. Inspeccionar campo `items` → Cada item tiene `comandaItemId`
-3. Ejecutar `10-02 Detalle visita – CLIENTE`
-4. Inspeccionar campo `itemsComanda` → Items agrupados, no tienen `comandaItemId`
-
-## Notas
-
-- Estas pruebas **NO** modifican el estado del sistema (solo lecturas)
-- Para probar modificaciones, usar las colecciones específicas de cada endpoint
-- Tokens expiran en 30 minutos; el login automático refresca en cada request
 ```
 
 - [ ] **Step 2: Commit**
