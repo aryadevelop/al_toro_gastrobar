@@ -1,35 +1,40 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Estados posibles de una {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda}.
+ * Estados del ciclo de vida de una comanda.
  *
- * <p>Ciclo de vida:
- * <pre>
- *   PRE_RESERVA → PENDIENTE → EN_PREPARACION → LISTO → COMPLETADO
- * </pre>
+ * <p>Flujo típico: PRE_RESERVA → BORRADOR → PENDIENTE → EN_PREPARACION → LISTO → COMPLETADO
  *
  * <ul>
- *   <li>{@code PRE_RESERVA} — pre-orden registrada al crear una reserva; aún no enviada a producción.</li>
- *   <li>{@code PENDIENTE} — comanda enviada a la estación de producción, en espera de ser tomada.</li>
- *   <li>{@code EN_PREPARACION} — la estación de producción inició la preparación.</li>
- *   <li>{@code LISTO} — preparación finalizada; pendiente de entrega al cliente.</li>
- *   <li>{@code COMPLETADO} — entregada al cliente; ciclo cerrado.</li>
+ *   <li><b>PRE_RESERVA:</b> Comanda creada desde reserva, aún no enviada a producción</li>
+ *   <li><b>BORRADOR:</b> Comanda walk-in guardada pero no enviada a producción</li>
+ *   <li><b>PENDIENTE:</b> Enviada a cocina/barra, esperando preparación</li>
+ *   <li><b>EN_PREPARACION:</b> Estación trabajando en los items</li>
+ *   <li><b>LISTO:</b> Terminado, pendiente de marcar servido</li>
+ *   <li><b>COMPLETADO:</b> Servido al cliente</li>
  * </ul>
  */
 public enum EstadoComanda {
+
     PRE_RESERVA("Pre-Reserva"),
+
+    BORRADOR("Borrador"),
+
     PENDIENTE("Pendiente"),
+
     EN_PREPARACION("En Preparación"),
+
     LISTO("Listo"),
+
     COMPLETADO("Completado");
 
-    private final String descripcion;
+    private final String displayName;
 
-    EstadoComanda(String descripcion) {
-        this.descripcion = descripcion;
+    EstadoComanda(String displayName) {
+        this.displayName = displayName;
     }
 
-    public String getDescripcion() {
-        return descripcion;
+    public String getDisplayName() {
+        return displayName;
     }
 }
