@@ -1,0 +1,36 @@
+$kind: http-request
+name: 00-05 Logout – CLIENTE
+description: Cerrar sesión e invalidar tokens activos
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 204) {
+        console.log('✓ Logout exitoso');
+      }
+    language: text/javascript
+order: 500

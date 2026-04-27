@@ -227,6 +227,7 @@ public class ReservaMapper {
 
     private List<PreOrdenItemResponse> construirItemsPreOrden(List<ComandaItem> items) {
         return items.stream()
+                .sorted(PreOrdenMapper.COMPARATOR_POR_CATEGORIA)
                 .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
                 .collect(Collectors.toList());
     }

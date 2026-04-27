@@ -1,0 +1,30 @@
+$kind: http-request
+name: 50-01 Mis Puntos – CLIENTE
+description: Obtener puntos de fidelidad del cliente autenticado
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+order: 5010

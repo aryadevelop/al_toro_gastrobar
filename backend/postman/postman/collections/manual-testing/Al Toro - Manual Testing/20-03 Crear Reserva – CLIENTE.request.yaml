@@ -1,0 +1,42 @@
+$kind: http-request
+name: 20-03 Crear Reserva – CLIENTE
+description: Crear nueva reserva con pre-orden opcional
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "fechaHoraLlegada": "2026-12-25T19:00:00",
+      "numeroPersonas": 4,
+      "zonaId": 1,
+      "decoracionId": null,
+      "notas": "Reserva de prueba manual",
+      "preOrden": null
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+order: 2030

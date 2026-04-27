@@ -1,0 +1,42 @@
+$kind: http-request
+name: 60-01 Cerrar Cuenta – CAJERO
+description: Registrar venta y cerrar cuenta de una visita
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "visitaId": 1,
+      "subtotal": 85000,
+      "descuento": 5000,
+      "total": 80000,
+      "metodoPago": "EFECTIVO",
+      "emailCajero": "{{emailCajero}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+order: 6010

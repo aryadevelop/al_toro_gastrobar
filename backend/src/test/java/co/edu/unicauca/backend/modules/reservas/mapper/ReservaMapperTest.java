@@ -9,6 +9,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleRespo
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
@@ -27,6 +28,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+import org.mockito.quality.Strictness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 
@@ -40,8 +43,12 @@ class ReservaMapperTest {
     ReservaMapper mapper;
 
     private Reserva reservaBase() {
+        Cliente clienteMock = mock(Cliente.class, withSettings().strictness(Strictness.LENIENT));
+        when(clienteMock.getClienteNombre()).thenReturn("Juan Pérez");
+
         return Reserva.builder()
                 .reservaId(1L)
+                .cliente(clienteMock)
                 .reservaFechaHoraLlegada(LocalDateTime.now().plusDays(5))
                 .reservaNumeroPersonas(4)
                 .reservaEstado(EstadoReserva.PENDIENTE)

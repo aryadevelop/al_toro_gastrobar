@@ -6,6 +6,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemRespons
 
 import org.springframework.stereotype.Component;
 
+import java.util.Comparator;
 import java.util.List;
 import java.util.stream.Collectors;
 
@@ -19,6 +20,13 @@ import java.util.stream.Collectors;
  */
 @Component
 public class PreOrdenMapper {
+
+    /**
+     * Comparador para ordenar items por categoría de producto.
+     * Orden: PLATO (0) → BEBIDA (1) → OTRO (2)
+     */
+    public static final Comparator<ComandaItem> COMPARATOR_POR_CATEGORIA =
+            Comparator.comparing(item -> item.getProducto().getProductoCategoria().ordinal());
 
     /**
      * Convierte un {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem}

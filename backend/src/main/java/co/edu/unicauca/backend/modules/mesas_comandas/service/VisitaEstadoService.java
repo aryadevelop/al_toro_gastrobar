@@ -86,6 +86,7 @@ public class VisitaEstadoService {
                 .filter(c -> c.getComandaEstado() != EstadoComanda.PRE_RESERVA)
                 .flatMap(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId())
                         .stream()
+                        .sorted(VisitaEstadoMapper.COMPARATOR_POR_CATEGORIA)
                         .map(item -> visitaEstadoMapper.toItemVisitaResponse(item, c.getComandaEstado())))
                 .collect(Collectors.toList());
 

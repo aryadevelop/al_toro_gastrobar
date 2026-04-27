@@ -1,0 +1,9 @@
+$kind: collection-definition
+description: |-
+  Colección de pruebas manuales sin assertions automáticas.
+
+  Cada request ejecuta login autónomo en beforeRequest usando:
+  - emailCliente / emailMesero / emailCajero / emailAdmin
+  - passwordValida
+
+  Variables de ambiente utilizadas: baseUrl, todos los emails de roles, passwordValida.

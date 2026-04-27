@@ -29,6 +29,13 @@ public class VisitaMapper {
             DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ss");
 
     /**
+     * Comparador para ordenar items por categoría de producto.
+     * Orden: PLATO (0) → BEBIDA (1) → OTRO (2)
+     */
+    private static final Comparator<ComandaItem> COMPARATOR_POR_CATEGORIA =
+            Comparator.comparing(item -> item.getProducto().getProductoCategoria().ordinal());
+
+    /**
      * Convierte una {@link Visita} en el DTO de resumen de visitas,
      * 
      * @param visita   entidad de la visita
@@ -144,6 +151,7 @@ public class VisitaMapper {
     private List<ComandaItemResponse> agruparItems(List<ComandaItem> items) {
         // Clave de agrupación: nombreProducto + "|" + descripcion (null-safe)
         Map<String, List<ComandaItem>> agrupados = items.stream()
+            .sorted(COMPARATOR_POR_CATEGORIA)
             .collect(Collectors.groupingBy(item ->
                 item.getProducto().getProductoNombre() + "|" +
                 (item.getComandaItemDescripcion() != null ? item.getComandaItemDescripcion() : "")

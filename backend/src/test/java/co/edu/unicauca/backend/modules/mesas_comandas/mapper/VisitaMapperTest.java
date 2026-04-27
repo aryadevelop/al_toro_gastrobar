@@ -10,6 +10,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -39,6 +40,7 @@ class VisitaMapperTest {
     private Producto producto() {
         return Producto.builder()
                 .productoNombre("Bandeja Paisa")
+                .productoCategoria(CategoriaProducto.PLATO)
                 .build();
     }
 

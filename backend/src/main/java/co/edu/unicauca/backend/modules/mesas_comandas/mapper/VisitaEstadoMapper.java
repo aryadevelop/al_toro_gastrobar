@@ -9,6 +9,7 @@ import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Optional;
 
@@ -21,6 +22,14 @@ import java.util.Optional;
  */
 @Component
 public class VisitaEstadoMapper {
+
+    /**
+     * Comparador para ordenar items por categoría de producto.
+     * Orden: PLATO (0) → BEBIDA (1) → OTRO (2)
+     * Nota: El ordenamiento se aplica en el Service, no aquí.
+     */
+    public static final Comparator<ComandaItem> COMPARATOR_POR_CATEGORIA =
+            Comparator.comparing(item -> item.getProducto().getProductoCategoria().ordinal());
 
     /**
      * Construye {@link ItemVisitaResponse} desde un ítem de comanda.

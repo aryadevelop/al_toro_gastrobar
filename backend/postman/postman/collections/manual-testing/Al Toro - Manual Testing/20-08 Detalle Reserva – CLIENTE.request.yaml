@@ -1,0 +1,38 @@
+$kind: http-request
+name: 20-08 Detalle Reserva – CLIENTE
+description: Obtener detalle completo de una reserva
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar ID temporal
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaId', reservaId);
+
+      // Login autónomo
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 2080

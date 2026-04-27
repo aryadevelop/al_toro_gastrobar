@@ -1,0 +1,26 @@
+$kind: http-request
+name: 00-03 Refresh Token
+description: Rotar el par de tokens con refresh token válido
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "refreshToken": "{{clienteRefreshToken}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.environment.set('clienteToken', body.accessToken);
+        pm.environment.set('clienteRefreshToken', body.refreshToken);
+        console.log('✓ Token rotado exitosamente');
+      } else {
+        console.warn('✗ Refresh falló con código', pm.response.code);
+      }
+    language: text/javascript
+order: 300
