@@ -1,0 +1,28 @@
+$kind: http-request
+name: 00-06 Login MESERO
+description: Login manual como mesero para obtener tokens
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "email": "{{emailMesero}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      // Guardar token en ambiente
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        pm.environment.set('meseroToken', body.accessToken);
+        console.log('✓ Login exitoso - token guardado en meseroToken');
+      } else {
+        console.warn('✗ Login falló con código', pm.response.code);
+      }
+    language: text/javascript
+order: 600
