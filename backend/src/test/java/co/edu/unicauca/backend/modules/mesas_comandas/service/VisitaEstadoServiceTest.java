@@ -13,6 +13,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepositor
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
@@ -67,7 +68,12 @@ class VisitaEstadoServiceTest {
     }
 
     private ComandaItem item(Long id, Comanda comanda, String nombre, int qty, BigDecimal precio) {
-        Producto producto = Producto.builder().productoNombre(nombre).build();
+        Producto producto = Producto.builder()
+                .productoNombre(nombre)
+                .productoCategoria(nombre.toLowerCase().contains("limonada") || nombre.toLowerCase().contains("bebida")
+                        ? CategoriaProducto.BEBIDA
+                        : CategoriaProducto.PLATO)
+                .build();
         return ComandaItem.builder()
                 .comandaItemId(id)
                 .comanda(comanda)

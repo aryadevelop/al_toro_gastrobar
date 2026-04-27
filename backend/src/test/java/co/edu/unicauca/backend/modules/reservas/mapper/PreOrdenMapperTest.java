@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -29,6 +30,7 @@ class PreOrdenMapperTest {
                 .productoId(1L)
                 .productoNombre("Pollo al ajillo")
                 .productoPrecio(BigDecimal.valueOf(28000))
+                .productoCategoria(CategoriaProducto.PLATO)
                 .build();
         ComandaItem item = ComandaItem.builder()
                 .comandaItemId(1L)
@@ -42,6 +44,7 @@ class PreOrdenMapperTest {
         assertThat(resp.getProductoId()).isEqualTo(1L);
         assertThat(resp.getProductoNombre()).isEqualTo("Pollo al ajillo");
         assertThat(resp.getCantidad()).isEqualTo(2);
+        assertThat(resp.getCategoriaProducto()).isEqualTo("PLATO");
         // mapper returns null for empty modifications list
         assertThat(resp.getModificaciones()).isNull();
     }
@@ -49,7 +52,11 @@ class PreOrdenMapperTest {
     @Test
     @DisplayName("toDetalleResponse → mapea modificaciones del item")
     void toDetalleResponse_conModificaciones() {
-        Producto p = Producto.builder().productoId(2L).productoNombre("Menú especial").build();
+        Producto p = Producto.builder()
+                .productoId(2L)
+                .productoNombre("Menú especial")
+                .productoCategoria(CategoriaProducto.PLATO)
+                .build();
         ComandaItem item = ComandaItem.builder()
                 .comandaItemId(2L)
                 .producto(p)
@@ -68,6 +75,7 @@ class PreOrdenMapperTest {
 
         PreOrdenItemResponse resp = mapper.toDetalleResponse(item, List.of(mod));
 
+        assertThat(resp.getCategoriaProducto()).isEqualTo("PLATO");
         assertThat(resp.getModificaciones()).hasSize(1);
         assertThat(resp.getModificaciones().get(0).getOpcionId()).isEqualTo(10L);
         assertThat(resp.getModificaciones().get(0).getOpcionNombre()).isEqualTo("Arroz blanco");

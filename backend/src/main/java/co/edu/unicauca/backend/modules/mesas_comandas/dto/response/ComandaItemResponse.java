@@ -24,6 +24,9 @@ public class ComandaItemResponse {
     /** Cantidad de unidades del producto. */
     private final Integer cantidad;
 
+    /** Categoria producto */
+    private String categoriaProducto;
+
     /** Precio unitario en el momento del pedido. */
     private final BigDecimal precioUnitario;
 

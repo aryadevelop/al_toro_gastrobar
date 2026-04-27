@@ -37,6 +37,9 @@ public class PreOrdenItemResponse {
     /** Cantidad de unidades solicitadas del producto. */
     private Integer cantidad;
 
+    /** Categoria producto */
+    private String categoriaProducto;
+    
     /** Precio unitario capturado al registrar la pre-orden (snapshot). */
     private BigDecimal precioUnitario;
 

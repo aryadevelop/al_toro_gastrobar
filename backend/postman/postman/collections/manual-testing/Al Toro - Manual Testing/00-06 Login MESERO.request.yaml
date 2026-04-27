@@ -9,20 +9,8 @@ body:
   mode: raw
   raw: |-
     {
-      "email": "{{emailMesero}}",
-      "password": "{{passwordValida}}",
+      "email": "mesero1@altoro.com",
+      "password": "password123",
       "forceSessionOverride": true
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      // Guardar token en ambiente
-      if (pm.response.code === 200) {
-        const body = pm.response.json();
-        pm.environment.set('meseroToken', body.accessToken);
-        console.log('✓ Login exitoso - token guardado en meseroToken');
-      } else {
-        console.warn('✗ Login falló con código', pm.response.code);
-      }
-    language: text/javascript
 order: 600

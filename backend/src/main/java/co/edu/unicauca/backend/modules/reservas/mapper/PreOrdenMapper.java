@@ -51,6 +51,7 @@ public class PreOrdenMapper {
                 .productoId(detalle.getProducto().getProductoId())
                 .productoNombre(detalle.getProducto().getProductoNombre())
                 .cantidad(detalle.getComandaItemCantidad())
+                .categoriaProducto(detalle.getProducto().getProductoCategoria().name())
                 .precioUnitario(detalle.getComandaItemPrecio())
                 .descripcion(detalle.getComandaItemDescripcion())
                 .modificaciones(modificacionesDto.isEmpty() ? null : modificacionesDto)

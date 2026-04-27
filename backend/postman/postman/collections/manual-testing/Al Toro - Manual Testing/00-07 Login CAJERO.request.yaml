@@ -9,20 +9,8 @@ body:
   mode: raw
   raw: |-
     {
-      "email": "{{emailCajero}}",
-      "password": "{{passwordValida}}",
+      "email": "cajero1@altoro.com",
+      "password": "password123",
       "forceSessionOverride": true
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      // Guardar token en ambiente
-      if (pm.response.code === 200) {
-        const body = pm.response.json();
-        pm.environment.set('cajeroToken', body.accessToken);
-        console.log('✓ Login exitoso - token guardado en cajeroToken');
-      } else {
-        console.warn('✗ Login falló con código', pm.response.code);
-      }
-    language: text/javascript
 order: 700

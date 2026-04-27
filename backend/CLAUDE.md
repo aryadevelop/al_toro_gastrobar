@@ -529,6 +529,15 @@ pm.test('El código de error es ENT-001', function () {
 - **Acceso multi-rol:** Al diseñar endpoints que sirven tanto a `CLIENTE` como a empleados, seguir el patrón de `VisitaController`: `@PreAuthorize("hasAnyRole(...)")` + parámetro opcional `emailCliente` + validación de ownership solo cuando el solicitante es `CLIENTE`. Otros roles acceden sin restricción de propiedad.
 - **Scope to the HU:** do not implement features, helpers, or abstractions not required by the current user story, except in refactor issues.
 - **Postman tests:** when adding or modifying endpoints, create corresponding Postman tests using `backend/postman/prompt` as the base template.
+- **Manual testing requests:** For EVERY new endpoint implemented, create a corresponding request in the `manual-testing` collection (`backend/postman/postman/collections/manual-testing/Al Toro - Manual Testing/`). These requests MUST follow this pattern:
+  - **Only use `{{baseUrl}}`** as environment variable (no other variables)
+  - **Hardcoded credentials** in `beforeRequest` script for autonomous login (e.g., `cliente1@altoro.com`, `mesero1@altoro.com`, `cajero1@altoro.com`)
+  - **Always use `forceSessionOverride: true`** in login
+  - **Temporary token variables** prefixed with `tmp` (e.g., `{{tmpClienteToken}}`, `{{tmpMeseroToken}}`)
+  - **Cleanup in `afterResponse`** script to unset all temporary variables
+  - **Complete DTO examples** with ALL fields for POST/PUT requests (no null/missing fields unless explicitly optional)
+  - **File naming:** `XX-YY Descripción – ROL.request.yaml` where XX is module number (00=auth, 10=productos, 20=reservas, 30=reservas-mesero, 40=visitas, 50=puntos, 60=ventas, 70=notificaciones)
+  - Example template in `backend/postman/postman/collections/manual-testing/Al Toro - Manual Testing/00-01 Login CLIENTE.request.yaml`
 
 ---
 

@@ -1,30 +1,34 @@
 $kind: http-request
 name: 40-01 Historial Visitas – CLIENTE
 description: Obtener historial de visitas pasadas del cliente
-url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailCliente}}"
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente=cliente1@altoro.com"
 method: GET
 headers:
-  Authorization: Bearer {{clienteToken}}
+  Authorization: Bearer {{tmpClienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo
+      // Login autónomo con credenciales hardcoded
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        url: '{{baseUrl}}/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailCliente'),
-            password: pm.environment.get('passwordValida'),
+            email: 'cliente1@altoro.com',
+            password: 'password123',
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
         }
       });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpClienteToken');
     language: text/javascript
 order: 4010

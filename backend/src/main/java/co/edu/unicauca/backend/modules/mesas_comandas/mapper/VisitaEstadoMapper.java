@@ -47,6 +47,7 @@ public class VisitaEstadoMapper {
                 .nombreProducto(item.getProducto().getProductoNombre())
                 .descripcion(item.getComandaItemDescripcion())
                 .cantidad(item.getComandaItemCantidad())
+                .categoriaProducto(item.getProducto().getProductoCategoria().name())
                 .estadoItem(resolverEstadoItem(estado))
                 .precioUnitario(item.getComandaItemPrecio())
                 .subtotal(subtotal)

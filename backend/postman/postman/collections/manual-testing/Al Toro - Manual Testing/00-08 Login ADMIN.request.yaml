@@ -9,20 +9,8 @@ body:
   mode: raw
   raw: |-
     {
-      "email": "{{emailAdmin}}",
-      "password": "{{passwordValida}}",
+      "email": "admin@altoro.com",
+      "password": "password123",
       "forceSessionOverride": true
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      // Guardar token en ambiente
-      if (pm.response.code === 200) {
-        const body = pm.response.json();
-        pm.environment.set('adminToken', body.accessToken);
-        console.log('✓ Login exitoso - token guardado en adminToken');
-      } else {
-        console.warn('✗ Login falló con código', pm.response.code);
-      }
-    language: text/javascript
 order: 800

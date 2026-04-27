@@ -1,32 +1,34 @@
 $kind: http-request
 name: 10-02 Detalle visita – CLIENTE
-description: |-
-  Obtiene el detalle completo de una visita específica.
-  MANUAL: Reemplazar {{visitaIdConReserva}} con un ID real antes de ejecutar.
-url: "{{baseUrl}}/api/visitas/cliente/{{visitaIdConReserva}}/detalle"
+description: Obtiene el detalle completo de una visita específica (usar ID=1 como ejemplo)
+url: "{{baseUrl}}/api/visitas/cliente/1/detalle"
 method: GET
 headers:
-  Authorization: Bearer {{clienteToken}}
+  Authorization: Bearer {{tmpClienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo
+      // Login autónomo con credenciales hardcoded
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        url: '{{baseUrl}}/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailCliente'),
-            password: pm.environment.get('passwordValida'),
+            email: 'cliente1@altoro.com',
+            password: 'password123',
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
         }
       });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpClienteToken');
     language: text/javascript
 order: 1010

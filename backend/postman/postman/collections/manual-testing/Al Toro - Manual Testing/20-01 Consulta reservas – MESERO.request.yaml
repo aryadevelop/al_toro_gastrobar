@@ -6,27 +6,31 @@ description: |-
 url: "{{baseUrl}}/api/reservas/mesero/consulta"
 method: GET
 headers:
-  Authorization: Bearer {{meseroToken}}
+  Authorization: Bearer {{tmpMeseroToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo
+      // Login autónomo con credenciales hardcoded
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        url: '{{baseUrl}}/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailMesero'),
-            password: pm.environment.get('passwordValida'),
+            email: 'mesero1@altoro.com',
+            password: 'password123',
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('meseroToken', res.json().accessToken);
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
         }
       });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpMeseroToken');
     language: text/javascript
 order: 2000

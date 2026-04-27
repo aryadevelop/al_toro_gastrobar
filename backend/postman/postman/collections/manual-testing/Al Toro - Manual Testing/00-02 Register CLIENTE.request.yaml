@@ -1,6 +1,6 @@
 $kind: http-request
 name: 00-02 Register CLIENTE
-description: Registrar una nueva cuenta de cliente
+description: Registrar una nueva cuenta de cliente (incluye todos los campos del DTO)
 url: "{{baseUrl}}/api/auth/register"
 method: POST
 headers:
@@ -9,19 +9,12 @@ body:
   mode: raw
   raw: |-
     {
-      "nombre": "Usuario Test",
       "email": "test{{$timestamp}}@test.com",
+      "nombre": "Usuario Test Manual",
       "telefono": "3001234567",
       "password": "Password123!",
-      "terminosAceptados": true
+      "passwordConfirmation": "Password123!",
+      "aceptaTerminos": true,
+      "fechaNacimiento": "1990-05-15"
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      if (pm.response.code === 201) {
-        console.log('✓ Registro exitoso');
-      } else {
-        console.warn('✗ Registro falló con código', pm.response.code);
-      }
-    language: text/javascript
 order: 200

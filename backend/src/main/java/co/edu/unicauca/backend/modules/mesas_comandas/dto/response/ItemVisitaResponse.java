@@ -27,6 +27,9 @@ public class ItemVisitaResponse {
     /** Unidades pedidas. */
     private final Integer cantidad;
 
+    /** Categoria producto */
+    private String categoriaProducto;
+
     /**
      * Estado visible para el cliente: {@code "En preparación"} o {@code "Servido"}.
      * Derivado de {@code EstadoComanda}: PENDIENTE/EN_PREPARACION → "En preparación";

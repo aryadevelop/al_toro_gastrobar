@@ -9,21 +9,8 @@ body:
   mode: raw
   raw: |-
     {
-      "email": "{{emailCliente}}",
-      "password": "{{passwordValida}}",
+      "email": "cliente1@altoro.com",
+      "password": "password123",
       "forceSessionOverride": true
     }
-scripts:
-  - type: afterResponse
-    code: |-
-      // Guardar token en ambiente para requests subsiguientes
-      if (pm.response.code === 200) {
-        const body = pm.response.json();
-        pm.environment.set('clienteToken', body.accessToken);
-        pm.environment.set('clienteRefreshToken', body.refreshToken);
-        console.log('✓ Login exitoso - token guardado en clienteToken');
-      } else {
-        console.warn('✗ Login falló con código', pm.response.code);
-      }
-    language: text/javascript
 order: 100

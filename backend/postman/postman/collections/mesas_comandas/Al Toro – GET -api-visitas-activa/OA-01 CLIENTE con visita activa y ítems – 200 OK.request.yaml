@@ -49,7 +49,6 @@ scripts:
         pm.expect(body.data).to.have.property('total');
         pm.expect(body.data.total).to.be.greaterThan(0);
         pm.expect(body.data).to.have.property('asistenciaSolicitada');
-        // Nota: puede ser true si hay notificaciones de ejecuciones previas
       });
     language: text/javascript
 order: 1000

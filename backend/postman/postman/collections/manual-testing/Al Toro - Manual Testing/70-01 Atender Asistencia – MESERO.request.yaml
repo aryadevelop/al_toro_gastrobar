@@ -4,35 +4,35 @@ description: Marcar solicitud de asistencia como atendida
 url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionId}}/atender"
 method: PATCH
 headers:
-  Authorization: Bearer {{meseroToken}}
+  Authorization: Bearer {{tmpMeseroToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Configurar ID temporal (debe obtenerse de una notificación activa)
-      const notifId = pm.environment.get('notificacionIdActiva') || '1';
-      pm.environment.set('tmpNotificacionId', notifId);
+      // Configurar ID temporal (usar ID conocido)
+      pm.environment.set('tmpNotificacionId', '1');
 
-      // Login autónomo
+      // Login autónomo con credenciales hardcoded
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        url: '{{baseUrl}}/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailMesero'),
-            password: pm.environment.get('passwordValida'),
+            email: 'mesero1@altoro.com',
+            password: 'password123',
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('meseroToken', res.json().accessToken);
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
         }
       });
     language: text/javascript
   - type: afterResponse
     code: |-
       pm.environment.unset('tmpNotificacionId');
+      pm.environment.unset('tmpMeseroToken');
     language: text/javascript
 order: 7010

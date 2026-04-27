@@ -1,42 +1,62 @@
 $kind: http-request
 name: 20-03 Crear Reserva – CLIENTE
-description: Crear nueva reserva con pre-orden opcional
+description: Crear nueva reserva con pre-orden (incluye todos los campos del DTO)
 url: "{{baseUrl}}/api/reservas"
 method: POST
 headers:
-  Authorization: Bearer {{clienteToken}}
+  Authorization: Bearer {{tmpClienteToken}}
   Content-Type: application/json
 body:
   mode: raw
   raw: |-
     {
+      "emailCliente": null,
       "fechaHoraLlegada": "2026-12-25T19:00:00",
-      "numeroPersonas": 4,
+      "numeroPersonas": 12,
       "zonaId": 1,
-      "decoracionId": null,
-      "notas": "Reserva de prueba manual",
-      "preOrden": null
+      "decoracionId": 1,
+      "notas": "Reserva de prueba manual con pre-orden completa",
+      "preOrden": [
+        {
+          "productoId": 50,
+          "cantidad": 3,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [1, 2, 5]
+        },
+        {
+          "productoId": 15,
+          "cantidad": 2,
+          "descripcion": "Sin cebolla",
+          "esMenuEspecial": false,
+          "opcionesModificacion": null
+        }
+      ]
     }
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo
+      // Login autónomo con credenciales hardcoded
       pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        url: '{{baseUrl}}/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailCliente'),
-            password: pm.environment.get('passwordValida'),
+            email: 'cliente1@altoro.com',
+            password: 'password123',
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
         }
       });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpClienteToken');
     language: text/javascript
 order: 2030

@@ -168,6 +168,7 @@ public class VisitaMapper {
                     .nombreProducto(primero.getProducto().getProductoNombre())
                     .descripcion(primero.getComandaItemDescripcion())
                     .cantidad(cantidadTotal)
+                    .categoriaProducto(primero.getProducto().getProductoCategoria().name())
                     .precioUnitario(primero.getComandaItemPrecio())
                     .subtotal(primero.getComandaItemPrecio()
                         .multiply(BigDecimal.valueOf(cantidadTotal)))
