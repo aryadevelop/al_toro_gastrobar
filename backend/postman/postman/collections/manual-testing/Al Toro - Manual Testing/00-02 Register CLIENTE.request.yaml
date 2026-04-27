@@ -17,4 +17,5 @@ body:
       "aceptaTerminos": true,
       "fechaNacimiento": "1990-05-15"
     }
+scripts: []
 order: 200

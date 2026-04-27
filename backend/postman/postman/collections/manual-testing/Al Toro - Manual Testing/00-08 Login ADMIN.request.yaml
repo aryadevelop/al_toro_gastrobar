@@ -13,4 +13,5 @@ body:
       "password": "password123",
       "forceSessionOverride": true
     }
+scripts: []
 order: 800

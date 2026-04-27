@@ -15,6 +15,5 @@ description: |-
   - Visitas (historial, detalle, estado activa, asistencia)
   - Productos (carta, menú especial)
   - Puntos (consultar, canjear)
-
-  **NO incluye:** Test assertions (pm.test). Solo para exploración manual y debugging.
+  
 version: 1.0.0
