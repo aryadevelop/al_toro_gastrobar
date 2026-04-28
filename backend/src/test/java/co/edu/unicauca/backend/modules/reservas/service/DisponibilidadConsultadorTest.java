@@ -381,7 +381,7 @@ class DisponibilidadConsultadorTest {
                     .thenReturn(List.of());
             ZonaDisponibleResponse zona2Dto = ZonaDisponibleResponse.builder()
                     .zonaId(2L).nombre("Zona 2").capacidad(5).build();
-            when(reservaMapper.toZonaDto(zona2, 0)).thenReturn(zona2Dto);
+            when(reservaMapper.toZonaDto(eq(zona2), anyInt())).thenReturn(zona2Dto);
 
             DisponibilidadResponse result =
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);

@@ -242,7 +242,7 @@ class ReservaConsultaServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, null))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage("No hay reservas programadas para esta fecha")
+                .hasMessage("No hay reservas activas o pendientes para la fecha o identificador especificado")
                 .extracting("code", "status")
                 .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
     }
@@ -258,7 +258,7 @@ class ReservaConsultaServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, identificadorInexistente))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage("No hay reservas programadas para esta fecha")
+                .hasMessage("No hay reservas activas o pendientes para la fecha o identificador especificado")
                 .extracting("code", "status")
                 .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
     }
