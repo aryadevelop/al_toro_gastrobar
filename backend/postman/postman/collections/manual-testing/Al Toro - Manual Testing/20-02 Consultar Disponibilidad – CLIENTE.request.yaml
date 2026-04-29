@@ -1,12 +1,12 @@
 $kind: http-request
 name: 20-02 Consultar Disponibilidad – CLIENTE
 description: Consultar disponibilidad para una fecha y hora
-url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-05-07T20:50:00"
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora=2026-04-29T20:50:00"
 method: GET
 headers:
   Authorization: Bearer {{tmpClienteToken}}
 queryParams:
-  fechaHora: 2026-05-07T20:50:00
+  fechaHora: 2026-04-29T20:50:00
 scripts:
   - type: beforeRequest
     code: |-

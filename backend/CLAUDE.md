@@ -8,6 +8,91 @@ Al Toro Gastrobar is a restaurant management system with role-based portals for 
 
 ---
 
+ ## Planning Approval Protocol
+
+  **MANDATORY CHECKPOINT** — Before implementing ANY feature, STOP and get explicit user
+  approval for:
+
+  ### 1. Resumen Ejecutivo
+  Explain in simple, non-technical language WHAT will be built:
+
+  Qué se va a construir:
+  - Breve descripción del feature (1-2 oraciones)
+  - Qué problema resuelve o qué funcionalidad añade
+  - Quién lo va a usar (rol de usuario)
+
+  ### 2. Lógica de Implementación
+  Explain HOW it will be built technically:
+
+  Cómo se implementará:
+  - Flujo principal: Controller → Service → Repository (paso a paso)
+  - Validaciones de negocio que se aplicarán
+  - Interacciones con otros módulos (si aplica)
+  - Transformaciones entity↔DTO (mappers a usar/crear)
+  - Side effects: RabbitMQ messages, WebSocket broadcasts, etc.
+
+  ### 3. Pruebas Propuestas
+  List all tests that will be created or modified:
+
+  **Tests unitarios/integración (JUnit):**
+  - ServiceTest: [listar métodos a probar]
+  - ControllerTest: [listar endpoints a probar]
+  - MapperTest: [si se crea/modifica mapper]
+
+  **Pruebas Postman:**
+  - Collection: [nombre de colección]
+  - Test cases: [listar casos - happy path, validaciones, access control]
+
+  ### 4. DTOs Structure
+  List all new/modified DTOs with complete field definitions:
+
+  DTOs to create/modify:
+  - FooRequest
+  • campo1: String (description)
+  • campo2: Long (description)
+  • campo3: LocalDateTime (nullable: yes/no)
+  - BarResponse
+  • campo1: String
+  • campo2: List
+
+  ### 5. Controller Access Rules
+  Specify `@PreAuthorize` annotation for each endpoint:
+
+  Controller access:
+  - POST /api/foo → @PreAuthorize("hasAnyRole('ADMIN', 'MESERO')")
+  - GET /api/bar/{id} → @PreAuthorize("hasRole('CLIENTE')")
+  └─ Ownership validation: CLIENTE can only access own resources
+
+  ### 6. Functional Clarifications
+  List assumptions about business logic that need confirmation:
+
+  Assumptions to confirm:
+  - When X happens, should the system automatically Y?
+  - Should edge case Z return 404 or 200 with empty list?
+  - Is field W required or optional in the request?
+
+  ### 7. Scope Confirmation
+  State what WILL and WILL NOT be implemented:
+
+  Implementation scope:
+  ✓ INCLUDES: Feature X, Y, Z
+  ✗ EXCLUDES: Feature A (out of scope for this HU)
+
+  ---
+
+  **Approval format:**
+
+  📋 Plan Approval Required
+
+  [Present the 7 sections above]
+
+  Type 'approved' to proceed with implementation, or suggest changes.
+
+  **Rule:** Implementation CANNOT start until user types 'approved' or provides specific
+  modifications.
+
+  ---
+
 ## Commands
 
 ### Backend — run from `backend/`
@@ -527,6 +612,37 @@ pm.test('El código de error es ENT-001', function () {
 - **Mappers:** Toda transformación entity→DTO debe implementarse en una clase mapper dedicada en `mapper/` dentro del módulo (`VisitaMapper`, `ReservaMapper`, `ProductoMapper`, `VisitaEstadoMapper`, etc.). Los servicios no deben construir DTOs con builders inline en streams; deben delegar al mapper. Si un servicio existente tiene esa lógica embebida, refactorizarla al añadir nuevas funcionalidades.
 - **Ordenamiento de items de comanda:** Siempre que se implemente funcionalidad relacionada a mapeo o presentación de items de comanda (`ComandaItem`), se debe implementar ordenamiento por categoría de producto (PLATO → BEBIDA → OTRO) usando `Comparator.comparing(item -> item.getProducto().getProductoCategoria().ordinal())`. Esto aplica en todos los flujos: pre-orden de reservas, estado de visita activa, detalle de visita. El ordenamiento debe aplicarse **antes** de cualquier transformación o agrupación de items.
 - **Acceso multi-rol:** Al diseñar endpoints que sirven tanto a `CLIENTE` como a empleados, seguir el patrón de `VisitaController`: `@PreAuthorize("hasAnyRole(...)")` + parámetro opcional `emailCliente` + validación de ownership solo cuando el solicitante es `CLIENTE`. Otros roles acceden sin restricción de propiedad.
+
+- **Code Coverage (JaCoCo):** Mantener cobertura alta en todas las implementaciones nuevas. Objetivos mínimos por tipo:
+  - **Services:** 90-95% — toda lógica de negocio debe estar cubierta, incluyendo branches (if/else), loops, y manejo de excepciones
+  - **Controllers:** 85-90% — cubrir todos los endpoints con @WebMvcTest, incluyendo validaciones de seguridad (@PreAuthorize), ownership, y códigos de error
+  - **Mappers:** 90-95% — probar todas las transformaciones entity→DTO y DTO→entity, validando cada campo
+  - **Validators:** 95%+ — cubrir todas las reglas de validación custom y edge cases
+  - **Repositories:** 70-80% — solo custom queries (@Query), no generar tests para métodos CRUD estándar
+  - **DTOs/Entities:** No requieren tests unitarios si son POJOs sin lógica (solo getters/setters/constructores)
+  - **Config classes:** No requieren tests (Spring beans, @Configuration)
+  
+  **Reglas de implementación:**
+  1. **NUNCA implementar una feature sin sus tests** — seguir TDD: escribir test → implementar → refactorizar
+  2. **Tests ANTES del commit** — ejecutar `./mvnw clean test jacoco:report` y verificar cobertura antes de cada commit
+  3. **Priorizar calidad sobre cantidad** — un test que valida lógica crítica > 10 tests de getters/setters
+  4. **Cubrir edge cases** — no solo happy path: validaciones, errores, casos límite, nulls, listas vacías
+  5. **Branches coverage** — cada `if/else`, `switch`, `try/catch` debe tener tests para TODAS las ramas
+  6. **Integration tests para flujos complejos** — usar @SpringBootTest cuando el flujo involucra múltiples capas o transacciones
+  
+  **Verificación de cobertura:**
+  ```bash
+  ./mvnw clean test jacoco:report
+  # Ver: backend/target/site/jacoco/index.html
+  # Buscar clases con coverage < umbral mínimo
+  ```
+  
+  **Exclusiones válidas de cobertura:**
+  - DTOs sin lógica (solo campos + getters/setters)
+  - Entities sin métodos custom
+  - Classes `*Application.java` (Spring Boot main)
+  - Exception classes con solo constructores
+  - Config classes (@Configuration, @Bean methods)
 - **Scope to the HU:** do not implement features, helpers, or abstractions not required by the current user story, except in refactor issues.
 - **Postman tests:** when adding or modifying endpoints, create corresponding Postman tests using `backend/postman/prompt` as the base template.
 - **Manual testing requests:** For EVERY new endpoint implemented, create a corresponding request in the `manual-testing` collection (`backend/postman/postman/collections/manual-testing/Al Toro - Manual Testing/`). These requests MUST follow this pattern:

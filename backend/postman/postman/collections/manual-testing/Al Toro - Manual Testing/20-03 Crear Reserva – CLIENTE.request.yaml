@@ -11,18 +11,18 @@ body:
   content: |-
     {
       "emailCliente": null,
-      "fechaHoraLlegada": "2026-12-25T19:00:00",
+      "fechaHoraLlegada": "2026-04-29T19:23:00",
       "numeroPersonas": 12,
       "zonaId": 1,
-      "decoracionId": 1,
+      "decoracionId": 6,
       "notas": "Reserva de prueba manual con pre-orden completa",
       "preOrden": [
         {
           "productoId": 50,
           "cantidad": 3,
           "descripcion": null,
-          "esMenuEspecial": true,
-          "opcionesModificacion": [1, 2, 5]
+          "esMenuEspecial": false,
+          "opcionesModificacion": null
         },
         {
           "productoId": 15,
@@ -44,8 +44,8 @@ scripts:
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: 'cliente1@altoro.com',
-            password: 'password123',
+            email: 'andres.morales@gmail.com',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }
@@ -56,7 +56,6 @@ scripts:
       });
     language: text/javascript
   - type: afterResponse
-    code: |-
-      pm.environment.unset('tmpClienteToken');
+    code: pm.environment.unset('tmpClienteToken');
     language: text/javascript
 order: 2030

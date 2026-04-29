@@ -106,15 +106,13 @@ values:
     value: ''
   - key: tmpReservaIdAjena
     value: ''
-  - key: loginExpiresIn
-    value: ''
-  - key: refreshToken
-    value: ''
   - key: tmpNotificacionId
     value: ''
   - key: tmpNotificacionCreada
     value: ''
-  - key: accessToken
+  - key: loginExpiresIn
     value: ''
-  - key: tmpNotificacionParaAtender
+  - key: refreshToken
+    value: ''
+  - key: accessToken
     value: ''

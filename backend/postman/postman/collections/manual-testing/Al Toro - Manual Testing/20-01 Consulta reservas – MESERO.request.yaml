@@ -3,16 +3,16 @@ name: 20-01 Consulta reservas – MESERO
 description: |-
   Consulta de reservas del día actual por mesero.
   Sin parámetro fecha = día actual. Sin identificador = todas las reservas.
-url: "{{baseUrl}}/api/reservas/mesero/consulta?identificador=11"
+url: "{{baseUrl}}/api/reservas/mesero/consulta?identificador=21"
 method: GET
 headers:
   Authorization: Bearer {{tmpMeseroToken}}
 queryParams:
   - key: fecha
-    value: 2026-05-02
+    value: 2026-04-29
     disabled: true
   - key: identificador
-    value: "11"
+    value: "21"
 scripts:
   - type: beforeRequest
     code: |-

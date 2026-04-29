@@ -6,7 +6,7 @@ description: |-
   **Pre-condición:** `meseroToken` disponible. OB-01 debe ejecutarse primero para crear la notificación. El ID se obtiene de tmpNotificacionParaAtender (seteado por OB-06).
   **Resultado esperado:** 200 OK. Evento WS `AsistenciaAtendidaWsMessage` publicado al cliente.
   **Efecto observable:** GET /api/visitas/activa mostrará asistenciaSolicitada=false (validado en NC-05).
-url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionParaAtender}}/atender"
+url: "{{baseUrl}}/api/notificaciones/7/atender"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}
