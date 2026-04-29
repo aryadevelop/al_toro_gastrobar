@@ -13,11 +13,13 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepositor
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -47,12 +49,25 @@ class VisitaEstadoServiceTest {
     @Mock ComandaRepository comandaRepository;
     @Mock ComandaItemRepository comandaItemRepository;
     @Mock NotificacionRepository notificacionRepository;
-    @Spy  VisitaEstadoMapper visitaEstadoMapper;
 
-    @InjectMocks VisitaEstadoService visitaEstadoService;
+    VisitaEstadoMapper visitaEstadoMapper;
+    VisitaEstadoService visitaEstadoService;
 
     private static final String EMAIL = "cliente@test.com";
     private static final Long VISITA_ID = 10L;
+
+    @BeforeEach
+    void setUp() {
+        visitaEstadoMapper = spy(new VisitaEstadoMapper(comandaItemRepository));
+        visitaEstadoService = new VisitaEstadoService(
+                visitaRepository,
+                mesaRepository,
+                comandaRepository,
+                comandaItemRepository,
+                notificacionRepository,
+                visitaEstadoMapper
+        );
+    }
 
     private Visita visitaActiva() {
         return Visita.builder().visitaId(VISITA_ID).build();
@@ -67,7 +82,12 @@ class VisitaEstadoServiceTest {
     }
 
     private ComandaItem item(Long id, Comanda comanda, String nombre, int qty, BigDecimal precio) {
-        Producto producto = Producto.builder().productoNombre(nombre).build();
+        Producto producto = Producto.builder()
+                .productoNombre(nombre)
+                .productoCategoria(nombre.toLowerCase().contains("limonada") || nombre.toLowerCase().contains("bebida")
+                        ? CategoriaProducto.BEBIDA
+                        : CategoriaProducto.PLATO)
+                .build();
         return ComandaItem.builder()
                 .comandaItemId(id)
                 .comanda(comanda)

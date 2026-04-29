@@ -382,7 +382,6 @@ INSERT INTO Notificacion (mesa_id, empleado_id, notificacion_estado, notificacio
 -- Activas (mesas en curso)
 (10, 7,  'ACTIVA',   'PLATOS_LISTOS',  NOW() - INTERVAL '5 minutes'),
 (10, 9,  'ACTIVA',   'BEBIDAS_LISTAS', NOW() - INTERVAL '18 minutes'),
-(11, 4,  'ACTIVA',   'ATENCION',       NOW() - INTERVAL '3 minutes'),
 (11, 6,  'ACTIVA',   'CAMBIO',         NOW() - INTERVAL '7 minutes'),
 (12, 6,  'ACTIVA',   'ATENCION',       NOW() - INTERVAL '2 minutes');
 
@@ -488,3 +487,37 @@ FROM Usuario u WHERE u.usuario_email = 'sinhistorial@altoro.com';
 INSERT INTO Usuario_Rol (usuario_id, rol_nombre, rol_estado)
 SELECT u.usuario_id, 'CLIENTE', 'ACTIVO'
 FROM Usuario u WHERE u.usuario_email IN ('sinpuntos@altoro.com', 'sinhistorial@altoro.com');
+
+-- =====================================================
+-- DATOS DE SOPORTE PARA TESTS POSTMAN
+-- =====================================================
+
+-- Segunda decoración con costo para test MR-13
+INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url)
+VALUES ('Bodas Premium', 'ACTIVO', 60000.00, 'https://picsum.photos/seed/decor-bodas/360/220');
+
+-- Reserva CANCELADA para carlos.perez@gmail.com (test MR-08)
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '2 days', 2, NULL, 'CANCELADA', 'BASICA', NOW() - INTERVAL '3 days'
+FROM Usuario u WHERE u.usuario_email = 'carlos.perez@gmail.com';
+
+-- Reserva BASICA CONFIRMADA con anticipo para andres.morales@gmail.com (CR-10)
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, NULL, NOW() + INTERVAL '30 days', 2, NULL, 'CONFIRMADA', 'BASICA', NOW() - INTERVAL '1 day'
+FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
+
+-- Abono ANTICIPO para la reserva
+INSERT INTO Abono (cajero_id, reserva_id, abono_monto, abono_fecha_hora, abono_metodo, abono_tipo)
+SELECT 2, r.reserva_id, 40000, NOW() - INTERVAL '12 hours', 'TRANSFERENCIA', 'ANTICIPO'
+FROM Reserva r
+JOIN Usuario u ON u.usuario_id = r.cliente_id
+WHERE u.usuario_email = 'andres.morales@gmail.com'
+  AND r.reserva_estado = 'CONFIRMADA'
+  AND r.reserva_tipo = 'BASICA'
+ORDER BY r.reserva_id DESC
+LIMIT 1;
+
+-- Reserva ESPECIAL PENDIENTE con fecha pasada para andres.morales@gmail.com (CR-12)
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '1 day', 2, NULL, 'PENDIENTE', 'ESPECIAL', NOW() - INTERVAL '3 days'
+FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';

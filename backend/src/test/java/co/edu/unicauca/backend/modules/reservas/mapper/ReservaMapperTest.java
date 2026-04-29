@@ -9,6 +9,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.ZonaDisponibleRespo
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
@@ -27,6 +28,8 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
+import static org.mockito.Mockito.withSettings;
+import org.mockito.quality.Strictness;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Nested;
 
@@ -40,8 +43,12 @@ class ReservaMapperTest {
     ReservaMapper mapper;
 
     private Reserva reservaBase() {
+        Cliente clienteMock = mock(Cliente.class, withSettings().strictness(Strictness.LENIENT));
+        when(clienteMock.getClienteNombre()).thenReturn("Juan Pérez");
+
         return Reserva.builder()
                 .reservaId(1L)
+                .cliente(clienteMock)
                 .reservaFechaHoraLlegada(LocalDateTime.now().plusDays(5))
                 .reservaNumeroPersonas(4)
                 .reservaEstado(EstadoReserva.PENDIENTE)
@@ -68,11 +75,11 @@ class ReservaMapperTest {
                 .zonaCapacidadPersonas(20)
                 .build();
 
-        ZonaDisponibleResponse resp = mapper.toZonaDto(zona);
+        ZonaDisponibleResponse resp = mapper.toZonaDto(zona, 5);
 
         assertThat(resp.getZonaId()).isEqualTo(1L);
         assertThat(resp.getNombre()).isEqualTo("Terraza");
-        assertThat(resp.getCapacidad()).isEqualTo(20);
+        assertThat(resp.getCapacidad()).isEqualTo(15);
     }
 
     @Test
@@ -138,7 +145,167 @@ class ReservaMapperTest {
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reservaBase(), List.of(), List.of());
 
         assertThat(resp.getReservaId()).isEqualTo(1L);
+        assertThat(resp.getPreOrdenItems()).isNull();
+        assertThat(resp.getAbonos()).isNull();
     }
+
+    
+    // ── toResponse ────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("toResponse — conversión a DTO de creación")
+    class ToResponse {
+
+        @Test
+        @DisplayName("Sin WhatsApp → requiereWhatsApp es null, mensajeWhatsApp es null")
+        void sinWhatsApp_camposNulos() {
+            Reserva reserva = reservaBase();
+            Zona zona = Zona.builder().zonaId(1L).zonaNombre("Salón Principal").build();
+            reserva.setZona(zona);
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse resp =
+                mapper.toResponse(reserva, false, null);
+
+            assertThat(resp.getReservaId()).isEqualTo(1L);
+            assertThat(resp.getNumeroPersonas()).isEqualTo(4);
+            assertThat(resp.getEstado()).isEqualTo("PENDIENTE");
+            assertThat(resp.getTipo()).isEqualTo("BASICA");
+            assertThat(resp.getZonaNombre()).isEqualTo("Salón Principal");
+            assertThat(resp.getRequiereWhatsApp()).isNull();
+            assertThat(resp.getMensajeWhatsApp()).isNull();
+        }
+
+        @Test
+        @DisplayName("Con WhatsApp → requiereWhatsApp es true, mensajeWhatsApp presente")
+        void conWhatsApp_camposPresentes() {
+            Reserva reserva = reservaBase();
+            String mensaje = "Tu reserva ha sido confirmada";
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse resp =
+                mapper.toResponse(reserva, true, mensaje);
+
+            assertThat(resp.getRequiereWhatsApp()).isTrue();
+            assertThat(resp.getMensajeWhatsApp()).isEqualTo(mensaje);
+        }
+
+        @Test
+        @DisplayName("Con decoración → decoracionNombre presente")
+        void conDecoracion_nombrePresente() {
+            Reserva reserva = reservaBase();
+            Decoracion decoracion = Decoracion.builder()
+                .decoracionId(1L)
+                .decoracionNombre("Flores")
+                .build();
+            reserva.setDecoracion(decoracion);
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse resp =
+                mapper.toResponse(reserva, false, null);
+
+            assertThat(resp.getDecoracionNombre()).isEqualTo("Flores");
+        }
+
+        @Test
+        @DisplayName("Sin zona ni decoración → campos opcionales son null")
+        void sinZonaNiDecoracion_camposNull() {
+            Reserva reserva = reservaBase();
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse resp =
+                mapper.toResponse(reserva, false, null);
+
+            assertThat(resp.getZonaNombre()).isNull();
+            assertThat(resp.getDecoracionNombre()).isNull();
+        }
+    }
+
+    // ── toModificarResponse ───────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("toModificarResponse — conversión a DTO de modificación")
+    class ToModificarResponse {
+
+        @Test
+        @DisplayName("Modificación sin WhatsApp → requiereWhatsApp es false")
+        void sinWhatsApp_requiereFalse() {
+            Reserva reserva = reservaBase();
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse resp =
+                mapper.toModificarResponse(reserva, false, null);
+
+            assertThat(resp.getReservaId()).isEqualTo(1L);
+            assertThat(resp.getEstado()).isEqualTo("PENDIENTE");
+            assertThat(resp.isRequiereWhatsApp()).isFalse();
+            assertThat(resp.getMensajeWhatsApp()).isNull();
+        }
+
+        @Test
+        @DisplayName("Modificación con WhatsApp → requiereWhatsApp es true, mensaje presente")
+        void conWhatsApp_camposPresentes() {
+            Reserva reserva = reservaBase();
+            String mensaje = "La modificación requiere contacto para ajustar el abono";
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse resp =
+                mapper.toModificarResponse(reserva, true, mensaje);
+
+            assertThat(resp.isRequiereWhatsApp()).isTrue();
+            assertThat(resp.getMensajeWhatsApp()).isEqualTo(mensaje);
+        }
+
+        @Test
+        @DisplayName("Con zona y decoración → nombres mapeados correctamente")
+        void conZonaYDecoracion_nombresMapeados() {
+            Reserva reserva = reservaBase();
+            Zona zona = Zona.builder().zonaId(2L).zonaNombre("Terraza").build();
+            Decoracion decoracion = Decoracion.builder()
+                .decoracionId(3L)
+                .decoracionNombre("Globos")
+                .build();
+            reserva.setZona(zona);
+            reserva.setDecoracion(decoracion);
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse resp =
+                mapper.toModificarResponse(reserva, false, null);
+
+            assertThat(resp.getZonaNombre()).isEqualTo("Terraza");
+            assertThat(resp.getDecoracionNombre()).isEqualTo("Globos");
+        }
+    }
+
+    // ── toResumen — casos adicionales ─────────────────────────────────────────
+
+    @Test
+    @DisplayName("toResumen → con zona y decoración")
+    void toResumen_conZonaYDecoracion() {
+        Reserva reserva = reservaBase();
+        Zona zona = Zona.builder().zonaId(1L).zonaNombre("VIP").build();
+        Decoracion decoracion = Decoracion.builder()
+            .decoracionId(2L)
+            .decoracionNombre("Velas")
+            .build();
+        reserva.setZona(zona);
+        reserva.setDecoracion(decoracion);
+
+        ReservaDetalleResponse resp = mapper.toResumen(reserva);
+
+        assertThat(resp.getZonaId()).isEqualTo(1L);
+        assertThat(resp.getZonaNombre()).isEqualTo("VIP");
+        assertThat(resp.getDecoracionId()).isEqualTo(2L);
+        assertThat(resp.getDecoracionNombre()).isEqualTo("Velas");
+    }
+
+    @Test
+    @DisplayName("toResumen → sin zona ni decoración")
+    void toResumen_sinZonaNiDecoracion() {
+        Reserva reserva = reservaBase();
+
+        ReservaDetalleResponse resp = mapper.toResumen(reserva);
+
+        assertThat(resp.getZonaId()).isNull();
+        assertThat(resp.getZonaNombre()).isNull();
+        assertThat(resp.getDecoracionId()).isNull();
+        assertThat(resp.getDecoracionNombre()).isNull();
+    }
+
+    // Nota: esModificable() es un método privado, se testea indirectamente via toResumen()
 
     // ── toCancelarResponse ────────────────────────────────────────────────────
 

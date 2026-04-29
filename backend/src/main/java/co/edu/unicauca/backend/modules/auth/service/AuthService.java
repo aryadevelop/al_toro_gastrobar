@@ -416,6 +416,7 @@ public class AuthService {
                     .id(String.valueOf(usuario.getUsuarioId()))
                     .nombre(value.getClienteNombre())
                     .email(usuario.getUsuarioEmail())
+                    .role(role)
                     .roles(roles)
                     .status("ACTIVE")
                     .createdAt(usuario.getCreatedAt())

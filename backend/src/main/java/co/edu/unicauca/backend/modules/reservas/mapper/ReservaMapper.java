@@ -99,17 +99,21 @@ public class ReservaMapper {
     }
 
     /**
-     * Convierte una {@link Zona} en su DTO de disponibilidad.
+     * Convierte una {@link Zona} en su DTO de disponibilidad, calculando la capacidad actual disponible.
      *
      * @param zona zona a convertir
-     * @return {@link ZonaDisponibleResponse} con los datos de presentación de la zona
+     * @param personasOcupadas número de personas ya reservadas en esta zona para la fecha consultada
+     * @return {@link ZonaDisponibleResponse} con los datos de presentación y capacidad disponible
      */
-    public ZonaDisponibleResponse toZonaDto(Zona zona) {
+    public ZonaDisponibleResponse toZonaDto(Zona zona, int personasOcupadas) {
+        // Calcular capacidad disponible: total de la zona - personas ya reservadas
+        int capacidadDisponible = zona.getZonaCapacidadPersonas() - personasOcupadas;
+
         return ZonaDisponibleResponse.builder()
                 .zonaId(zona.getZonaId())
                 .nombre(zona.getZonaNombre())
                 .imagenUrl(zona.getZonaImagenUrl())
-                .capacidad(zona.getZonaCapacidadPersonas())
+                .capacidad(capacidadDisponible)
                 .build();
     }
 
@@ -179,6 +183,7 @@ public class ReservaMapper {
 
         return ReservaDetalleResponse.builder()
                 .reservaId(reserva.getReservaId())
+                .clienteNombre(reserva.getCliente().getClienteNombre())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
@@ -226,6 +231,7 @@ public class ReservaMapper {
 
     private List<PreOrdenItemResponse> construirItemsPreOrden(List<ComandaItem> items) {
         return items.stream()
+                .sorted(PreOrdenMapper.COMPARATOR_POR_CATEGORIA)
                 .map(d -> preOrdenMapper.toDetalleResponse(d, List.of()))
                 .collect(Collectors.toList());
     }

@@ -1,0 +1,33 @@
+$kind: http-request
+name: 10-03 Get Carta
+description: Obtener carta de platos y bebidas agrupada por categoría
+url: "{{baseUrl}}/api/productos/carta"
+method: GET
+headers:
+  Authorization: Bearer {{tmpClienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'andres.morales@gmail.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpClienteToken');
+    language: text/javascript
+order: 1030

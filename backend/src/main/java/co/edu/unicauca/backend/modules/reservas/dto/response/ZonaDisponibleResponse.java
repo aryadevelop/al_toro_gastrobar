@@ -21,6 +21,6 @@ public class ZonaDisponibleResponse {
     /** URL de la imagen representativa de la zona; puede ser {@code null} si no tiene imagen. */
     private String imagenUrl;
 
-    /** Número máximo de personas que admite la zona. */
+    /** Número de personas disponibles actualmente en la zona (capacidad total - personas reservadas). */
     private Integer capacidad;
 }

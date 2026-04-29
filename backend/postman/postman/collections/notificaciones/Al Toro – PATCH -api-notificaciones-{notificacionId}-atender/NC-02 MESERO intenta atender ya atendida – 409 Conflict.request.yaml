@@ -5,7 +5,7 @@ description: |-
   **Objetivo:** Verificar validación de estado de notificación.
   **Pre-condición:** NC-01 debe ejecutarse primero para atender la notificación.
   **Resultado esperado:** 409 Conflict.
-url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionParaAtender}}/atender"
+url: "{{baseUrl}}/api/notificaciones/7/atender"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}

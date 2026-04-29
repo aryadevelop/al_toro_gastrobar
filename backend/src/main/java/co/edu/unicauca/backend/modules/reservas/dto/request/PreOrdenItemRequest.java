@@ -56,7 +56,7 @@ public class PreOrdenItemRequest {
     private Boolean esMenuEspecial;
 
     /**
-     * IDs de {@code OpcionModificacion} seleccionados mediante checkboxes (CA-07).
+     * IDs de {@code OpcionModificacion} seleccionados mediante checkboxes.
      * Solo aplica cuando {@code esMenuEspecial = true}; {@code null} o lista vacía si no hay opciones.
      */
     private List<Long> opcionesModificacion;

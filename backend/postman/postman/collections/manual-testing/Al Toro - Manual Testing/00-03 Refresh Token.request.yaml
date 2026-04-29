@@ -1,0 +1,40 @@
+$kind: http-request
+name: 00-03 Refresh Token
+description: Rotar el par de tokens con refresh token válido
+url: "{{baseUrl}}/api/auth/refresh"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "refreshToken": "{{tmpRefreshToken}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login para obtener refreshToken
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpRefreshToken', res.json().refreshToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpRefreshToken');
+    language: text/javascript
+order: 300

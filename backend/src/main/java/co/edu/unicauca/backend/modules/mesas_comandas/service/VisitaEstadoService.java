@@ -81,13 +81,8 @@ public class VisitaEstadoService {
         // Obtiene todas las comandas de la visita
         List<Comanda> comandas = comandaRepository.findByVisita_VisitaId(visitaId);
 
-        // Mapea ítems excluyendo comandas en estado PRE_RESERVA
-        List<ItemVisitaResponse> items = comandas.stream()
-                .filter(c -> c.getComandaEstado() != EstadoComanda.PRE_RESERVA)
-                .flatMap(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId())
-                        .stream()
-                        .map(item -> visitaEstadoMapper.toItemVisitaResponse(item, c.getComandaEstado())))
-                .collect(Collectors.toList());
+        // Mapea ítems ordenados por categoría (delegado al mapper)
+        List<ItemVisitaResponse> items = visitaEstadoMapper.mapearItemsOrdenados(comandas);
 
         // Verifica si hay una solicitud de asistencia sin atender para esta mesa
         Optional<Notificacion> asistenciaActiva = notificacionRepository

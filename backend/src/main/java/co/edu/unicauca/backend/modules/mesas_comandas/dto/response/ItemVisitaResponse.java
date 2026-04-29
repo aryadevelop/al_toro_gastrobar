@@ -7,8 +7,9 @@ import java.math.BigDecimal;
 
 /**
  * Ítem de la visita activa tal como se muestra al cliente en el dashboard.
- * El estado ("En preparación" / "Servido") se deriva del estado de la
- * {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda} padre.
+ *
+ * <p>Items individuales de cada comanda, SIN agrupar. Cada ítem muestra su
+ * estado real según la comanda padre. El cliente ve el progreso item por item.
  */
 @Getter
 @Builder
@@ -20,8 +21,14 @@ public class ItemVisitaResponse {
     /** Nombre del producto. */
     private final String nombreProducto;
 
+    /** Descripción o modificaciones del ítem; {@code null} si no aplica. */
+    private final String descripcion;
+
     /** Unidades pedidas. */
     private final Integer cantidad;
+
+    /** Categoria producto */
+    private String categoriaProducto;
 
     /**
      * Estado visible para el cliente: {@code "En preparación"} o {@code "Servido"}.

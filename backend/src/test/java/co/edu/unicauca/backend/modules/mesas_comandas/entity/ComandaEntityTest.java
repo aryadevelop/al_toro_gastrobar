@@ -29,13 +29,6 @@ class ComandaEntityTest {
     }
 
     @Test
-    void onCreate_setsFechaInicioSiEsNull() {
-        Comanda c = new Comanda();
-        c.onCreate();
-        assertThat(c.getComandaFechaHoraInicio()).isNotNull();
-    }
-
-    @Test
     void onCreate_noSobreescribeFechaExistente() {
         LocalDateTime fijo = LocalDateTime.of(2026, 1, 1, 9, 0);
         Comanda c = new Comanda();

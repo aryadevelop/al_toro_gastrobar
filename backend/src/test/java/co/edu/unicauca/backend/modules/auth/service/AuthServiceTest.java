@@ -227,6 +227,224 @@ class AuthServiceTest {
         }
     }
 
+    @Nested
+    @DisplayName("register")
+    class Register {
+
+        @Test
+        @DisplayName("Registro válido con todos los campos → cliente creado exitosamente")
+        void registroValido_clienteCreadoExitosamente() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("NUEVO@ALTORO.COM")
+                            .nombre("Juan Pérez")
+                            .telefono("3101234567")
+                            .password("SecurePass123!")
+                            .passwordConfirmation("SecurePass123!")
+                            .aceptaTerminos(true)
+                            .fechaNacimiento("1995-05-15")
+                            .build();
+
+            Usuario usuarioGuardado = Usuario.builder()
+                    .usuarioId(99L)
+                    .usuarioEmail("nuevo@altoro.com")
+                    .usuarioPassword("$2b$hashed")
+                    .build();
+
+            when(usuarioRepository.findByUsuarioEmail("nuevo@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3101234567")).thenReturn(false);
+            when(passwordEncoder.encode("SecurePass123!")).thenReturn("$2b$hashed");
+            when(usuarioRepository.save(any(Usuario.class))).thenReturn(usuarioGuardado);
+            when(clienteRepository.save(any(co.edu.unicauca.backend.modules.usuarios.entity.Cliente.class)))
+                    .thenAnswer(invocation -> invocation.getArgument(0));  // Retorna el cliente tal como se pasó
+            when(usuarioRolRepository.save(any(UsuarioRol.class))).thenReturn(UsuarioRol.builder().build());
+
+            co.edu.unicauca.backend.modules.auth.dto.response.RegisterResponse response = authService.register(request);
+
+            assertThat(response.getSuccess()).isTrue();
+            assertThat(response.getMessage()).contains("exitosamente");
+            assertThat(response.getUser().getEmail()).isEqualTo("nuevo@altoro.com");
+            assertThat(response.getUser().getNombre()).isEqualTo("Juan Pérez");
+            assertThat(response.getUser().getRole()).isEqualTo("CLIENTE");
+
+            verify(usuarioRepository).save(any(Usuario.class));
+            verify(clienteRepository).save(any(co.edu.unicauca.backend.modules.usuarios.entity.Cliente.class));
+            verify(usuarioRolRepository).save(any(UsuarioRol.class));
+        }
+
+        @Test
+        @DisplayName("Contraseñas no coinciden → 400 BAD_REQUEST")
+        void passwordsMismatch_retorna400() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("test@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3109999999")
+                            .password("Password123!")
+                            .passwordConfirmation("DifferentPassword!")
+                            .aceptaTerminos(true)
+                            .build();
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Las contraseñas no coinciden");
+        }
+
+        @Test
+        @DisplayName("Email duplicado → 409 CONFLICT")
+        void emailDuplicado_retorna409() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("EXISTENTE@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3109999999")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("existente@altoro.com"))
+                    .thenReturn(Optional.of(Usuario.builder().usuarioId(1L).build()));
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Este correo electrónico ya está registrado");
+        }
+
+        @Test
+        @DisplayName("Teléfono duplicado → 409 CONFLICT")
+        void telefonoDuplicado_retorna409() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("nuevo@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3101234567")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("nuevo@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3101234567")).thenReturn(true);
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Este número de teléfono ya está registrado");
+        }
+
+        @Test
+        @DisplayName("Fecha nacimiento inválida → 400 BAD_REQUEST")
+        void fechaNacimientoInvalida_retorna400() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("nuevo@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3109999999")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .fechaNacimiento("15/05/1995")  // Formato incorrecto
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("nuevo@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3109999999")).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("El formato de la fecha debe ser YYYY-MM-DD");
+        }
+    }
+
+    @Nested
+    @DisplayName("me")
+    class Me {
+
+        @Test
+        @DisplayName("Usuario válido con roles activos → retorna perfil completo")
+        void usuarioValido_retornaPerfil() throws Exception {
+            Usuario cliente = usuario(11L, "cliente1@altoro.com", "$2b$hash");
+            co.edu.unicauca.backend.modules.usuarios.entity.Cliente clienteEntity =
+                    co.edu.unicauca.backend.modules.usuarios.entity.Cliente.builder()
+                            .usuarioId(11L)
+                            .usuario(cliente)
+                            .clienteNombre("Cliente Uno")
+                            .clienteTelefono("3101111111")
+                            .clientePuntos(10)
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("cliente1@altoro.com")).thenReturn(Optional.of(cliente));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(11L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(usuarioRol(11L, RolNombre.CLIENTE, RolEstado.ACTIVO)));
+            when(clienteRepository.findByUsuario_UsuarioEmail("cliente1@altoro.com"))
+                    .thenReturn(Optional.of(clienteEntity));
+
+            co.edu.unicauca.backend.modules.auth.dto.response.AuthUserResponse response =
+                    authService.me("cliente1@altoro.com");
+
+            assertThat(response.getEmail()).isEqualTo("cliente1@altoro.com");
+            assertThat(response.getNombre()).isEqualTo("Cliente Uno");
+            assertThat(response.getRole()).isEqualTo("CLIENTE");
+        }
+
+        @Test
+        @DisplayName("Usuario no existe → BadCredentialsException")
+        void usuarioNoExiste_lanzaExcepcion() {
+            when(usuarioRepository.findByUsuarioEmail("noexiste@altoro.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.me("noexiste@altoro.com"))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessageContaining("Credenciales incorrectas");
+        }
+
+        @Test
+        @DisplayName("Usuario sin roles activos → 403 FORBIDDEN")
+        void usuarioSinRolesActivos_retorna403() throws Exception {
+            Usuario usuario = usuario(15L, "suspendido@altoro.com", "$2b$hash");
+
+            when(usuarioRepository.findByUsuarioEmail("suspendido@altoro.com")).thenReturn(Optional.of(usuario));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(15L, RolEstado.ACTIVO))
+                    .thenReturn(List.of());  // Sin roles activos
+
+            assertThatThrownBy(() -> authService.me("suspendido@altoro.com"))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Tu cuenta se encuentra suspendida");
+        }
+    }
+
+    @Nested
+    @DisplayName("logout")
+    class Logout {
+
+        @Test
+        @DisplayName("Logout exitoso → invalida todas las sesiones activas del usuario")
+        void logoutExitoso_invalidaSesiones() throws Exception {
+            Usuario usuario = usuario(5L, "mesero1@altoro.com", "$2b$hash");
+
+            Sesion sesion1 = Sesion.builder().sesionId(10L).usuario(usuario).sesionActiva(true).build();
+            Sesion sesion2 = Sesion.builder().sesionId(11L).usuario(usuario).sesionActiva(true).build();
+
+            when(usuarioRepository.findByUsuarioEmail("mesero1@altoro.com")).thenReturn(Optional.of(usuario));
+            when(sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(5L))
+                    .thenReturn(List.of(sesion1, sesion2));
+
+            authService.logout("mesero1@altoro.com");
+
+            assertThat(sesion1.getSesionActiva()).isFalse();
+            assertThat(sesion2.getSesionActiva()).isFalse();
+            verify(sesionRepository).saveAll(List.of(sesion1, sesion2));
+        }
+
+        @Test
+        @DisplayName("Usuario no existe → BadCredentialsException")
+        void usuarioNoExiste_lanzaExcepcion() {
+            when(usuarioRepository.findByUsuarioEmail("noexiste@altoro.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.logout("noexiste@altoro.com"))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessageContaining("Credenciales incorrectas");
+        }
+    }
+
     private Usuario usuario(Long id, String email, String passwordHash) throws Exception {
         Usuario usuario = Usuario.builder()
                 .usuarioId(id)

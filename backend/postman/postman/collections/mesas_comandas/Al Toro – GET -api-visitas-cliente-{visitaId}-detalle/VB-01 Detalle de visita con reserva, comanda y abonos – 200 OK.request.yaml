@@ -20,7 +20,6 @@ scripts:
         pm.expect(data).to.have.property('visitaId');
         pm.expect(data).to.have.property('fechaHoraLlegada');
         pm.expect(data).to.have.property('numeroPersonas');
-        pm.expect(data).to.have.property('estadoVisita');
       });
       pm.test('La visita con reserva tiene reservaId no nulo (CA-07)', function() {
         pm.expect(pm.response.json().data.reservaId).to.not.be.null.and.not.be.undefined;

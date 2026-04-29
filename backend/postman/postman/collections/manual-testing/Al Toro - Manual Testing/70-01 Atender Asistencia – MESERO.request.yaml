@@ -1,0 +1,38 @@
+$kind: http-request
+name: 70-01 Atender Asistencia – MESERO
+description: Marcar solicitud de asistencia como atendida
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionId}}/atender"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar ID temporal (usar ID conocido)
+      pm.environment.set('tmpNotificacionId', '1');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpNotificacionId');
+      pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 7010

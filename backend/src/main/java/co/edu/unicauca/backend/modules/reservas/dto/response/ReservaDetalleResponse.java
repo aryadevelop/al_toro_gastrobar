@@ -30,6 +30,9 @@ public class ReservaDetalleResponse {
     /** Identificador único de la reserva. */
     private final Long reservaId;
 
+    /** Nombre del cliente; {@code null} en consultas de cliente autenticado. */
+    private final String clienteNombre;
+
     /** Fecha y hora de llegada programada en formato {@code yyyy-MM-dd'T'HH:mm:ss}. */
     private final String fechaHoraLlegada;
 

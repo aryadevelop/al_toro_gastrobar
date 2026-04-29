@@ -7,6 +7,9 @@ import java.math.BigDecimal;
 
 /**
  * DTO de respuesta para un ítem de comanda dentro del detalle de visita.
+ *
+ * <p>Items agrupados por (nombreProducto + descripcion) de todas las comandas.
+ * La cantidad representa la suma de items idénticos a través de todas las comandas.
  */
 @Getter
 @Builder
@@ -15,8 +18,14 @@ public class ComandaItemResponse {
     /** Nombre del producto consumido. */
     private final String nombreProducto;
 
+    /** Descripción o modificaciones del ítem; {@code null} si no aplica. */
+    private final String descripcion;
+
     /** Cantidad de unidades del producto. */
     private final Integer cantidad;
+
+    /** Categoria producto */
+    private String categoriaProducto;
 
     /** Precio unitario en el momento del pedido. */
     private final BigDecimal precioUnitario;

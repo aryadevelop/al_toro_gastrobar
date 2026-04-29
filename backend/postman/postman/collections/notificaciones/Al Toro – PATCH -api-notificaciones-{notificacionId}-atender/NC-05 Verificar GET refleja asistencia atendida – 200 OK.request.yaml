@@ -21,7 +21,7 @@ scripts:
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: 'juan.torres@gmail.com',
+            email: 'andres.morales@gmail.com',
             password: pm.environment.get('passwordValida'),
             forceSessionOverride: true
           })

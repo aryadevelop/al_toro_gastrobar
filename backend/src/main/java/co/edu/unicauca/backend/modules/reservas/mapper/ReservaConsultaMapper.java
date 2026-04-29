@@ -38,6 +38,7 @@ public class ReservaConsultaMapper {
                         : null)
                 .horaLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER_TIME))
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .clienteTelefono(reserva.getCliente().getClienteTelefono())
                 .estado(reserva.getReservaEstado().name())
                 .build();
     }
