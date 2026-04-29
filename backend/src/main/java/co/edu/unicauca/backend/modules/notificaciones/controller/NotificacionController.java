@@ -13,9 +13,6 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Controlador REST para operaciones sobre notificaciones de mesa.
  *
- * <p>Expone endpoints bajo {@code /api/notificaciones} para que los empleados
- * puedan marcar solicitudes de asistencia como atendidas.
- *
  * @see NotificacionService
  */
 @RestController

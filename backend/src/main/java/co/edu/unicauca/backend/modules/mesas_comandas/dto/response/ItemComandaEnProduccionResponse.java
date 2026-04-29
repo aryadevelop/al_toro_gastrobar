@@ -6,9 +6,8 @@ import lombok.Getter;
 /**
  * DTO para representar un item de comanda en producción.
  *
- * <p>Items en estados EN_PREPARACION, LISTO, COMPLETADO se agrupan por
- * (nombreProducto + descripcion + estadoComanda).
- * Items en estado PENDIENTE NO se agrupan (RN-06).
+ * <p>Items en estados EN_PREPARACION, LISTO, COMPLETADO se agrupan
+ * Items en estado PENDIENTE NO se agrupan.
  */
 @Getter
 @Builder
@@ -23,7 +22,7 @@ public class ItemComandaEnProduccionResponse {
     /** Categoría del producto: "PLATO", "BEBIDA", "OTRO" */
     private final String categoriaProducto;
 
-    /** Cantidad total (agrupada si aplica según RN-06) */
+    /** Cantidad total */
     private final Integer cantidad;
 
     /** Estado de la comanda: "PENDIENTE", "EN_PREPARACION", "LISTO", "COMPLETADO" */

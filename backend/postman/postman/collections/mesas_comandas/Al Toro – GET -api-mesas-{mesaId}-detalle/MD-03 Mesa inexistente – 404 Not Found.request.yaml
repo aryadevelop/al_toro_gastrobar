@@ -1,0 +1,54 @@
+$kind: http-request
+name: MD-03 Mesa inexistente – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Validación de entrada — mesa no encontrada.
+  **Objetivo:** Verificar que visitaId inexistente retorna 404 con código ENT-001.
+  **Pre-condición:** `meseroToken` disponible. VisitaId 99999 no existe.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/mesas/99999/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-03: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 404', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('La respuesta contiene código de error ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+
+      pm.test('El mensaje indica mesa no encontrada', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('message');
+        pm.expect(body.message.toLowerCase()).to.include('mesa');
+      });
+    language: text/javascript
+order: 2020

@@ -1,6 +1,6 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.mapper;
 
-import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaItemResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemComandaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
@@ -90,7 +90,7 @@ public class VisitaMapper {
             Optional<Mesa> mesaOpt) {
 
         // Convierte los items de comanda en su DTO correspondiente; si no hay detalles, se deja como null para omitir el campo en la respuesta.
-        List<ComandaItemResponse> itemsDto = itemsComanda.isEmpty() ? null : agruparItems(itemsComanda);
+        List<ItemComandaResponse> itemsDto = itemsComanda.isEmpty() ? null : agruparItems(itemsComanda);
 
         // Convierte los abonos en su DTO correspondiente; si no hay abonos, se deja como null para omitir el campo en la respuesta.
         List<AbonoItemResponse> abonosDto = abonosOpt
@@ -143,7 +143,7 @@ public class VisitaMapper {
      * @param items lista de items a agrupar
      * @return lista de items agrupados ordenados por nombre
      */
-    private List<ComandaItemResponse> agruparItems(List<ComandaItem> items) {
+    private List<ItemComandaResponse> agruparItems(List<ComandaItem> items) {
         // Clave de agrupación: nombreProducto + "|" + descripcion (null-safe)
         Map<String, List<ComandaItem>> agrupados = items.stream()
             .sorted(COMPARATOR_POR_CATEGORIA)
@@ -159,7 +159,7 @@ public class VisitaMapper {
                     .mapToInt(ComandaItem::getComandaItemCantidad)
                     .sum();
 
-                return ComandaItemResponse.builder()
+                return ItemComandaResponse.builder()
                     .nombreProducto(primero.getProducto().getProductoNombre())
                     .descripcion(primero.getComandaItemDescripcion())
                     .cantidad(cantidadTotal)
@@ -169,7 +169,7 @@ public class VisitaMapper {
                         .multiply(BigDecimal.valueOf(cantidadTotal)))
                     .build();
             })
-            .sorted(Comparator.comparing(ComandaItemResponse::getNombreProducto))
+            .sorted(Comparator.comparing(ItemComandaResponse::getNombreProducto))
             .toList();
     }
 

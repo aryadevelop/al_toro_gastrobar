@@ -27,7 +27,7 @@ public class MesaMapaResponse {
 
     /**
      * Nombre completo del mesero asignado.
-     * null si la mesa es propia del mesero que hace la petición (RN-04)
+     * null si la mesa es propia del mesero que hace la petición
      */
     private final String nombreMesero;
 

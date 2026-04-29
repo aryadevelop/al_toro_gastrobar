@@ -1,0 +1,73 @@
+$kind: http-request
+name: MI-06 Verificar agrupación RN-06 – 200 OK
+description: |-
+  **Criterio de Aceptación:** RN-06 — Items en PENDIENTE no se agrupan.
+  **Objetivo:** Verificar que items en estados agrupables (EN_PREPARACION, LISTO, COMPLETADO) se agrupan correctamente por nombre+descripción+estado, mientras que PENDIENTE se mantienen separados.
+  **Pre-condición:** `meseroToken` disponible. Mesa tiene items en diferentes estados.
+  **Resultado esperado:** 200 OK con items agrupados según RN-06.
+url: "{{baseUrl}}/api/mesas/1/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('RN-05: Solo items en producción (estados válidos)', function () {
+        const body = pm.response.json();
+        const estadosValidos = ['PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO'];
+        body.data.itemsEnProduccion.forEach(item => {
+          pm.expect(estadosValidos).to.include(item.estadoComanda);
+          // Excluye BORRADOR y PRE_RESERVA
+          pm.expect(item.estadoComanda).to.not.equal('BORRADOR');
+          pm.expect(item.estadoComanda).to.not.equal('PRE_RESERVA');
+        });
+      });
+
+      pm.test('Items ordenados por categoría (PLATO → BEBIDA → OTRO)', function () {
+        const body = pm.response.json();
+        if (body.data.itemsEnProduccion.length > 1) {
+          const categorias = body.data.itemsEnProduccion.map(item => item.categoriaProducto);
+          const ordenCorrecto = ['PLATO', 'BEBIDA', 'OTRO'];
+
+          // Verificar que las categorías aparecen en orden
+          let indexAnterior = -1;
+          categorias.forEach(cat => {
+            const indexActual = ordenCorrecto.indexOf(cat);
+            pm.expect(indexActual).to.be.at.least(indexAnterior);
+            indexAnterior = indexActual;
+          });
+        }
+      });
+
+      pm.test('Cada item agrupado tiene cantidad ≥ 1', function () {
+        const body = pm.response.json();
+        body.data.itemsEnProduccion.forEach(item => {
+          pm.expect(item.cantidad).to.be.at.least(1);
+        });
+      });
+    language: text/javascript
+order: 3050

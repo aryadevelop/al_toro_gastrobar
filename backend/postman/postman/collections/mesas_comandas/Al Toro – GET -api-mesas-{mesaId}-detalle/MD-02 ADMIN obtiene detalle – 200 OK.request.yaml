@@ -1,0 +1,55 @@
+$kind: http-request
+name: MD-02 ADMIN obtiene detalle – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-08 — ADMIN tiene acceso al detalle de mesa.
+  **Objetivo:** Verificar que ADMIN puede obtener detalle igual que MESERO.
+  **Pre-condición:** `adminToken` disponible.
+  **Resultado esperado:** 200 OK con detalle completo.
+url: "{{baseUrl}}/api/mesas/{{tmpVisitaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar visitaId temporal
+      pm.environment.set('tmpVisitaId', '1');
+
+      // Login autónomo del ADMIN usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('MD-02: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('ADMIN obtiene el mismo formato que MESERO', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data).to.have.property('identificador');
+        pm.expect(body.data).to.have.property('itemsComanda');
+      });
+
+      // Cleanup
+      pm.environment.unset('tmpVisitaId');
+    language: text/javascript
+order: 2010

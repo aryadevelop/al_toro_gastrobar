@@ -18,9 +18,6 @@ import org.springframework.web.bind.annotation.RestController;
 /**
  * Controlador REST para el registro de ventas y cierre de cuentas de visitas.
  *
- * <p>Expone los endpoints bajo {@code /api/ventas} y delega toda la lógica
- * de negocio en {@link VentaService}.
- *
  * @see VentaService
  */
 @RestController

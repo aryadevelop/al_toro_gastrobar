@@ -17,9 +17,6 @@ import org.springframework.web.bind.annotation.*;
 /**
  * Controlador REST para la consulta y gestión de puntos de fidelización.
  *
- * <p>Expone los endpoints bajo {@code /api/clientes} y delega la lógica
- * en {@link PuntosService}.
- *
  * <p>Comportamiento general:
  * <ul>
  *   <li><b>CLIENTE:</b> consulta sus propios puntos (actuales y acumulados).</li>
@@ -42,10 +39,6 @@ public class ClienteController {
      * de una visita. {@code puntosActuales} se resetea a 0 en cada canje;
      * {@code puntosAcumulados} nunca disminuye.
      *
-     * <p>Si el solicitante tiene rol {@code CLIENTE}, solo puede consultar sus propios puntos
-     * (el {@code emailCliente} del parámetro debe coincidir con el email autenticado).
-     * Otros roles podrán acceder sin restricción cuando se amplíe el {@code @PreAuthorize}.
-     *
      * @param emailCliente   correo del cliente a consultar
      * @param authentication contexto de seguridad del request
      * @return respuesta con {@code puntosActuales} y {@code puntosAcumulados}
@@ -66,8 +59,6 @@ public class ClienteController {
     /**
      * Retorna los puntos actuales y acumulados de un cliente específico.
      *
-     * <p>Accesible por usuarios con rol {@code CAJERO} o {@code ADMIN}.
-     *
      * @param clienteId identificador del cliente a consultar
      * @return respuesta con {@code puntosActuales} y {@code puntosAcumulados}
      */
@@ -87,8 +78,6 @@ public class ClienteController {
      *
      * <p>Solo se permite canjear si el cliente tiene al menos 1 punto.
      * {@code puntosAcumulados} no cambia con el canje.
-     *
-     * <p>Accesible por usuarios con rol {@code CAJERO} o {@code ADMIN}.
      *
      * @param clienteId   identificador del cliente cuyos puntos se canjean
      * @param request     datos opcionales del canje (observación)

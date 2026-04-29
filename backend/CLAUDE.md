@@ -605,6 +605,693 @@ pm.test('El código de error es ENT-001', function () {
 
 ---
 
+## Coding Patterns & Conventions
+
+Esta sección documenta los patrones de código establecidos en el proyecto. **IMPORTANTE:** Seguir estos patrones es obligatorio para mantener consistencia en el codebase.
+
+### Services
+
+**Patrón canónico:** `VisitaEstadoService.obtenerEstadoVisitaActiva()`
+
+**Reglas obligatorias:**
+- ❌ **NO usar logging** (`@Slf4j`, `log.debug()`, `log.info()`) — el proyecto no los usa en services
+- ✅ **SÍ usar** Javadoc detallado con flujo paso a paso en comentarios de método
+- ✅ **SÍ usar** `@Transactional(readOnly = true)` en operaciones de consulta
+- ✅ **SÍ usar** `@RequiredArgsConstructor` para inyección de dependencias
+- ✅ **SÍ usar** `Optional.orElseThrow()` con `ErrorCode` específico para entidades no encontradas
+
+**Estructura de método estándar:**
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MiService {
+    
+    private final MiRepository miRepository;
+    private final MiMapper miMapper;
+    
+    /**
+     * Descripción del método.
+     * 
+     * <p>Flujo:
+     * <ol>
+     *   <li>Paso 1: Buscar entidad principal</li>
+     *   <li>Paso 2: Consultas auxiliares</li>
+     *   <li>Paso 3: Delegar mapeo al mapper</li>
+     * </ol>
+     * 
+     * @param param parámetro de entrada
+     * @return DTO de respuesta
+     * @throws BusinessException con HTTP 404 si no se encuentra la entidad
+     */
+    @Transactional(readOnly = true)
+    public MiResponse obtenerMiDato(Long id) {
+        
+        // 1. Buscar entidad con orElseThrow
+        MiEntidad entidad = miRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.ENTITY_NOT_FOUND,
+                        "Mensaje descriptivo del error",
+                        HttpStatus.NOT_FOUND));
+        
+        // 2. Consultas auxiliares
+        Optional<RelatedEntity> relatedOpt = relatedRepository.findByXxx(id);
+        
+        // 3. Delegar mapeo al mapper (NO construir DTOs en el service)
+        return miMapper.toResponse(entidad, relatedOpt);
+    }
+}
+```
+
+---
+
+### Mappers
+
+**Patrón canónico:** `VisitaEstadoMapper.mapearItemsOrdenados()`, `VisitaMapper.agruparItems()`
+
+**Reglas obligatorias:**
+- ✅ **SIEMPRE ordenar items por categoría ANTES de agrupar/mapear**
+- ✅ **Reutilizar comparador estático** para ordenamiento de items de comanda
+- ✅ **Enums → String en DTOs** usando `.name()` (NO pasar enum directamente)
+- ✅ **Nombres de empleados:** usar `empleadoNombre` (campo completo) NO hay separación nombre/apellido
+- ✅ **Nombres de usuarios:** usar `usuarioNombre` (campo único) NO existe `usuarioApellido`
+
+**Comparador estándar para items de comanda:**
+
+```java
+@Component
+@RequiredArgsConstructor
+public class MiMapper {
+    
+    /**
+     * Comparador para ordenar items por categoría de producto.
+     * Orden: PLATO (0) → BEBIDA (1) → OTRO (2)
+     */
+    private static final Comparator<ComandaItem> COMPARATOR_POR_CATEGORIA =
+            Comparator.comparing(item -> item.getProducto().getProductoCategoria().ordinal());
+    
+    /**
+     * Mapea y ordena items de comanda por categoría.
+     */
+    public List<ItemResponse> mapearItemsOrdenados(List<ComandaItem> items) {
+        return items.stream()
+                .sorted(COMPARATOR_POR_CATEGORIA)  // ORDENAR PRIMERO
+                .map(this::toItemResponse)          // LUEGO MAPEAR
+                .collect(Collectors.toList());
+    }
+    
+    /**
+     * Mapea un item de comanda a DTO.
+     */
+    private ItemResponse toItemResponse(ComandaItem item) {
+        return ItemResponse.builder()
+                .nombreProducto(item.getProducto().getProductoNombre())
+                .categoriaProducto(item.getProducto().getProductoCategoria().name())  // Enum → String
+                .cantidad(item.getComandaItemCantidad())
+                .build();
+    }
+}
+```
+
+**Agrupación de items (patrón establecido):**
+
+```java
+/**
+ * Agrupa items de comanda por (nombreProducto + descripcion).
+ * Suma las cantidades de items con mismo nombre y descripción.
+ */
+private List<ItemResponse> agruparItems(List<ComandaItem> items) {
+    // Clave de agrupación: nombreProducto + "|" + descripcion (null-safe)
+    Map<String, List<ComandaItem>> agrupados = items.stream()
+        .sorted(COMPARATOR_POR_CATEGORIA)  // ORDENAR ANTES DE AGRUPAR
+        .collect(Collectors.groupingBy(item ->
+            item.getProducto().getProductoNombre() + "|" +
+            (item.getComandaItemDescripcion() != null ? item.getComandaItemDescripcion() : "")
+        ));
+    
+    return agrupados.values().stream()
+        .map(grupo -> {
+            ComandaItem primero = grupo.get(0);
+            int cantidadTotal = grupo.stream()
+                    .mapToInt(ComandaItem::getComandaItemCantidad)
+                    .sum();
+            
+            return ItemResponse.builder()
+                    .nombreProducto(primero.getProducto().getProductoNombre())
+                    .descripcion(primero.getComandaItemDescripcion())
+                    .cantidad(cantidadTotal)
+                    .categoriaProducto(primero.getProducto().getProductoCategoria().name())
+                    .build();
+        })
+        .collect(Collectors.toList());
+}
+```
+
+---
+
+### DTOs
+
+**Reglas obligatorias:**
+- ✅ **Enums → String** en DTOs de respuesta (usar `.name()` en mappers)
+- ✅ **Inmutabilidad:** usar `@Getter` + `@Builder` + campos `final` en DTOs de respuesta
+- ✅ **Javadoc:** documentar cada campo con propósito y valores posibles
+- ✅ **Categoría de producto:** incluir como `String categoriaProducto` cuando se muestran items
+
+**Ejemplo de DTO de respuesta:**
+
+```java
+/**
+ * DTO para representar un item de comanda.
+ */
+@Getter
+@Builder
+public class ItemResponse {
+    
+    /** Nombre del producto */
+    private final String nombreProducto;
+    
+    /** Categoría: "PLATO", "BEBIDA", "OTRO" */
+    private final String categoriaProducto;
+    
+    /** Estado de la comanda: "PENDIENTE", "EN_PREPARACION", "LISTO", "COMPLETADO" */
+    private final String estadoComanda;
+    
+    /** Cantidad de unidades */
+    private final Integer cantidad;
+}
+```
+
+---
+
+### ErrorCode Usage
+
+**Códigos disponibles en `ErrorCode.java`:**
+
+| Código | Enum | HTTP Status | Uso |
+|--------|------|-------------|-----|
+| `ENT-001` | `ENTITY_NOT_FOUND` | 404 | Entidad no encontrada (mesa, visita, zona, etc.) |
+| `ENT-002` | `ENTITY_ALREADY_EXISTS` | 409 | Entidad duplicada (email, identificador, etc.) |
+| `AUTH-001` | `INVALID_CREDENTIALS` | 401 | Credenciales inválidas |
+| `AUTH-002` | `ACCESS_DENIED` | 403 | Sin permisos para la acción |
+| `NEG-001` | `BUSINESS_ERROR` | 400/409 | Regla de negocio violada (genérico) |
+| `NEG-002` | `INVALID_STATE` | 409 | Estado inválido para la operación |
+| `NEG-003` | `CAPACITY_EXCEEDED` | 400 | Capacidad máxima superada |
+| `VAL-001` | `VALIDATION_ERROR` | 400 | Error de validación de entrada |
+| `SRV-001` | `INTERNAL_ERROR` | 500 | Error interno del servidor |
+
+**Ejemplo de uso:**
+
+```java
+// Entidad no encontrada
+Mesa mesa = mesaRepository.findById(visitaId)
+        .orElseThrow(() -> new BusinessException(
+                ErrorCode.ENTITY_NOT_FOUND,
+                "Mesa no encontrada",
+                HttpStatus.NOT_FOUND));
+
+// Regla de negocio violada
+if (visita.getVisitaFechaHoraFin() == null) {
+    throw new BusinessException(
+            ErrorCode.INVALID_STATE,
+            "La visita aún está activa",
+            HttpStatus.CONFLICT);
+}
+```
+
+---
+
+### Controller Tests
+
+**Patrón canónico:** `ClienteControllerTest`
+
+**Reglas obligatorias:**
+- ✅ Usar `@WebMvcTest(controllers = MiController.class)` para tests de controller
+- ✅ Importar `TestSecurityConfig` personalizada con seguridad permisiva
+- ✅ Usar `@MockitoBean` para services y dependencias de seguridad
+- ✅ Usar `@Nested` + `@DisplayName` para agrupar tests por endpoint
+- ✅ Nombrar tests descriptivamente: `condicion_resultadoEsperado()`
+
+**Estructura estándar:**
+
+```java
+@WebMvcTest(controllers = MiController.class)
+@Import(MiControllerTest.PermissiveSecurityConfig.class)
+class MiControllerTest {
+    
+    static class PermissiveSecurityConfig {
+        @Bean
+        @Order(1)
+        SecurityFilterChain testFilterChain(HttpSecurity http) throws Exception {
+            return http
+                    .securityMatcher("/**")
+                    .csrf(AbstractHttpConfigurer::disable)
+                    .authorizeHttpRequests(auth -> auth.anyRequest().permitAll())
+                    .build();
+        }
+    }
+    
+    @Autowired MockMvc mockMvc;
+    
+    @MockitoBean MiService miService;
+    @MockitoBean JwtTokenProvider jwtTokenProvider;
+    @MockitoBean UserDetailsService userDetailsService;
+    @MockitoBean SesionRepository sesionRepository;
+    
+    @Nested
+    @DisplayName("GET /api/mi-endpoint")
+    class ObtenerMiDato {
+        
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Mesero con ID válido → 200 OK")
+        void idValido_retorna200() throws Exception {
+            // Arrange
+            MiResponse response = MiResponse.builder().dato("valor").build();
+            when(miService.obtenerMiDato(anyLong())).thenReturn(response);
+            
+            // Act & Assert
+            mockMvc.perform(get("/api/mi-endpoint/1"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.dato").value("valor"));
+            
+            verify(miService).obtenerMiDato(1L);
+        }
+        
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("ID inexistente → 404 Not Found")
+        void idInexistente_retorna404() throws Exception {
+            // Arrange
+            when(miService.obtenerMiDato(999L))
+                    .thenThrow(new BusinessException(
+                            ErrorCode.ENTITY_NOT_FOUND,
+                            "No encontrado",
+                            HttpStatus.NOT_FOUND));
+            
+            // Act & Assert
+            mockMvc.perform(get("/api/mi-endpoint/999"))
+                    .andExpect(status().isNotFound());
+        }
+    }
+}
+```
+
+---
+
+### Postman Testing — DOS TIPOS
+
+**⚠️ IMPORTANTE:** Hay DOS tipos de requests en Postman con patrones diferentes.
+
+---
+
+#### 1. Manual Testing (`manual-testing/`)
+
+**Propósito:** Pruebas manuales rápidas sin validaciones automáticas.
+
+**Convenciones:**
+- ✅ **Solo `{{baseUrl}}`** como variable de entorno
+- ✅ **Credenciales hardcoded** en `beforeRequest`
+- ✅ **Password estándar:** `Al.Toro2026!`
+- ✅ **Tokens temporales** con prefijo `tmp` (e.g., `tmpMeseroToken`)
+- ✅ **Cleanup en `afterResponse`** (solo unset de tokens)
+- ❌ **NO tests** en `afterResponse` (solo cleanup)
+- ✅ **Formato:** `XX-YY Descripción – ROL.request.yaml`
+
+**Numeración:**
+- `00-XX`: Auth
+- `10-XX`: Productos
+- `20-XX`: Reservas (CLIENTE)
+- `30-XX`: Reservas (MESERO)
+- `40-XX`: Visitas
+- `50-XX`: Puntos
+- `60-XX`: Ventas
+- `70-XX`: Notificaciones
+- `80-XX`: Mesas
+
+**Template:**
+
+```yaml
+name: 80-01 Obtener mapa mesas – MESERO
+url: "{{baseUrl}}/api/mesas"
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');  // Solo cleanup, NO tests
+```
+
+---
+
+#### 2. Automated Collections (`collections/`)
+
+**Propósito:** Pruebas automatizadas con validaciones y flujos independientes.
+
+**Convenciones:**
+- ✅ **Variables de entorno del proyecto** (`emailMesero`, `passwordValida`, `baseUrl`)
+- ✅ **Login autónomo** en `beforeRequest` usando variables de entorno
+- ✅ **Limpieza de estado previo** en `beforeRequest` (datos seed, notificaciones activas, etc.)
+- ✅ **Tests obligatorios** en `afterResponse` con `pm.test()`
+- ✅ **Variables temporales** (e.g., `tmpNotificacionCreada`) SOLO si se necesitan para tests posteriores
+- ❌ **NO cleanup en `afterResponse`** (cada test se prepara su propio estado en beforeRequest)
+- ✅ **Formato:** `XX-YY Descripción – Código HTTP.request.yaml`
+- ✅ **INDEPENDENCIA:** Cada test debe ser ejecutable solo, sin depender del orden
+
+**Template:**
+
+```yaml
+$kind: http-request
+name: MC-01 MESERO obtiene mapa todas zonas – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Mesero visualiza mapa completo.
+  **Objetivo:** Verificar que se retornan todas las zonas con mesas activas.
+  **Pre-condición:** `meseroToken` disponible. BD tiene zonas seed.
+  **Resultado esperado:** 200 OK con array de zonas.
+url: "{{baseUrl}}/api/mesas"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo usando variables de entorno del proyecto
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      
+      pm.test('La respuesta contiene zonas', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('zonas');
+        pm.expect(body.data.zonas).to.be.an('array');
+      });
+      
+      pm.test('Cada zona tiene estructura correcta', function () {
+        const body = pm.response.json();
+        if (body.data.zonas.length > 0) {
+          const zona = body.data.zonas[0];
+          pm.expect(zona).to.have.property('zonaId');
+          pm.expect(zona).to.have.property('zonaNombre');
+          pm.expect(zona).to.have.property('cantidadMesasActivas');
+          pm.expect(zona).to.have.property('mesas');
+        }
+      });
+      
+      // NO cleanup aquí - cada test prepara su propio estado
+    language: text/javascript
+order: 1000
+```
+
+**Limpieza de estado previo (ejemplo OB-01):**
+
+```javascript
+// beforeRequest
+pm.sendRequest({...login cliente...}, (err, res) => {
+  const token = res.json().accessToken;
+  pm.environment.set('clienteToken', token);
+  
+  // Verificar si hay notificación activa y limpiarla
+  pm.sendRequest({
+    url: pm.environment.get('baseUrl') + '/api/visitas/activa',
+    method: 'GET',
+    header: { 'Authorization': 'Bearer ' + token }
+  }, (err2, res2) => {
+    if (!err2 && res2 && res2.code === 200) {
+      const estado = res2.json().data;
+      if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+        // Limpiar con login de mesero
+        pm.sendRequest({...login mesero...}, (err3, res3) => {
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/notificaciones/' + estado.notificacionAsistenciaId + '/atender',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + res3.json().accessToken }
+          }, ...);
+        });
+      }
+    }
+  });
+});
+```
+
+**Guardar IDs para tests posteriores:**
+
+```javascript
+// afterResponse
+pm.test('La respuesta contiene notificacionId', function () {
+  const body = pm.response.json();
+  pm.expect(body.data).to.have.property('notificacionId');
+  // Guardar para tests posteriores
+  pm.environment.set('tmpNotificacionCreada', body.data.notificacionId);
+});
+```
+
+---
+
+### Diferencias Clave
+
+| Aspecto | Manual Testing | Automated Collections |
+|---------|---------------|----------------------|
+| **Credenciales** | Hardcoded (`mesero1@altoro.com`) | Variables de entorno (`emailMesero`) |
+| **Password** | Hardcoded (`Al.Toro2026!`) | Variable (`passwordValida`) |
+| **Tokens** | Temporales (`tmpMeseroToken`) | Del proyecto (`meseroToken`) |
+| **afterResponse** | Solo cleanup de tokens | Tests + guardar IDs temporales |
+| **Cleanup** | En `afterResponse` | En `beforeRequest` del siguiente test |
+| **Independencia** | No requerida | OBLIGATORIA - cada test se auto-prepara |
+| **Propósito** | Pruebas manuales rápidas | Suite automatizada de validación |
+
+---
+
+### Git Commits
+
+**Reglas obligatorias:**
+- ❌ **NO ejecutar commits automáticamente** — reportar mensaje en español para que el usuario lo ejecute
+- ✅ **Formato:** `<tipo>(<módulo>): <descripción en español>`
+- ✅ **Co-author obligatorio:** `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
+
+**Tipos de commit:**
+- `feat`: Nueva funcionalidad
+- `fix`: Corrección de bug
+- `refactor`: Refactorización sin cambio funcional
+- `test`: Añadir/modificar tests
+- `docs`: Cambios en documentación
+- `style`: Formato, espacios (sin cambio de lógica)
+- `chore`: Tareas de mantenimiento
+
+**Ejemplos:**
+
+```bash
+# ✅ CORRECTO (español, descriptivo)
+git commit -m "feat(mesas): añadir endpoint GET /api/mesas para consultar mapa"
+
+# ❌ INCORRECTO (inglés, genérico)
+git commit -m "add new endpoint"
+```
+
+**Instrucción para el usuario:**
+
+Cuando Claude Code proponga un commit, debe presentarlo así:
+
+```
+📝 Mensaje de commit propuesto (ejecutar manualmente):
+
+git add <archivos>
+git commit -m "feat(mesas): añadir endpoint GET /api/mesas"
+```
+
+---
+
+### WebSocket Integration
+
+**REGLA CRÍTICA:** Siempre que se implemente una funcionalidad que modifique el estado del sistema, **analizar si debe enviar un mensaje por WebSocket** para actualización en tiempo real.
+
+**Patrón establecido:** REST + Publisher (NO usar `@MessageMapping` para operaciones con persistencia)
+
+**Arquitectura:**
+```
+Cliente → REST endpoint → Service → Publisher → /topic/* → Suscriptores
+```
+
+**Cuándo enviar mensaje WS:**
+- ✅ Crear/modificar/eliminar mesas
+- ✅ Cambiar estado de mesa
+- ✅ Crear/atender notificaciones
+- ✅ Cerrar cuenta
+- ✅ Actualizar items de comanda
+- ✅ Cambios en reservas activas
+
+**Cuándo NO enviar mensaje WS:**
+- ❌ Consultas de solo lectura (GET)
+- ❌ Operaciones que no afectan a otros usuarios
+
+**Publisher Pattern:**
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MiWsPublisher {
+    
+    private final SimpMessagingTemplate messagingTemplate;
+    
+    /**
+     * Publica evento a un tópico específico.
+     * 
+     * @param id identificador del recurso
+     * @param mensaje DTO del mensaje WebSocket
+     */
+    public void publicarEvento(Long id, MiWsMessage mensaje) {
+        messagingTemplate.convertAndSend("/topic/mi-recurso/" + id, mensaje);
+    }
+}
+```
+
+**Inyección en Service:**
+
+```java
+@Service
+@RequiredArgsConstructor
+public class MiService {
+    
+    private final MiRepository miRepository;
+    private final MiWsPublisher wsPublisher;  // ← SIEMPRE inyectar publisher
+    
+    @Transactional
+    public MiResponse crearRecurso(MiRequest request) {
+        // 1. Validar y persistir
+        MiEntidad entidad = miRepository.save(...);
+        
+        // 2. Construir respuesta
+        MiResponse response = miMapper.toResponse(entidad);
+        
+        // 3. Publicar evento WS DESPUÉS de persistir
+        MiWsMessage wsMessage = MiWsMessage.builder()
+                .id(entidad.getId())
+                .tipoEvento(TipoEvento.CREAR)
+                .timestamp(System.currentTimeMillis())
+                .build();
+        wsPublisher.publicarEvento(entidad.getId(), wsMessage);
+        
+        // 4. Retornar respuesta
+        return response;
+    }
+}
+```
+
+**Tests de WebSocket:**
+
+```java
+@ExtendWith(MockitoExtension.class)
+class MiServiceTest {
+    
+    @Mock MiRepository miRepository;
+    @Mock MiWsPublisher wsPublisher;  // ← Mock del publisher
+    @Mock MiMapper miMapper;
+    
+    @InjectMocks MiService miService;
+    
+    @Test
+    @DisplayName("al crear recurso publica evento WebSocket")
+    void alCrearRecurso_publicaEventoWs() {
+        // Arrange
+        when(miRepository.save(any())).thenReturn(entidad);
+        when(miMapper.toResponse(any())).thenReturn(response);
+        
+        // Act
+        miService.crearRecurso(request);
+        
+        // Assert - Verifica que se publicó WS
+        ArgumentCaptor<MiWsMessage> captor = ArgumentCaptor.forClass(MiWsMessage.class);
+        verify(wsPublisher).publicarEvento(eq(1L), captor.capture());
+        
+        // Verificar contenido del mensaje
+        assertThat(captor.getValue().getId()).isEqualTo(1L);
+        assertThat(captor.getValue().getTipoEvento()).isEqualTo(TipoEvento.CREAR);
+        assertThat(captor.getValue().getTimestamp()).isNotNull();
+    }
+}
+```
+
+**Tópicos establecidos:**
+
+| Tópico | Uso | Suscriptores |
+|--------|-----|--------------|
+| `/topic/visita/{visitaId}/orden` | Items de comanda actualizados | Cliente de esa visita |
+| `/topic/visita/{visitaId}/cuenta` | Cuenta cerrada | Cliente de esa visita |
+| `/topic/visita/{visitaId}/asistencia` | Asistencia atendida | Cliente de esa visita |
+| `/topic/mesas/asistencia` | Nueva solicitud de asistencia | Todos los meseros |
+| `/topic/mesas` | Cambios en el mapa de mesas | Todos los meseros |
+| `/topic/reservas/cambios` | Cambios en reservas activas | Todos los meseros |
+
+**Configuración (`WebSocketConfig.java`):**
+
+```java
+@Override
+public void configureMessageBroker(MessageBrokerRegistry registry) {
+    registry.enableSimpleBroker("/topic");
+    registry.setApplicationDestinationPrefixes("/app");
+}
+
+@Override
+public void registerStompEndpoints(StompEndpointRegistry registry) {
+    registry.addEndpoint("/ws")
+            .setAllowedOriginPatterns(allowedOrigins.toArray(String[]::new));
+}
+```
+
+**Cuándo usar `@MessageMapping` vs REST + Publisher:**
+
+| Escenario | Usar |
+|-----------|------|
+| Operación requiere persistencia en DB | REST + Publisher |
+| Operación tiene validaciones de negocio | REST + Publisher |
+| Operación requiere transacción | REST + Publisher |
+| Chat en tiempo real (sin persistencia) | `@MessageMapping` |
+| Eventos efímeros (no guardar en DB) | `@MessageMapping` |
+
+**IMPORTANTE:** El proyecto usa **REST + Publisher** como estándar. NO introducir `@MessageMapping` sin justificación válida.
+
+---
+
 ## Working Rules
 
 - **Never modify the frontend.** All implementation work is backend-only unless explicitly instructed otherwise in the session.
