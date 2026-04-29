@@ -13,7 +13,7 @@ import java.math.BigDecimal;
  */
 @Getter
 @Builder
-public class ComandaItemResponse {
+public class ItemComandaResponse {
 
     /** Nombre del producto consumido. */
     private final String nombreProducto;
