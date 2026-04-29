@@ -1,8 +1,11 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.repository;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
 import java.util.List;
 import java.util.Optional;
@@ -33,4 +36,21 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * @return comanda en ese estado asociada a la reserva; vacía si no existe
      */
     Optional<Comanda> findByReserva_ReservaIdAndComandaEstado(Long reservaId, EstadoComanda estado);
+
+    /**
+     * Obtiene todos los items de comandas en producción de una visita.
+     * Estados: PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO.
+     *
+     * @param visitaId ID de la visita
+     * @return lista de ComandaItem con producto y comanda cargados, ordenados por categoría y nombre
+     */
+    @Query("""
+        SELECT ci FROM ComandaItem ci
+        JOIN FETCH ci.comanda c
+        JOIN FETCH ci.producto p
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstado IN ('PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')
+        ORDER BY p.productoCategoria, p.productoNombre
+        """)
+    List<ComandaItem> findItemsEnProduccionByVisita(@Param("visitaId") Long visitaId);
 }
