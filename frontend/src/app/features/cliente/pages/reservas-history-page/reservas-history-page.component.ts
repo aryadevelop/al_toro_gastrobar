@@ -3,10 +3,10 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
-import { Reserva } from '../../../../core/models/domain.models';
+import { Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
 import { AuthService } from '../../../../core/services/auth.service';
 import { ClientePointsService } from '../../../../core/services/cliente-points.service';
-import { ReservationService } from '../../../../core/services/reservation.service';
+import { ReservationDetailData, ReservationService } from '../../../../core/services/reservation.service';
 import { VisitHistoryEntry, VisitService } from '../../../../core/services/visit.service';
 import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
@@ -32,6 +32,9 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       <article class="card points-card">
         <h3>Puntos acumulados: {{ points() }}</h3>
+        <p class="points-info">
+          Los puntos son acumulables y pueden ser canjeados por recompensas especiales que el restaurante determine.
+        </p>
       </article>
 
       <section class="page-grid">
@@ -91,6 +94,62 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
         (confirm)="onConfirmCancelReservation()"
         (cancel)="onCancelDialog()"
       ></app-confirm-dialog>
+
+      <!-- CA-08: Modal de detalle inline -->
+      <section class="overlay" *ngIf="showDetailModal()">
+        <article class="card detail-modal">
+          <div class="detail-modal-header">
+            <h3>Detalle de la reserva</h3>
+            <button type="button" class="btn-close" (click)="closeDetailModal()">✕</button>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="detailReservation()">
+            <p><strong>Fecha y hora:</strong> {{ formatDetailDateTime() }}</p>
+            <p><strong>Número de personas:</strong> {{ detailReservation()!.guests }}</p>
+            <p><strong>Estado de la visita:</strong> {{ getReservationStatusLabel(detailReservation()!.status) }}</p>
+            <p><strong>Mesa asignada:</strong> {{ detailReservation()!.tableCode || 'No aplica' }}</p>
+            <p><strong>Zona seleccionada:</strong> {{ detailReservation()!.zoneName || 'No aplica' }}</p>
+            <p><strong>Decoración seleccionada:</strong> {{ detailReservation()!.decorationName || 'No aplica' }}</p>
+
+            <section class="detail-section">
+              <h4>Productos de la comanda</h4>
+              <div *ngIf="detailPreorderItems().length > 0; else noComanda">
+                <article class="line-item" *ngFor="let item of detailPreorderItems()">
+                  <span>{{ item.productName }} x {{ item.quantity }}</span>
+                  <span>{{ item.description || 'Sin observaciones' }}</span>
+                </article>
+              </div>
+              <ng-template #noComanda>
+                <p class="muted">No aplica</p>
+              </ng-template>
+            </section>
+
+            <section class="detail-section">
+              <h4>Historial de abonos</h4>
+              <div *ngIf="detailPayments().length > 0; else noPayments">
+                <article class="line-item" *ngFor="let payment of detailPayments()">
+                  <span>{{ payment.method }} - {{ formatDate(payment.paidAt) }}</span>
+                  <span>{{ payment.amount | currency:'COP':'symbol':'1.0-0' }}</span>
+                </article>
+              </div>
+              <ng-template #noPayments>
+                <p class="muted">No aplica</p>
+              </ng-template>
+            </section>
+
+            <p class="total-row"><strong>Total pre-orden:</strong> {{ detailPreOrderTotal() | currency:'COP':'symbol':'1.0-0' }}</p>
+            <p class="total-row"><strong>Total abonado:</strong> {{ detailTotalPaid() | currency:'COP':'symbol':'1.0-0' }}</p>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="detailLoading()">
+            <p class="muted">Cargando detalle...</p>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="!detailReservation() && !detailLoading()">
+            <p class="muted">No se encontró el detalle de esta reserva.</p>
+          </div>
+        </article>
+      </section>
     </section>
   `,
   styles: [
@@ -131,6 +190,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       .points-card h3 {
         margin: 0;
+      }
+
+      .points-info {
+        margin: 0;
+        font-size: 0.78rem;
+        color: var(--muted);
+        opacity: 0.75;
+        line-height: 1.35;
       }
 
       .visit-card {
@@ -174,6 +241,92 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
         color: var(--muted);
         font-size: 0.86rem;
       }
+
+      /* ── Modal de detalle (CA-08) ── */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(24, 29, 27, 0.45);
+        z-index: 1000;
+        padding: 1rem;
+        overflow-y: auto;
+      }
+
+      .detail-modal {
+        width: 100%;
+        max-width: 520px;
+        max-height: 85vh;
+        overflow-y: auto;
+        padding: 0.85rem;
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .detail-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .detail-modal-header h3 {
+        margin: 0;
+      }
+
+      .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.1rem;
+        cursor: pointer;
+        padding: 0.25rem 0.45rem;
+        border-radius: 6px;
+        color: var(--text);
+      }
+
+      .btn-close:hover {
+        background: rgba(111, 78, 55, 0.15);
+      }
+
+      .detail-modal-body {
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .detail-modal-body p {
+        margin: 0;
+        font-size: 0.84rem;
+      }
+
+      .detail-section {
+        display: grid;
+        gap: 0.3rem;
+        margin-top: 0.2rem;
+      }
+
+      .detail-section h4 {
+        margin: 0;
+        font-size: 0.88rem;
+      }
+
+      .line-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.45rem;
+        border: 1px dashed rgba(10, 10, 10, 0.2);
+        border-radius: 8px;
+        padding: 0.35rem 0.45rem;
+        font-size: 0.82rem;
+      }
+
+      .muted {
+        color: var(--muted);
+        opacity: 0.65;
+      }
+
+      .total-row {
+        margin-top: 0.25rem;
+      }
     `
   ]
 })
@@ -184,6 +337,12 @@ export class ReservasHistoryPageComponent implements OnInit {
   readonly showCancelDialog = signal(false);
   readonly cancelingReservation = signal(false);
   readonly reservationPendingCancel = signal<Reserva | null>(null);
+
+  // CA-08: Detail modal state
+  readonly showDetailModal = signal(false);
+  readonly detailLoading = signal(false);
+  readonly detailReservation = signal<Reserva | null>(null);
+  readonly detailData = signal<ReservationDetailData | null>(null);
 
   visitHistory: VisitHistoryEntry[] = [];
   reservasFuturas: Reserva[] = [];
@@ -200,17 +359,62 @@ export class ReservasHistoryPageComponent implements OnInit {
     this.loadHistoryData();
   }
 
+  // ── CA-08: Detail modal methods ──
+
   onViewVisitDetail(visit: VisitHistoryEntry): void {
     if (!visit.reservationId) {
       return;
     }
 
-    void this.router.navigate(['/app/cliente/reserva/detail', visit.reservationId]);
+    this.openDetailModal(visit.reservationId);
   }
 
   onViewFutureDetail(reservationId: string): void {
-    void this.router.navigate(['/app/cliente/reserva/detail', reservationId]);
+    this.openDetailModal(reservationId);
   }
+
+  closeDetailModal(): void {
+    this.showDetailModal.set(false);
+    this.detailReservation.set(null);
+    this.detailData.set(null);
+  }
+
+  formatDetailDateTime(): string {
+    const target = this.detailReservation();
+    if (!target) {
+      return 'No aplica';
+    }
+
+    return new Date(`${target.date}T${target.time}:00`).toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  detailPreorderItems(): ReservaPreorderItem[] {
+    return this.detailReservation()?.preorderItems ?? [];
+  }
+
+  detailPayments(): Pago[] {
+    return this.detailData()?.payments ?? [];
+  }
+
+  detailPreOrderTotal(): number {
+    return this.detailData()?.preOrderTotal ?? 0;
+  }
+
+  detailTotalPaid(): number {
+    return this.detailData()?.totalPaid ?? 0;
+  }
+
+  formatDate(isoDate: string): string {
+    return new Date(isoDate).toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  // ── Reservation action methods ──
 
   onModifyReservation(reservation: Reserva): void {
     if (!this.canModifyReservation(reservation)) {
@@ -328,6 +532,24 @@ export class ReservasHistoryPageComponent implements OnInit {
 
   canCancelReservation(reservation: Reserva): boolean {
     return this.toDateTime(reservation).getTime() > Date.now() && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
+  private openDetailModal(reservationId: string): void {
+    this.showDetailModal.set(true);
+    this.detailLoading.set(true);
+    this.detailReservation.set(null);
+    this.detailData.set(null);
+
+    this.reservationService.getDetail(reservationId).subscribe({
+      next: (detail) => {
+        this.detailData.set(detail);
+        this.detailReservation.set(detail.reservation);
+        this.detailLoading.set(false);
+      },
+      error: () => {
+        this.detailLoading.set(false);
+      }
+    });
   }
 
   private isModificationCutoffReached(reserva: Reserva): boolean {

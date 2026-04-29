@@ -16,6 +16,7 @@ import { AuthService } from './auth.service';
 export interface ReservationAvailabilityOption {
   id: string;
   name: string;
+  imageUrl?: string;
   compatibleZoneIds?: string[];
   allowZoneSelection?: boolean;
 }
@@ -83,12 +84,14 @@ export class ReservationService {
           decorations: (response.data.decoraciones ?? []).map((item) => ({
             id: String(item.decoracionId),
             name: item.nombre ?? item.decoracionNombre ?? 'Decoración',
+            imageUrl: item.imagenUrl,
             compatibleZoneIds: (item.zonaIdsCompatibles ?? []).map((zoneId) => String(zoneId)),
             allowZoneSelection: item.puedeSeleccionarZona ?? true,
           })),
           zones: (response.data.zonas ?? []).map((item) => ({
             id: String(item.zonaId),
             name: item.nombre ?? item.zonaNombre ?? 'Zona',
+            imageUrl: item.imagenUrl,
           })),
         }))
       );

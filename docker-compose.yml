@@ -20,7 +20,7 @@ services:
     networks:
       - altoro_network
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -36,7 +36,7 @@ services:
     networks:
       - altoro_network
     healthcheck:
-      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
       interval: 10s
       timeout: 5s
       retries: 5
@@ -48,12 +48,12 @@ services:
     container_name: altoro_api
     environment:
       # Postgres — usa el nombre del servicio como host
-      DB_URL:      jdbc:postgresql://postgres:5432/${POSTGRES_DB:-altoro_db}
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-altoro_db}
       DB_USERNAME: ${POSTGRES_USER:-altoro}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-altoro123}
       # RabbitMQ — usa el nombre del servicio como host
-      RABBITMQ_HOST:     rabbitmq
-      RABBITMQ_PORT:     5672
+      RABBITMQ_HOST: rabbitmq
+      RABBITMQ_PORT: 5672
       RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
       RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
     networks:
@@ -67,6 +67,7 @@ services:
 volumes:
   postgres_data:
   rabbitmq_data:
+
 
 networks:
   altoro_network:
