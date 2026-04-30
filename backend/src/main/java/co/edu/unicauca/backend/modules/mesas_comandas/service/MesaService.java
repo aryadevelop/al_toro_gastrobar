@@ -14,6 +14,8 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -48,19 +50,6 @@ public class MesaService {
     /**
      * Obtiene el mapa completo de mesas, opcionalmente filtrado por zona.
      *
-     * <p>Flujo:
-     * <ol>
-     *   <li>Obtener zonas (todas o solo la especificada según RN-07)</li>
-     *   <li>Obtener mesas activas (filtradas por zona si aplica según RN-01)</li>
-     *   <li>Agrupar mesas por zona</li>
-     *   <li>Para cada mesa: obtener notificaciones activas y flag de borrador</li>
-     *   <li>Delegar mapeo al mapper</li>
-     * </ol>
-     *
-     * <p>Incluye todas las zonas del restaurante, mostrando para cada una:
-     * - ID, nombre y cantidad de mesas activas
-     * - Lista de mesas con estado, mesero, notificaciones y flag de borrador
-     *
      * <p>Si zonaId es null, devuelve todas las zonas (incluso sin mesas).
      * Si zonaId es especificado, devuelve solo esa zona.
      *
@@ -71,7 +60,7 @@ public class MesaService {
      */
     public MapaMesasResponse obtenerMapaMesas(Long zonaId, String emailMesero) {
 
-        // 1. Obtener zonas (RN-07)
+        // 1. Obtener zonas
         List<Zona> zonas = zonaId != null
                 ? zonaRepository.findById(zonaId)
                     .map(List::of)
@@ -81,7 +70,7 @@ public class MesaService {
                             HttpStatus.NOT_FOUND))
                 : zonaRepository.findAll();
 
-        // 2. Obtener mesas activas (RN-01)
+        // 2. Obtener mesas activas
         List<Mesa> mesasActivas = zonaId != null
                 ? mesaRepository.findMesasActivasByZona(zonaId)
                 : mesaRepository.findAllMesasActivas();
@@ -112,24 +101,12 @@ public class MesaService {
 
     /**
      * Obtiene el detalle completo de una mesa.
-     *
-     * <p>Flujo:
-     * <ol>
-     *   <li>Buscar mesa por ID</li>
-     *   <li>Obtener items en producción</li>
-     *   <li>Agrupar items según RN-06</li>
-     *   <li>Delegar mapeo al mapper</li>
-     * </ol>
-     *
-     * <p>Incluye:
-     * - Identificador de mesa, nombre del cliente (si existe), hora de llegada
-     * - Número de personas, estado de la mesa, notas de reserva
-     * - Items de comandas en producción (PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO)
-     *   agrupados por nombre y descripción según RN-06
-     *
+     * 
+     * <p>Incluye información de la mesa, visita, mesero, zona, y items en producción.
+     * 
      * @param visitaId ID de la visita (PK de Mesa)
      * @return MesaDetalleResponse con información completa
-     * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si la mesa no existe
+     * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si la mesa no existe o está cerrada
      */
     public MesaDetalleResponse obtenerDetalleMesa(Long visitaId) {
 
@@ -140,39 +117,39 @@ public class MesaService {
                         "Mesa no encontrada",
                         HttpStatus.NOT_FOUND));
 
-        // 2. Obtener items en producción (RN-05)
+        // 2. Validar que la visita esté activa
+        if (mesa.getVisita().getVisitaFechaHoraFin() != null) {
+            throw new BusinessException(
+                    ErrorCode.ENTITY_NOT_FOUND,
+                    "La visita ya está cerrada",
+                    HttpStatus.NOT_FOUND);
+        }
+
+        // 3. Obtener items en producción
         List<ComandaItem> items = comandaRepository.findItemsEnProduccionByVisita(visitaId);
 
-        // 3. Agrupar items (RN-06)
+        // 4. Agrupar items
         List<ItemComandaEnProduccionResponse> itemsAgrupados =
             mesaMapper.agruparItemsEnProduccion(items);
 
-        // 4. Mapear a DTO
-        return mesaMapper.toMesaDetalleResponse(mesa, itemsAgrupados);
+        // 5. Mapear a DTO (pasando items originales para extraer notas)
+        return mesaMapper.toMesaDetalleResponse(mesa, items, itemsAgrupados);
     }
 
     /**
      * Obtiene información de items en producción de una mesa.
      *
-     * <p>Flujo:
-     * <ol>
-     *   <li>Buscar mesa por ID</li>
-     *   <li>Obtener items en producción</li>
-     *   <li>Agrupar items según RN-06</li>
-     *   <li>Delegar mapeo al mapper</li>
-     * </ol>
-     *
-     * <p>Devuelve:
-     * - Identificador de la mesa
-     * - Resumen de items enviados a producción (no modificables)
-     *
      * <p>Solo items en estados PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO.
      *
+     * <p>Solo el mesero asignado a la mesa puede acceder. El rol ADMIN tiene acceso sin restricciones.
+     *
      * @param visitaId ID de la visita (PK de Mesa)
+     * @param authentication autenticación del usuario (para validar rol y email)
      * @return MesaItemsProduccionResponse con identificador y items en producción
-     * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si la mesa no existe
+     * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si la mesa no existe o está cerrada
+     * @throws BusinessException con ErrorCode.ACCESS_DENIED si el mesero no es el asignado (ADMIN siempre tiene acceso)
      */
-    public MesaItemsProduccionResponse obtenerItemsProduccion(Long visitaId) {
+    public MesaItemsProduccionResponse obtenerItemsProduccion(Long visitaId, Authentication authentication) {
 
         // 1. Obtener mesa
         Mesa mesa = mesaRepository.findById(visitaId)
@@ -181,14 +158,39 @@ public class MesaService {
                         "Mesa no encontrada",
                         HttpStatus.NOT_FOUND));
 
-        // 2. Obtener items en producción (RN-05)
+        // 2. Validar que la visita esté activa
+        if (mesa.getVisita().getVisitaFechaHoraFin() != null) {
+            throw new BusinessException(
+                    ErrorCode.ENTITY_NOT_FOUND,
+                    "La visita ya está cerrada",
+                    HttpStatus.NOT_FOUND);
+        }
+
+        // 3. Validar ownership: solo el mesero asignado puede acceder
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role -> role.equals("ROLE_ADMIN"));
+
+        if (!esAdmin) {
+            String emailMeseroAsignado = mesa.getMesero().getUsuario().getUsuarioEmail();
+            String emailUsuario = authentication.getName();
+
+            if (!emailMeseroAsignado.equals(emailUsuario)) {
+                throw new BusinessException(
+                        ErrorCode.ACCESS_DENIED,
+                        "Solo el mesero asignado puede ver los items de producción de esta mesa",
+                        HttpStatus.FORBIDDEN);
+            }
+        }
+
+        // 4. Obtener items en producción
         List<ComandaItem> items = comandaRepository.findItemsEnProduccionByVisita(visitaId);
 
-        // 3. Agrupar items (RN-06)
+        // 5. Agrupar items
         List<ItemComandaEnProduccionResponse> itemsAgrupados =
             mesaMapper.agruparItemsEnProduccion(items);
 
-        // 4. Mapear a DTO
+        // 6. Mapear a DTO
         return mesaMapper.toMesaItemsProduccionResponse(
                 mesa.getMesaIdentificador(),
                 itemsAgrupados
@@ -204,16 +206,15 @@ public class MesaService {
                 .map(mesa -> {
                     Long visitaId = mesa.getVisitaId();
 
-                    // Obtener notificaciones activas (RN-02)
+                    // Obtener notificaciones activas
                     List<Notificacion> notificaciones =
                         notificacionRepository.findNotificacionesActivasByMesa(visitaId);
 
-                    // Verificar si tiene comanda en borrador (RN-03)
+                    // Verificar si tiene comanda en borrador
                     boolean tieneBorrador = mesaRepository.existeComandaBorradorEnMesa(visitaId);
 
-                    // Mapear a DTO (RN-04: nombreMesero condicional)
-                    return mesaMapper.toMesaMapaResponse(mesa, notificaciones,
-                                                          tieneBorrador, emailMesero);
+                    // Mapear a DTO
+                    return mesaMapper.toMesaMapaResponse(mesa, notificaciones,tieneBorrador, emailMesero);
                 })
                 .collect(Collectors.toList());
     }

@@ -11,13 +11,14 @@ import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
@@ -49,10 +50,10 @@ class MesaControllerTest {
 
     @Autowired MockMvc mockMvc;
 
-    @MockBean MesaService mesaService;
-    @MockBean JwtTokenProvider jwtTokenProvider;
-    @MockBean UserDetailsService userDetailsService;
-    @MockBean SesionRepository sesionRepository;
+    @MockitoBean MesaService mesaService;
+    @MockitoBean JwtTokenProvider jwtTokenProvider;
+    @MockitoBean UserDetailsService userDetailsService;
+    @MockitoBean SesionRepository sesionRepository;
 
     @Nested
     @DisplayName("GET /api/mesas")
@@ -264,7 +265,7 @@ class MesaControllerTest {
                     .itemsEnProduccion(List.of(item))
                     .build();
 
-            when(mesaService.obtenerItemsProduccion(1L)).thenReturn(response);
+            when(mesaService.obtenerItemsProduccion(eq(1L), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas/1/items-produccion"))
@@ -277,7 +278,7 @@ class MesaControllerTest {
                     .andExpect(jsonPath("$.data.itemsEnProduccion[0].cantidad").value(2))
                     .andExpect(jsonPath("$.message").value("Items en producción obtenidos exitosamente"));
 
-            verify(mesaService).obtenerItemsProduccion(1L);
+            verify(mesaService).obtenerItemsProduccion(eq(1L), any(Authentication.class));
         }
 
         @Test
@@ -290,14 +291,14 @@ class MesaControllerTest {
                     .itemsEnProduccion(List.of())
                     .build();
 
-            when(mesaService.obtenerItemsProduccion(1L)).thenReturn(response);
+            when(mesaService.obtenerItemsProduccion(eq(1L), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas/1/items-produccion"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(mesaService).obtenerItemsProduccion(1L);
+            verify(mesaService).obtenerItemsProduccion(eq(1L), any(Authentication.class));
         }
 
         @Test
@@ -305,7 +306,7 @@ class MesaControllerTest {
         @DisplayName("mesaId inexistente → 404 Not Found")
         void mesaIdInexistente_retorna404() throws Exception {
             // Arrange
-            when(mesaService.obtenerItemsProduccion(999L))
+            when(mesaService.obtenerItemsProduccion(eq(999L), any(Authentication.class)))
                     .thenThrow(new BusinessException(
                             ErrorCode.ENTITY_NOT_FOUND,
                             "Mesa no encontrada",
@@ -315,7 +316,7 @@ class MesaControllerTest {
             mockMvc.perform(get("/api/mesas/999/items-produccion"))
                     .andExpect(status().isNotFound());
 
-            verify(mesaService).obtenerItemsProduccion(999L);
+            verify(mesaService).obtenerItemsProduccion(eq(999L), any(Authentication.class));
         }
     }
 }

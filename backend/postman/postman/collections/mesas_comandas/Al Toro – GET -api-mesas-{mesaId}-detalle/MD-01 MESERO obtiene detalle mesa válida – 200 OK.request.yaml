@@ -2,9 +2,9 @@ $kind: http-request
 name: MD-01 MESERO obtiene detalle mesa válida – 200 OK
 description: |-
   **Criterio de Aceptación:** CA-01 — Mesero accede al detalle completo de una mesa.
-  **Objetivo:** Verificar que MESERO obtiene detalle con visitaId, identificador, cliente, items, etc.
-  **Pre-condición:** `meseroToken` disponible. Mesa con visitaId=1 existe en seed.
-  **Resultado esperado:** 200 OK con estructura completa de MesaDetalleResponse.
+  **Objetivo:** Verificar que MESERO obtiene detalle con visitaId, identificador, cliente, items, mesaNotas, etc.
+  **Pre-condición:** `meseroToken` disponible. Visita 10 está activa y tiene mesaNotas.
+  **Resultado esperado:** 200 OK con estructura completa de MesaDetalleResponse incluyendo mesaNotas.
 url: "{{baseUrl}}/api/mesas/{{tmpVisitaId}}/detalle"
 method: GET
 headers:
@@ -12,8 +12,8 @@ headers:
 scripts:
   - type: beforeRequest
     code: |-
-      // Configurar visitaId temporal con fallback a ID seed conocido
-      const visitaId = pm.environment.get('visitaIdConReserva') || '1';
+      // Configurar visitaId temporal con fallback a visita activa seed conocida
+      const visitaId = pm.environment.get('visitaIdConReserva') || '10';
       pm.environment.set('tmpVisitaId', visitaId);
 
       // Login autónomo del MESERO usando variables de entorno
@@ -65,6 +65,15 @@ scripts:
         const body = pm.response.json();
         const estadosValidos = ['ESPERA', 'EN_PREPARACION', 'ATENDIDA', 'CERRADA'];
         pm.expect(estadosValidos).to.include(body.data.estado);
+      });
+
+      pm.test('Incluye campo notasMesa (nullable)', function () {
+        const body = pm.response.json();
+        // notasMesa puede ser string o null
+        pm.expect(body.data).to.have.property('notasMesa');
+        if (body.data.notasMesa !== null) {
+          pm.expect(body.data.notasMesa).to.be.a('string');
+        }
       });
 
       // Cleanup

@@ -1,0 +1,41 @@
+$kind: http-request
+name: MC-05 CAJERO intenta acceder – 403 Forbidden
+description: |-
+  **Objetivo:** Verificar que rol CAJERO no tiene acceso al endpoint de mapa.
+  **Pre-condición:** `cajeroToken` disponible. Endpoint requiere MESERO o ADMIN.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/mesas"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CAJERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-05: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 cuando CAJERO intenta acceder', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 5000

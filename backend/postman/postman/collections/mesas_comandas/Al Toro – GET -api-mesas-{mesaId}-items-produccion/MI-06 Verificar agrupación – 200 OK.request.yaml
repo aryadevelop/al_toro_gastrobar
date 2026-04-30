@@ -1,11 +1,11 @@
 $kind: http-request
-name: MI-06 Verificar agrupación RN-06 – 200 OK
+name: MI-06 Verificar agrupación – 200 OK
 description: |-
   **Criterio de Aceptación:** RN-06 — Items en PENDIENTE no se agrupan.
   **Objetivo:** Verificar que items en estados agrupables (EN_PREPARACION, LISTO, COMPLETADO) se agrupan correctamente por nombre+descripción+estado, mientras que PENDIENTE se mantienen separados.
-  **Pre-condición:** `meseroToken` disponible. Mesa tiene items en diferentes estados.
+  **Pre-condición:** `meseroToken` disponible. Visita 10 (mesero1@altoro.com) tiene items en diferentes estados.
   **Resultado esperado:** 200 OK con items agrupados según RN-06.
-url: "{{baseUrl}}/api/mesas/1/items-produccion"
+url: "{{baseUrl}}/api/mesas/11/items-produccion"
 method: GET
 headers:
   Authorization: Bearer {{meseroToken}}
@@ -38,7 +38,7 @@ scripts:
 
       pm.test('RN-05: Solo items en producción (estados válidos)', function () {
         const body = pm.response.json();
-        const estadosValidos = ['PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO'];
+        const estadosValidos = ['PENDIENTE', 'CONFIRMADO'];
         body.data.itemsEnProduccion.forEach(item => {
           pm.expect(estadosValidos).to.include(item.estadoComanda);
           // Excluye BORRADOR y PRE_RESERVA
@@ -49,6 +49,8 @@ scripts:
 
       pm.test('Items ordenados por categoría (PLATO → BEBIDA → OTRO)', function () {
         const body = pm.response.json();
+        pm.expect(body.data.itemsEnProduccion.length).to.be.at.least(1);
+
         if (body.data.itemsEnProduccion.length > 1) {
           const categorias = body.data.itemsEnProduccion.map(item => item.categoriaProducto);
           const ordenCorrecto = ['PLATO', 'BEBIDA', 'OTRO'];

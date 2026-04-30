@@ -13,10 +13,13 @@ import java.util.List;
 @Builder
 public class MesaMapaResponse {
 
+    /** ID de la mesa (igual a visitaId) */
+    private final Long mesaId;
+
     /** ID de la visita (PK de Mesa) */
     private final Long visitaId;
 
-    /** Identificador de la mesa (ej. "T-04") */
+    /** Identificador de la mesa */
     private final String identificador;
 
     /** Número de comensales */
@@ -26,13 +29,10 @@ public class MesaMapaResponse {
     private final String estado;
 
     /**
-     * Nombre completo del mesero asignado.
+     * Nombre del mesero asignado.
      * null si la mesa es propia del mesero que hace la petición
      */
     private final String nombreMesero;
-
-    /** Email del mesero asignado */
-    private final String emailMesero;
 
     /** true si la mesa fue creada por el mesero que hace la petición */
     private final Boolean esMesaPropia;

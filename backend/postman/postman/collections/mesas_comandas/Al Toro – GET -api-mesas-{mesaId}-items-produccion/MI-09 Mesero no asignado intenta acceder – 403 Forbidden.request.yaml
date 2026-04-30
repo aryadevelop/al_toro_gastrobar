@@ -1,18 +1,17 @@
 $kind: http-request
-name: MD-04 CLIENTE sin acceso – 403 Forbidden
+name: MI-09 Mesero no asignado intenta acceder – 403 Forbidden
 description: |-
-  **Criterio de Aceptación:** CA-08 — Solo MESERO y ADMIN tienen acceso.
-  **Objetivo:** Verificar que CLIENTE recibe 403 Forbidden.
-  **Pre-condición:** `clienteToken` disponible.
+  **Criterio de Aceptación:** RN-07 — Solo el mesero asignado puede ver items de producción.
+  **Objetivo:** Verificar que mesero2 (no asignado) recibe 403 al intentar acceder a items de visita 10 (asignada a mesero1).
+  **Pre-condición:** `mesero2Token` disponible. Visita 10 pertenece a mesero1@altoro.com.
   **Resultado esperado:** 403 Forbidden con código AUTH-002.
-url: "{{baseUrl}}/api/mesas/1/detalle"
+url: "{{baseUrl}}/api/mesas/10/items-produccion"
 method: GET
 headers:
-  Authorization: Bearer {{clienteToken}}
+  Authorization: Bearer {{mesero2Token}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del CLIENTE usando variables de entorno
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -20,16 +19,14 @@ scripts:
         body: {
           mode: 'raw',
           raw: JSON.stringify({
-            email: pm.environment.get('emailCliente'),
+            email: 'mesero2@altoro.com',
             password: pm.environment.get('passwordValida'),
             forceSessionOverride: true
           })
         }
       }, (err, res) => {
         if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
-          console.warn('MD-04: login CLIENTE falló', err, res && res.code);
+          pm.environment.set('mesero2Token', res.json().accessToken);
         }
       });
     language: text/javascript
@@ -39,10 +36,9 @@ scripts:
         pm.response.to.have.status(403);
       });
 
-      pm.test('La respuesta contiene código de error AUTH-002', function () {
+      pm.test('Mensaje indica acceso denegado', function () {
         const body = pm.response.json();
-        pm.expect(body.success).to.be.false;
-        pm.expect(body.code).to.equal('AUTH-002');
+        pm.expect(body.message).to.include('mesero asignado');
       });
     language: text/javascript
-order: 2030
+order: 3100

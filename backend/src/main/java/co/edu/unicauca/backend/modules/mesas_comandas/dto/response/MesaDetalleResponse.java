@@ -14,6 +14,9 @@ import java.util.List;
 @Builder
 public class MesaDetalleResponse {
 
+    /** ID de la mesa (igual a visitaId, pero semánticamente correcto) */
+    private final Long mesaId;
+
     /** ID de la visita (PK de Mesa) */
     private final Long visitaId;
 
@@ -35,6 +38,12 @@ public class MesaDetalleResponse {
     /** Notas de la reserva (null si no hay reserva o si la reserva no tiene notas) */
     private final String notasReserva;
 
-    /** Items de comandas en estados: PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO (agrupados según RN-06) */
+    /** Notas generales de la mesa */
+    private final String notasMesa;
+
+    /** Notas de todas las comandas concatenadas (separadas por " | ") */
+    private final String notasComandas;
+
+    /** Items de comandas en estados: PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO */
     private final List<ItemComandaEnProduccionResponse> itemsComanda;
 }

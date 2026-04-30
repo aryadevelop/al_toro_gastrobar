@@ -198,21 +198,21 @@ INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fec
 -- =====================================================
 -- 10. Mesa
 -- =====================================================
-INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado) VALUES
+INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado, mesa_notas) VALUES
 -- Mesas de visitas históricas (CERRADA)
-(1,  1, 4, 'M-01',   4,  'CERRADA'),
-(2,  3, 5, 'VIP-01', 18, 'CERRADA'),
-(3,  2, 4, 'T-03',   16, 'CERRADA'),
-(4,  1, 6, 'M-05',   2,  'CERRADA'),
-(5,  3, 5, 'VIP-02', 2,  'CERRADA'),
-(6,  1, 4, 'T-01',   98, 'CERRADA'),
-(7,  1, 5, 'M-03',   5,  'CERRADA'),
-(8,  1, 6, 'M-07',   3,  'CERRADA'),
-(9,  2, 4, 'T-02',   4,  'CERRADA'),
+(1,  1, 4, 'M-01',   4,  'CERRADA',        NULL),
+(2,  3, 5, 'VIP-01', 18, 'CERRADA',        'Celebración cumpleaños 50 años, requirió decoración especial'),
+(3,  2, 4, 'T-03',   16, 'CERRADA',        NULL),
+(4,  1, 6, 'M-05',   2,  'CERRADA',        'Cliente frecuente, prefiere mesa tranquila'),
+(5,  3, 5, 'VIP-02', 2,  'CERRADA',        'Aniversario, cliente pidió música romántica'),
+(6,  1, 4, 'T-01',   98, 'CERRADA',        NULL),
+(7,  1, 5, 'M-03',   5,  'CERRADA',        NULL),
+(8,  1, 6, 'M-07',   3,  'CERRADA',        NULL),
+(9,  2, 4, 'T-02',   4,  'CERRADA',        'Familia con niño pequeño, requirió silla alta'),
 -- Mesas activas
-(10, 1, 4, 'M-02',   2,  'ATENDIDA'),
-(11, 1, 5, 'M-04',   4,  'EN_PREPARACION'),
-(12, 2, 6, 'T-04',   3,  'ESPERA');
+(10, 1, 4, 'M-02',   2,  'ATENDIDA',       'Pareja VIP, atención preferencial'),
+(11, 1, 5, 'M-04',   4,  'EN_PREPARACION', NULL),
+(12, 2, 6, 'T-04',   3,  'ESPERA',         'Cliente alérgico al maní, verificar con cocina');
 
 -- =====================================================
 -- 11. Comanda (de visitas)
@@ -233,11 +233,11 @@ INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, com
 (8,  'COCINA', NOW() - INTERVAL '4 days 7 hours',  NOW() - INTERVAL '4 days 5 hours 30 minutes',     NULL,                    'COMPLETADO'),
 (9,  'COCINA', NOW() - INTERVAL '2 days 8 hours',  NOW() - INTERVAL '2 days 6 hours 30 minutes',     NULL,                    'COMPLETADO'),
 -- Activas
-(10, 'COCINA', NOW() - INTERVAL '40 minutes', NULL,                          NULL,                    'EN_PREPARACION'),
-(10, 'BARRA',  NOW() - INTERVAL '40 minutes', NOW() - INTERVAL '20 minutes', NULL,                    'LISTO'),
-(11, 'COCINA', NOW() - INTERVAL '20 minutes', NULL,                          'Sin sal en las papas',  'PENDIENTE'),
-(11, 'BARRA',  NOW() - INTERVAL '20 minutes', NULL,                          NULL,                    'EN_PREPARACION'),
-(12, 'BARRA',  NOW() - INTERVAL '10 minutes', NULL,                          NULL,                    'PENDIENTE');
+(10, 'COCINA', NOW() - INTERVAL '40 minutes', NULL,                          'Acelerar platos, cliente tiene prisa',  'EN_PREPARACION'),
+(10, 'BARRA',  NOW() - INTERVAL '40 minutes', NOW() - INTERVAL '20 minutes', 'Preparar cócteles primero',              'LISTO'),
+(11, 'COCINA', NOW() - INTERVAL '20 minutes', NULL,                          'Cliente alérgico al maní',               'PENDIENTE'),
+(11, 'BARRA',  NOW() - INTERVAL '20 minutes', NULL,                          'Servir bebidas sin alcohol para niños',  'EN_PREPARACION'),
+(12, 'BARRA',  NOW() - INTERVAL '10 minutes', NULL,                          'Cliente prefiere bebidas frías',         'PENDIENTE');
 
 -- =====================================================
 -- 8. Comandas PRE_RESERVA (pre-órdenes unificadas)
@@ -312,60 +312,60 @@ JOIN opcion_modificacion o
 -- 12. Comanda_Item (de visitas)
 -- =====================================================
 INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion)
-SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.nombre
+SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.descripcion
 FROM (VALUES
     -- Comanda 1 (visita 1 - cocina)
-    (1,  'Picanha',                1, 42000::numeric),
-    (1,  'Pechuga a la Plancha',   1, 31000),
+    (1,  'Picanha',                1, 42000::numeric, 'Término medio'),
+    (1,  'Pechuga a la Plancha',   1, 31000,          NULL),
     -- Comanda 2 (visita 1 - barra)
-    (2,  'Mojito Clásico',         2, 22000),
-    (2,  'Coca-Cola',              2,  6000),
+    (2,  'Mojito Clásico',         2, 22000,          NULL),
+    (2,  'Coca-Cola',              2,  6000,          'Sin hielo'),
     -- Comanda 3 (visita 2 - cocina, cumpleaños)
-    (3,  'Picada Gran Toro',       2, 70000),
-    (3,  'Picanha',                4, 42000),
-    (3,  'Salmón a la Plancha',    2, 49000),
+    (3,  'Picada Gran Toro',       2, 70000,          'Sin chorizo'),
+    (3,  'Picanha',                4, 42000,          'Término tres cuartos'),
+    (3,  'Salmón a la Plancha',    2, 49000,          NULL),
     -- Comanda 4 (visita 2 - barra, cumpleaños)
-    (4,  'Bambuco',                8, 22000),
-    (4,  'Cumpleaños',             4, 30000),
+    (4,  'Bambuco',                8, 22000,          NULL),
+    (4,  'Cumpleaños',             4, 30000,          'Decorar con velas'),
     -- Comanda 5 (visita 3 - cocina)
-    (5,  'Lomo Fino Fajón',        2, 45000),
-    (5,  'Ceviche de Pescado',     2, 33000),
+    (5,  'Lomo Fino Fajón',        2, 45000,          'Término medio'),
+    (5,  'Ceviche de Pescado',     2, 33000,          'Picante suave'),
     -- Comanda 6 (visita 4)
-    (6,  'Hamburguesa Al Toro',    2, 25000),
-    (6,  'Coca-Cola',              2,  6000),
+    (6,  'Hamburguesa Al Toro',    2, 25000,          'Sin tomate'),
+    (6,  'Coca-Cola',              2,  6000,          NULL),
     -- Comanda 7 (visita 5 - cocina, aniversario)
-    (7,  'Filet Mignon',           1, 42000),
-    (7,  'Salmón a la Marinera',   1, 57000),
+    (7,  'Filet Mignon',           1, 42000,          'Jugoso'),
+    (7,  'Salmón a la Marinera',   1, 57000,          NULL),
     -- Comanda 8 (visita 5 - barra, aniversario)
-    (8,  'Gato Negro Tinto',       1, 65000),
-    (8,  'Lambrusco Reggiano',     1, 65000),
+    (8,  'Gato Negro Tinto',       1, 65000,          'Servir a temperatura ambiente'),
+    (8,  'Lambrusco Reggiano',     1, 65000,          NULL),
     -- Comanda 9 (visita 6)
-    (9,  'La Taurina',             1, 46000),
-    (9,  'Rodeo Tropical',         1, 35000),
+    (9,  'La Taurina',             1, 46000,          'Extra picante'),
+    (9,  'Rodeo Tropical',         1, 35000,          NULL),
     -- Comanda 10 (visita 7 - walk-in)
-    (10, 'Hamburguesa Tropitoro',  2, 29000),
-    (10, 'Botella de Agua',        2,  4000),
+    (10, 'Hamburguesa Tropitoro',  2, 29000,          'Sin cebolla'),
+    (10, 'Botella de Agua',        2,  4000,          NULL),
     -- Comanda 11 (visita 8 - walk-in)
-    (11, 'Meros Nachos',           1, 32000),
-    (11, 'Tomahawk',               1, 90000),
+    (11, 'Meros Nachos',           1, 32000,          'Extra queso'),
+    (11, 'Tomahawk',               1, 90000,          'Término medio'),
     -- Comanda 12 (visita 9)
-    (12, 'Fettuccine con Salmón',  2, 38000),
-    (12, 'Salmón a la Plancha',    1, 49000),
+    (12, 'Fettuccine con Salmón',  2, 38000,          'Salsa aparte'),
+    (12, 'Salmón a la Plancha',    1, 49000,          'Bien cocido'),
     -- Comanda 13 (visita 10 - cocina activa)
-    (13, 'Picanha',                1, 42000),
-    (13, 'Costillas BBQ',          1, 28000),
+    (13, 'Picanha',                1, 42000,          'Término medio'),
+    (13, 'Costillas BBQ',          1, 28000,          'Extra salsa BBQ'),
     -- Comanda 14 (visita 10 - barra lista)
-    (14, 'Mojito Clásico',         2, 22000),
-    (14, 'Moscow Mule',            1, 24000),
+    (14, 'Mojito Clásico',         2, 22000,          'Poco azúcar'),
+    (14, 'Moscow Mule',            1, 24000,          NULL),
     -- Comanda 15 (visita 11 - cocina pendiente)
-    (15, 'Picada Gran Toro',       1, 70000),
-    (15, 'La Taurina',             2, 46000),
+    (15, 'Picada Gran Toro',       1, 70000,          NULL),
+    (15, 'La Taurina',             2, 46000,          'Término tres cuartos'),
     -- Comanda 16 (visita 11 - barra en preparación)
-    (16, 'Negroni',                2, 27000),
-    (16, 'Piña Colada',            2, 22000),
+    (16, 'Negroni',                2, 27000,          NULL),
+    (16, 'Piña Colada',            2, 22000,          'Sin alcohol (virgen)'),
     -- Comanda 17 (visita 12 - barra pendiente)
-    (17, 'Gnomo',                  2, 20000)
-) AS v(comanda_id, nombre, cantidad, precio)
+    (17, 'Gnomo',                  2, 20000,          NULL)
+) AS v(comanda_id, nombre, cantidad, precio, descripcion)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
 -- =====================================================

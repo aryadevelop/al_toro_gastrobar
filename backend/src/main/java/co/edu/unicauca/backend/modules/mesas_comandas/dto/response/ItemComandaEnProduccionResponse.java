@@ -25,6 +25,6 @@ public class ItemComandaEnProduccionResponse {
     /** Cantidad total */
     private final Integer cantidad;
 
-    /** Estado de la comanda: "PENDIENTE", "EN_PREPARACION", "LISTO", "COMPLETADO" */
+    /** Estado agrupado: "PENDIENTE" o "CONFIRMADO" */
     private final String estadoComanda;
 }

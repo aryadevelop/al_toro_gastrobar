@@ -36,7 +36,7 @@ public class MesaMapper {
     public NotificacionActivaResponse toNotificacionActivaResponse(Notificacion notificacion) {
         return NotificacionActivaResponse.builder()
                 .notificacionId(notificacion.getNotificacionId())
-                .tipo(notificacion.getNotificacionTipo().name())  // Enum → String
+                .tipo(notificacion.getNotificacionTipo().name())
                 .fechaHora(notificacion.getNotificacionFechaHora())
                 .build();
     }
@@ -56,22 +56,24 @@ public class MesaMapper {
                                                 String emailMeseroActual) {
         String emailMesero = mesa.getMesero().getUsuario().getUsuarioEmail();
 
-        // RN-04: Solo enviar nombre si la mesa NO es propia
+        // Solo enviar nombre si la mesa NO es propia
         String nombreMesero = emailMesero.equals(emailMeseroActual)
                 ? null
                 : mesa.getMesero().getEmpleadoNombre();
 
+        // Ordenar notificaciones de más tarde a más temprano
         List<NotificacionActivaResponse> notificacionesDto = notificaciones.stream()
+                .sorted(Comparator.comparing(Notificacion::getNotificacionFechaHora).reversed())
                 .map(this::toNotificacionActivaResponse)
                 .collect(Collectors.toList());
 
         return MesaMapaResponse.builder()
+                .mesaId(mesa.getVisitaId())
                 .visitaId(mesa.getVisitaId())
                 .identificador(mesa.getMesaIdentificador())
                 .numeroPersonas(mesa.getMesaNumeroPersonas())
-                .estado(mesa.getMesaEstado().name())  // Enum → String
+                .estado(mesa.getMesaEstado().name())
                 .nombreMesero(nombreMesero)
-                .emailMesero(emailMesero)
                 .esMesaPropia(emailMesero.equals(emailMeseroActual))
                 .tieneBorrador(tieneBorrador)
                 .notificacionesActivas(notificacionesDto)
@@ -84,7 +86,13 @@ public class MesaMapper {
      * <p><b>IMPORTANTE:</b> NO agrupar items en estado PENDIENTE.
      * Solo agrupar items en estados: EN_PREPARACION, LISTO, COMPLETADO.
      *
-     * <p>Criterio de agrupación: (nombreProducto + descripcion + estadoComanda)
+     * <p>Criterio de agrupación: (nombreProducto + descripcion)
+     *
+     * <p>Estados:
+     * <ul>
+     *   <li>PENDIENTE → "PENDIENTE"</li>
+     *   <li>EN_PREPARACION, LISTO, COMPLETADO → "CONFIRMADO"</li>
+     * </ul>
      *
      * @param items lista de items en producción
      * @return lista de items agrupados y ordenados por categoría
@@ -100,18 +108,17 @@ public class MesaMapper {
         List<ComandaItem> itemsAgrupables = itemsPorAgrupabilidad.get(true);     // EN_PREPARACION, LISTO, COMPLETADO
         List<ComandaItem> itemsNoAgrupables = itemsPorAgrupabilidad.get(false);  // PENDIENTE
 
-        // Agrupar solo los items agrupables
+        // Agrupar solo los items agrupables (por nombre + descripcion, sin estado)
         Map<String, List<ComandaItem>> agrupados = itemsAgrupables.stream()
                 .collect(Collectors.groupingBy(item -> {
                     String nombre = item.getProducto().getProductoNombre();
                     String desc = item.getComandaItemDescripcion() != null
                             ? item.getComandaItemDescripcion()
                             : "";
-                    String estado = item.getComanda().getComandaEstado().name();
-                    return nombre + "|" + desc + "|" + estado;
+                    return nombre + "|" + desc;
                 }));
 
-        // Mapear grupos a DTOs
+        // Mapear grupos a DTOs (items confirmados = EN_PREPARACION, LISTO, COMPLETADO)
         List<ItemComandaEnProduccionResponse> itemsAgrupadosDto = agrupados.values().stream()
                 .map(grupo -> {
                     ComandaItem primero = grupo.get(0);
@@ -124,38 +131,49 @@ public class MesaMapper {
                             .descripcion(primero.getComandaItemDescripcion())
                             .cantidad(cantidadTotal)
                             .categoriaProducto(primero.getProducto().getProductoCategoria().name())
-                            .estadoComanda(primero.getComanda().getComandaEstado().name())
+                            .estadoComanda("CONFIRMADO")
                             .build();
                 })
                 .collect(Collectors.toList());
 
-        // Mapear items no agrupables individualmente
+        // Mapear items no agrupables individualmente (PENDIENTE)
         List<ItemComandaEnProduccionResponse> itemsNoAgrupadosDto = itemsNoAgrupables.stream()
                 .map(item -> ItemComandaEnProduccionResponse.builder()
                         .nombreProducto(item.getProducto().getProductoNombre())
                         .descripcion(item.getComandaItemDescripcion())
                         .cantidad(item.getComandaItemCantidad())
                         .categoriaProducto(item.getProducto().getProductoCategoria().name())
-                        .estadoComanda(item.getComanda().getComandaEstado().name())
+                        .estadoComanda("PENDIENTE")
                         .build())
                 .collect(Collectors.toList());
 
-        // Combinar ambas listas
+        // Combinar ambas listas y ordenar por categoría
         List<ItemComandaEnProduccionResponse> todosLosItems = new ArrayList<>();
         todosLosItems.addAll(itemsAgrupadosDto);
         todosLosItems.addAll(itemsNoAgrupadosDto);
 
-        return todosLosItems;
+        // Ordenar resultado final por categoría: PLATO → BEBIDA → OTRO
+        return todosLosItems.stream()
+                .sorted(Comparator.comparing(ItemComandaEnProduccionResponse::getCategoriaProducto,
+                        (cat1, cat2) -> {
+                            // Mapeo manual: PLATO=0, BEBIDA=1, OTRO=2
+                            int orden1 = cat1.equals("PLATO") ? 0 : cat1.equals("BEBIDA") ? 1 : 2;
+                            int orden2 = cat2.equals("PLATO") ? 0 : cat2.equals("BEBIDA") ? 1 : 2;
+                            return Integer.compare(orden1, orden2);
+                        }))
+                .collect(Collectors.toList());
     }
 
     /**
      * Mapea una Mesa a MesaDetalleResponse para detalle completo.
      *
      * @param mesa entidad de mesa
-     * @param itemsAgrupados items de comanda agrupados según RN-06
+     * @param itemsOriginales items de comanda originales
+     * @param itemsAgrupados items de comanda agrupados
      * @return DTO de detalle de mesa
      */
     public MesaDetalleResponse toMesaDetalleResponse(Mesa mesa,
+                                                      List<ComandaItem> itemsOriginales,
                                                       List<ItemComandaEnProduccionResponse> itemsAgrupados) {
         String nombreCliente = null;
         if (mesa.getVisita().getCliente() != null) {
@@ -168,14 +186,29 @@ public class MesaMapper {
             notasReserva = mesa.getVisita().getReserva().getReservaNotas();
         }
 
+        // Extraer notas de comandas únicas y concatenarlas
+        String notasComandas = itemsOriginales.stream()
+                .map(item -> item.getComanda().getComandaNotas())
+                .filter(nota -> nota != null && !nota.trim().isEmpty())
+                .distinct()
+                .collect(Collectors.joining(" | "));
+
+        // Si no hay notas, retornar null en lugar de string vacío
+        if (notasComandas.isEmpty()) {
+            notasComandas = null;
+        }
+
         return MesaDetalleResponse.builder()
+                .mesaId(mesa.getVisitaId())
                 .visitaId(mesa.getVisitaId())
                 .identificador(mesa.getMesaIdentificador())
                 .nombreCliente(nombreCliente)
                 .horaLlegada(mesa.getVisita().getVisitaFechaHoraInicio())
                 .numeroPersonas(mesa.getMesaNumeroPersonas())
-                .estado(mesa.getMesaEstado().name())  // Enum → String
+                .estado(mesa.getMesaEstado().name())
                 .notasReserva(notasReserva)
+                .notasMesa(mesa.getMesaNotas())
+                .notasComandas(notasComandas)
                 .itemsComanda(itemsAgrupados)
                 .build();
     }
@@ -184,7 +217,7 @@ public class MesaMapper {
      * Mapea identificador y items a MesaItemsProduccionResponse.
      *
      * @param identificadorMesa identificador de la mesa
-     * @param itemsAgrupados items de comanda agrupados según RN-06
+     * @param itemsAgrupados items de comanda agrupados según
      * @return DTO de items en producción
      */
     public MesaItemsProduccionResponse toMesaItemsProduccionResponse(

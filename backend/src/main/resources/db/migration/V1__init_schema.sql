@@ -224,6 +224,7 @@ CREATE TABLE Mesa (
     mesa_identificador VARCHAR(20) NOT NULL,
     mesa_numero_personas INTEGER NOT NULL,
     mesa_estado VARCHAR(20) NOT NULL,
+    mesa_notas TEXT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_mesa_visita FOREIGN KEY (visita_id)

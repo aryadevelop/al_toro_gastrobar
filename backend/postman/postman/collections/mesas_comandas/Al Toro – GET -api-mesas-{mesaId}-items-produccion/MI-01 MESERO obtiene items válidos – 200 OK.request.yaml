@@ -5,7 +5,7 @@ description: |-
   **Objetivo:** Verificar que MESERO obtiene lista de items con identificadorMesa e itemsEnProduccion[].
   **Pre-condición:** `meseroToken` disponible. Mesa con visitaId=1 tiene items en producción.
   **Resultado esperado:** 200 OK con MesaItemsProduccionResponse.
-url: "{{baseUrl}}/api/mesas/{{tmpVisitaId}}/items-produccion"
+url: "{{baseUrl}}/api/mesas/11/items-produccion"
 method: GET
 headers:
   Authorization: Bearer {{meseroToken}}
@@ -13,7 +13,7 @@ scripts:
   - type: beforeRequest
     code: |-
       // Configurar visitaId temporal
-      pm.environment.set('tmpVisitaId', '1');
+      pm.environment.set('tmpVisitaId', '10');
 
       // Login autónomo del MESERO usando variables de entorno
       pm.sendRequest({

@@ -1,0 +1,77 @@
+$kind: collection
+name: Al Toro – GET /api/mesas/{mesaId}/detalle
+description: |-
+  # GET /api/mesas/{mesaId}/detalle
+
+  Retorna el detalle completo de una mesa específica.
+
+  **Criterios de Aceptación cubiertos:**
+  - CA-01: Detalle de mesa con información completa
+  - CA-02: Manejo de mesas sin visita activa
+
+  **Control de acceso:**
+  - MESERO/ADMIN: acceso permitido
+  - CAJERO/CLIENTE: 403 Forbidden
+  - Sin token: 401 Unauthorized
+
+  **Campos de MesaDetalleResponse:**
+  - mesaId, mesaIdentificador, numeroPersonas, estado, nombreMesero
+  - visitaId (nullable), mesaCerrada
+  - totalCuenta, cliente (nombre, email, telefono), tiempoTranscurrido
+  - notificacionesActivas[]
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección.
+  - **Mesa con visita activa:** Visita 10 (carlos.perez@gmail.com, mesa M-02, mesero Diego Muñoz).
+  - **Mesa sin visita:** Se puede usar cualquier ID >100 (no existe).
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MD-01 | MESERO obtiene detalle de mesa activa — 200 OK | 200 |
+  | MD-02 | MESERO con mesaId inexistente — 404 Not Found | 404 |
+  | MD-03 | ADMIN obtiene detalle de mesa — 200 OK | 200 |
+  | MD-04 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | MD-05 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | MD-06 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+  | MD-07 | Segunda llamada retorna datos consistentes (idempotencia) | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: MESERO, ADMIN, CAJERO, CLIENTE
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('MD pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

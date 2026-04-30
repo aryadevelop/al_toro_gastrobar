@@ -55,8 +55,9 @@ class MesaMapperTest {
         MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, notificaciones, false, "mesero1@altoro.com");
 
         // Assert
+        assertThat(response.getMesaId()).isEqualTo(1L);
+        assertThat(response.getVisitaId()).isEqualTo(1L);
         assertThat(response.getNombreMesero()).isNull();  // RN-04: mesa propia
-        assertThat(response.getEmailMesero()).isEqualTo("mesero1@altoro.com");
         assertThat(response.getEsMesaPropia()).isTrue();
         assertThat(response.getTieneBorrador()).isFalse();
     }
@@ -127,12 +128,32 @@ class MesaMapperTest {
         );
 
         // Act
-        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, items);
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), items);
 
         // Assert
         assertThat(response.getNombreCliente()).isEqualTo("María López");
         assertThat(response.getNotasReserva()).isEqualTo("Sin cebolla");
+        assertThat(response.getNotasMesa()).isEqualTo("Cliente frecuente, atención preferencial");
         assertThat(response.getItemsComanda()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("toMesaDetalleResponse mapea mesaNotas null correctamente")
+    void toMesaDetalleResponse_MesaNotasNull() {
+        // Arrange
+        Mesa mesa = crearMesa("T-05", "mesero1@altoro.com", "Juan Pérez");
+        mesa.setVisita(new Visita());
+        mesa.getVisita().setVisitaId(1L);
+        mesa.getVisita().setVisitaFechaHoraInicio(LocalDateTime.now());
+        mesa.setMesaNotas(null);  // Explicitly null
+
+        // Act
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of());
+
+        // Assert
+        assertThat(response.getNotasMesa()).isNull();
+        assertThat(response.getNombreCliente()).isNull();  // No cliente
+        assertThat(response.getNotasReserva()).isNull();  // No reserva
     }
 
     @Test
@@ -206,6 +227,7 @@ class MesaMapperTest {
         mesa.setMesaEstado(EstadoMesa.ATENDIDA);
         mesa.setMesero(empleado);
         mesa.setVisita(visita);
+        mesa.setMesaNotas("Cliente frecuente, atención preferencial");
 
         return mesa;
     }

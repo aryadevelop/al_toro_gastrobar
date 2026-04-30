@@ -5,7 +5,7 @@ description: |-
   **Objetivo:** Verificar que ADMIN puede obtener items igual que MESERO.
   **Pre-condición:** `adminToken` disponible.
   **Resultado esperado:** 200 OK con items en producción.
-url: "{{baseUrl}}/api/mesas/1/items-produccion"
+url: "{{baseUrl}}/api/mesas/10/items-produccion"
 method: GET
 headers:
   Authorization: Bearer {{adminToken}}

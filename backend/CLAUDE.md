@@ -282,6 +282,21 @@ Base URL: `http://localhost:8080/api`
 | `V4__mr_test_seed.sql` | Seed for MR (modificar reserva) integration tests |
 | `V5__cr_test_seed.sql` | Seed for CR (cancelar reserva) integration tests |
 
+**CRITICAL MIGRATION RULE:**
+
+⚠️ **NEVER create new migrations beyond V5.** This is a development-only project with no production deployments. Schema changes MUST be implemented by modifying the existing base migrations:
+
+- **Schema changes (new tables, columns, constraints):** Modify `V1__init_schema.sql`
+- **Base seed data (users, products, categories):** Modify `V2__seed_data.sql`
+- **Dev/test data:** Modify `V3__dev_data.sql`
+
+**Rationale:** Keeping only 3-5 base migrations simplifies development workflow and Docker rebuilds. Since there's no production database to migrate incrementally, we can freely modify existing migrations.
+
+**When modifying migrations:**
+1. Update the relevant V1/V2/V3 file
+2. Delete Docker volumes: `docker compose down -v`
+3. Rebuild: `docker compose up --build`
+
 Reset to seed: `./mvnw flyway:clean flyway:migrate` (dev only)
 
 **Key indexes:** `idx_reserva_activas_hoy` (composite partial), `idx_visita_activas` (WHERE fin IS NULL), `idx_sesion_activa`, `idx_producto_activos`, `idx_comanda_pendientes`

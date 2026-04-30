@@ -75,18 +75,23 @@ public class MesaController {
     /**
      * Obtiene información de items en producción de una mesa.
      *
+     * <p><b>IMPORTANTE:</b> Solo el mesero asignado a la mesa puede acceder.
+     * El rol ADMIN tiene acceso sin restricciones.
+     *
      * @param mesaId ID de la mesa (visita_id)
+     * @param authentication autenticación del usuario
      * @return MesaItemsProduccionResponse con identificador y items en producción
      */
     @GetMapping("/{mesaId}/items-produccion")
     @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
     @Operation(summary = "Obtener items en producción",
-               description = "Devuelve el resumen de items en producción de una mesa")
+               description = "Devuelve el resumen de items en producción de una mesa. Solo el mesero asignado o ADMIN pueden acceder.")
     public ResponseEntity<ApiResponse<MesaItemsProduccionResponse>> obtenerItemsProduccion(
             @Parameter(description = "ID de la mesa (visita_id)")
-            @PathVariable Long mesaId) {
+            @PathVariable Long mesaId,
+            Authentication authentication) {
 
-        MesaItemsProduccionResponse info = mesaService.obtenerItemsProduccion(mesaId);
+        MesaItemsProduccionResponse info = mesaService.obtenerItemsProduccion(mesaId, authentication);
 
         return ResponseEntity.ok(ApiResponse.ok(
                 "Items en producción obtenidos exitosamente", info));

@@ -92,6 +92,15 @@ public class Mesa extends AuditableEntity {
     @Column(name = "mesa_estado", nullable = false, length = 20)
     private EstadoMesa mesaEstado;
 
+    /**
+     * Notas generales de la visita a nivel de mesa.
+     * <p>Ejemplos: preferencias del cliente, observaciones de atención.
+     * <p>Complementa las notas a nivel de comanda ({@code comanda_notas}) y las
+     * descripciones a nivel de ítem ({@code comanda_item_descripcion}).
+     */
+    @Column(name = "mesa_notas", columnDefinition = "TEXT")
+    private String mesaNotas;
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;

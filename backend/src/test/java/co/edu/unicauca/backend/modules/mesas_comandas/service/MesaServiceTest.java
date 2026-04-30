@@ -21,10 +21,15 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -77,6 +82,19 @@ class MesaServiceTest {
         empleado.setEmpleadoNombre(nombre);
 
         return empleado;
+    }
+
+    @SuppressWarnings("unchecked")
+    private Authentication crearAuthentication(String email, String... roles) {
+        List<GrantedAuthority> authorities = List.of(roles).stream()
+                .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
+                .collect(Collectors.toList());
+
+        Authentication auth = mock(Authentication.class);
+        when(auth.getName()).thenReturn(email);
+        when(auth.getAuthorities()).thenReturn((Collection) authorities);
+        
+        return auth;
     }
 
     @Nested
@@ -237,7 +255,7 @@ class MesaServiceTest {
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(items);
             when(mesaMapper.agruparItemsEnProduccion(items)).thenReturn(itemsDto);
-            when(mesaMapper.toMesaDetalleResponse(mesa, itemsDto)).thenReturn(expectedResponse);
+            when(mesaMapper.toMesaDetalleResponse(mesa, items, itemsDto)).thenReturn(expectedResponse);
 
             // Act
             MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L);
@@ -248,7 +266,7 @@ class MesaServiceTest {
             verify(mesaRepository).findById(1L);
             verify(comandaRepository).findItemsEnProduccionByVisita(1L);
             verify(mesaMapper).agruparItemsEnProduccion(items);
-            verify(mesaMapper).toMesaDetalleResponse(mesa, itemsDto);
+            verify(mesaMapper).toMesaDetalleResponse(mesa, items, itemsDto);
         }
 
         @Test
@@ -267,7 +285,7 @@ class MesaServiceTest {
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(itemsVacios);
             when(mesaMapper.agruparItemsEnProduccion(itemsVacios)).thenReturn(itemsDtoVacios);
-            when(mesaMapper.toMesaDetalleResponse(mesa, itemsDtoVacios)).thenReturn(expectedResponse);
+            when(mesaMapper.toMesaDetalleResponse(mesa, itemsVacios, itemsDtoVacios)).thenReturn(expectedResponse);
 
             // Act
             MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L);
@@ -315,13 +333,15 @@ class MesaServiceTest {
 
             MesaItemsProduccionResponse expectedResponse = MesaItemsProduccionResponse.builder().build();
 
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(items);
             when(mesaMapper.agruparItemsEnProduccion(items)).thenReturn(itemsDto);
             when(mesaMapper.toMesaItemsProduccionResponse("T1", itemsDto)).thenReturn(expectedResponse);
 
             // Act
-            MesaItemsProduccionResponse resultado = mesaService.obtenerItemsProduccion(1L);
+            MesaItemsProduccionResponse resultado = mesaService.obtenerItemsProduccion(1L, auth);
 
             // Assert
             assertThat(resultado).isEqualTo(expectedResponse);
@@ -345,27 +365,31 @@ class MesaServiceTest {
 
             MesaItemsProduccionResponse expectedResponse = MesaItemsProduccionResponse.builder().build();
 
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(itemsVacios);
             when(mesaMapper.agruparItemsEnProduccion(itemsVacios)).thenReturn(itemsDtoVacios);
             when(mesaMapper.toMesaItemsProduccionResponse("T1", itemsDtoVacios)).thenReturn(expectedResponse);
 
             // Act
-            MesaItemsProduccionResponse resultado = mesaService.obtenerItemsProduccion(1L);
+            MesaItemsProduccionResponse resultado = mesaService.obtenerItemsProduccion(1L, auth);
 
             // Assert
             assertThat(resultado).isEqualTo(expectedResponse);
             verify(mesaMapper).agruparItemsEnProduccion(itemsVacios);
         }
 
-        @Test
+@Test
         @DisplayName("con visitaId inexistente lanza BusinessException")
         void conVisitaIdInexistente_lanzaBusinessException() {
             // Arrange
+            // Authentication no es necesario porque la excepción se lanza antes de usarlo
             when(mesaRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> mesaService.obtenerItemsProduccion(999L))
+            // Pasamos null ya que authentication no se usa cuando la mesa no existe
+            assertThatThrownBy(() -> mesaService.obtenerItemsProduccion(999L, null))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", ErrorCode.ENTITY_NOT_FOUND.getCode())
                     .hasMessageContaining("Mesa no encontrada");

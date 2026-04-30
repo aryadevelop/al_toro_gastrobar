@@ -116,3 +116,9 @@ values:
     value: ''
   - key: accessToken
     value: ''
+  - key: tmpNotificacionParaAtender
+    value: ''
+  - key: tmpClienteToken
+    value: ''
+  - key: mesero2Token
+    value: ''
