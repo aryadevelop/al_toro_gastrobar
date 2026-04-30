@@ -1,6 +1,6 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.mapper;
 
-import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaItemResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemComandaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
@@ -153,7 +153,7 @@ class VisitaMapperTest {
 
         // Assert
         assertThat(response.getItemsComanda()).hasSize(1);
-        ComandaItemResponse itemAgrupado = response.getItemsComanda().get(0);
+        ItemComandaResponse itemAgrupado = response.getItemsComanda().get(0);
         assertThat(itemAgrupado.getNombreProducto()).isEqualTo("Bandeja Paisa");
         assertThat(itemAgrupado.getDescripcion()).isEqualTo("Sin cebolla");
         assertThat(itemAgrupado.getCantidad()).isEqualTo(5);  // 2 + 3

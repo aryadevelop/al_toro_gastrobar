@@ -1,18 +1,11 @@
 package co.edu.unicauca.backend.modules.inventario.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
-import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
-
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.time.LocalDateTime;
-
 import static org.assertj.core.api.Assertions.assertThat;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 @DisplayName("ProductoOpcionModificacion Entity Tests")
 class ProductoOpcionModificacionTest {

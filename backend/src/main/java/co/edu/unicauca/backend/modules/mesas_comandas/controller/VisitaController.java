@@ -24,9 +24,6 @@ import java.util.List;
 /**
  * Controlador REST para la consulta del historial y detalle de visitas del cliente.
  *
- * <p>Expone los endpoints bajo {@code /api/visitas} y delega toda la lógica
- * de negocio en {@link VisitaService}.
- *
  * @see VisitaService
  */
 @RestController

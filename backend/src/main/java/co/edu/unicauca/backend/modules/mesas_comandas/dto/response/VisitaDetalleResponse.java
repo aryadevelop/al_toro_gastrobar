@@ -67,7 +67,7 @@ public class VisitaDetalleResponse {
      * Productos de la comanda final (suma de todas las comandas de la visita);
      * {@code null} si la visita no generó comandas.
      */
-    private final List<ComandaItemResponse> itemsComanda;
+    private final List<ItemComandaResponse> itemsComanda;
 
     /**
      * Historial de abonos y devoluciones registrados para esta reserva;

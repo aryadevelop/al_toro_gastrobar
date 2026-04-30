@@ -17,9 +17,6 @@ import java.util.List;
 /**
  * Controlador REST para la consulta del catálogo de productos del restaurante.
  *
- * <p>Expone los endpoints bajo {@code /api/productos} y delega toda la lógica
- * de negocio en {@link ProductoService}.
- *
  * <p>Comportamiento general:
  * <ul>
  *   <li><b>Carta:</b> retorna los productos activos (platos y bebidas) agrupados

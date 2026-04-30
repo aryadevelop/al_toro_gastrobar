@@ -22,15 +22,6 @@ import java.time.LocalDate;
 /**
  * Controlador REST para consultas de reservas del módulo de meseros.
  *
- * <p>Provee endpoints de solo lectura para:
- * <ul>
- *   <li>Listar las reservas activas del día con resumen por zona.</li>
- *   <li>Buscar una reserva específica por su identificador.</li>
- *   <li>Obtener el detalle completo de una reserva.</li>
- * </ul>
- *
- * <p>Todos los endpoints requieren autenticación y rol.
- *
  * @see ReservaConsultaService
  */
 @RestController
@@ -57,9 +48,7 @@ public class ReservaConsultaController {
      *   <li>{@code resumenZonas}: cantidad de reservas agrupadas por zona.</li>
      * </ul>
      *
-     * <p>Solo personal autorizado ({@code MESERO} o {@code ADMIN}) puede acceder.
-     *
-     * @param fecha         fecha a consultar en formato ISO (YYYY-MM-DD); opcional
+     * @param fecha fecha a consultar en formato ISO (YYYY-MM-DD); opcional
      * @param identificador ID de la reserva a buscar; opcional
      * @return {@link ResponseEntity} con {@link ApiResponse} conteniendo {@link ListadoReservasResponse}
      */
@@ -78,8 +67,6 @@ public class ReservaConsultaController {
 
     /**
      * Obtiene el detalle completo de una reserva.
-     *
-     * <p>Solo personal autorizado ({@code MESERO} o {@code ADMIN}) puede acceder.
      *
      * @param reservaId identificador de la reserva
      * @return {@link ResponseEntity} con {@link ApiResponse} conteniendo {@link ReservaDetalleResponse}

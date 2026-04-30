@@ -1,0 +1,64 @@
+$kind: http-request
+name: MC-02 MESERO filtra por zona específica – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-02 — Mesero puede filtrar mapa por zona.
+  **Objetivo:** Verificar que MESERO obtiene solo la zona solicitada cuando especifica zonaId=1.
+  **Pre-condición:** `meseroToken` disponible. Zona ID 1 existe en seed data.
+  **Resultado esperado:** 200 OK con array de 1 zona, zonaId=1.
+url: "{{baseUrl}}/api/mesas?zonaId=1"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene exactamente 1 zona', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.zonas).to.be.an('array');
+        pm.expect(body.data.zonas.length).to.equal(1);
+      });
+
+      pm.test('La zona retornada es la zona ID 1', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.zonas[0].zonaId).to.equal(1);
+      });
+
+      pm.test('La zona contiene solo sus mesas', function () {
+        const body = pm.response.json();
+        const zona = body.data.zonas[0];
+        pm.expect(zona).to.have.property('mesas');
+        pm.expect(zona.mesas).to.be.an('array');
+        // Todas las mesas deben estar en la zona filtrada
+        if (zona.mesas.length > 0) {
+          pm.expect(zona.cantidadMesasActivas).to.equal(zona.mesas.length);
+        }
+      });
+    language: text/javascript
+order: 1010

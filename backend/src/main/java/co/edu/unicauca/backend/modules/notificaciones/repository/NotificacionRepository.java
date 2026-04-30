@@ -4,7 +4,10 @@ import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Query;
+import org.springframework.data.repository.query.Param;
 
+import java.util.List;
 import java.util.Optional;
 
 /**
@@ -23,4 +26,18 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
      */
     Optional<Notificacion> findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
             Long visitaId, TipoNotificacion tipo, EstadoNotificacion estado);
+
+    /**
+     * Obtiene todas las notificaciones activas de una mesa.
+     *
+     * @param mesaId ID de la mesa (visita_id)
+     * @return lista de notificaciones activas ordenadas por fecha DESC
+     */
+    @Query("""
+        SELECT n FROM Notificacion n
+        WHERE n.mesa.visitaId = :mesaId
+        AND n.notificacionEstado = 'ACTIVA'
+        ORDER BY n.notificacionFechaHora DESC
+        """)
+    List<Notificacion> findNotificacionesActivasByMesa(@Param("mesaId") Long mesaId);
 }

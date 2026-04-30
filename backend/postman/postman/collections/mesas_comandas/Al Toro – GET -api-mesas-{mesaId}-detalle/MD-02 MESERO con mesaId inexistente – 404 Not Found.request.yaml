@@ -1,0 +1,46 @@
+$kind: http-request
+name: MD-02 MESERO con mesaId inexistente – 404 Not Found
+description: |-
+  **Objetivo:** Verificar manejo correcto cuando se solicita una mesa que no existe.
+  **Pre-condición:** `meseroToken` disponible. Mesa ID 999 no existe.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/mesas/999/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 404 cuando la mesa no existe', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('El código de error es ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 2000

@@ -1,0 +1,82 @@
+$kind: http-request
+name: MD-01 MESERO obtiene detalle mesa válida – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Mesero accede al detalle completo de una mesa.
+  **Objetivo:** Verificar que MESERO obtiene detalle con visitaId, identificador, cliente, items, mesaNotas, etc.
+  **Pre-condición:** `meseroToken` disponible. Visita 10 está activa y tiene mesaNotas.
+  **Resultado esperado:** 200 OK con estructura completa de MesaDetalleResponse incluyendo mesaNotas.
+url: "{{baseUrl}}/api/mesas/{{tmpVisitaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar visitaId temporal con fallback a visita activa seed conocida
+      const visitaId = pm.environment.get('visitaIdConReserva') || '10';
+      pm.environment.set('tmpVisitaId', visitaId);
+
+      // Login autónomo del MESERO usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene detalle completo de mesa', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data).to.have.property('identificador');
+        pm.expect(body.data).to.have.property('horaLlegada');
+        pm.expect(body.data).to.have.property('numeroPersonas');
+        pm.expect(body.data).to.have.property('estado');
+        pm.expect(body.data).to.have.property('itemsComanda');
+        pm.expect(body.data.itemsComanda).to.be.an('array');
+      });
+
+      pm.test('El identificador es un string válido', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.identificador).to.be.a('string');
+        pm.expect(body.data.identificador.length).to.be.greaterThan(0);
+      });
+
+      pm.test('El estado es un enum válido', function () {
+        const body = pm.response.json();
+        const estadosValidos = ['ESPERA', 'EN_PREPARACION', 'ATENDIDA', 'CERRADA'];
+        pm.expect(estadosValidos).to.include(body.data.estado);
+      });
+
+      pm.test('Incluye campo notasMesa (nullable)', function () {
+        const body = pm.response.json();
+        // notasMesa puede ser string o null
+        pm.expect(body.data).to.have.property('notasMesa');
+        if (body.data.notasMesa !== null) {
+          pm.expect(body.data.notasMesa).to.be.a('string');
+        }
+      });
+
+      // Cleanup
+      pm.environment.unset('tmpVisitaId');
+    language: text/javascript
+order: 2000

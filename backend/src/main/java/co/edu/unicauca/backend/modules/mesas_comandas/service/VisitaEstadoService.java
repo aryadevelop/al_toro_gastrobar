@@ -6,13 +6,11 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
-import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
-import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
@@ -24,7 +22,6 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
 
 /**
  * Servicio de negocio para la consulta del estado de la visita activa del cliente.
@@ -42,7 +39,6 @@ public class VisitaEstadoService {
     private final VisitaRepository visitaRepository;
     private final MesaRepository mesaRepository;
     private final ComandaRepository comandaRepository;
-    private final ComandaItemRepository comandaItemRepository;
     private final NotificacionRepository notificacionRepository;
     private final VisitaEstadoMapper visitaEstadoMapper;
 

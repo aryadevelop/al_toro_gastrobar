@@ -1,0 +1,48 @@
+$kind: http-request
+name: MI-02 ADMIN obtiene items – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-08 — ADMIN tiene acceso a items en producción.
+  **Objetivo:** Verificar que ADMIN puede obtener items igual que MESERO.
+  **Pre-condición:** `adminToken` disponible.
+  **Resultado esperado:** 200 OK con items en producción.
+url: "{{baseUrl}}/api/mesas/10/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del ADMIN usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('MI-02: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('ADMIN obtiene el mismo formato que MESERO', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('identificadorMesa');
+        pm.expect(body.data).to.have.property('itemsEnProduccion');
+      });
+    language: text/javascript
+order: 3010

@@ -1,0 +1,59 @@
+$kind: http-request
+name: MC-03 ADMIN obtiene mapa – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-08 — ADMIN tiene acceso al mapa de mesas.
+  **Objetivo:** Verificar que ADMIN puede obtener el mapa completo igual que MESERO.
+  **Pre-condición:** `adminToken` disponible.
+  **Resultado esperado:** 200 OK con zonas y mesas.
+url: "{{baseUrl}}/api/mesas"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del ADMIN usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('MC-03: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene zonas', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('zonas');
+        pm.expect(body.data.zonas).to.be.an('array');
+      });
+
+      pm.test('ADMIN obtiene el mismo formato que MESERO', function () {
+        const body = pm.response.json();
+        if (body.data.zonas.length > 0) {
+          const zona = body.data.zonas[0];
+          pm.expect(zona).to.have.property('zonaId');
+          pm.expect(zona).to.have.property('zonaNombre');
+          pm.expect(zona).to.have.property('mesas');
+        }
+      });
+    language: text/javascript
+order: 1020
