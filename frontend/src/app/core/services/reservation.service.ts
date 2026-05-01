@@ -9,6 +9,7 @@ import {
   BackendDisponibilidadResponse,
   BackendModificarReservaResponse,
   BackendReservaDetalle,
+  BackendListadoReservasResponse,
 } from '../models/api.models';
 import { Pago, Reserva } from '../models/domain.models';
 import { AuthService } from './auth.service';
@@ -66,6 +67,57 @@ export class ReservationService {
 
   listFuture(): Observable<Reserva[]> {
     return this.listByEndpoint(API_PATHS.reservas.futuras);
+  }
+
+  /**
+   * Lista reservas para el rol Mesero usando el endpoint de consulta.
+   * Devuelve tanto las reservas (mapeadas a `Reserva`) como el resumen por zona.
+   */
+  listForMesero(fecha?: string, identificador?: string): Observable<{
+    reservas: Reserva[];
+    resumenZonas: Array<{ zonaId?: string; zonaNombre: string; cantidadReservas: number }>;
+  }> {
+    let params = new HttpParams();
+    if (fecha) {
+      params = params.set('fecha', fecha);
+    }
+    if (identificador) {
+      params = params.set('identificador', identificador);
+    }
+
+    return this.http
+      .get<ApiEnvelope<BackendListadoReservasResponse>>(API_PATHS.reservas.meseroConsulta, { params })
+      .pipe(
+        map((response) => {
+          const data = response.data;
+
+          const reservas = (data.reservas ?? []).map((item) => ({
+            id: String(item.reservaId),
+            clienteId: '',
+            guestName: item.clienteNombre ?? 'Cliente',
+            phone: item.clienteTelefono,
+            guests: item.numeroPersonas ?? 0,
+            date: '',
+            time: (item.horaLlegada ?? '00:00').slice(0, 5),
+            status: this.toReservationStatus(item.estado ?? ''),
+            type: undefined,
+            decorationId: undefined,
+            decorationName: item.decoracionNombre,
+            zoneId: item.zonaId ? String(item.zonaId) : undefined,
+            zoneName: item.zonaNombre,
+            notes: undefined,
+            preorderItems: [],
+          } as Reserva));
+
+          const resumenZonas = (data.resumenZonas ?? []).map((z) => ({
+            zonaId: z.zonaId ? String(z.zonaId) : undefined,
+            zonaNombre: z.zonaNombre,
+            cantidadReservas: z.cantidadReservas,
+          }));
+
+          return { reservas, resumenZonas };
+        })
+      );
   }
 
   listCancelledOrReturned(): Observable<Reserva[]> {
@@ -231,6 +283,7 @@ export class ReservationService {
       id: String(input.reservaId),
       clienteId: String(input.clienteId ?? ''),
       guestName: input.clienteNombre ?? 'Cliente',
+      phone: input.clienteTelefono,
       guests: input.numeroPersonas,
       date: datePart,
       time: timePart,
