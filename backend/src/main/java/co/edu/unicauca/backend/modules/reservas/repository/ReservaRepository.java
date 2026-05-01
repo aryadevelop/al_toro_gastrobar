@@ -8,6 +8,7 @@ import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio de acceso a datos para la entidad {@link Reserva}.
@@ -211,4 +212,24 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
     List<Reserva> findReservasActivasPorIdentificador(
             @Param("reservaId") Long reservaId,
             @Param("estados") List<EstadoReserva> estados);
+
+    /**
+     * Obtiene datos de una reserva confirmada para asignación de mesa.
+     *
+     * @param reservaId ID de la reserva
+     * @param estado estado esperado (CONFIRMADA)
+     * @return Reserva con cliente, zona, decoración cargados; empty si no existe
+     */
+    @Query("""
+        SELECT r FROM Reserva r
+        LEFT JOIN FETCH r.cliente c
+        LEFT JOIN FETCH c.usuario u
+        LEFT JOIN FETCH r.zona z
+        LEFT JOIN FETCH r.decoracion d
+        WHERE r.reservaId = :reservaId
+        AND r.reservaEstado = :estado
+        """)
+    Optional<Reserva> findByIdAndEstadoForAsignacion(
+            @Param("reservaId") Long reservaId,
+            @Param("estado") EstadoReserva estado);
 }

@@ -5,6 +5,7 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -77,4 +78,37 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
         AND c.comandaEstado = 'BORRADOR'
         """)
     boolean existeComandaBorradorEnMesa(@Param("visitaId") Long visitaId);
+
+    /**
+     * Verifica si existe una mesa activa con el identificador dado en el día especificado.
+     *
+     * @param mesaIdentificador identificador de mesa a buscar
+     * @param inicioDelDia inicio del día (00:00:00)
+     * @param finDelDia fin del día (23:59:59)
+     * @return true si existe mesa activa con ese identificador en el rango
+     */
+    @Query("""
+        SELECT CASE WHEN COUNT(m) > 0 THEN true ELSE false END
+        FROM Mesa m
+        WHERE m.mesaIdentificador = :mesaIdentificador
+        AND m.visita.visitaFechaHoraInicio BETWEEN :inicioDelDia AND :finDelDia
+        AND m.visita.visitaFechaHoraFin IS NULL
+        """)
+    boolean existeMesaActivaConIdentificadorEnDia(
+            @Param("mesaIdentificador") String mesaIdentificador,
+            @Param("inicioDelDia") LocalDateTime inicioDelDia,
+            @Param("finDelDia") LocalDateTime finDelDia);
+
+    /**
+     * Calcula el total de personas en visitas activas agrupadas por zona.
+     *
+     * @return lista de pares [zonaId, totalPersonas]
+     */
+    @Query("""
+        SELECT m.zona.zonaId, COALESCE(SUM(m.mesaNumeroPersonas), 0)
+        FROM Mesa m
+        WHERE m.visita.visitaFechaHoraFin IS NULL
+        GROUP BY m.zona.zonaId
+        """)
+    List<Object[]> sumPersonasPorZonaActiva();
 }
