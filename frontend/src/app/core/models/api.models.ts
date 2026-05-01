@@ -59,10 +59,32 @@ export interface BackendReservaDetalle {
   notas?: string;
   clienteId?: number;
   clienteNombre?: string;
+  clienteTelefono?: string;
   preOrdenItems?: BackendPreOrdenItem[];
   preOrdenTotal?: number;
   abonos?: BackendAbonoItem[];
   totalAbonado?: number;
+}
+
+export interface BackendReservaConsultaItem {
+  reservaId: number;
+  clienteNombre?: string;
+  zonaId?: number;
+  zonaNombre?: string;
+  decoracionNombre?: string;
+  horaLlegada?: string; // HH:mm
+  numeroPersonas?: number;
+  clienteTelefono?: string;
+  estado?: string;
+}
+
+export interface BackendListadoReservasResponse {
+  reservas: BackendReservaConsultaItem[];
+  resumenZonas: Array<{
+    zonaId?: number;
+    zonaNombre: string;
+    cantidadReservas: number;
+  }>;
 }
 
 export interface BackendCrearReservaRequest {

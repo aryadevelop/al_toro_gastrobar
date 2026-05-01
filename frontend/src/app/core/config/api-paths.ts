@@ -21,6 +21,7 @@ export const API_PATHS = {
         futuras: `${API}/reservas/cliente/futuras`,
         canceladasDevueltas: `${API}/reservas/cliente/canceladas-devueltas`,
         detalle: (reservaId: string | number) => `${API}/reservas/${reservaId}/detalle`,
+        meseroConsulta: `${API}/reservas/mesero/consulta`,
     },
     visitas: {
         historial: `${API}/visitas/cliente/historial`,
