@@ -1,0 +1,134 @@
+$kind: http-request
+name: AM-01 MESERO asigna mesa walk-in – 201 Created
+description: |-
+  **Criterio:** CA-01 — MESERO asigna mesa walk-in sin reserva.
+  **Objetivo:** Verificar que un mesero puede asignar un identificador a una mesa para clientes walk-in.
+  **Pre-condición:** `meseroToken` disponible. Zona ID 1 existe y está activa.
+  **Resultado esperado:** 201 Created con visitaId, mesaIdentificador, estadoMesa="ESPERA", reservaId=null.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "mesaIdentificador": "TEST-W1",
+      "zonaId": 1,
+      "numeroPersonas": 2,
+      "mesaNotas": "Walk-in test"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Autonomous login using environment variables
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('AM-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test('La respuesta contiene success=true', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+
+      pm.test('La respuesta contiene visitaId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data.visitaId).to.be.a('number');
+      });
+
+      pm.test('El estadoMesa es ESPERA', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.estadoMesa).to.equal('ESPERA');
+      });
+
+      pm.test('El mesaIdentificador coincide con el enviado', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.mesaIdentificador).to.equal('TEST-W1');
+      });
+
+      pm.test('El reservaId es null para walk-in', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.reservaId).to.be.null;
+      });
+
+      pm.test('La respuesta contiene zonaId y zonaNombre', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.zonaId).to.equal(1);
+        pm.expect(body.data).to.have.property('zonaNombre');
+      });
+
+      pm.test('El numeroPersonas coincide con el enviado', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.numeroPersonas).to.equal(2);
+      });
+
+      pm.test('La respuesta contiene emailMesero', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('emailMesero');
+      });
+
+      // Cleanup: cerrar la visita creada
+      const visitaId = pm.response.json().data.visitaId;
+      if (visitaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/ventas',
+              method: 'POST',
+              header: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + res.json().accessToken
+              },
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  visitaId: visitaId,
+                  emailCajero: pm.environment.get('emailCajero')
+                })
+              }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 201) {
+                console.warn('AM-01: cleanup de visita falló', err2, res2 && res2.code);
+              }
+            });
+          }
+        });
+      }
+    language: text/javascript
+order: 1000

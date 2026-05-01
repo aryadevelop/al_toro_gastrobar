@@ -1,0 +1,144 @@
+$kind: http-request
+name: AM-04 Asignar mesa registra todos los campos – 201 Created
+description: |-
+  **Criterio:** CA-04 — Asignar mesa registra todos los campos incluyendo opcionales.
+  **Objetivo:** Verificar que la respuesta contiene todos los campos esperados.
+  **Pre-condición:** `meseroToken` disponible.
+  **Resultado esperado:** 201 Created con todos los campos: visitaId, mesaIdentificador, zonaId, zonaNombre, numeroPersonas, estadoMesa, emailMesero, reservaId.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "mesaIdentificador": "TEST-FULL",
+      "zonaId": 1,
+      "numeroPersonas": 4,
+      "mesaNotas": "Notas de prueba completas"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Autonomous login using environment variables
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('AM-04: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test('La respuesta contiene success=true', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+
+      pm.test('La respuesta contiene visitaId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data.visitaId).to.be.a('number');
+      });
+
+      pm.test('La respuesta contiene mesaIdentificador', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('mesaIdentificador');
+        pm.expect(body.data.mesaIdentificador).to.equal('TEST-FULL');
+      });
+
+      pm.test('La respuesta contiene zonaId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('zonaId');
+        pm.expect(body.data.zonaId).to.be.a('number');
+      });
+
+      pm.test('La respuesta contiene zonaNombre', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('zonaNombre');
+        pm.expect(body.data.zonaNombre).to.be.a('string');
+      });
+
+      pm.test('La respuesta contiene numeroPersonas', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('numeroPersonas');
+        pm.expect(body.data.numeroPersonas).to.equal(4);
+      });
+
+      pm.test('La respuesta contiene estadoMesa', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('estadoMesa');
+        pm.expect(body.data.estadoMesa).to.equal('ESPERA');
+      });
+
+      pm.test('La respuesta contiene emailMesero', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('emailMesero');
+        pm.expect(body.data.emailMesero).to.be.a('string');
+      });
+
+      pm.test('La respuesta contiene reservaId (null para walk-in)', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('reservaId');
+      });
+
+      // Cleanup: cerrar la visita creada
+      const visitaId = pm.response.json().data.visitaId;
+      if (visitaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/ventas',
+              method: 'POST',
+              header: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + res.json().accessToken
+              },
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  visitaId: visitaId,
+                  emailCajero: pm.environment.get('emailCajero')
+                })
+              }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 201) {
+                console.warn('AM-04: cleanup de visita falló', err2, res2 && res2.code);
+              }
+            });
+          }
+        });
+      }
+    language: text/javascript
+order: 4000

@@ -9,7 +9,7 @@ import java.util.List;
 
 /**
  * Mensaje WebSocket publicado en {@code /topic/visita/{visitaId}/orden} cuando
- * el mesero agrega o modifica ítems de comanda.
+ * el mesero crea, agrega o modifica ítems de comanda.
  *
  */
 @Getter

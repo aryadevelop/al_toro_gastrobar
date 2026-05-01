@@ -12,6 +12,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
@@ -27,6 +28,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
@@ -175,24 +177,32 @@ public class MesaAsignarService {
      *
      * <p><b>Eventos publicados:</b>
      * <ul>
-     *   <li>/topic/mesas (actualización mapa para todos los meseros)</li>
+     *   <li><b>SIEMPRE:</b> /topic/mesas (actualización mapa para todos los meseros)</li>
+     *   <li><b>SI hay cliente:</b> /topic/visita/{visitaId}/orden (estado visita para cliente, con items vacíos)</li>
      *   <li><b>SI es reserva:</b> /topic/reservas/cambios (broadcast a meseros para actualizar lista de reservas activas)</li>
      * </ul>
-     *
-     * <p><b>Nota:</b> No se publica estado de visita al cliente porque al momento de asignar
-     * la mesa no hay items de comanda aún. La notificación de estado visita se envía cuando
-     * se añaden items, no al crear la mesa.
      *
      * @param visita visita creada
      * @param reserva reserva asociada (null si es walk-in)
      */
     private void publicarEventosWebSocket(Visita visita, Reserva reserva) {
-        // 1. SIEMPRE: Publicar actualización mapa de mesas (todos los meseros)
+        // 1. SIEMPRE: Publicar actualización mapa de mesas
         mesaWsPublisher.publicarActualizacionMesa(
                 visita.getVisitaId(),
                 MesaWsPublisher.TipoEventoMesa.CREAR);
 
-        // 2. SOLO SI ES RESERVA: Publicar cambios en reservas del cliente
+        // 2. SOLO SI HAY CLIENTE: Publicar estado visita
+        if (visita.getCliente() != null) {
+            notificacionWsPublisher.publicarVisitaActualizada(
+                    visita.getVisitaId(),
+                    VisitaActualizadaWsMessage.builder()
+                            .visitaId(visita.getVisitaId())
+                            .items(List.of())  // Lista vacía - aún no hay items de comanda
+                            .total(BigDecimal.ZERO)  // Total 0 - aún no hay consumo
+                            .build());
+        }
+
+        // 3. SOLO SI ES RESERVA: Publicar cambios en reservas del cliente
         if (reserva != null) {
             String horaLlegada = reserva.getReservaFechaHoraLlegada()
                     .format(DateTimeFormatter.ofPattern("HH:mm"));

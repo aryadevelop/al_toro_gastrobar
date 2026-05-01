@@ -1,18 +1,26 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.controller;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AsignarMesaRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MapaMesasResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MesaAsignadaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MesaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MesaItemsProduccionResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ZonaDisponibleMesaResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Controller REST para gestión del mapa de mesas.
@@ -25,6 +33,7 @@ import org.springframework.web.bind.annotation.*;
 public class MesaController {
 
     private final MesaService mesaService;
+    private final MesaAsignarService mesaAsignarService;
 
     /**
      * Obtiene el mapa de mesas del restaurante.
@@ -95,5 +104,48 @@ public class MesaController {
 
         return ResponseEntity.ok(ApiResponse.ok(
                 "Items en producción obtenidos exitosamente", info));
+    }
+
+    /**
+     * Asigna identificador a una nueva mesa.
+     *
+     * <p>Crea una visita y mesa nueva, ya sea walk-in (sin reserva)
+     * o al marcar la llegada de una reserva confirmada.
+     *
+     * @param request datos de asignación (identificador, zona, personas, reservaId opcional)
+     * @param authentication autenticación del mesero
+     * @return MesaAsignadaResponse con datos de la mesa creada
+     */
+    @PostMapping
+    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @Operation(summary = "Asignar identificador a mesa",
+               description = "Crea una nueva visita y mesa. Soporta walk-in y reservas confirmadas.")
+    public ResponseEntity<ApiResponse<MesaAsignadaResponse>> asignarMesa(
+            @Valid @RequestBody AsignarMesaRequest request,
+            Authentication authentication) {
+
+        String emailMesero = authentication.getName();
+        MesaAsignadaResponse response = mesaAsignarService.asignarMesa(request, emailMesero);
+
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.ok("Mesa creada correctamente", response));
+    }
+
+    /**
+     * Lista zonas disponibles para asignación de mesa.
+     *
+     * <p>Retorna zonas con disponibilidad > 0 (capacidad - ocupación actual).
+     *
+     * @return lista de zonas disponibles
+     */
+    @GetMapping("/zonas-disponibles")
+    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @Operation(summary = "Listar zonas disponibles",
+               description = "Retorna zonas con disponibilidad calculada en tiempo real")
+    public ResponseEntity<ApiResponse<List<ZonaDisponibleMesaResponse>>> listarZonasDisponibles() {
+
+        List<ZonaDisponibleMesaResponse> zonas = mesaAsignarService.listarZonasDisponibles();
+
+        return ResponseEntity.ok(ApiResponse.ok("Zonas disponibles obtenidas exitosamente", zonas));
     }
 }

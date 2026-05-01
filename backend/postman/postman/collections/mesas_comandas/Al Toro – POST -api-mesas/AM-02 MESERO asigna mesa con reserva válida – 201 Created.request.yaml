@@ -1,0 +1,168 @@
+$kind: http-request
+name: AM-02 MESERO asigna mesa con reserva válida – 201 Created
+description: |-
+  **Criterio:** CA-02 — MESERO asigna mesa vinculando reserva CONFIRMADA.
+  **Objetivo:** Verificar que un mesero puede asignar mesa asociando una reserva válida.
+  **Pre-condición:** `meseroToken` disponible. Se creará una reserva en beforeRequest.
+  **Resultado esperado:** 201 Created con visitaId, reservaId coincide con la creada.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  mode: raw
+  raw: |-
+    {
+      "mesaIdentificador": "TEST-R1",
+      "zonaId": 1,
+      "numeroPersonas": 4,
+      "reservaId": {{tmpReservaId}}
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Crear reserva futura para vincular
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setDate(d.getDate() + 1);  // Mañana
+      d.setHours(19, 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+
+      // 1. Login cliente para crear reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const clienteToken = res.json().accessToken;
+
+          // 2. Crear reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas',
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + clienteToken
+            },
+            body: {
+              mode: 'raw',
+              raw: JSON.stringify({
+                emailCliente: pm.environment.get('emailCliente'),
+                fechaHoraLlegada: fechaHora,
+                numeroPersonas: 4,
+                zonaId: null,
+                decoracionId: null,
+                notas: null,
+                preOrden: null
+              })
+            }
+          }, (err2, res2) => {
+            if (!err2 && res2 && res2.code === 201) {
+              const reservaId = res2.json().data.reservaId;
+              pm.environment.set('tmpReservaId', reservaId);
+
+              // 3. Login mesero para ejecutar la prueba
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/auth/login',
+                method: 'POST',
+                header: { 'Content-Type': 'application/json' },
+                body: {
+                  mode: 'raw',
+                  raw: JSON.stringify({
+                    email: pm.environment.get('emailMesero'),
+                    password: pm.environment.get('passwordValida'),
+                    forceSessionOverride: true
+                  })
+                }
+              }, (err3, res3) => {
+                if (!err3 && res3 && res3.code === 200) {
+                  pm.environment.set('meseroToken', res3.json().accessToken);
+                } else {
+                  console.warn('AM-02: login MESERO falló', err3, res3 && res3.code);
+                }
+              });
+            } else {
+              console.warn('AM-02: crear reserva falló', err2, res2 && res2.code);
+            }
+          });
+        } else {
+          console.warn('AM-02: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test('La respuesta contiene success=true', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+
+      pm.test('La respuesta contiene visitaId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data.visitaId).to.be.a('number');
+      });
+
+      pm.test('El reservaId coincide con el enviado', function () {
+        const body = pm.response.json();
+        const expectedId = parseInt(pm.environment.get('tmpReservaId'));
+        pm.expect(body.data.reservaId).to.equal(expectedId);
+      });
+
+      pm.test('El estadoMesa es ESPERA', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.estadoMesa).to.equal('ESPERA');
+      });
+
+      pm.test('El mesaIdentificador coincide con el enviado', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.mesaIdentificador).to.equal('TEST-R1');
+      });
+
+      // Cleanup: cancelar reserva (que cancelará también la visita asociada)
+      const reservaId = pm.environment.get('tmpReservaId');
+      if (reservaId && reservaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('emailCliente'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + res.json().accessToken }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 200) {
+                console.warn('AM-02: cleanup cancelar reserva falló', err2, res2 && res2.code);
+              }
+            });
+          }
+        });
+      }
+
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 2000

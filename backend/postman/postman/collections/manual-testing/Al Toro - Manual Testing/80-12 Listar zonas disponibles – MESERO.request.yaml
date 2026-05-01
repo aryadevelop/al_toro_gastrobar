@@ -1,0 +1,32 @@
+$kind: http-request
+name: 80-12 Listar zonas disponibles – MESERO
+description: Obtener listado de zonas con capacidad disponible
+url: "{{baseUrl}}/api/mesas/zonas-disponibles"
+method: GET
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 8012
