@@ -9,6 +9,7 @@ import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaReposit
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -20,6 +21,7 @@ import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -352,6 +354,213 @@ class ReservaValidadorTest {
             Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
 
             assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, "CLIENTE@ALTORO.COM"))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // validarElegibilidadInasistencia
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("validarElegibilidadInasistencia")
+    class ValidarElegibilidadInasistencia {
+
+        @Test
+        @DisplayName("CONFIRMADA con +30 minutos → no lanza excepción")
+        void confirmadaMas30Min_noLanza() {
+            // Given: Reserva CONFIRMADA hace 40 minutos
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("CONFIRMADA con exactamente 30 minutos → no lanza excepción")
+        void confirmadaExactamente30Min_noLanza() {
+            // Given: Reserva CONFIRMADA hace exactamente 30 minutos
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(30);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("CONFIRMADA con menos de 30 minutos → BusinessException INVALID_STATE")
+        void confirmadaMenosDe30Min_lanzaInvalidState() {
+            // Given: Reserva CONFIRMADA hace solo 15 minutos
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(15);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("Debe esperar");
+                        assertThat(bex.getMessage()).contains("minuto(s) más");
+                    });
+        }
+
+        @Test
+        @DisplayName("PENDIENTE con +30 minutos → BusinessException INVALID_STATE")
+        void pendienteMas30Min_lanzaInvalidState() {
+            // Given: Reserva PENDIENTE hace 40 minutos
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.PENDIENTE);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("confirmadas");
+                    });
+        }
+
+        @Test
+        @DisplayName("ATENDIDA → BusinessException INVALID_STATE")
+        void atendida_lanzaInvalidState() {
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.ATENDIDA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("CANCELADA → BusinessException INVALID_STATE")
+        void cancelada_lanzaInvalidState() {
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CANCELADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("INASISTENCIA → BusinessException INVALID_STATE")
+        void inasistencia_lanzaInvalidState() {
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.INASISTENCIA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("Mensaje incluye minutos restantes cuando falta tiempo")
+        void mensajeIncluyeMinutosRestantes() {
+            // Given: Reserva CONFIRMADA hace 10 minutos (faltan 20)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(10);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: Mensaje debe incluir minutos restantes (~19-20)
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        String mensaje = ex.getMessage();
+                        assertThat(mensaje).matches("Debe esperar \\d+ minuto\\(s\\) más antes de marcar inasistencia");
+                    });
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva del día actual → no lanza excepción")
+        void meseroReservaHoy_noLanza() {
+            // Given: Reserva CONFIRMADA hace 40 minutos del día actual
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO puede marcar inasistencia de reserva del día actual
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva de día pasado → BusinessException INVALID_STATE")
+        void meseroReservaPasada_lanzaInvalidState() {
+            // Given: Reserva CONFIRMADA de ayer (hace 1 día + 40 minutos)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(1).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO no puede marcar inasistencia de reserva pasada
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("día actual");
+                    });
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva de día futuro → BusinessException INVALID_STATE")
+        void meseroReservaFutura_lanzaInvalidState() {
+            // Given: Reserva CONFIRMADA de mañana (dentro de 1 día)
+            LocalDateTime horaLlegada = LocalDateTime.now().plusDays(1);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO no puede marcar inasistencia de reserva futura
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("día actual");
+                    });
+        }
+
+        @Test
+        @DisplayName("ADMIN con reserva de día pasado → no lanza excepción")
+        void adminReservaPasada_noLanza() {
+            // Given: Reserva CONFIRMADA de ayer (hace 1 día + 40 minutos)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(1).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: ADMIN puede marcar inasistencia de cualquier fecha
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("ADMIN con reserva de día futuro → no lanza excepción")
+        void adminReservaFutura_noLanza() {
+            // Given: Reserva CONFIRMADA de hace 2 días (simulando que pasó hace 2 días + 40 min)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(2).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: ADMIN puede marcar inasistencia de cualquier fecha
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .doesNotThrowAnyException();
         }
     }

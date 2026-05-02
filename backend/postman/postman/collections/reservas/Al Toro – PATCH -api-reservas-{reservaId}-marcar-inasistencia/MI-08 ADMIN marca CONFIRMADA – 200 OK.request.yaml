@@ -1,0 +1,45 @@
+$kind: http-request
+name: MI-08 ADMIN marca CONFIRMADA – 200 OK
+url: "{{baseUrl}}/api/reservas/21/marcar-inasistencia"
+method: PATCH
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Usar reserva ID 18 del seed: CONFIRMADA, hace 2 horas (cumple 30 min)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailAdmin'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('MI-08: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Marcar inasistencia exitoso → 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Reserva marcada como INASISTENCIA', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.true;
+        pm.expect(body.data.estado).to.equal('INASISTENCIA');
+      });
+
+      pm.test('Mensaje confirma liberación de recursos', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('inasistencia');
+      });
+    language: text/javascript
+order: 8000

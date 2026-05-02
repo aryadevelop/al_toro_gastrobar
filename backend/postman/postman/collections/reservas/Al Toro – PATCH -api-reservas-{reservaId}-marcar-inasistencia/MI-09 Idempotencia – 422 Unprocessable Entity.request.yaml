@@ -1,0 +1,41 @@
+$kind: http-request
+name: MI-09 Idempotencia – 422 Unprocessable Entity
+url: "{{baseUrl}}/api/reservas/21/marcar-inasistencia"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Usar misma reserva que MI-08 (ID 18), que ya fue marcada como INASISTENCIA
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MI-09: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva ya marcada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+
+      pm.test('Código NEG-002 y mensaje indica estado', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+        pm.expect(body.message).to.include('confirmadas');
+      });
+    language: text/javascript
+order: 9000

@@ -8,27 +8,22 @@ description: |-
 url: "{{baseUrl}}/api/reservas/mesero/consulta?fecha=2099-12-31"
 method: GET
 headers:
-  - key: Authorization
-    value: Bearer {{meseroToken}}
+  Authorization: Bearer {{meseroToken}}
 scripts:
   - type: afterResponse
-    code: >-
+    code: |-
       pm.test('El sistema retorna HTTP 404', function () {
         pm.response.to.have.status(404);
       });
 
-
       const body = pm.response.json();
-
       pm.test('El campo success es false', function () {
         pm.expect(body.success).to.be.false;
       });
 
-
       pm.test('El mensaje es el esperado', function () {
-        pm.expect(body.message).to.equal('No hay reservas programadas para esta fecha');
+        pm.expect(body.message).to.equal('No hay reservas activas o pendientes para la fecha o identificador especificado');
       });
-
 
       pm.test('El código de error es ENT-001', function () {
         pm.expect(body.code).to.equal('ENT-001');

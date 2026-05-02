@@ -14,6 +14,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResp
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -33,6 +34,8 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -462,6 +465,71 @@ public class ReservaService {
                 : null;
 
         return reservaMapper.toCancelarResponse(guardada, requiereWhatsApp, mensajeWhatsApp);
+    }
+
+    // -----------------------------------------------------------------------
+    // Marcar inasistencia
+    // -----------------------------------------------------------------------
+
+    /**
+     * Marca una reserva confirmada como inasistencia tras el periodo de tolerancia de 30 minutos.
+     *
+     * <p>Este cambio es irreversible. Los recursos (zona y decoración) quedan liberados
+     * automáticamente al cambiar el estado, ya que solo se cuentan reservas {@code PENDIENTE}
+     * o {@code CONFIRMADA} en los cálculos de disponibilidad.
+     *
+     * <p><strong>Restricción de fecha para MESERO:</strong> Un mesero solo puede marcar
+     * inasistencia de reservas del día actual. Los administradores pueden marcar
+     * inasistencia de cualquier fecha (pasada, presente o futura).
+     *
+     * @param reservaId      identificador de la reserva a marcar como inasistencia
+     * @param authentication contexto de autenticación con roles del usuario
+     * @return {@link MarcarInasistenciaResponse} con confirmación y recursos liberados
+     * @throws ResourceNotFoundException si la reserva no existe
+     * @throws BusinessException         si la reserva no es {@code CONFIRMADA}, no han
+     *                                   transcurrido 30 minutos, o (para MESERO) la reserva
+     *                                   no es del día actual (código {@code INVALID_STATE}, status 422)
+     */
+    @Transactional
+    public MarcarInasistenciaResponse marcarInasistencia(Long reservaId, Authentication authentication) {
+
+        // 1. Buscar reserva
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        // 2. Determinar si el usuario es MESERO (vs ADMIN)
+        boolean esMesero = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role -> role.equals("ROLE_MESERO"));
+
+        // 3. Validar elegibilidad (estado CONFIRMADA + 30 minutos transcurridos + fecha si es MESERO)
+        reservaValidador.validarElegibilidadInasistencia(reserva, esMesero);
+
+        // 3. Capturar recursos antes de cambiar estado (para incluir en respuesta)
+        String zonaLiberada = reserva.getZona() != null
+                ? reserva.getZona().getZonaNombre()
+                : null;
+        String decoracionLiberada = reserva.getDecoracion() != null
+                ? reserva.getDecoracion().getDecoracionNombre()
+                : null;
+
+        // 4. Cambiar estado a INASISTENCIA
+        reserva.setReservaEstado(EstadoReserva.INASISTENCIA);
+        Reserva guardada = reservaRepository.save(reserva);
+
+        // 5. Eliminar pre-orden asociada (libera productos conceptuales del inventario)
+        preOrdenGestor.eliminarPreOrdenExistente(reservaId);
+
+        // 6. Publicar evento WebSocket para actualizar listado de meseros
+        publicarCambioReserva(guardada, "INASISTENCIA");
+
+        // 7. Construir respuesta de confirmación
+        return MarcarInasistenciaResponse.builder()
+                .reservaId(reservaId)
+                .estado(EstadoReserva.INASISTENCIA.name())
+                .zonaLiberada(zonaLiberada)
+                .decoracionLiberada(decoracionLiberada)
+                .build();
     }
 
     // -----------------------------------------------------------------------
