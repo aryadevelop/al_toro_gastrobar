@@ -183,8 +183,7 @@ public class ReservaController {
             @PathVariable Long reservaId,
             Authentication authentication) {
 
-        String emailMesero = authentication.getName();
-        MarcarInasistenciaResponse response = reservaService.marcarInasistencia(reservaId, emailMesero);
+        MarcarInasistenciaResponse response = reservaService.marcarInasistencia(reservaId, authentication);
         return ResponseEntity.ok(ApiResponse.ok("Reserva cancelada por inasistencia",response));
     }
 

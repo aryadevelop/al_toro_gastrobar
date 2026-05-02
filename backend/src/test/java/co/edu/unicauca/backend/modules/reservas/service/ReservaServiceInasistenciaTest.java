@@ -16,6 +16,7 @@ import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -24,23 +25,32 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.lenient;
 
 /**
- * Tests unitarios para {@link ReservaService#marcarInasistencia(Long, String)}.
+ * Tests unitarios para {@link ReservaService#marcarInasistencia(Long, Authentication)}.
  *
  * <p>Cubre los criterios de aceptación HE-03-HU-02-CA-03 y CA-04:
  * <ul>
  *   <li>Solo CONFIRMADA puede marcarse como inasistencia.</li>
  *   <li>Deben haber transcurrido 30 minutos desde hora de llegada.</li>
+ *   <li>MESERO solo puede marcar inasistencia de reservas del día actual.</li>
+ *   <li>ADMIN puede marcar inasistencia de cualquier fecha.</li>
  *   <li>Libera zona y decoración.</li>
  *   <li>Elimina pre-orden.</li>
  *   <li>Publica evento WebSocket.</li>
@@ -56,11 +66,21 @@ class ReservaServiceInasistenciaTest {
     @Mock private PreOrdenGestor preOrdenGestor;
     @Mock private NotificacionWsPublisher wsPublisher;
     @Mock private ReservaMapper reservaMapper;
+    @Mock private Authentication authentication;
 
     @InjectMocks private ReservaService reservaService;
 
     private static final Long RESERVA_ID = 100L;
     private static final String EMAIL_MESERO = "mesero@altoro.com";
+
+    @BeforeEach
+    void setUp() {
+        // Mock default: Authentication como MESERO (lenient para evitar UnnecessaryStubbingException)
+        lenient().when(authentication.getName()).thenReturn(EMAIL_MESERO);
+        lenient().when(authentication.getAuthorities()).thenReturn(
+                (Collection) List.of(new SimpleGrantedAuthority("ROLE_MESERO"))
+        );
+    }
 
     // -----------------------------------------------------------------------
     // Helpers
@@ -116,11 +136,11 @@ class ReservaServiceInasistenciaTest {
             Reserva reserva = crearReservaConfirmada(horaLlegada);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then: Estado cambia a INASISTENCIA
             ArgumentCaptor<Reserva> captor = ArgumentCaptor.forClass(Reserva.class);
@@ -147,11 +167,11 @@ class ReservaServiceInasistenciaTest {
             Reserva reserva = crearReservaConfirmada(horaLlegada);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then
             verify(reservaRepository).save(any(Reserva.class));
@@ -168,11 +188,11 @@ class ReservaServiceInasistenciaTest {
             Reserva reserva = crearReservaConfirmada(horaLlegada);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then
             assertThat(response.getZonaLiberada()).isEqualTo("Terraza");
@@ -189,11 +209,11 @@ class ReservaServiceInasistenciaTest {
             reserva.setDecoracion(null);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            MarcarInasistenciaResponse response = reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then
             assertThat(response.getZonaLiberada()).isNull();
@@ -216,7 +236,7 @@ class ReservaServiceInasistenciaTest {
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.empty());
 
             // When/Then
-            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO))
+            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, authentication))
                     .isInstanceOf(ResourceNotFoundException.class)
                     .hasMessageContaining("Reserva")
                     .hasMessageContaining(RESERVA_ID.toString());
@@ -238,10 +258,10 @@ class ReservaServiceInasistenciaTest {
                     ErrorCode.INVALID_STATE,
                     "Solo reservas confirmadas pueden marcarse como inasistencia",
                     org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY
-            )).when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            )).when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
 
             // When/Then
-            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO))
+            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, authentication))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("confirmadas");
 
@@ -260,10 +280,10 @@ class ReservaServiceInasistenciaTest {
                     ErrorCode.INVALID_STATE,
                     "Debe esperar 15 minuto(s) más antes de marcar inasistencia",
                     org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY
-            )).when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            )).when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
 
             // When/Then
-            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO))
+            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, authentication))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Debe esperar");
 
@@ -283,10 +303,10 @@ class ReservaServiceInasistenciaTest {
                     ErrorCode.INVALID_STATE,
                     "Solo reservas confirmadas pueden marcarse como inasistencia",
                     org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY
-            )).when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            )).when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
 
             // When/Then
-            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO))
+            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, authentication))
                     .isInstanceOf(BusinessException.class);
 
             verify(reservaRepository, never()).save(any());
@@ -305,10 +325,10 @@ class ReservaServiceInasistenciaTest {
                     ErrorCode.INVALID_STATE,
                     "Solo reservas confirmadas pueden marcarse como inasistencia",
                     org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY
-            )).when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            )).when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
 
             // When/Then
-            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO))
+            assertThatThrownBy(() -> reservaService.marcarInasistencia(RESERVA_ID, authentication))
                     .isInstanceOf(BusinessException.class);
 
             verify(reservaRepository, never()).save(any());
@@ -331,11 +351,11 @@ class ReservaServiceInasistenciaTest {
             Reserva reserva = crearReservaConfirmada(horaLlegada);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then: Pre-orden eliminada ANTES de publicar WS
             verify(preOrdenGestor).eliminarPreOrdenExistente(RESERVA_ID);
@@ -349,11 +369,11 @@ class ReservaServiceInasistenciaTest {
             Reserva reserva = crearReservaConfirmada(horaLlegada);
 
             when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
-            doNothing().when(reservaValidador).validarElegibilidadInasistencia(reserva);
+            doNothing().when(reservaValidador).validarElegibilidadInasistencia(eq(reserva), anyBoolean());
             when(reservaRepository.save(any(Reserva.class))).thenReturn(reserva);
 
             // When
-            reservaService.marcarInasistencia(RESERVA_ID, EMAIL_MESERO);
+            reservaService.marcarInasistencia(RESERVA_ID, authentication);
 
             // Then: Evento WS publicado
             ArgumentCaptor<ReservaActualizadaWsMessage> captor =

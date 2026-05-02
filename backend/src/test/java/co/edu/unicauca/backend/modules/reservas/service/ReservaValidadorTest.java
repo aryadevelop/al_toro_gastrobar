@@ -375,7 +375,7 @@ class ReservaValidadorTest {
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
             // When/Then
-            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .doesNotThrowAnyException();
         }
 
@@ -388,7 +388,7 @@ class ReservaValidadorTest {
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
             // When/Then
-            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .doesNotThrowAnyException();
         }
 
@@ -401,7 +401,7 @@ class ReservaValidadorTest {
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
             // When/Then
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> {
                         BusinessException bex = (BusinessException) ex;
@@ -421,7 +421,7 @@ class ReservaValidadorTest {
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
             // When/Then
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> {
                         BusinessException bex = (BusinessException) ex;
@@ -438,7 +438,7 @@ class ReservaValidadorTest {
             Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.ATENDIDA);
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                             .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
@@ -451,7 +451,7 @@ class ReservaValidadorTest {
             Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CANCELADA);
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                             .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
@@ -464,7 +464,7 @@ class ReservaValidadorTest {
             Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.INASISTENCIA);
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                             .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
@@ -479,12 +479,89 @@ class ReservaValidadorTest {
             reserva.setReservaFechaHoraLlegada(horaLlegada);
 
             // When/Then: Mensaje debe incluir minutos restantes (~19-20)
-            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva))
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, false))
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> {
                         String mensaje = ex.getMessage();
                         assertThat(mensaje).matches("Debe esperar \\d+ minuto\\(s\\) más antes de marcar inasistencia");
                     });
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva del día actual → no lanza excepción")
+        void meseroReservaHoy_noLanza() {
+            // Given: Reserva CONFIRMADA hace 40 minutos del día actual
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO puede marcar inasistencia de reserva del día actual
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva de día pasado → BusinessException INVALID_STATE")
+        void meseroReservaPasada_lanzaInvalidState() {
+            // Given: Reserva CONFIRMADA de ayer (hace 1 día + 40 minutos)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(1).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO no puede marcar inasistencia de reserva pasada
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("día actual");
+                    });
+        }
+
+        @Test
+        @DisplayName("MESERO con reserva de día futuro → BusinessException INVALID_STATE")
+        void meseroReservaFutura_lanzaInvalidState() {
+            // Given: Reserva CONFIRMADA de mañana (dentro de 1 día)
+            LocalDateTime horaLlegada = LocalDateTime.now().plusDays(1);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: MESERO no puede marcar inasistencia de reserva futura
+            assertThatThrownBy(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY);
+                        assertThat(bex.getCode()).isEqualTo("NEG-002");
+                        assertThat(bex.getMessage()).contains("día actual");
+                    });
+        }
+
+        @Test
+        @DisplayName("ADMIN con reserva de día pasado → no lanza excepción")
+        void adminReservaPasada_noLanza() {
+            // Given: Reserva CONFIRMADA de ayer (hace 1 día + 40 minutos)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(1).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: ADMIN puede marcar inasistencia de cualquier fecha
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("ADMIN con reserva de día futuro → no lanza excepción")
+        void adminReservaFutura_noLanza() {
+            // Given: Reserva CONFIRMADA de hace 2 días (simulando que pasó hace 2 días + 40 min)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusDays(2).minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            // When/Then: ADMIN puede marcar inasistencia de cualquier fecha
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
         }
     }
 }

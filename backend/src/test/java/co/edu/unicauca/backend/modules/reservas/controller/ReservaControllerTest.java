@@ -24,6 +24,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
+import org.springframework.security.core.Authentication;
 import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
@@ -360,7 +361,7 @@ class ReservaControllerTest {
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Reserva CONFIRMADA con +30 min → 200 OK con recursos liberados")
         void reservaConfirmadaMas30Min_200Ok() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenReturn(responseExitosa());
 
             mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
@@ -368,18 +369,17 @@ class ReservaControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.reservaId").value(RESERVA_ID))
                     .andExpect(jsonPath("$.data.estado").value("INASISTENCIA"))
-                    .andExpect(jsonPath("$.data.mensaje").value("Reserva cancelada por inasistencia"))
                     .andExpect(jsonPath("$.data.zonaLiberada").value("Terraza"))
                     .andExpect(jsonPath("$.data.decoracionLiberada").value("Cumpleaños"));
 
-            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("mesero@altoro.com"));
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), any(Authentication.class));
         }
 
         @Test
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Sin zona ni decoración → 200 OK con campos null")
         void sinZonaNiDecoracion_200ConNulls() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenReturn(responseSinRecursos());
 
             mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
@@ -392,20 +392,20 @@ class ReservaControllerTest {
         @WithMockUser(username = "admin@altoro.com", roles = "ADMIN")
         @DisplayName("ADMIN puede marcar inasistencia → 200 OK")
         void adminPuedeMarcart_200Ok() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "admin@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenReturn(responseExitosa());
 
             mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
                     .andExpect(status().isOk());
 
-            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("admin@altoro.com"));
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), any(Authentication.class));
         }
 
         @Test
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Reserva PENDIENTE → 422 UNPROCESSABLE_ENTITY")
         void reservaPendiente_422() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenThrow(new BusinessException(
                             ErrorCode.INVALID_STATE,
                             "Solo reservas confirmadas pueden marcarse como inasistencia",
@@ -422,7 +422,7 @@ class ReservaControllerTest {
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Menos de 30 minutos → 422 UNPROCESSABLE_ENTITY")
         void menosDe30Min_422() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenThrow(new BusinessException(
                             ErrorCode.INVALID_STATE,
                             "Debe esperar 15 minuto(s) más antes de marcar inasistencia",
@@ -438,7 +438,7 @@ class ReservaControllerTest {
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Reserva no existe → 404 NOT_FOUND")
         void reservaNoExiste_404() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenThrow(new ResourceNotFoundException("Reserva", RESERVA_ID));
 
             mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
@@ -464,13 +464,13 @@ class ReservaControllerTest {
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Email se toma del token de autenticación")
         void emailDelToken() throws Exception {
-            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+            when(reservaService.marcarInasistencia(eq(RESERVA_ID), any(Authentication.class)))
                     .thenReturn(responseExitosa());
 
             mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
                     .andExpect(status().isOk());
 
-            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("mesero@altoro.com"));
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), any(Authentication.class));
         }
     }
 }

@@ -1,4 +1,4 @@
-$kind: collection-definition
+$kind: collection
 description: |-
   Colección de pruebas manuales sin assertions automáticas.
 

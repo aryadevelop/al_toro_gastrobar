@@ -34,6 +34,8 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -476,22 +478,32 @@ public class ReservaService {
      * automáticamente al cambiar el estado, ya que solo se cuentan reservas {@code PENDIENTE}
      * o {@code CONFIRMADA} en los cálculos de disponibilidad.
      *
-     * @param reservaId    identificador de la reserva a marcar como inasistencia
-     * @param emailMesero  email del mesero que ejecuta la acción (para auditoría)
+     * <p><strong>Restricción de fecha para MESERO:</strong> Un mesero solo puede marcar
+     * inasistencia de reservas del día actual. Los administradores pueden marcar
+     * inasistencia de cualquier fecha (pasada, presente o futura).
+     *
+     * @param reservaId      identificador de la reserva a marcar como inasistencia
+     * @param authentication contexto de autenticación con roles del usuario
      * @return {@link MarcarInasistenciaResponse} con confirmación y recursos liberados
      * @throws ResourceNotFoundException si la reserva no existe
-     * @throws BusinessException         si la reserva no es {@code CONFIRMADA} o no han
-     *                                   transcurrido 30 minutos (código {@code INVALID_STATE}, status 422)
+     * @throws BusinessException         si la reserva no es {@code CONFIRMADA}, no han
+     *                                   transcurrido 30 minutos, o (para MESERO) la reserva
+     *                                   no es del día actual (código {@code INVALID_STATE}, status 422)
      */
     @Transactional
-    public MarcarInasistenciaResponse marcarInasistencia(Long reservaId, String emailMesero) {
+    public MarcarInasistenciaResponse marcarInasistencia(Long reservaId, Authentication authentication) {
 
         // 1. Buscar reserva
         Reserva reserva = reservaRepository.findById(reservaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
 
-        // 2. Validar elegibilidad (estado CONFIRMADA + 30 minutos transcurridos)
-        reservaValidador.validarElegibilidadInasistencia(reserva);
+        // 2. Determinar si el usuario es MESERO (vs ADMIN)
+        boolean esMesero = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch(role -> role.equals("ROLE_MESERO"));
+
+        // 3. Validar elegibilidad (estado CONFIRMADA + 30 minutos transcurridos + fecha si es MESERO)
+        reservaValidador.validarElegibilidadInasistencia(reserva, esMesero);
 
         // 3. Capturar recursos antes de cambiar estado (para incluir en respuesta)
         String zonaLiberada = reserva.getZona() != null
