@@ -1,0 +1,34 @@
+$kind: collection
+name: Al Toro – POST /api/mesas
+description: |-
+  ## Descripción
+  Tests automatizados para asignar identificador a mesa. Este endpoint permite a meseros y administradores asignar un identificador visible a una mesa física, creando una nueva visita para clientes walk-in o vinculando una reserva confirmada.
+
+  ## Estructura del Cuerpo de la Solicitud
+  ```json
+  {
+    "mesaIdentificador": "string",
+    "zonaId": number,
+    "numeroPersonas": number,
+    "reservaId": number | null,
+    "mesaNotas": "string" | null
+  }
+  ```
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | AM-01 | MESERO asigna mesa walk-in | 201 |
+  | AM-02 | MESERO asigna mesa con reserva válida | 201 |
+  | AM-03 | ADMIN asigna mesa walk-in | 201 |
+  | AM-04 | Asignar mesa registra todos los campos | 201 |
+  | AM-05 | mesaIdentificador vacío | 400/422 |
+  | AM-06 | mesaIdentificador > 20 caracteres | 400/422 |
+  | AM-07 | zonaId null | 400/422 |
+  | AM-08 | numeroPersonas null | 400/422 |
+  | AM-09 | numeroPersonas < 1 | 400/422 |
+  | AM-10 | identificador duplicado | 409 |
+  | AM-11 | zona inexistente | 404 |
+  | AM-12 | reserva inexistente | 404 |
+  | AM-13 | reserva no CONFIRMADA | 404 |
+order: 1000
