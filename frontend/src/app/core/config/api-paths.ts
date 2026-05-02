@@ -38,7 +38,9 @@ export const API_PATHS = {
     },
     mesas: {
         mapa: `${API}/mesas`,
+        asignar: `${API}/mesas`,
         detalle: (mesaId: string | number) => `${API}/mesas/${mesaId}/detalle`,
         itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
+        zonasDisponibles: `${API}/mesas/zonas-disponibles`,
     },
 } as const;
