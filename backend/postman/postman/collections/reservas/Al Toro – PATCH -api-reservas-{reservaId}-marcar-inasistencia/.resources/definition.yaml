@@ -1,0 +1,46 @@
+$kind: collection
+name: Al Toro – PATCH /api/reservas/{reservaId}/marcar-inasistencia
+description: |-
+  # PATCH /api/reservas/{reservaId}/marcar-inasistencia
+
+  Marca una reserva como inasistencia tras 30 minutos de tolerancia después de la hora de llegada.
+
+  **Criterios de Aceptación cubiertos:**
+  - CA-01: Solo MESERO y ADMIN pueden marcar inasistencia
+  - CA-02: Solo reservas CONFIRMADAS pueden marcarse como inasistencia
+  - CA-03: Debe esperar 30 minutos después de la hora de llegada
+  - CA-04: Libera zona y decoración al marcar inasistencia
+  - CA-05: Cambio de estado es irreversible
+
+  **Control de acceso:**
+  - MESERO/ADMIN: acceso permitido con `@PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")`
+  - CLIENTE/CAJERO/COCINERO: 403 Forbidden
+  - Sin token: 401 Unauthorized
+
+  **Validaciones de negocio:**
+  - Reserva debe existir (404 si no existe)
+  - Estado debe ser CONFIRMADA (422 si es PENDIENTE, CANCELADA, etc.)
+  - Debe haber pasado 30 minutos desde fechaHoraLlegada (422 si es antes)
+  - Idempotencia: rechaza si ya está marcada como INASISTENCIA
+
+  **Response:**
+  - MarcarInasistenciaResponse con reservaId, estado (INASISTENCIA), mensaje confirmación
+
+  ## Independencia de datos
+
+  - **Tokens:** login autónomo en `beforeRequest` de cada test (independencia total)
+  - **Reserva CONFIRMADA pasada:** ID 10 del seed (fecha pasada + 30 min cumplidos)
+  - **Reserva PENDIENTE:** ID 11 del seed (para validar estado)
+  - **Reservas futuras:** creadas dinámicamente en MI-07 para validar tolerancia de 30 min
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MI-01 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | MI-02 | CLIENTE sin permiso — 403 Forbidden | 403 |
+  | MI-03 | CAJERO sin permiso — 403 Forbidden | 403 |
+  | MI-04 | COCINERO sin permiso — 403 Forbidden | 403 |
+  | MI-05 | Reserva no encontrada — 404 Not Found | 404 |
+  | MI-06 | Reserva PENDIENTE — 422 Unprocessable Entity | 422 |
+  | MI-07 | Antes de 30 min tolerancia — 422 Unprocessable Entity | 422 |
+  | MI-08 | ADMIN marca CONFIRMADA pasada — 200 OK | 200 |
+  | MI-09 | Idempotencia (ya marcada) — 422 Unprocessable Entity | 422 |

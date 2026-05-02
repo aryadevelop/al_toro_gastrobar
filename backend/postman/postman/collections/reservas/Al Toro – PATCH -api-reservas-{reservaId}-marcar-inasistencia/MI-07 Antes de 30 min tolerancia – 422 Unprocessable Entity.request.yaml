@@ -1,0 +1,52 @@
+$kind: http-request
+name: MI-07 Antes de 30 min tolerancia – 422 Unprocessable Entity
+description: |
+  Crear reserva CONFIRMADA para mañana e intentar marcar inasistencia inmediatamente.
+  Debe esperar 30 minutos después de la hora de llegada.
+  Resultado esperado: 422 con código NEG-002.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/marcar-inasistencia"
+method: PATCH
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Usar reserva CONFIRMADA del seed (ID 10) que está futura (+2 días)
+      // Esto causará error "Debe esperar X minutos" que es lo que validamos
+      pm.environment.set('tmpReservaId', '10');
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MI-07: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Antes de 30 min → 422', function () {
+        pm.response.to.have.status(422);
+      });
+
+      pm.test('Código NEG-002 y mensaje indica tiempo de espera', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+        pm.expect(body.message).to.match(/Debe esperar \d+ minuto/);
+      });
+
+      // Cleanup
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpFechaReserva');
+    language: text/javascript
+headers:
+  Authorization: Bearer {{meseroToken}}
+order: 7000

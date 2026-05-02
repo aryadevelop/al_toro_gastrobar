@@ -4,6 +4,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -11,6 +12,7 @@ import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import jakarta.validation.Valid;
@@ -151,6 +153,39 @@ public class ReservaController {
 
         CancelarReservaResponse response = reservaService.cancelarReserva(reservaId, emailSiCliente(authentication));
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * Marca una reserva confirmada como inasistencia tras 30 minutos de tolerancia.
+     *
+     * <p>Solo meseros y administradores pueden ejecutar esta acción. No se requiere
+     * ownership validation: cualquier mesero puede marcar inasistencia de cualquier reserva.
+     *
+     * <p>Reglas de negocio (HE-03-HU-02-CA-04):
+     * <ul>
+     *   <li>La reserva debe estar en estado {@code CONFIRMADA}.</li>
+     *   <li>Deben haber transcurrido al menos 30 minutos desde la hora de llegada programada.</li>
+     *   <li>El cambio es irreversible: estado {@code INASISTENCIA} es terminal.</li>
+     *   <li>Libera zona y decoración automáticamente (se excluye de cálculos de disponibilidad).</li>
+     * </ul>
+     *
+     * @param reservaId      identificador de la reserva a marcar como inasistencia
+     * @param authentication contexto de seguridad del request
+     * @return {@code 200 OK} con confirmación y recursos liberados
+     * @throws ResourceNotFoundException si la reserva no existe (404)
+     * @throws BusinessException         si la reserva no es CONFIRMADA o no han transcurrido
+     *                                   30 minutos (422 UNPROCESSABLE_ENTITY)
+     */
+    @PatchMapping("/{reservaId}/marcar-inasistencia")
+    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @Operation(summary = "Marcar reserva como inasistencia tras 30 minutos de tolerancia")
+    public ResponseEntity<ApiResponse<MarcarInasistenciaResponse>> marcarInasistencia(
+            @PathVariable Long reservaId,
+            Authentication authentication) {
+
+        String emailMesero = authentication.getName();
+        MarcarInasistenciaResponse response = reservaService.marcarInasistencia(reservaId, emailMesero);
+        return ResponseEntity.ok(ApiResponse.ok("Reserva cancelada por inasistencia",response));
     }
 
     /**

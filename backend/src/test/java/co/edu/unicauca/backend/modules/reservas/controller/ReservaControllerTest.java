@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
@@ -19,6 +20,7 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
@@ -37,6 +39,7 @@ import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.never;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -322,6 +325,152 @@ class ReservaControllerTest {
                     .andExpect(status().isOk());
 
             verify(reservaService).cancelarReserva(eq(RESERVA_ID), eq("cliente@test.com"));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // PATCH /api/reservas/{reservaId}/marcar-inasistencia
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("PATCH /api/reservas/{reservaId}/marcar-inasistencia")
+    class MarcarInasistencia {
+
+        private final Long RESERVA_ID = 5L;
+
+        private MarcarInasistenciaResponse responseExitosa() {
+            return MarcarInasistenciaResponse.builder()
+                    .reservaId(RESERVA_ID)
+                    .estado("INASISTENCIA")
+                    .zonaLiberada("Terraza")
+                    .decoracionLiberada("Cumpleaños")
+                    .build();
+        }
+
+        private MarcarInasistenciaResponse responseSinRecursos() {
+            return MarcarInasistenciaResponse.builder()
+                    .reservaId(RESERVA_ID)
+                    .estado("INASISTENCIA")
+                    .zonaLiberada(null)
+                    .decoracionLiberada(null)
+                    .build();
+        }
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Reserva CONFIRMADA con +30 min → 200 OK con recursos liberados")
+        void reservaConfirmadaMas30Min_200Ok() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenReturn(responseExitosa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.reservaId").value(RESERVA_ID))
+                    .andExpect(jsonPath("$.data.estado").value("INASISTENCIA"))
+                    .andExpect(jsonPath("$.data.mensaje").value("Reserva cancelada por inasistencia"))
+                    .andExpect(jsonPath("$.data.zonaLiberada").value("Terraza"))
+                    .andExpect(jsonPath("$.data.decoracionLiberada").value("Cumpleaños"));
+
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("mesero@altoro.com"));
+        }
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Sin zona ni decoración → 200 OK con campos null")
+        void sinZonaNiDecoracion_200ConNulls() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenReturn(responseSinRecursos());
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.zonaLiberada").doesNotExist())
+                    .andExpect(jsonPath("$.data.decoracionLiberada").doesNotExist());
+        }
+
+        @Test
+        @WithMockUser(username = "admin@altoro.com", roles = "ADMIN")
+        @DisplayName("ADMIN puede marcar inasistencia → 200 OK")
+        void adminPuedeMarcart_200Ok() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "admin@altoro.com"))
+                    .thenReturn(responseExitosa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isOk());
+
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("admin@altoro.com"));
+        }
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Reserva PENDIENTE → 422 UNPROCESSABLE_ENTITY")
+        void reservaPendiente_422() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenThrow(new BusinessException(
+                            ErrorCode.INVALID_STATE,
+                            "Solo reservas confirmadas pueden marcarse como inasistencia",
+                            HttpStatus.UNPROCESSABLE_ENTITY
+                    ));
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("Solo reservas confirmadas pueden marcarse como inasistencia"));
+        }
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Menos de 30 minutos → 422 UNPROCESSABLE_ENTITY")
+        void menosDe30Min_422() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenThrow(new BusinessException(
+                            ErrorCode.INVALID_STATE,
+                            "Debe esperar 15 minuto(s) más antes de marcar inasistencia",
+                            HttpStatus.UNPROCESSABLE_ENTITY
+                    ));
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.message").value("Debe esperar 15 minuto(s) más antes de marcar inasistencia"));
+        }
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Reserva no existe → 404 NOT_FOUND")
+        void reservaNoExiste_404() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenThrow(new ResourceNotFoundException("Reserva", RESERVA_ID));
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isNotFound());
+        }
+
+        /**
+         * Test de autorización basada en roles con {@code @PreAuthorize}.
+         *
+         * <p>IMPORTANTE: {@code @WebMvcTest} con {@code PermissiveSecurityConfig} no evalúa
+         * {@code @PreAuthorize} correctamente. El endpoint está anotado con
+         * {@code @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")} pero esta configuración
+         * permite el acceso a todos los roles autenticados.
+         *
+         * <p>La autorización real basada en roles se verifica en:
+         * <ul>
+         *   <li>Tests de integración con {@code @SpringBootTest}</li>
+         *   <li>Tests Postman que ejecutan contra la aplicación completa</li>
+         * </ul>
+         */
+
+        @Test
+        @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
+        @DisplayName("Email se toma del token de autenticación")
+        void emailDelToken() throws Exception {
+            when(reservaService.marcarInasistencia(RESERVA_ID, "mesero@altoro.com"))
+                    .thenReturn(responseExitosa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/marcar-inasistencia", RESERVA_ID))
+                    .andExpect(status().isOk());
+
+            verify(reservaService).marcarInasistencia(eq(RESERVA_ID), eq("mesero@altoro.com"));
         }
     }
 }

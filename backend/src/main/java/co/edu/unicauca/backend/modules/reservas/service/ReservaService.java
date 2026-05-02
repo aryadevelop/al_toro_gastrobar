@@ -14,6 +14,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResp
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -462,6 +463,61 @@ public class ReservaService {
                 : null;
 
         return reservaMapper.toCancelarResponse(guardada, requiereWhatsApp, mensajeWhatsApp);
+    }
+
+    // -----------------------------------------------------------------------
+    // Marcar inasistencia
+    // -----------------------------------------------------------------------
+
+    /**
+     * Marca una reserva confirmada como inasistencia tras el periodo de tolerancia de 30 minutos.
+     *
+     * <p>Este cambio es irreversible. Los recursos (zona y decoración) quedan liberados
+     * automáticamente al cambiar el estado, ya que solo se cuentan reservas {@code PENDIENTE}
+     * o {@code CONFIRMADA} en los cálculos de disponibilidad.
+     *
+     * @param reservaId    identificador de la reserva a marcar como inasistencia
+     * @param emailMesero  email del mesero que ejecuta la acción (para auditoría)
+     * @return {@link MarcarInasistenciaResponse} con confirmación y recursos liberados
+     * @throws ResourceNotFoundException si la reserva no existe
+     * @throws BusinessException         si la reserva no es {@code CONFIRMADA} o no han
+     *                                   transcurrido 30 minutos (código {@code INVALID_STATE}, status 422)
+     */
+    @Transactional
+    public MarcarInasistenciaResponse marcarInasistencia(Long reservaId, String emailMesero) {
+
+        // 1. Buscar reserva
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        // 2. Validar elegibilidad (estado CONFIRMADA + 30 minutos transcurridos)
+        reservaValidador.validarElegibilidadInasistencia(reserva);
+
+        // 3. Capturar recursos antes de cambiar estado (para incluir en respuesta)
+        String zonaLiberada = reserva.getZona() != null
+                ? reserva.getZona().getZonaNombre()
+                : null;
+        String decoracionLiberada = reserva.getDecoracion() != null
+                ? reserva.getDecoracion().getDecoracionNombre()
+                : null;
+
+        // 4. Cambiar estado a INASISTENCIA
+        reserva.setReservaEstado(EstadoReserva.INASISTENCIA);
+        Reserva guardada = reservaRepository.save(reserva);
+
+        // 5. Eliminar pre-orden asociada (libera productos conceptuales del inventario)
+        preOrdenGestor.eliminarPreOrdenExistente(reservaId);
+
+        // 6. Publicar evento WebSocket para actualizar listado de meseros
+        publicarCambioReserva(guardada, "INASISTENCIA");
+
+        // 7. Construir respuesta de confirmación
+        return MarcarInasistenciaResponse.builder()
+                .reservaId(reservaId)
+                .estado(EstadoReserva.INASISTENCIA.name())
+                .zonaLiberada(zonaLiberada)
+                .decoracionLiberada(decoracionLiberada)
+                .build();
     }
 
     // -----------------------------------------------------------------------

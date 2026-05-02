@@ -2,8 +2,10 @@ package co.edu.unicauca.backend.modules.reservas.mapper;
 
 import co.edu.unicauca.backend.modules.reservas.dto.response.*;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
 /**
@@ -24,10 +26,21 @@ public class ReservaConsultaMapper {
      *
      * <p>Campos opcionales (zona, decoración) se omiten ({@code null}) si no fueron asignados.
      *
+     * <p>El campo {@code mostrarBotonInasistencia} se calcula dinámicamente:
+     * {@code true} solo si la reserva está {@code CONFIRMADA} y han transcurrido
+     * 30+ minutos desde {@code reservaFechaHoraLlegada}.
+     *
      * @param reserva entidad de reserva a convertir
      * @return {@link ReservaConsultaResponse} con los campos del listado
      */
     public ReservaConsultaResponse toConsultaResponse(Reserva reserva) {
+        // Calcular si debe mostrar el botón "Marcar inasistencia"
+        boolean mostrarBotonInasistencia = false;
+        if (reserva.getReservaEstado() == EstadoReserva.CONFIRMADA) {
+            LocalDateTime horaLimite = reserva.getReservaFechaHoraLlegada().plusMinutes(30);
+            mostrarBotonInasistencia = LocalDateTime.now().isAfter(horaLimite);
+        }
+
         return ReservaConsultaResponse.builder()
                 .reservaId(reserva.getReservaId())
                 .clienteNombre(reserva.getCliente().getClienteNombre())
@@ -40,6 +53,7 @@ public class ReservaConsultaMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .clienteTelefono(reserva.getCliente().getClienteTelefono())
                 .estado(reserva.getReservaEstado().name())
+                .mostrarBotonInasistencia(mostrarBotonInasistencia)
                 .build();
     }
 

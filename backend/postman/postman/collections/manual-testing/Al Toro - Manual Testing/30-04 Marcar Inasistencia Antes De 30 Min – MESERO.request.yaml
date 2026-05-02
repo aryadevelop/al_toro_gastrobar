@@ -1,0 +1,63 @@
+request:
+  url: '{{baseUrl}}/reservas/{{tmpReservaId}}/marcar-inasistencia'
+  method: PATCH
+  body: null
+  headers:
+    - key: Content-Type
+      value: application/json
+  auth:
+    type: bearer
+    bearer:
+      - key: token
+        value: '{{tmpMeseroToken}}'
+hooks:
+  beforeRequest:
+    - lang: javascript
+      value: |
+        // 1. Configurar ID de reserva CONFIRMADA con menos de 30 min (debe fallar con 422)
+        // En seed, usar una reserva creada recientemente (< 30 min desde horaLlegada)
+        const reservaId = pm.environment.get('reservaIdReciente') || '12';
+        pm.environment.set('tmpReservaId', reservaId);
+
+        // 2. Login autónomo como MESERO
+        const loginReq = {
+          url: pm.environment.get('baseUrl') + '/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: 'mesero@altoro.com',
+              password: 'Al.Toro2026!'
+            })
+          }
+        };
+
+        pm.sendRequest(loginReq, (err, res) => {
+          if (err) {
+            console.error('Login failed:', err);
+            return;
+          }
+          const body = res.json();
+          if (body.success && body.data && body.data.accessToken) {
+            pm.environment.set('tmpMeseroToken', body.data.accessToken);
+            console.log('✓ Mesero authenticated');
+          }
+        });
+  afterResponse:
+    - lang: javascript
+      value: |
+        // Cleanup
+        pm.environment.unset('tmpReservaId');
+        pm.environment.unset('tmpMeseroToken');
+
+        // Verificar error esperado: 422 con mensaje "Debe esperar X minuto(s)"
+        if (pm.response.code === 422) {
+          const body = pm.response.json();
+          console.log('✓ Error esperado (menos de 30 min):', body.message);
+          if (body.message.includes('Debe esperar')) {
+            console.log('  ✓ Mensaje incluye minutos restantes');
+          }
+        } else {
+          console.error('✗ Código inesperado:', pm.response.code);
+        }
