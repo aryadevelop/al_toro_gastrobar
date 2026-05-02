@@ -115,9 +115,9 @@ public class MesaAsignarService {
         visita = visitaRepository.save(visita);
 
         // 7. Crear Mesa (estado ESPERA)
+        // NOTA: visitaId se asigna automáticamente por @MapsId - NO establecer manualmente
         Mesa mesa = Mesa.builder()
                 .visita(visita)
-                .visitaId(visita.getVisitaId())
                 .zona(zona)
                 .mesero(mesero)
                 .mesaIdentificador(request.getMesaIdentificador())

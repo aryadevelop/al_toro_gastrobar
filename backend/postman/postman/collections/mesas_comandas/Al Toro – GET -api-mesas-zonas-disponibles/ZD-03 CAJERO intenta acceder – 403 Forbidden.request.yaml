@@ -1,0 +1,29 @@
+$kind: http-request
+name: ZD-03 CAJERO intenta acceder – 403 Forbidden
+description: |-
+  **Criterio:** CA-03 — Validación de acceso: CAJERO no tiene permiso.
+  **Objetivo:** Verificar que el sistema rechaza acceso de CAJERO.
+  **Pre-condición:** `cajeroToken` disponible.
+  **Resultado esperado:** 403 Forbidden con código AUTH-002.
+url: "{{baseUrl}}/api/mesas/zonas-disponibles"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+
+      pm.test('La respuesta contiene success=false', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(false);
+      });
+
+      pm.test('El código de error es AUTH-002', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 3000

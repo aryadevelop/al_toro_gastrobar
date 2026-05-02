@@ -11,8 +11,8 @@ headers:
   Authorization: Bearer {{meseroToken}}
   Content-Type: application/json
 body:
-  mode: raw
-  raw: |-
+  type: text
+  content: |-
     {
       "mesaIdentificador": "MESA-CON-IDENTIFICADOR-MUY-LARGO-EXCEDE-20",
       "zonaId": 1,
