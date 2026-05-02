@@ -36,4 +36,9 @@ export const API_PATHS = {
     clientes: {
         misPuntos: `${API}/clientes/me/puntos`,
     },
+    mesas: {
+        mapa: `${API}/mesas`,
+        detalle: (mesaId: string | number) => `${API}/mesas/${mesaId}/detalle`,
+        itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
+    },
 } as const;
