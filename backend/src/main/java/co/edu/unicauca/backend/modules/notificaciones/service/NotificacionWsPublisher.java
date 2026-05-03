@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.notificaciones.service;
 
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaCompletadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.CuentaCerradaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
@@ -66,5 +67,21 @@ public class NotificacionWsPublisher {
      */
     public void publicarReservaActualizada(ReservaActualizadaWsMessage mensaje) {
         messagingTemplate.convertAndSend("/topic/reservas/cambios", mensaje);
+    }
+
+    /**
+     * Publica al tópico {@code /topic/comandas/completado} que la comanda fue
+     * servida al cliente.
+     *
+     * <p>El payload incluye la estación para que cada dashboard (cocinero o
+     * bartender) decida si la comanda le concierne.
+     *
+     * @param comandaId identificador de la comanda completada
+     * @param estacion  nombre del enum {@code EstacionComanda}: "COCINA" o "BARRA"
+     */
+    public void publicarComandaCompletada(Long comandaId, String estacion) {
+        messagingTemplate.convertAndSend(
+                "/topic/comandas/completado",
+                new ComandaCompletadaWsMessage(comandaId, estacion));
     }
 }
