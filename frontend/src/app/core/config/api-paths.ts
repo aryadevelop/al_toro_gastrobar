@@ -11,7 +11,7 @@ export const API_PATHS = {
         logout: `${API}/auth/logout`,
     },
     users: {
-        me: `${API}/users/me`,
+        me: `${API}/clientes/me`,
     },
     reservas: {
         disponibilidad: `${API}/reservas/disponibilidad`,

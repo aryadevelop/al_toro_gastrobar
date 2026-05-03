@@ -94,11 +94,29 @@ export class AuthService {
   }
 
   updateProfile(payload: UpdateProfileRequest): Observable<User> {
-    return this.http.patch<User>(API_PATHS.users.me, payload).pipe(
-      map((user) => {
-        this.currentUserState.set(user);
-        this.storageService.setSessionUser(user);
-        return user;
+    // Map frontend field names to backend field names (Spanish)
+    const backendPayload = {
+      nombre: payload.fullName,
+      email: payload.email,
+      telefono: payload.phone,
+      aceptaTerminos: payload.aceptaTerminos,
+      currentPassword: payload.currentPassword,
+      newPassword: payload.newPassword,
+      confirmNewPassword: payload.confirmNewPassword
+    };
+
+    return this.http.put<{ data: { cliente: { id: number; nombre: string; email: string; telefono: string } } }>(API_PATHS.users.me, backendPayload).pipe(
+      map((response) => {
+        const cliente = response.data.cliente;
+        const updatedUser: User = {
+          ...this.currentUserState()!,
+          fullName: cliente.nombre,
+          email: cliente.email,
+          phone: cliente.telefono
+        };
+        this.currentUserState.set(updatedUser);
+        this.storageService.setSessionUser(updatedUser);
+        return updatedUser;
       })
     );
   }
@@ -171,6 +189,7 @@ export class AuthService {
         id: backendUser.id,
         fullName: backendUser.nombre,
         email: backendUser.email,
+        phone: backendUser.telefono,
         role: this.normalizeRole(roleSource),
         status: this.normalizeStatus(backendUser.status),
         createdAt: backendUser.createdAt,

@@ -86,8 +86,6 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
         <a routerLink="/auth/register" class="register-link">
           ¿No tienes cuenta? Crear cuenta de cliente
         </a>
-        <small class="demo-hint">Demo act: activo&#64;altoro.local / Activo123*</small>
-        <small class="demo-hint">Demo exp: expirado&#64;altoro.local / Exp123*</small>
       </footer>
     </div>
     <app-confirm-dialog

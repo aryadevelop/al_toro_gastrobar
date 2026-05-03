@@ -40,6 +40,7 @@ export interface UpdateProfileRequest {
     fullName: string;
     email: string;
     phone: string;
+    aceptaTerminos?: boolean;
     currentPassword?: string;
     newPassword?: string;
     confirmNewPassword?: string;
@@ -57,6 +58,7 @@ export interface BackendAuthUser {
     id: string;
     nombre: string;
     email: string;
+    telefono?: string;
     role: string;
     roles?: string[];
     status: string;

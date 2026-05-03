@@ -32,9 +32,6 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       <article class="card points-card">
         <h3>Puntos acumulados: {{ points() }}</h3>
-        <p class="points-info">
-          Los puntos son acumulables y pueden ser canjeados por recompensas especiales que el restaurante determine.
-        </p>
       </article>
 
       <section class="page-grid">
@@ -183,13 +180,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       }
 
       .points-card {
-        padding: 0.75rem 0.9rem;
+        padding: 0.4rem 0.6rem;
         display: grid;
-        gap: 0.32rem;
+        gap: 0.15rem;
       }
 
       .points-card h3 {
         margin: 0;
+          font-size: 0.95rem;
       }
 
       .points-info {
