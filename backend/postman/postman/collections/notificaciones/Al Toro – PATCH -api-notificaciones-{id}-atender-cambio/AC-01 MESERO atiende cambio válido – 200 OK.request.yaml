@@ -18,7 +18,7 @@ description: |-
   **Objetivo:** Verificar respuesta exitosa con data.comandaId y mensaje correcto.
   **Pre-condición:** `meseroToken` disponible. Notificación ID 15 (ACTIVA, CAMBIO).
   **Resultado esperado:** 200 OK, data.comandaId es un número, message="Comanda lista para modificar."
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionCambioId}}/atender-cambio"
+url: "{{baseUrl}}/api/notificaciones/15/atender-cambio"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}

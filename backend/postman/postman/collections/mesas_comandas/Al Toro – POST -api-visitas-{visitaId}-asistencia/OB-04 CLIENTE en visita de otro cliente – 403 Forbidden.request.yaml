@@ -4,7 +4,7 @@ description: |-
   **Criterio de Aceptación:** Validación de ownership — solo el dueño puede solicitar asistencia.
   **Objetivo:** Verificar que un cliente no puede solicitar asistencia para visita de otro.
   **Resultado esperado:** 403 Forbidden.
-  **Independencia:** Cada ejecución obtiene la visita activa de OTRO cliente (carlos.perez) dinámicamente y la usa autenticando como juan.torres. El endpoint rechaza antes de mutar estado.
+  **Independencia:** Cada ejecución obtiene la visita activa de OTRO cliente (andres.morales) dinámicamente y la usa autenticando como juan.torres. El endpoint rechaza antes de mutar estado.
 url: "{{baseUrl}}/api/visitas/{{tmpVisitaIdOtro}}/asistencia"
 method: POST
 headers:
@@ -14,7 +14,9 @@ scripts:
     code: |-
       // ---------------------------------------------------------------------------
       // Setup:
-      //   1) Login carlos.perez (otro cliente con visita activa) para obtener su visitaId.
+      //   1) Login andres.morales (otro cliente con visita activa) para obtener su visitaId.
+      //      NOTA: Antes se usaba carlos.perez, pero esa cuenta está SUSPENDIDA (login → 403),
+      //      lo que dejaba tmpVisitaIdOtro vacío y causaba VAL-001 "Formato de parámetro inválido".
       //   2) Login juan.torres → será el cliente autenticado en el request.
       // ---------------------------------------------------------------------------
       const baseUrl = pm.environment.get('baseUrl');
@@ -42,7 +44,7 @@ scripts:
         });
       };
 
-      login('carlos.perez@gmail.com', (otroToken) => {
+      login('andres.morales@gmail.com', (otroToken) => {
         pm.sendRequest({
           url: baseUrl + '/api/visitas/activa',
           method: 'GET',

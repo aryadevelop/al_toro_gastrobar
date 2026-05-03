@@ -17,11 +17,50 @@ description: |-
   **Objetivo:** Verificar que intentar servir bebidas de una notificación ya ATENDIDA retorna 409.
   **Pre-condición:** SB-01 ya se ejecutó y marcó la notificación como ATENDIDA.
   **Resultado esperado:** 409 Conflict, code=NEG-002.
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionBebidasListasId}}/servir-bebidas"
+url: "{{baseUrl}}/api/notificaciones/13/servir-bebidas"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}
 scripts:
+  - type: beforeRequest
+    code: |-
+      // Independencia de orden: este test debe pasar 409 incluso si SB-01 no se
+      // ejecutó previamente. Hacemos login MESERO y pre-atendemos la notificación
+      // 13 antes del request principal. La pre-atención acepta 200 (atendida ahora)
+      // o 409 (ya estaba atendida) como resultados válidos de setup.
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (loginErr, loginRes) => {
+        if (loginErr || !loginRes || loginRes.code !== 200) {
+          console.warn('SB-07 setup: login MESERO falló');
+          return;
+        }
+        const token = loginRes.json().accessToken;
+        pm.environment.set('meseroToken', token);
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/notificaciones/13/servir-bebidas',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err) {
+            console.warn('SB-07 setup: pre-atender falló', err);
+          } else if (res && res.code !== 200 && res.code !== 409) {
+            console.warn('SB-07 setup: pre-atender code', res.code, res.text());
+          }
+          // 200 = atendida ahora; 409 = ya estaba atendida (idempotent, OK)
+        });
+      });
+    language: text/javascript
   - type: afterResponse
     code: |-
       pm.test('HTTP 409', () => pm.response.to.have.status(409));

@@ -17,7 +17,7 @@ description: |-
   **Objetivo:** Verificar que ADMIN también puede registrar platos servidos.
   **Pre-condición:** `adminToken` disponible. Notificación ID 12 (ACTIVA, PLATOS_LISTOS).
   **Resultado esperado:** 200 OK.
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionPlatosListosId2}}/servir-platos"
+url: "{{baseUrl}}/api/notificaciones/12/servir-platos"
 method: PATCH
 headers:
   Authorization: Bearer {{adminToken}}

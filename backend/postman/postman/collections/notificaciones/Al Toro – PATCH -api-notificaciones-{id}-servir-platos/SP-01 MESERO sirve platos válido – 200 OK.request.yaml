@@ -18,7 +18,7 @@ description: |-
   **Objetivo:** Verificar respuesta exitosa con success=true y mensaje correcto.
   **Pre-condición:** `meseroToken` disponible. Notificación ID 11 (ACTIVA, PLATOS_LISTOS).
   **Resultado esperado:** 200 OK, success=true, message="Platos servidos."
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionPlatosListosId}}/servir-platos"
+url: "{{baseUrl}}/api/notificaciones/11/servir-platos"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}

@@ -18,7 +18,7 @@ description: |-
   **Objetivo:** Verificar respuesta exitosa con success=true y mensaje correcto.
   **Pre-condición:** `meseroToken` disponible. Notificación ID 13 (ACTIVA, BEBIDAS_LISTAS).
   **Resultado esperado:** 200 OK, success=true, message="Bebidas servidas."
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionBebidasListasId}}/servir-bebidas"
+url: "{{baseUrl}}/api/notificaciones/13/servir-bebidas"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}

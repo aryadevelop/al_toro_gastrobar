@@ -17,7 +17,7 @@ description: |-
   **Objetivo:** Verificar que ADMIN también puede registrar bebidas servidas.
   **Pre-condición:** `adminToken` disponible. Notificación ID 14 (ACTIVA, BEBIDAS_LISTAS).
   **Resultado esperado:** 200 OK.
-url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionBebidasListasId2}}/servir-bebidas"
+url: "{{baseUrl}}/api/notificaciones/14/servir-bebidas"
 method: PATCH
 headers:
   Authorization: Bearer {{adminToken}}
