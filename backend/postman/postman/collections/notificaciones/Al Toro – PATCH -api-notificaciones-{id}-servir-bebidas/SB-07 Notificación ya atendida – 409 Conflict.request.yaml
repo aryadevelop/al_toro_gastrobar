@@ -1,0 +1,32 @@
+$kind: http-request
+name: SB-07 Notificación ya atendida – 409 Conflict
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Marcar comanda con items BEBIDA como LISTO (rol BARTENDER) para disparar notificación BEBIDAS_LISTAS automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+
+  **Objetivo:** Verificar que intentar servir bebidas de una notificación ya ATENDIDA retorna 409.
+  **Pre-condición:** SB-01 ya se ejecutó y marcó la notificación como ATENDIDA.
+  **Resultado esperado:** 409 Conflict, code=NEG-002.
+url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionBebidasListasId}}/servir-bebidas"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 409', () => pm.response.to.have.status(409));
+      pm.test('code=NEG-002', () => {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 7207

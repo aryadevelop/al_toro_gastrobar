@@ -3,8 +3,9 @@ name: AM-07 zonaId null – 400 Bad Request
 description: |-
   **Criterio:** CA-07 — Validación DTO: zonaId es campo requerido.
   **Objetivo:** Verificar que el sistema rechaza requests sin zonaId.
-  **Pre-condición:** `meseroToken` disponible.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
   **Resultado esperado:** 400 o 422 con mensaje de error de validación.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

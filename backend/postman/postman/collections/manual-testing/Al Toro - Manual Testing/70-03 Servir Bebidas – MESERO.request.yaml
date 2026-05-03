@@ -1,0 +1,38 @@
+$kind: http-request
+name: 70-03 Servir Bebidas – MESERO
+description: Registrar que el mesero sirvió las bebidas listas de una comanda (CA-05)
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionId}}/servir-bebidas"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Ajustar al ID de una notificación BEBIDAS_LISTAS activa con comanda asociada
+      pm.environment.set('tmpNotificacionId', '2');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpNotificacionId');
+      pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 7030

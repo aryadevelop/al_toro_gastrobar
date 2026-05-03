@@ -3,8 +3,9 @@ name: AM-05 mesaIdentificador vacío – 400 Bad Request
 description: |-
   **Criterio:** CA-05 — Validación DTO: mesaIdentificador no puede estar vacío.
   **Objetivo:** Verificar que el sistema rechaza requests con mesaIdentificador vacío.
-  **Pre-condición:** `meseroToken` disponible.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
   **Resultado esperado:** 400 o 422 con mensaje de error de validación.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

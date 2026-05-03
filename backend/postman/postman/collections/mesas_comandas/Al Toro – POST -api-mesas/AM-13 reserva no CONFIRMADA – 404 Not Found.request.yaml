@@ -3,8 +3,9 @@ name: AM-13 reserva no CONFIRMADA – 404 Not Found
 description: |-
   **Criterio:** CA-13 — Validación de negocio: reserva debe estar en estado CONFIRMADA.
   **Objetivo:** Verificar que el sistema rechaza asignación con reserva CANCELADA.
-  **Pre-condición:** `meseroToken` disponible. Se creará y cancelará una reserva en beforeRequest.
+  **Pre-condición:** El beforeRequest crea y cancela una reserva fresca, y obtiene `meseroToken`.
   **Resultado esperado:** 404 Not Found con código ENT-001.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:
@@ -14,7 +15,7 @@ body:
   type: text
   content: |-
     {
-      "mesaIdentificador": "TEST-RES-CANCEL",
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
       "zonaId": 1,
       "numeroPersonas": 2,
       "reservaId": {{tmpReservaCanceladaId}}
@@ -22,6 +23,10 @@ body:
 scripts:
   - type: beforeRequest
     code: |-
+      // Generar identificador único de mesa (no debería persistirse porque la
+      // validación de reserva falla antes, pero garantiza independencia total)
+      pm.environment.set('tmpMesaIdentificador', 'RC-' + String(Date.now()).slice(-6));
+
       // Crear reserva y cancelarla inmediatamente
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
@@ -136,6 +141,7 @@ scripts:
 
       // Cleanup de variables temporales
       pm.environment.unset('tmpReservaCanceladaId');
+      pm.environment.unset('tmpMesaIdentificador');
 
       // NO cleanup adicional - la reserva cancelada puede quedarse en BD
     language: text/javascript

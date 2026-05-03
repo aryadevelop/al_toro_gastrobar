@@ -4,6 +4,9 @@ description: |-
   ## Descripción
   Tests automatizados para asignar identificador a mesa. Este endpoint permite a meseros y administradores asignar un identificador visible a una mesa física, creando una nueva visita para clientes walk-in o vinculando una reserva confirmada.
 
+  ## Independencia de pruebas
+  Cada test es autónomo: realiza sus propios logins en `beforeRequest`, genera sus identificadores únicos en tiempo de ejecución (`tmpMesaIdentificador` con timestamp) y limpia recursos creados en `afterResponse`. No dependen de seeds específicos ni de un orden de ejecución; pueden correrse en solitario, repetidamente y en cualquier orden.
+
   ## Estructura del Cuerpo de la Solicitud
   ```json
   {

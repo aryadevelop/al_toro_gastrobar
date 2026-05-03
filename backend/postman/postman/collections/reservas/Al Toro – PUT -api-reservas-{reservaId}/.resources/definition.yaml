@@ -1,2 +1,37 @@
 $kind: collection
 name: Al Toro – PUT /api/reservas/{reservaId}
+description: |-
+  # PUT /api/reservas/{reservaId}
+
+  Modifica una reserva futura del cliente autenticado.
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")`.
+  - CLIENTE: solo puede modificar sus propias reservas (ownership validado en servicio).
+  - ADMIN: puede modificar cualquier reserva.
+  - MESERO/CAJERO/COCINERO: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden. Cada ejecución crea
+  su propia reserva fresca en `beforeRequest` mediante `POST /api/reservas` y opera sobre
+  el `tmpReservaId` resultante. No hay dependencias entre tests ni con seed data.
+
+  | ID    | Escenario                                       | HTTP |
+  |-------|-------------------------------------------------|------|
+  | MR-01 | Sin token                                       | 401  |
+  | MR-02 | MESERO sin permiso                              | 403  |
+  | MR-03 | CAJERO sin permiso                              | 403  |
+  | MR-04 | COCINERO sin permiso                            | 403  |
+  | MR-05 | ADMIN modifica reserva de otro cliente          | 200  |
+  | MR-06 | Reserva inexistente                             | 404  |
+  | MR-07 | CLIENTE modifica reserva ajena                  | 403  |
+  | MR-08 | Reserva ya cancelada                            | 422  |
+  | MR-10 | BASICA → BASICA                                 | 200  |
+  | MR-11 | BASICA → ESPECIAL                               | 200  |
+  | MR-12 | ESPECIAL → BASICA                               | 200  |
+  | MR-13 | ESPECIAL → ESPECIAL con cambio de valor         | 200  |
+  | MR-14 | ESPECIAL → ESPECIAL sin cambio de valor         | 200  |
+
+  Tests 401/403 (MR-01..MR-04) no llegan al servicio: el filtro de seguridad rechaza
+  antes de la lógica de negocio. MR-06 (404) usa ID 999999 inexistente — tampoco muta DB.

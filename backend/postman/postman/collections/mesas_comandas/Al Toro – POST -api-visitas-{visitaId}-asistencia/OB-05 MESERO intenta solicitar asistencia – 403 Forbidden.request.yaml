@@ -3,8 +3,8 @@ name: OB-05 MESERO intenta solicitar asistencia – 403 Forbidden
 description: |-
   **Criterio de Aceptación:** Control de acceso — solo CLIENTE puede solicitar asistencia.
   **Objetivo:** Verificar que otros roles no pueden usar este endpoint.
-  **Pre-condición:** `meseroToken` disponible.
   **Resultado esperado:** 403 Forbidden.
+  **Independencia:** El rechazo ocurre en `@PreAuthorize` antes de invocar el service, por lo que no se muta estado y no hace falta limpieza. El visitaId hardcodeado es irrelevante para el resultado.
 url: "{{baseUrl}}/api/visitas/12/asistencia"
 method: POST
 headers:

@@ -2,10 +2,9 @@ $kind: http-request
 name: CR-07 Reserva de otro cliente – 403 Forbidden
 description: |
   El cliente autenticado intenta cancelar una reserva que pertenece a sinpuntos@altoro.com.
-  El beforeRequest crea la reserva como sinpuntos y guarda su ID en tmpReservaIdAjena.
-  Resultado esperado: 403 Forbidden, código ACCESS_DENIED.
-  Nota: usa lag-by-one — el primer run prepara datos, el segundo run hace la aserción.
-  Ejecutar dos veces seguidas para que pase correctamente.
+  El servicio detecta el mismatch de ownership → BusinessException ACCESS_DENIED → 403.
+  Cada ejecución crea su propia reserva fresca a nombre del otro cliente. Independiente
+  del orden y de seed data.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaIdAjena}}/cancelar"
 method: PATCH
 headers:
@@ -22,25 +21,7 @@ scripts:
       const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
         + 'T' + pad(d.getHours()) + ':00:00';
 
-      // Paso 1: login como emailCliente (para el request principal)
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: { mode: 'raw', raw: JSON.stringify({
-          email: pm.environment.get('emailCliente'),
-          password: pm.environment.get('passwordValida'),
-          forceSessionOverride: true
-        })}
-      }, function (err, res) {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
-          console.warn('CR-07: login CLIENTE falló', err, res && res.code);
-        }
-      });
-
-      // Paso 2: login como sinpuntos@altoro.com (otro cliente) → crear reserva ajena
+      // Paso 1: login como otro cliente (sinpuntos)
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -50,33 +31,48 @@ scripts:
           password: pm.environment.get('passwordValida'),
           forceSessionOverride: true
         })}
-      }, function (err2, res2) {
-        if (err2 || !res2 || res2.code !== 200) {
-          console.warn('CR-07: login sinpuntos falló', err2, res2 && res2.code);
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('CR-07: login sinpuntos falló', err, res && res.code);
           return;
         }
-        const sinpuntosToken = res2.json().accessToken;
+        const ajenoToken = res.json().accessToken;
 
+        // Paso 2: crear reserva a nombre del otro cliente
         pm.sendRequest({
           url: pm.environment.get('baseUrl') + '/api/reservas',
           method: 'POST',
-          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + sinpuntosToken },
-          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
-        }, function (e3, r3) {
-          if (!e3 && r3 && r3.code === 201) {
-            pm.environment.set('tmpReservaIdAjena', r3.json().data.reservaId);
-          } else {
-            console.warn('CR-07: creación reserva ajena falló', e3, r3 && r3.code);
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ajenoToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('CR-07: crear reserva ajena falló', e2, r2 && r2.code);
+            return;
           }
+          pm.environment.set('tmpReservaIdAjena', r2.json().data.reservaId);
+
+          // Paso 3: login del cliente principal para ejecutar el request
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCliente'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('clienteToken', r3.json().accessToken);
+            } else {
+              console.warn('CR-07: login CLIENTE falló', e3, r3 && r3.code);
+            }
+          });
         });
       });
     language: text/javascript
   - type: afterResponse
     code: |-
-      if (!pm.environment.get('tmpReservaIdAjena')) {
-        console.warn('CR-07: tmpReservaIdAjena no preparado — ejecutar de nuevo para que el test pase');
-        return;
-      }
       pm.test('Reserva ajena → 403', function () {
         pm.response.to.have.status(403);
       });
@@ -85,5 +81,6 @@ scripts:
         pm.expect(body.success).to.be.false;
         pm.expect(body.message).to.include('propias reservas');
       });
+      pm.environment.unset('tmpReservaIdAjena');
     language: text/javascript
 order: 7000

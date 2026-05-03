@@ -3,8 +3,9 @@ name: AM-01 MESERO asigna mesa walk-in – 201 Created
 description: |-
   **Criterio:** CA-01 — MESERO asigna mesa walk-in sin reserva.
   **Objetivo:** Verificar que un mesero puede asignar un identificador a una mesa para clientes walk-in.
-  **Pre-condición:** `meseroToken` disponible. Zona ID 1 existe y está activa.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest. Zona ID 1 existe y está activa.
   **Resultado esperado:** 201 Created con visitaId, mesaIdentificador, estadoMesa="ESPERA", reservaId=null.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:
@@ -14,7 +15,7 @@ body:
   type: text
   content: |-
     {
-      "mesaIdentificador": "TEST-W1",
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
       "zonaId": 1,
       "numeroPersonas": 2,
       "mesaNotas": "Walk-in test"
@@ -22,6 +23,9 @@ body:
 scripts:
   - type: beforeRequest
     code: |-
+      // Generar identificador único de mesa para evitar colisiones entre ejecuciones
+      pm.environment.set('tmpMesaIdentificador', 'W1-' + String(Date.now()).slice(-6));
+
       // Autonomous login using environment variables
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
@@ -45,6 +49,8 @@ scripts:
     language: text/javascript
   - type: afterResponse
     code: |-
+      const expectedIdent = pm.environment.get('tmpMesaIdentificador');
+
       pm.test('El sistema retorna HTTP 201', function () {
         pm.response.to.have.status(201);
       });
@@ -67,7 +73,7 @@ scripts:
 
       pm.test('El mesaIdentificador coincide con el enviado', function () {
         const body = pm.response.json();
-        pm.expect(body.data.mesaIdentificador).to.equal('TEST-W1');
+        pm.expect(body.data.mesaIdentificador).to.equal(expectedIdent);
       });
 
       pm.test('El reservaId es null para walk-in', function () {
@@ -92,7 +98,7 @@ scripts:
       });
 
       // Cleanup: cerrar la visita creada
-      const visitaId = pm.response.json().data.visitaId;
+      const visitaId = pm.response.json().data && pm.response.json().data.visitaId;
       if (visitaId) {
         pm.sendRequest({
           url: pm.environment.get('baseUrl') + '/api/auth/login',
@@ -130,5 +136,7 @@ scripts:
           }
         });
       }
+
+      pm.environment.unset('tmpMesaIdentificador');
     language: text/javascript
 order: 1000

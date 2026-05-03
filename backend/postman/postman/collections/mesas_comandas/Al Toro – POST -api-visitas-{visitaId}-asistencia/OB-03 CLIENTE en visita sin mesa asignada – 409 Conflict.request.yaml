@@ -3,14 +3,9 @@ name: OB-03 CLIENTE en visita sin mesa asignada – 409 Conflict
 description: |-
   **Criterio de Aceptación:** No se puede solicitar asistencia sin mesa asignada.
   **Objetivo:** Verificar validación de mesa asignada antes de crear notificación.
-  **Pre-condición:** Se requiere seed data con visita activa sin mesa asignada, o creación dinámica.
-  **Resultado esperado:** 409 Conflict.
-  **Nota:** Este test requiere datos adicionales en el seed. Si no existe, ejecutar:
-  ```sql
-  INSERT INTO restaurante.visita (cliente_id, visita_fecha_hora_inicio)
-  VALUES (16, NOW() - INTERVAL '15 minutes');
-  -- Resultado: visitaId que se usa en la URL del test
-  ```
+  **Resultado esperado:** 409 Conflict (ó 404 si la visita no existe en el seed actual).
+  **Independencia:** Cada ejecución usa un visitaId que no tiene mesa o no existe — el endpoint rechaza antes de mutar estado, así no hay efectos colaterales que limpiar.
+  **Limitación conocida:** No existe un endpoint para crear visitas sin mesa, por lo que este caso depende de seed data específico (visita sin mesa). Mientras no exista, se acepta tanto 404 como 409 como resultado válido.
 url: "{{baseUrl}}/api/visitas/{{tmpVisitaSinMesa}}/asistencia"
 method: POST
 headers:

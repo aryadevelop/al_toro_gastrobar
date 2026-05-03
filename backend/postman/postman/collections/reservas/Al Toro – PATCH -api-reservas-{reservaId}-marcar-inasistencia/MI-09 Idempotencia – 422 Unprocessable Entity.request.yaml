@@ -1,5 +1,23 @@
 $kind: http-request
 name: MI-09 Idempotencia – 422 Unprocessable Entity
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data y de orden de ejecución
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque requiere una
+  > reserva ya en estado INASISTENCIA. Como no se puede crear vía API una reserva con
+  > fecha pasada (validación `@Future`), tampoco se puede generar el estado INASISTENCIA
+  > sin pasar por un seed con fecha pasada.
+  >
+  > Hasta que exista un endpoint público para back-fill de reservas pasadas, este test:
+  >   1. Sigue dependiendo de la reserva seed ID 21 en `V3__dev_data.sql`.
+  >   2. Requiere ejecutar MI-08 antes (rompe la independencia).
+  >   3. Puede romperse en runs repetidos sin reset de DB.
+  >
+  > Acción pendiente: refactorizar al patrón create-fresh cuando el backend exponga un
+  > mecanismo apropiado para crear reservas con fecha pasada en estado INASISTENCIA.
+
+  Intentar marcar inasistencia una segunda vez sobre una reserva ya INASISTENCIA debe
+  fallar con 422 (estado inválido, código NEG-002).
 url: "{{baseUrl}}/api/reservas/21/marcar-inasistencia"
 method: PATCH
 headers:

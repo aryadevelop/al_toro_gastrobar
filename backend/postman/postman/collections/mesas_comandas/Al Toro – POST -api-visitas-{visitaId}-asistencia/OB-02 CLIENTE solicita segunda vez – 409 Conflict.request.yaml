@@ -3,34 +3,89 @@ name: OB-02 CLIENTE solicita segunda vez – 409 Conflict
 description: |-
   **Criterio de Aceptación:** CA-04 — No se puede duplicar solicitud mientras haya una activa.
   **Objetivo:** Verificar que el endpoint rechaza duplicación de solicitud.
-  **Pre-condición:** OB-01 debe ejecutarse primero para crear la solicitud inicial.
   **Resultado esperado:** 409 Conflict.
-url: "{{baseUrl}}/api/visitas/12/asistencia"
+  **Independencia:** Cada ejecución obtiene su propia visita activa y crea una notificación fresca; el setup garantiza que ya exista una solicitud ACTIVA antes del request principal.
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaId}}/asistencia"
 method: POST
 headers:
   Authorization: Bearer {{clienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del mismo CLIENTE
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: 'juan.torres@gmail.com',
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
-          console.warn('OB-02: login CLIENTE falló', err, res && res.code);
-        }
+      // ---------------------------------------------------------------------------
+      // Setup:
+      //   1) Login CLIENTE + MESERO
+      //   2) GET /api/visitas/activa → tmpVisitaId; si ya hay asistencia ACTIVA no
+      //      hace falta crear otra (el conflict ya está dado).
+      //   3) Si NO hay asistencia activa, POST /asistencia para garantizarla.
+      //   4) Guardar notificacionId actual en tmpNotificacionPrevia para cleanup.
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (email, tokenKey, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-02: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenKey, res.json().accessToken);
+          cb();
+        });
+      };
+
+      const crearAsistencia = (visitaId, clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/' + visitaId + '/asistencia',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 201) {
+            console.warn('OB-02: POST asistencia inicial falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpNotificacionPrevia', res.json().data.notificacionId);
+        });
+      };
+
+      const obtenerVisita = (clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-02: GET /visitas/activa falló', err, res && res.code);
+            return;
+          }
+          const estado = res.json().data;
+          pm.environment.set('tmpVisitaId', estado.visitaId);
+
+          if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+            // Ya hay asistencia activa: el conflict está dado; recordamos id para cleanup
+            pm.environment.set('tmpNotificacionPrevia', estado.notificacionAsistenciaId);
+          } else {
+            crearAsistencia(estado.visitaId, clienteToken);
+          }
+        });
+      };
+
+      login('juan.torres@gmail.com', 'clienteToken', () => {
+        login(pm.environment.get('emailMesero'), 'meseroToken', () => {
+          obtenerVisita(pm.environment.get('clienteToken'));
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -43,5 +98,28 @@ scripts:
         pm.expect(body.message).to.include('solicitud');
         pm.expect(body.message).to.include('activa');
       });
+
+      // Cleanup: atender la notificación previa con MESERO para liberar la mesa
+      try {
+        const notifId = pm.environment.get('tmpNotificacionPrevia');
+        const baseUrl = pm.environment.get('baseUrl');
+        const meseroToken = pm.environment.get('meseroToken');
+        if (notifId && meseroToken) {
+          pm.sendRequest({
+            url: baseUrl + '/api/notificaciones/' + notifId + '/atender',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + meseroToken }
+          }, (err, res) => {
+            if (err || !res || res.code !== 200) {
+              console.warn('OB-02: cleanup atender notificación falló', err, res && res.code);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('OB-02: cleanup falló', e);
+      }
+
+      pm.environment.unset('tmpVisitaId');
+      pm.environment.unset('tmpNotificacionPrevia');
     language: text/javascript
 order: 2000

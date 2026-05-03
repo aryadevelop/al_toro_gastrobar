@@ -1,2 +1,48 @@
 $kind: collection
 name: Al Toro – PATCH /api/reservas/{reservaId}/cancelar
+description: |-
+  # PATCH /api/reservas/{reservaId}/cancelar
+
+  Cancela una reserva futura activa (PENDIENTE o CONFIRMADA).
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")`.
+  - CLIENTE: solo puede cancelar sus propias reservas (ownership validado en servicio).
+  - ADMIN: puede cancelar cualquier reserva.
+  - MESERO/CAJERO/COCINERO: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  **WhatsApp:** `requiereWhatsApp=true` cuando hay que gestionar reembolso de un abono neto > 0.
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden. Cada ejecución crea
+  su propia reserva fresca en `beforeRequest` y opera sobre el `tmpReservaId` resultante.
+
+  | ID    | Escenario                                           | HTTP |
+  |-------|-----------------------------------------------------|------|
+  | CR-01 | Sin token                                           | 401  |
+  | CR-02 | MESERO sin permiso                                  | 403  |
+  | CR-03 | CAJERO sin permiso                                  | 403  |
+  | CR-04 | COCINERO sin permiso                                | 403  |
+  | CR-05 | ADMIN cancela reserva de otro cliente               | 200  |
+  | CR-06 | Reserva inexistente                                 | 404  |
+  | CR-07 | CLIENTE cancela reserva ajena                       | 403  |
+  | CR-08 | Reserva ya cancelada                                | 422  |
+  | CR-09 | CA-01 BASICA sin abono                              | 200  |
+  | CR-10 | CA-02 BASICA con abono                              | 200  |
+  | CR-11 | CA-03 ESPECIAL antes 16h                            | 200  |
+  | CR-12 | CA-04 ESPECIAL después 16h                          | 200  |
+
+  Tests 401/403 (CR-01..CR-04) no llegan al servicio: el filtro de seguridad rechaza
+  antes. CR-06 (404) usa ID 999999 inexistente — tampoco muta DB.
+
+  > ⚠️ TODO — CR-10 (BASICA con abono) y CR-12 (ESPECIAL pasada)
+  >
+  > Estos dos tests requieren estados que no se pueden crear vía API pública:
+  >   - CR-10: reserva con un abono registrado (no existe endpoint público para abonos).
+  >   - CR-12: reserva ESPECIAL con `fechaHoraLlegada` en el pasado (validación `@Future`
+  >     bloquea la creación en POST).
+  >
+  > Hasta que existan endpoints, ambos tests siguen dependiendo de seed data
+  > (`V3__dev_data.sql` ID 19, `V5__cr_test_seed.sql` ID 20). Pueden romperse en runs
+  > repetidos. Refactorizar a create-fresh cuando los endpoints existan.

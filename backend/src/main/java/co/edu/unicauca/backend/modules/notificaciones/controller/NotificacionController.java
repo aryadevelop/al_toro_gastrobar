@@ -70,9 +70,6 @@ public class NotificacionController {
     /**
      * Marca como atendida una notificación de tipo {@code BEBIDAS_LISTAS}.
      *
-     * <p>Idéntico a {@link #servirPlatos} pero para la estación de barra.
-     * Puede disparar una actualización del estado de mesa vía WS.
-     *
      * @param notificacionId identificador de la notificación a atender
      * @param authentication contexto de seguridad del request
      * @return 200 OK con mensaje de confirmación

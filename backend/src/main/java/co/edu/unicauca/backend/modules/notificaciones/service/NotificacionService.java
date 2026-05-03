@@ -183,7 +183,7 @@ public class NotificacionService {
     }
 
     /**
-     * Registra que el mesero sirvió los platos listos de una comanda (CA-04).
+     * Registra que el mesero sirvió los platos listos de una comanda.
      *
      * <p>Flujo:
      * <ol>
@@ -208,6 +208,7 @@ public class NotificacionService {
     @Transactional
     public void servirPlatos(Long notificacionId, String emailEmpleado) {
 
+        // Localiza la notificación o lanza excepción si no existe
         Notificacion notificacion = notificacionRepository.findById(notificacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notificacion", notificacionId));
 
@@ -223,11 +224,14 @@ public class NotificacionService {
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
 
+        // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
 
+        // Actualizar estado de la comanda a COMPLETADO
         comanda.setComandaEstado(EstadoComanda.COMPLETADO);
         comandaRepository.save(comanda);
 
+        // Marcar la notificación como ATENDIDA para que no se procese de nuevo
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
@@ -236,7 +240,7 @@ public class NotificacionService {
 
         Long visitaId = notificacion.getMesa().getVisitaId();
 
-        // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de platos listos)
+        // Refresca el mapa de mesas de TODOS los meseros
         mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
         // Re-evalúa si la mesa puede pasar a ATENDIDA
@@ -244,7 +248,7 @@ public class NotificacionService {
     }
 
     /**
-     * Registra que el mesero sirvió las bebidas listas de una comanda (CA-05).
+     * Registra que el mesero sirvió las bebidas listas de una comanda.
      *
      * <p>Idéntico a {@link #servirPlatos(Long, String)} pero valida tipo {@code BEBIDAS_LISTAS}
      * y publica la estación {@code BARRA} en el evento WS.
@@ -257,24 +261,30 @@ public class NotificacionService {
     @Transactional
     public void servirBebidas(Long notificacionId, String emailEmpleado) {
 
+        // Localiza la notificación o lanza excepción si no existe
         Notificacion notificacion = notificacionRepository.findById(notificacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notificacion", notificacionId));
 
+        // Solo notificaciones de bebidas listas pueden activar este flujo
         if (notificacion.getNotificacionTipo() != TipoNotificacion.BEBIDAS_LISTAS) {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación no es de tipo BEBIDAS_LISTAS.", HttpStatus.CONFLICT);
         }
 
+        // Una notificación ATENDIDA no se puede volver a procesar
         if (notificacion.getNotificacionEstado() != EstadoNotificacion.ACTIVA) {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
 
+        // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
 
+        // Actualizar estado de la comanda a COMPLETADO
         comanda.setComandaEstado(EstadoComanda.COMPLETADO);
         comandaRepository.save(comanda);
 
+        // Marcar la notificación como ATENDIDA para que no se procese de nuevo
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
@@ -286,11 +296,12 @@ public class NotificacionService {
         // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de bebidas listas)
         mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
+        // Re-evalúa si la mesa puede pasar a ATENDIDA
         mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
     }
 
     /**
-     * Atiende una notificación de cambio de comanda (CA-06).
+     * Atiende una notificación de cambio de comanda.
      *
      * <p>Marca la notificación como {@code ATENDIDA} y devuelve el {@code comandaId}
      * para que el frontend cargue la comanda en modo edición.
@@ -311,21 +322,26 @@ public class NotificacionService {
     @Transactional
     public AtenderCambioResponse atenderCambio(Long notificacionId, String emailEmpleado) {
 
+        // Localiza la notificación o lanza excepción si no existe
         Notificacion notificacion = notificacionRepository.findById(notificacionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Notificacion", notificacionId));
 
+        // Solo notificaciones de cambio pueden activar este flujo
         if (notificacion.getNotificacionTipo() != TipoNotificacion.CAMBIO) {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación no es de tipo CAMBIO.", HttpStatus.CONFLICT);
         }
 
+        // Una notificación ATENDIDA no se puede volver a procesar
         if (notificacion.getNotificacionEstado() != EstadoNotificacion.ACTIVA) {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
 
+        // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
 
+        // Marcar la notificación como ATENDIDA para que no se procese de nuevo
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
@@ -334,6 +350,7 @@ public class NotificacionService {
                 notificacion.getMesa().getVisitaId(),
                 MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
+        // No se publica evento a producción porque el mesero debe cargar la comanda en modo edición
         return AtenderCambioResponse.builder()
                 .comandaId(comanda.getComandaId())
                 .build();

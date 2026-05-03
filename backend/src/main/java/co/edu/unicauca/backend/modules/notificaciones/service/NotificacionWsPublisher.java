@@ -80,8 +80,7 @@ public class NotificacionWsPublisher {
      * @param estacion  nombre del enum {@code EstacionComanda}: "COCINA" o "BARRA"
      */
     public void publicarComandaCompletada(Long comandaId, String estacion) {
-        messagingTemplate.convertAndSend(
-                "/topic/comandas/completado",
+        messagingTemplate.convertAndSend("/topic/comandas/completado",
                 new ComandaCompletadaWsMessage(comandaId, estacion));
     }
 }

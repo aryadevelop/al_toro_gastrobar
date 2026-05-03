@@ -3,34 +3,62 @@ name: OB-04 CLIENTE en visita de otro cliente – 403 Forbidden
 description: |-
   **Criterio de Aceptación:** Validación de ownership — solo el dueño puede solicitar asistencia.
   **Objetivo:** Verificar que un cliente no puede solicitar asistencia para visita de otro.
-  **Pre-condición:** Cliente andres.morales@gmail.com tiene visita activa (ID 11). Cliente autenticado es juan.torres@gmail.com.
   **Resultado esperado:** 403 Forbidden.
-url: "{{baseUrl}}/api/visitas/11/asistencia"
+  **Independencia:** Cada ejecución obtiene la visita activa de OTRO cliente (carlos.perez) dinámicamente y la usa autenticando como juan.torres. El endpoint rechaza antes de mutar estado.
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaIdOtro}}/asistencia"
 method: POST
 headers:
   Authorization: Bearer {{clienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login de cliente diferente al dueño de la visita
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: 'juan.torres@gmail.com',
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
-          console.warn('OB-04: login CLIENTE falló', err, res && res.code);
-        }
+      // ---------------------------------------------------------------------------
+      // Setup:
+      //   1) Login carlos.perez (otro cliente con visita activa) para obtener su visitaId.
+      //   2) Login juan.torres → será el cliente autenticado en el request.
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (email, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-04: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          cb(res.json().accessToken);
+        });
+      };
+
+      login('carlos.perez@gmail.com', (otroToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + otroToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-04: GET /visitas/activa de otro cliente falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpVisitaIdOtro', res.json().data.visitaId);
+
+          // Ahora autenticarse como juan.torres (cliente atacante)
+          login('juan.torres@gmail.com', (juanToken) => {
+            pm.environment.set('clienteToken', juanToken);
+          });
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -42,5 +70,6 @@ scripts:
         const body = pm.response.json();
         pm.expect(body.message).to.include('acceso');
       });
+      pm.environment.unset('tmpVisitaIdOtro');
     language: text/javascript
 order: 4000

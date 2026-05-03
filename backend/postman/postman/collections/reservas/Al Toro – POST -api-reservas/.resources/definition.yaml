@@ -37,14 +37,17 @@ description: |-
 
   ## Independencia de datos
 
+  Cada test es ejecutable solo, repetidamente y en cualquier orden. No hay dependencias
+  entre tests dentro de la colección.
+
   - **Tokens:** se obtienen dinámicamente mediante `pm.sendRequest` encadenado en el
-    `beforeRequest` de la colección.
+    `beforeRequest` de la colección (login secuencial de todos los roles).
   - **Fechas libres:** los tests de creación generan fechas futuras aleatorias
     (`tmpFechaLibre`, año actual + 2..4) en sus propios `beforeRequest`, evitando
     colisiones con datos insertados por ejecuciones previas.
   - **Estado de capacidad/decoración ocupada:** los tests CR-29 y CR-31 crean su propio
     estado vía POST en el `beforeRequest` (llenan zona / ocupan decoración) antes de
-    invocar el caso bajo prueba.
+    invocar el caso bajo prueba. Cada ejecución crea sus propios datos.
   - **Bloqueos administrativos** (CR-23, CR-24, CR-25): dependen de seed data en
     `V3__dev_data.sql` (fechas fijas 2026-12-22 y 2026-12-25). Esta dependencia es
     inevitable mientras no exista un endpoint público para crear bloqueos.
