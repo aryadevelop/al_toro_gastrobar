@@ -25,17 +25,21 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         <ng-container *ngIf="!loading() && !errorMessage()">
           <div class="mapa-empty" *ngIf="!mapa().zonas.length">
             <p>No hay mesas registradas.</p>
-            <button class="btn-outline" type="button" (click)="goToAgregarMesa()">Agregar mesa</button>
           </div>
 
           <section class="zone-section" *ngFor="let zona of mapa().zonas">
-            <button class="zone-toggle" type="button" (click)="toggleZone(zona.id)">
-              <div>
-                <h3 class="zone-title">{{ zona.name }}</h3>
-                <p class="zone-sub">{{ zona.count }} mesas</p>
-              </div>
-              <span class="zone-caret">{{ isZoneExpanded(zona.id) ? '-' : '+' }}</span>
-            </button>
+            <div class="zone-head">
+              <button class="zone-toggle" type="button" (click)="toggleZone(zona.id)">
+                <div>
+                  <h3 class="zone-title">{{ zona.name }}</h3>
+                  <p class="zone-sub">{{ zona.count }} mesas</p>
+                </div>
+                <span class="zone-caret">{{ isZoneExpanded(zona.id) ? '-' : '+' }}</span>
+              </button>
+              <button class="btn-outline btn-compact" type="button" (click)="goToAgregarMesa()">
+                Agregar mesa
+              </button>
+            </div>
 
             <div class="zone-body" *ngIf="isZoneExpanded(zona.id)">
               <div *ngIf="zona.mesas.length; else emptyZone">
@@ -81,7 +85,6 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
               <ng-template #emptyZone>
                 <div class="empty-zone">
                   <p>No hay mesas registradas en esta zona.</p>
-                  <button class="btn-outline" type="button" (click)="goToAgregarMesa()">Agregar mesa</button>
                 </div>
               </ng-template>
             </div>
@@ -196,15 +199,23 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         animation: fadeUp 0.35s ease;
       }
 
-      .zone-toggle {
-        width: 100%;
-        border: none;
+      .zone-head {
+        display: flex;
+        align-items: center;
+        gap: 0.6rem;
+        padding: 0.45rem;
         background: #fffaf3;
+      }
+
+      .zone-toggle {
+        flex: 1;
+        border: none;
+        background: transparent;
         display: flex;
         align-items: center;
         justify-content: space-between;
         gap: 1rem;
-        padding: 0.75rem 0.9rem;
+        padding: 0.3rem 0.45rem;
         text-align: left;
         cursor: pointer;
       }
@@ -348,6 +359,12 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         padding: 0.35rem 0.9rem;
         font-size: 0.78rem;
         cursor: pointer;
+      }
+
+      .btn-compact {
+        padding: 0.28rem 0.7rem;
+        font-size: 0.72rem;
+        white-space: nowrap;
       }
 
       .state-attended .mesa-status {
@@ -593,7 +610,9 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   }
 
   goToAgregarMesa(): void {
-    this.router.navigateByUrl('/app/mesero/llegada-reserva');
+    this.router.navigate(['/app/mesero/llegada-reserva'], {
+      state: { openAsignacion: true, origen: 'mapa' },
+    });
   }
 
   goToModificarComanda(mesa: MesaMapaItem): void {
@@ -633,27 +652,35 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   notificationShort(tipo: string): string {
     switch (tipo?.toUpperCase()) {
       case 'ATENCION':
-        return 'AT';
+      case 'AT':
+        return '🛎️';
       case 'PLATOS_LISTOS':
-        return 'PL';
+      case 'PL':
+        return '🍽️';
       case 'BEBIDAS_LISTAS':
-        return 'BE';
+      case 'BE':
+        return '🥤';
       case 'CAMBIO':
-        return 'CA';
+      case 'CA':
+        return '🔄';
       default:
-        return (tipo ?? '').slice(0, 2).toUpperCase();
+        return '🔔';
     }
   }
 
   notificationTitle(tipo: string): string {
     switch (tipo?.toUpperCase()) {
       case 'ATENCION':
+      case 'AT':
         return 'Atencion solicitada';
       case 'PLATOS_LISTOS':
+      case 'PL':
         return 'Platos listos';
       case 'BEBIDAS_LISTAS':
+      case 'BE':
         return 'Bebidas listas';
       case 'CAMBIO':
+      case 'CA':
         return 'Solicitar cambio';
       default:
         return tipo ?? '';

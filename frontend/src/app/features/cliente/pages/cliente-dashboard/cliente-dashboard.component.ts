@@ -34,9 +34,6 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       <article class="card points-card">
         <h3>Puntos acumulados: {{ points() }}</h3>
-        <p class="points-info">
-          Los puntos son acumulables y pueden ser canjeados por recompensas especiales que el restaurante determine.
-        </p>
       </article>
 
       <section class="metrics-grid">
@@ -239,13 +236,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       }
 
       .points-card {
-        padding: 0.75rem 0.9rem;
+        padding: 0.4rem 0.6rem;
         display: grid;
-        gap: 0.32rem;
+        gap: 0.15rem;
       }
 
       .points-card h3 {
         margin: 0;
+          font-size: 0.95rem;
       }
 
       .points-info {
@@ -263,11 +261,13 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       }
 
       .metric-card {
-        padding: 0.45rem 0.65rem;
-        min-height: 66px;
-        display: grid;
-        align-content: center;
-        gap: 0.1rem;
+        padding: 0.28rem 0.36rem;
+        min-height: 44px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.08rem;
+        align-items: flex-start;
       }
 
       .metric-card p,
@@ -277,12 +277,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       .metric-card p {
         color: var(--muted);
-        font-size: 0.78rem;
+        font-size: 0.7rem;
+        opacity: 0.95;
       }
 
       .metric-card h3 {
-        font-size: 0.98rem;
-        line-height: 1.05;
+        font-size: 0.95rem;
+        line-height: 1;
+        font-weight: 700;
       }
 
       .reservas-head {
@@ -557,7 +559,11 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.loadDashboardData();
-    this.loadActiveVisit();
+    // Only attempt to load active visit for clients to avoid 404 noise in console
+    const current = this.authService.currentUser();
+    if (current?.role === 'CLIENTE') {
+      this.loadActiveVisit();
+    }
   }
 
   ngOnDestroy(): void {

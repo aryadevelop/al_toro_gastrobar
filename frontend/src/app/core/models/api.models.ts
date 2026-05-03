@@ -247,3 +247,30 @@ export interface BackendMesaItemsProduccionResponse {
   identificadorMesa: string;
   itemsEnProduccion: BackendItemComandaEnProduccion[];
 }
+
+export interface BackendZonaDisponibleMesaResponse {
+  zonaId: number;
+  zonaNombre: string;
+  capacidadTotal: number;
+  personasOcupadas: number;
+  disponibilidad: number;
+}
+
+export interface BackendAsignarMesaRequest {
+  mesaIdentificador: string;
+  zonaId: number;
+  numeroPersonas: number;
+  reservaId?: number;
+  mesaNotas?: string;
+}
+
+export interface BackendMesaAsignadaResponse {
+  visitaId: number;
+  mesaIdentificador: string;
+  zonaId: number;
+  zonaNombre: string;
+  numeroPersonas: number;
+  estadoMesa: string;
+  emailMesero: string;
+  reservaId?: number;
+}

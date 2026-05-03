@@ -1,6 +1,6 @@
 import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
-import { map, Observable, of } from 'rxjs';
+import { catchError, map, Observable, of } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import { ApiEnvelope, BackendEstadoVisita, BackendNotificacionAsistencia } from '../models/api.models';
 
@@ -29,8 +29,17 @@ export class ActiveVisitService {
 
   getActiveVisit(): Observable<ActiveVisitState | null> {
     return this.http
-      .get<ApiEnvelope<BackendEstadoVisita>>(API_PATHS.visitas.activa)
-      .pipe(map((response) => this.toActiveVisitState(response.data)));
+      .get<ApiEnvelope<BackendEstadoVisita | null>>(API_PATHS.visitas.activa)
+      .pipe(
+        map((response) => (response.data ? this.toActiveVisitState(response.data) : null)),
+        catchError((err: any) => {
+          // Treat 404 (no active visit) as no visit; return null silently.
+          if (err?.status === 404) {
+            return of(null);
+          }
+          throw err;
+        })
+      );
   }
 
   requestAssistance(visitaId: string): Observable<string> {
