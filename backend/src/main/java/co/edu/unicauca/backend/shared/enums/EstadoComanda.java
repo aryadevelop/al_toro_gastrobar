@@ -7,7 +7,7 @@ package co.edu.unicauca.backend.shared.enums;
  *
  * <ul>
  *   <li><b>PRE_RESERVA:</b> Comanda creada desde reserva, aún no enviada a producción</li>
- *   <li><b>BORRADOR:</b> Comanda walk-in guardada pero no enviada a producción</li>
+ *   <li><b>BORRADOR:</b> Comanda guardada pero no enviada a producción</li>
  *   <li><b>PENDIENTE:</b> Enviada a cocina/barra, esperando preparación</li>
  *   <li><b>EN_PREPARACION:</b> Estación trabajando en los items</li>
  *   <li><b>LISTO:</b> Terminado, pendiente de marcar servido</li>
