@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, effect, signal } from '@angular/core';
 import {
@@ -22,6 +22,7 @@ interface ProfileSnapshot {
   fullName: string;
   email: string;
   phone: string;
+  address: string;
 }
 
 const noWhitespaceValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -44,6 +45,10 @@ const passwordComplexityValidator: ValidatorFn = (control: AbstractControl): Val
 
   if (!value) {
     return null;
+  }
+
+  if (value.length < 8) {
+    return { invalidPasswordComplexity: true };
   }
 
   const hasUppercase = /[A-Z]/.test(value);
@@ -121,6 +126,11 @@ const confirmPasswordMatchValidator: ValidatorFn = (control: AbstractControl): V
             </p>
           </label>
 
+          <label class="form-label">
+            <span>Dirección</span>
+            <input class="input-field" formControlName="address" />
+          </label>
+
           <button class="btn-secondary" type="button" (click)="togglePasswordChange()">
             {{ changingPassword() ? 'Ocultar cambio de contraseña' : 'Cambiar contraseña' }}
           </button>
@@ -151,7 +161,7 @@ const confirmPasswordMatchValidator: ValidatorFn = (control: AbstractControl): V
               <p class="error-text" *ngIf="showNewPasswordRequiredError()">Este campo es obligatorio</p>
               <p class="error-text" *ngIf="showNewPasswordWhitespaceError()">Este campo no puede estar vacío</p>
               <p class="error-text" *ngIf="showNewPasswordComplexityError()">
-                La nueva contraseña debe incluir mayúscula, minúscula, número y carácter especial
+                La contraseña debe tener al menos 8 caracteres, incluir mayuscula, minuscula y caracter especial
               </p>
             </label>
 
@@ -257,6 +267,7 @@ export class ProfilePageComponent implements OnDestroy {
       fullName: ['', [Validators.required, noWhitespaceValidator, fullNameFormatValidator]],
       email: ['', [Validators.required, noWhitespaceValidator, Validators.email]],
       phone: ['', [Validators.required, noWhitespaceValidator, Validators.pattern(/^\d{10}$/)]],
+      address: [''],
       currentPassword: [''],
       newPassword: ['', [passwordComplexityValidator]],
       confirmNewPassword: ['']
@@ -277,23 +288,44 @@ export class ProfilePageComponent implements OnDestroy {
           return;
         }
 
-        this.profileForm.patchValue(
-          {
-            fullName: user.fullName,
-            email: user.email,
-            phone: user.phone ?? ''
-          },
-          { emitEvent: false }
-        );
+        // Load full profile from backend (includes phone and address)
+        this.authService.getMyProfile().subscribe({
+          next: (profile) => {
+            this.profileForm.patchValue(
+              {
+                fullName: profile.nombre,
+                email: profile.email,
+                phone: profile.telefono ?? '',
+                address: profile.direccion ?? ''
+              },
+              { emitEvent: false }
+            );
 
-        this.disablePasswordChangeSection();
-        this.initialSnapshot = this.captureSnapshot();
-        this.profileForm.markAsPristine();
-        this.profileForm.markAsUntouched();
-        this.pendingChangesService.setHasUnsavedChanges(false);
-      },
-      { allowSignalWrites: true }
-    );
+            this.disablePasswordChangeSection();
+            this.initialSnapshot = this.captureSnapshot();
+            this.profileForm.markAsPristine();
+            this.profileForm.markAsUntouched();
+            this.pendingChangesService.setHasUnsavedChanges(false);
+          },
+          error: () => {
+            // Fallback to currentUser data
+            this.profileForm.patchValue(
+              {
+                fullName: user.fullName,
+                email: user.email,
+                phone: user.phone ?? ''
+              },
+              { emitEvent: false }
+            );
+
+            this.disablePasswordChangeSection();
+            this.initialSnapshot = this.captureSnapshot();
+            this.profileForm.markAsPristine();
+            this.profileForm.markAsUntouched();
+            this.pendingChangesService.setHasUnsavedChanges(false);
+          }
+        });
+      });
 
     this.profileForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncPendingState();
@@ -397,7 +429,7 @@ export class ProfilePageComponent implements OnDestroy {
       fullName: formValue.fullName,
       email: formValue.email,
       phone: formValue.phone,
-      aceptaTerminos: true
+      address: formValue.address
     };
 
     if (isPasswordFlow) {
@@ -408,43 +440,67 @@ export class ProfilePageComponent implements OnDestroy {
 
     this.loading.set(true);
 
-    this.authService.updateProfile(payload).subscribe({
-      next: () => {
-        this.loading.set(false);
-
-        this.initialSnapshot = this.captureSnapshot();
-        this.pendingChangesService.setHasUnsavedChanges(false);
-
-        if (isPasswordFlow) {
+    if (isPasswordFlow) {
+      this.authService.changePassword(
+        formValue.currentPassword,
+        formValue.newPassword,
+        formValue.confirmNewPassword
+      ).subscribe({
+        next: () => {
+          this.loading.set(false);
           this.disablePasswordChangeSection();
           this.profileForm.markAsPristine();
           this.successMessage.set('Contraseña actualizada correctamente');
-          return;
-        }
+        },
+        error: (error: HttpErrorResponse) => {
+          this.loading.set(false);
+          const msg = (error.error?.message as string) ?? '';
 
+          if (msg.toLowerCase().includes('actual')) {
+            this.setControlError(this.profileForm.controls.currentPassword, 'invalidCurrentPassword');
+            return;
+          }
+
+          if (msg.toLowerCase().includes('coinciden')) {
+            this.formMessage.set(msg);
+            return;
+          }
+
+          if (msg.toLowerCase().includes('mayuscula') || msg.toLowerCase().includes('caracteres')) {
+            this.setControlError(this.profileForm.controls.newPassword, 'invalidPasswordComplexity');
+            return;
+          }
+
+          this.formMessage.set(msg || 'No fue posible cambiar la contraseña. Intenta nuevamente.');
+        }
+      });
+      return;
+    }
+
+    this.authService.updateProfile(payload).subscribe({
+      next: () => {
+        this.loading.set(false);
+        this.initialSnapshot = this.captureSnapshot();
+        this.pendingChangesService.setHasUnsavedChanges(false);
         this.pendingChangesService.skipNextPrompt();
         this.navigateToDashboard('Datos actualizados correctamente');
       },
       error: (error: HttpErrorResponse) => {
         this.loading.set(false);
-        const code = error.error?.code as string | undefined;
+        const code = (error.error?.code as string) ?? '';
+        const msg = (error.error?.message as string) ?? '';
 
-        if (code === 'DUPLICATE_EMAIL') {
+        if (code === 'ENT-002' && msg.toLowerCase().includes('correo')) {
           this.setControlError(this.profileForm.controls.email, 'duplicateEmail');
           return;
         }
 
-        if (code === 'DUPLICATE_PHONE') {
+        if (code === 'ENT-002' && msg.toLowerCase().includes('teléfono')) {
           this.setControlError(this.profileForm.controls.phone, 'duplicatePhone');
           return;
         }
 
-        if (code === 'INVALID_CURRENT_PASSWORD') {
-          this.setControlError(this.profileForm.controls.currentPassword, 'invalidCurrentPassword');
-          return;
-        }
-
-        this.formMessage.set(error.error?.message ?? 'No fue posible actualizar tus datos. Intenta nuevamente.');
+        this.formMessage.set(msg || 'No fue posible actualizar tus datos. Intenta nuevamente.');
       }
     });
   }
@@ -696,7 +752,8 @@ export class ProfilePageComponent implements OnDestroy {
     return {
       fullName: controls.fullName.value.trim().replace(/\s+/g, ' '),
       email: controls.email.value.trim().toLowerCase(),
-      phone: controls.phone.value.trim().replace(/\D/g, '')
+      phone: controls.phone.value.trim().replace(/\D/g, ''),
+      address: controls.address.value.trim()
     };
   }
 
@@ -709,14 +766,15 @@ export class ProfilePageComponent implements OnDestroy {
     const identityChanged =
       currentSnapshot.fullName !== this.initialSnapshot.fullName ||
       currentSnapshot.email !== this.initialSnapshot.email ||
-      currentSnapshot.phone !== this.initialSnapshot.phone;
+      currentSnapshot.phone !== this.initialSnapshot.phone ||
+      currentSnapshot.address !== this.initialSnapshot.address;
 
     const passwordChanged =
       this.changingPassword() &&
       Boolean(
         this.profileForm.controls.currentPassword.value ||
-          this.profileForm.controls.newPassword.value ||
-          this.profileForm.controls.confirmNewPassword.value
+        this.profileForm.controls.newPassword.value ||
+        this.profileForm.controls.confirmNewPassword.value
       );
 
     return identityChanged || passwordChanged;

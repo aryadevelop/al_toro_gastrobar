@@ -40,7 +40,11 @@ export interface UpdateProfileRequest {
     fullName: string;
     email: string;
     phone: string;
+<<<<<<< HEAD
     aceptaTerminos?: boolean;
+=======
+    address?: string;
+>>>>>>> 76fdc2a (fix(modificarCliente) corregir modificar campos cliente)
     currentPassword?: string;
     newPassword?: string;
     confirmNewPassword?: string;
@@ -63,4 +67,26 @@ export interface BackendAuthUser {
     roles?: string[];
     status: string;
     createdAt: string;
+}
+
+export interface BackendClienteData {
+    id: number;
+    nombre: string;
+    email: string;
+    telefono: string;
+    direccion?: string;
+    puntosActuales: number;
+    puntosAcumulados: number;
+    aceptaTerminos: boolean;
+}
+
+export interface BackendUpdateClienteResponse {
+    success: boolean;
+    message: string;
+    cliente: BackendClienteData;
+}
+
+export interface BackendChangePasswordResponse {
+    success: boolean;
+    message: string;
 }
