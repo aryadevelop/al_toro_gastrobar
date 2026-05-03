@@ -23,4 +23,4 @@ scripts:
       pm.test('Mensaje de cuenta suspendida', () =>
         pm.expect(pm.response.json().message).to.eql('Tu cuenta se encuentra suspendida. Por favor contacta al administrador'));
     language: text/javascript
-order: 5000
+order: 6000

@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-14
+  **Objetivo:** Verificar que cambiar contraseña sin autenticación retorna 401.
+url: "{{baseUrl}}/api/clientes/me/cambiar-contraseña"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: ""
+body:
+  type: text
+  content: |-
+    {
+      "contraseñaActual": "ClientePass123!",
+      "nuevaContraseña": "NewPass123!",
+      "confirmacion": "NewPass123!"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – No autenticado', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 3000

@@ -1,0 +1,67 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-04
+  **Objetivo:** Verificar que se actualiza correctamente el perfil del cliente con datos válidos.
+url: "{{baseUrl}}/api/clientes/me"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan Carlos Updated {{$timestamp}}",
+      "email": "updated.{{$timestamp}}@example.com",
+      "telefono": "3109999{{$randomInt}}",
+      "direccion": "Carrera 10 # 25-30, Popayán",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Perfil actualizado exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('Respuesta contiene estructura esperada', () => {
+        pm.expect(body).to.have.property('success', true);
+        pm.expect(body).to.have.property('message');
+        pm.expect(body).to.have.property('cliente');
+      });
+
+      pm.test('Datos del cliente fueron actualizados', () => {
+        pm.expect(body.cliente).to.have.property('id');
+        pm.expect(body.cliente).to.have.property('nombre');
+        pm.expect(body.cliente).to.have.property('email');
+        pm.expect(body.cliente).to.have.property('telefono');
+        pm.expect(body.cliente).to.have.property('direccion');
+        pm.expect(body.cliente).to.have.property('aceptaTerminos', true);
+      });
+    language: text/javascript
+order: 2000
+

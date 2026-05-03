@@ -23,4 +23,4 @@ scripts:
       pm.test('Mensaje de contraseña requerida', () =>
         pm.expect(pm.response.json().message).to.include('Por favor, ingresa tu contraseña'));
     language: text/javascript
-order: 8000
+order: 9000

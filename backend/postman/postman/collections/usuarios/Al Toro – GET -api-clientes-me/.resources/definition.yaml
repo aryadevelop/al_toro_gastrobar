@@ -1,0 +1,7 @@
+$kind: collection
+name: Al Toro – GET /api/clientes/me
+description: |-
+  Casos de prueba HU-03 para consultar el perfil del cliente autenticado.
+
+  Incluye validaciones de autenticación, autorización por rol y respuesta exitosa.
+order: 348946001739100

@@ -34,4 +34,4 @@ scripts:
 
       pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
     language: text/javascript
-order: 13000
+order: 14000

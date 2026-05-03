@@ -40,4 +40,4 @@ scripts:
       pm.environment.set('clienteToken', body.accessToken);
       pm.environment.set('clienteRefreshToken', body.refreshToken);
     language: text/javascript
-order: 3000
+order: 4000

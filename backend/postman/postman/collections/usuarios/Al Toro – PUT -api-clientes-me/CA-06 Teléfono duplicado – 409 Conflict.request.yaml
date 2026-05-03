@@ -1,0 +1,56 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-06
+  **Objetivo:** Verificar que no se permite actualizar a un teléfono que ya está registrado en otro cliente.
+url: "{{baseUrl}}/api/clientes/me"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan Carlos",
+      "email": "unique.{{$timestamp}}@example.com",
+      "telefono": "3001234567",
+      "direccion": "Carrera 10 # 25-30, Popayán",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 409 – Teléfono duplicado', () => pm.response.to.have.status(409));
+
+      const body = pm.response.json();
+
+      pm.test('Mensaje de error incluye información sobre teléfono duplicado', () => {
+        pm.expect(body.message).to.include('teléfono');
+      });
+    language: text/javascript
+order: 2002
+
