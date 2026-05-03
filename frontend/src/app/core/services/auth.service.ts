@@ -9,12 +9,16 @@ import { Role, User } from '../models/domain.models';
 import {
   AuthResponse,
   BackendAuthUser,
+  BackendClienteData,
+  BackendUpdateClienteResponse,
+  BackendChangePasswordResponse,
   BackendRegisterRequest,
   BackendRegisterResponse,
   LoginCredentials,
   RegisterRequest,
   UpdateProfileRequest,
 } from '../models/auth.models';
+import { ApiEnvelope } from '../models/api.models';
 
 type AuthApiResponse = Omit<AuthResponse, 'user'> & { user: BackendAuthUser | User };
 
