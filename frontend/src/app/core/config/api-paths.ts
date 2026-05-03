@@ -33,6 +33,9 @@ export const API_PATHS = {
         menuEspecial: `${API}/productos/menu-especial`,
     },
     clientes: {
+        me: `${API}/clientes/me`,
+        updateMe: `${API}/clientes/me`,
+        changePassword: `${API}/clientes/me/cambiar-contraseña`,
         misPuntos: `${API}/clientes/me/puntos`,
     },
 } as const;

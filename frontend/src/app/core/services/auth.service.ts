@@ -94,13 +94,54 @@ export class AuthService {
   }
 
   updateProfile(payload: UpdateProfileRequest): Observable<User> {
-    return this.http.patch<User>(API_PATHS.users.me, payload).pipe(
-      map((user) => {
-        this.currentUserState.set(user);
-        this.storageService.setSessionUser(user);
-        return user;
-      })
-    );
+    const backendPayload = {
+      nombre: payload.fullName,
+      email: payload.email,
+      telefono: payload.phone,
+      direccion: payload.address ?? '',
+      aceptaTerminos: true,
+    };
+
+    return this.http
+      .put<ApiEnvelope<BackendUpdateClienteResponse>>(API_PATHS.clientes.updateMe, backendPayload)
+      .pipe(
+        map((envelope) => {
+          const cliente = envelope.data.cliente;
+          const currentUser = this.currentUserState();
+
+          const updatedUser: User = {
+            id: currentUser?.id ?? String(cliente.id),
+            fullName: cliente.nombre,
+            email: cliente.email,
+            phone: cliente.telefono,
+            role: currentUser?.role ?? 'CLIENTE',
+            status: currentUser?.status ?? 'ACTIVE',
+            createdAt: currentUser?.createdAt ?? new Date().toISOString(),
+          };
+
+          this.currentUserState.set(updatedUser);
+          this.storageService.setSessionUser(updatedUser);
+          return updatedUser;
+        })
+      );
+  }
+
+  changePassword(currentPassword: string, newPassword: string, confirmation: string): Observable<string> {
+    const backendPayload = {
+      'contraseñaActual': currentPassword,
+      'nuevaContraseña': newPassword,
+      'confirmacion': confirmation,
+    };
+
+    return this.http
+      .post<ApiEnvelope<BackendChangePasswordResponse>>(API_PATHS.clientes.changePassword, backendPayload)
+      .pipe(map((envelope) => envelope.data.message));
+  }
+
+  getMyProfile(): Observable<BackendClienteData> {
+    return this.http
+      .get<ApiEnvelope<BackendClienteData>>(API_PATHS.clientes.me)
+      .pipe(map((envelope) => envelope.data));
   }
 
   logout(): Observable<void> {

@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, HostListener, OnDestroy, effect, signal } from '@angular/core';
 import {
@@ -22,6 +22,7 @@ interface ProfileSnapshot {
   fullName: string;
   email: string;
   phone: string;
+  address: string;
 }
 
 const noWhitespaceValidator: ValidatorFn = (control: AbstractControl): ValidationErrors | null => {
@@ -257,6 +258,7 @@ export class ProfilePageComponent implements OnDestroy {
       fullName: ['', [Validators.required, noWhitespaceValidator, fullNameFormatValidator]],
       email: ['', [Validators.required, noWhitespaceValidator, Validators.email]],
       phone: ['', [Validators.required, noWhitespaceValidator, Validators.pattern(/^\d{10}$/)]],
+      address: [''],
       currentPassword: [''],
       newPassword: ['', [passwordComplexityValidator]],
       confirmNewPassword: ['']
@@ -276,20 +278,43 @@ export class ProfilePageComponent implements OnDestroy {
         return;
       }
 
-      this.profileForm.patchValue(
-        {
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone ?? ''
-        },
-        { emitEvent: false }
-      );
+      // Load full profile from backend (includes phone and address)
+      this.authService.getMyProfile().subscribe({
+        next: (profile) => {
+          this.profileForm.patchValue(
+            {
+              fullName: profile.nombre,
+              email: profile.email,
+              phone: profile.telefono ?? '',
+              address: profile.direccion ?? ''
+            },
+            { emitEvent: false }
+          );
 
-      this.disablePasswordChangeSection();
-      this.initialSnapshot = this.captureSnapshot();
-      this.profileForm.markAsPristine();
-      this.profileForm.markAsUntouched();
-      this.pendingChangesService.setHasUnsavedChanges(false);
+          this.disablePasswordChangeSection();
+          this.initialSnapshot = this.captureSnapshot();
+          this.profileForm.markAsPristine();
+          this.profileForm.markAsUntouched();
+          this.pendingChangesService.setHasUnsavedChanges(false);
+        },
+        error: () => {
+          // Fallback to currentUser data
+          this.profileForm.patchValue(
+            {
+              fullName: user.fullName,
+              email: user.email,
+              phone: user.phone ?? ''
+            },
+            { emitEvent: false }
+          );
+
+          this.disablePasswordChangeSection();
+          this.initialSnapshot = this.captureSnapshot();
+          this.profileForm.markAsPristine();
+          this.profileForm.markAsUntouched();
+          this.pendingChangesService.setHasUnsavedChanges(false);
+        }
+      });
     });
 
     this.profileForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
@@ -390,34 +415,49 @@ export class ProfilePageComponent implements OnDestroy {
     const formValue = this.profileForm.getRawValue();
     const isPasswordFlow = this.changingPassword();
 
+    this.loading.set(true);
+
+    if (isPasswordFlow) {
+      this.authService.changePassword(
+        formValue.currentPassword,
+        formValue.newPassword,
+        formValue.confirmNewPassword
+      ).subscribe({
+        next: () => {
+          this.loading.set(false);
+          this.disablePasswordChangeSection();
+          this.profileForm.markAsPristine();
+          this.successMessage.set('Contraseña actualizada correctamente');
+          this.initialSnapshot = this.captureSnapshot();
+          this.pendingChangesService.setHasUnsavedChanges(false);
+        },
+        error: (error: HttpErrorResponse) => {
+          this.loading.set(false);
+          const code = error.error?.code as string | undefined;
+
+          if (code === 'INVALID_CURRENT_PASSWORD') {
+            this.setControlError(this.profileForm.controls.currentPassword, 'invalidCurrentPassword');
+            return;
+          }
+
+          this.formMessage.set(error.error?.message ?? 'No fue posible actualizar la contraseña. Intenta nuevamente.');
+        }
+      });
+      return;
+    }
+
     const payload: UpdateProfileRequest = {
       fullName: formValue.fullName,
       email: formValue.email,
-      phone: formValue.phone
+      phone: formValue.phone,
+      address: formValue.address
     };
-
-    if (isPasswordFlow) {
-      payload.currentPassword = formValue.currentPassword;
-      payload.newPassword = formValue.newPassword;
-      payload.confirmNewPassword = formValue.confirmNewPassword;
-    }
-
-    this.loading.set(true);
 
     this.authService.updateProfile(payload).subscribe({
       next: () => {
         this.loading.set(false);
-
         this.initialSnapshot = this.captureSnapshot();
         this.pendingChangesService.setHasUnsavedChanges(false);
-
-        if (isPasswordFlow) {
-          this.disablePasswordChangeSection();
-          this.profileForm.markAsPristine();
-          this.successMessage.set('Contraseña actualizada correctamente');
-          return;
-        }
-
         this.pendingChangesService.skipNextPrompt();
         this.navigateToDashboard('Datos actualizados correctamente');
       },
@@ -679,6 +719,9 @@ export class ProfilePageComponent implements OnDestroy {
     controls.fullName.setValue(controls.fullName.value.trim().replace(/\s+/g, ' '));
     controls.email.setValue(controls.email.value.trim().toLowerCase());
     controls.phone.setValue(controls.phone.value.trim());
+    if (controls.address.value) {
+      controls.address.setValue(controls.address.value.trim());
+    }
 
     if (this.changingPassword()) {
       controls.currentPassword.setValue(controls.currentPassword.value.trim());
@@ -692,7 +735,8 @@ export class ProfilePageComponent implements OnDestroy {
     return {
       fullName: controls.fullName.value.trim().replace(/\s+/g, ' '),
       email: controls.email.value.trim().toLowerCase(),
-      phone: controls.phone.value.trim().replace(/\D/g, '')
+      phone: controls.phone.value.trim().replace(/\D/g, ''),
+      address: controls.address.value?.trim() ?? ''
     };
   }
 
@@ -705,7 +749,8 @@ export class ProfilePageComponent implements OnDestroy {
     const identityChanged =
       currentSnapshot.fullName !== this.initialSnapshot.fullName ||
       currentSnapshot.email !== this.initialSnapshot.email ||
-      currentSnapshot.phone !== this.initialSnapshot.phone;
+      currentSnapshot.phone !== this.initialSnapshot.phone ||
+      currentSnapshot.address !== this.initialSnapshot.address;
 
     const passwordChanged =
       this.changingPassword() &&
