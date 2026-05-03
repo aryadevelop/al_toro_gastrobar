@@ -1,10 +1,15 @@
 package co.edu.unicauca.backend.modules.notificaciones.service;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaWsPublisher;
+import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
@@ -12,6 +17,8 @@ import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
@@ -44,6 +51,9 @@ class NotificacionServiceTest {
     @Mock MesaRepository mesaRepository;
     @Mock NotificacionRepository notificacionRepository;
     @Mock NotificacionWsPublisher wsPublisher;
+    @Mock ComandaRepository comandaRepository;
+    @Mock MesaAsignarService mesaAsignarService;
+    @Mock MesaWsPublisher mesaWsPublisher;
 
     @InjectMocks NotificacionService notificacionService;
 
@@ -61,6 +71,27 @@ class NotificacionServiceTest {
     private Mesa mesaConMesero() {
         Empleado mesero = Empleado.builder().usuarioId(5L).build();
         return Mesa.builder().visitaId(VISITA_ID).mesaIdentificador("T-01").mesero(mesero).build();
+    }
+
+    private Comanda comandaListo(EstacionComanda estacion) {
+        return Comanda.builder()
+                .comandaId(80L)
+                .comandaEstacion(estacion)
+                .comandaEstado(EstadoComanda.LISTO)
+                .build();
+    }
+
+    private Notificacion notificacionConComanda(TipoNotificacion tipo,
+                                                EstadoNotificacion estado,
+                                                Comanda comanda) {
+        return Notificacion.builder()
+                .notificacionId(50L)
+                .mesa(mesaConMesero())
+                .empleado(mesaConMesero().getMesero())
+                .notificacionTipo(tipo)
+                .notificacionEstado(estado)
+                .comanda(comanda)
+                .build();
     }
 
     @Nested
@@ -190,6 +221,229 @@ class NotificacionServiceTest {
 
             assertThatThrownBy(() -> notificacionService.atenderAsistencia(99L, "mesero@test.com"))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("publica WS al mapa de mesas para que todos los meseros eliminen el ícono")
+        void publicaRefreshMapaMesas() {
+            Mesa mesa = mesaConMesero();
+            Notificacion notif = Notificacion.builder()
+                    .notificacionId(50L)
+                    .notificacionEstado(EstadoNotificacion.ACTIVA)
+                    .notificacionTipo(TipoNotificacion.ATENCION)
+                    .mesa(mesa).empleado(mesa.getMesero()).build();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(notif));
+            when(notificacionRepository.save(any())).thenReturn(notif);
+
+            notificacionService.atenderAsistencia(50L, "mesero@test.com");
+
+            verify(mesaWsPublisher).publicarActualizacionMesa(
+                    VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+        }
+    }
+
+    @Nested
+    @DisplayName("servirPlatos")
+    class ServirPlatos {
+
+        @Test
+        @DisplayName("happy path → comanda COMPLETADO, notificación ATENDIDA, WS publicado y evaluador llamado")
+        void platosListosActiva_completaComandaYPublicaWs() {
+            Comanda comanda = comandaListo(EstacionComanda.COCINA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comanda);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.save(any())).thenReturn(comanda);
+
+            notificacionService.servirPlatos(50L, "mesero@test.com");
+
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.COMPLETADO);
+            assertThat(n.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
+            verify(wsPublisher).publicarComandaCompletada(80L, "COCINA");
+            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+            verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+        }
+
+        @Test
+        @DisplayName("notificación inexistente → ResourceNotFoundException")
+        void notificacionNoExiste_lanzaNotFound() {
+            when(notificacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.servirPlatos(99L, "mesero@test.com"))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(mesaAsignarService, never()).evaluarYActualizarEstadoMesa(any());
+        }
+
+        @Test
+        @DisplayName("tipo distinto a PLATOS_LISTOS → BusinessException INVALID_STATE")
+        void tipoIncorrecto_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA, comandaListo(EstacionComanda.COCINA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirPlatos(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("notificación ya ATENDIDA → BusinessException INVALID_STATE")
+        void yaAtendida_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ATENDIDA, comandaListo(EstacionComanda.COCINA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirPlatos(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+            verify(comandaRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("notificación sin comanda asociada → BusinessException BUSINESS_ERROR")
+        void sinComanda_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, null);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirPlatos(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+            verify(wsPublisher, never()).publicarComandaCompletada(any(), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("servirBebidas")
+    class ServirBebidas {
+
+        @Test
+        @DisplayName("happy path → comanda BARRA COMPLETADO, WS BARRA publicado y evaluador llamado")
+        void bebidasListasActiva_completaComandaBarra() {
+            Comanda comanda = comandaListo(EstacionComanda.BARRA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA, comanda);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.save(any())).thenReturn(comanda);
+
+            notificacionService.servirBebidas(50L, "mesero@test.com");
+
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.COMPLETADO);
+            verify(wsPublisher).publicarComandaCompletada(80L, "BARRA");
+            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+            verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+        }
+
+        @Test
+        @DisplayName("notificación inexistente → ResourceNotFoundException")
+        void notificacionNoExiste_lanzaNotFound() {
+            when(notificacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.servirBebidas(99L, "mesero@test.com"))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("tipo distinto a BEBIDAS_LISTAS → BusinessException INVALID_STATE")
+        void tipoIncorrecto_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comandaListo(EstacionComanda.COCINA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirBebidas(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("notificación ya ATENDIDA → BusinessException INVALID_STATE")
+        void yaAtendida_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ATENDIDA, comandaListo(EstacionComanda.BARRA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirBebidas(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("notificación sin comanda asociada → BusinessException BUSINESS_ERROR")
+        void sinComanda_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA, null);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.servirBebidas(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("atenderCambio")
+    class AtenderCambio {
+
+        @Test
+        @DisplayName("happy path → notificación ATENDIDA, devuelve comandaId, NO evalúa estado de mesa")
+        void cambioActivo_atiendeYRetornaComandaId() {
+            Comanda comanda = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, comanda);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(notificacionRepository.save(any())).thenReturn(n);
+
+            AtenderCambioResponse res = notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            assertThat(res.getComandaId()).isEqualTo(80L);
+            assertThat(n.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.PENDIENTE);
+            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+            verify(mesaAsignarService, never()).evaluarYActualizarEstadoMesa(any());
+            verify(wsPublisher, never()).publicarComandaCompletada(any(), any());
+        }
+
+        @Test
+        @DisplayName("notificación inexistente → ResourceNotFoundException")
+        void notificacionNoExiste_lanzaNotFound() {
+            when(notificacionRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.atenderCambio(99L, "mesero@test.com"))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("tipo distinto a CAMBIO → BusinessException INVALID_STATE")
+        void tipoIncorrecto_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comandaListo(EstacionComanda.COCINA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.atenderCambio(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("notificación ya ATENDIDA → BusinessException INVALID_STATE")
+        void yaAtendida_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ATENDIDA, comandaListo(EstacionComanda.COCINA));
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.atenderCambio(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("notificación sin comanda → BusinessException BUSINESS_ERROR")
+        void sinComanda_lanzaBusinessException() {
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, null);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+
+            assertThatThrownBy(() -> notificacionService.atenderCambio(50L, "mesero@test.com"))
+                    .isInstanceOf(BusinessException.class);
         }
     }
 }
