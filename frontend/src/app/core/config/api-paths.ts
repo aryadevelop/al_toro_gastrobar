@@ -21,6 +21,7 @@ export const API_PATHS = {
         futuras: `${API}/reservas/cliente/futuras`,
         canceladasDevueltas: `${API}/reservas/cliente/canceladas-devueltas`,
         detalle: (reservaId: string | number) => `${API}/reservas/${reservaId}/detalle`,
+        meseroConsulta: `${API}/reservas/mesero/consulta`,
     },
     visitas: {
         historial: `${API}/visitas/cliente/historial`,
@@ -34,5 +35,10 @@ export const API_PATHS = {
     },
     clientes: {
         misPuntos: `${API}/clientes/me/puntos`,
+    },
+    mesas: {
+        mapa: `${API}/mesas`,
+        detalle: (mesaId: string | number) => `${API}/mesas/${mesaId}/detalle`,
+        itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
     },
 } as const;

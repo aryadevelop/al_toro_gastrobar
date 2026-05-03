@@ -32,6 +32,7 @@ export interface Reserva {
   id: string;
   clienteId: string;
   guestName: string;
+  phone?: string;
   guests: number;
   date: string;
   time: string;

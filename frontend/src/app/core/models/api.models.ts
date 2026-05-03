@@ -59,10 +59,32 @@ export interface BackendReservaDetalle {
   notas?: string;
   clienteId?: number;
   clienteNombre?: string;
+  clienteTelefono?: string;
   preOrdenItems?: BackendPreOrdenItem[];
   preOrdenTotal?: number;
   abonos?: BackendAbonoItem[];
   totalAbonado?: number;
+}
+
+export interface BackendReservaConsultaItem {
+  reservaId: number;
+  clienteNombre?: string;
+  zonaId?: number;
+  zonaNombre?: string;
+  decoracionNombre?: string;
+  horaLlegada?: string; // HH:mm
+  numeroPersonas?: number;
+  clienteTelefono?: string;
+  estado?: string;
+}
+
+export interface BackendListadoReservasResponse {
+  reservas: BackendReservaConsultaItem[];
+  resumenZonas: Array<{
+    zonaId?: number;
+    zonaNombre: string;
+    cantidadReservas: number;
+  }>;
 }
 
 export interface BackendCrearReservaRequest {
@@ -168,4 +190,60 @@ export interface BackendEstadoVisita {
 
 export interface BackendNotificacionAsistencia {
   notificacionId: number;
+}
+
+export interface BackendNotificacionActiva {
+  notificacionId: number;
+  tipo: string;
+  fechaHora: string;
+}
+
+export interface BackendMesaMapa {
+  mesaId: number;
+  visitaId: number;
+  identificador: string;
+  numeroPersonas: number;
+  estado: string;
+  nombreMesero?: string;
+  esMesaPropia?: boolean;
+  tieneBorrador?: boolean;
+  notificacionesActivas?: BackendNotificacionActiva[];
+}
+
+export interface BackendZonaMesas {
+  zonaId: number;
+  zonaNombre: string;
+  cantidadMesasActivas: number;
+  mesas: BackendMesaMapa[];
+}
+
+export interface BackendMapaMesasResponse {
+  zonas: BackendZonaMesas[];
+}
+
+export interface BackendItemComandaEnProduccion {
+  nombreProducto: string;
+  descripcion?: string;
+  categoriaProducto?: string;
+  cantidad: number;
+  estadoComanda?: string;
+}
+
+export interface BackendMesaDetalleResponse {
+  mesaId: number;
+  visitaId?: number;
+  identificador: string;
+  nombreCliente?: string;
+  horaLlegada?: string;
+  numeroPersonas?: number;
+  estado?: string;
+  notasReserva?: string;
+  notasMesa?: string;
+  notasComandas?: string;
+  itemsComanda?: BackendItemComandaEnProduccion[];
+}
+
+export interface BackendMesaItemsProduccionResponse {
+  identificadorMesa: string;
+  itemsEnProduccion: BackendItemComandaEnProduccion[];
 }

@@ -1,10 +1,11 @@
 $kind: http-request
-name: 30-02 Detalle Reserva – MESERO
+name: 30-01 Detalle Reserva – MESERO
 description: Obtener detalle completo de una reserva (mesero)
 url: "{{baseUrl}}/api/reservas/mesero/21/detalle"
 method: GET
 headers:
-  Authorization: Bearer {{tmpMeseroToken}}
+  - key: Authorization
+    value: Bearer {{tmpMeseroToken}}
 scripts:
   - type: beforeRequest
     code: |-

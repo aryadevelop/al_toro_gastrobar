@@ -38,4 +38,9 @@ public class ReservaConsultaResponse {
 
     /** Estado actual de la reserva ({@code CONFIRMADA} o {@code PENDIENTE}). */
     private final String estado;
+
+    /**
+     * Indica si debe mostrarse el botón "Marcar inasistencia".
+     */
+    private final Boolean mostrarBotonInasistencia;
 }
