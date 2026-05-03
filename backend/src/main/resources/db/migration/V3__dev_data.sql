@@ -153,7 +153,6 @@ INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_lleg
 (13, 3, NULL, NOW() - INTERVAL '8 days',   2,  'Cancelación con devolución',                 'DEVUELTA',     'ESPECIAL', NOW() - INTERVAL '40 days'),
 -- Reserva 17 → Menú 8d (Cerdo y Res en Vino) — cubre el último menú especial disponible
 (19, 2, 5,    NOW() + INTERVAL '15 days', 11,  'Fiesta de graduación',                       'PENDIENTE',    'ESPECIAL', NOW());
-
 -- =====================================================
 -- 7. Abono
 -- =====================================================
@@ -520,4 +519,9 @@ LIMIT 1;
 -- Reserva ESPECIAL PENDIENTE con fecha pasada para andres.morales@gmail.com (CR-12)
 INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
 SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '1 day', 2, NULL, 'PENDIENTE', 'ESPECIAL', NOW() - INTERVAL '3 days'
+FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
+
+-- Reserva BASICA CONFIRMADA para test marcar inasistencia
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '2 hours', 3, 'Test marcar inasistencia', 'CONFIRMADA', 'BASICA', NOW() - INTERVAL '1 day'
 FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';

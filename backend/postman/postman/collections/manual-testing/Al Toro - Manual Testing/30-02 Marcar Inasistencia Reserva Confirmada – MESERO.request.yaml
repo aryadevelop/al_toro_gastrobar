@@ -1,0 +1,50 @@
+$kind: http-request
+name: 30-02 Marcar Inasistencia Reserva Confirmada – MESERO
+description: |-
+  Marcar inasistencia de una reserva CONFIRMADA con +30 minutos desde hora inicio.
+  Debe liberar zona y decoración si aplica.
+url: "{{baseUrl}}/api/reservas/16/marcar-inasistencia"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+  Content-Type: application/json
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo como MESERO
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+          console.log('✓ Mesero authenticated');
+        } else {
+          console.error('Login failed:', err);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      // Cleanup: remover variables temporales
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpMeseroToken');
+
+      // Mostrar respuesta
+      if (pm.response.code === 200) {
+        const body = pm.response.json();
+        console.log('✓ Inasistencia marcada:', body.data);
+        console.log('  - Zona liberada:', body.data.zonaLiberada);
+        console.log('  - Decoración liberada:', body.data.decoracionLiberada);
+      }
+    language: text/javascript
+order: 3002

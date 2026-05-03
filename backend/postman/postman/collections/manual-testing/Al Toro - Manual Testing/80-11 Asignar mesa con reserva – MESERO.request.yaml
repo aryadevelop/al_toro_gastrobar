@@ -7,8 +7,8 @@ headers:
   Authorization: Bearer {{tmpMeseroToken}}
   Content-Type: application/json
 body:
-  mode: raw
-  raw: |-
+  type: json
+  content: |-
     {
       "mesaIdentificador": "T-02",
       "zonaId": 1,

@@ -24,4 +24,4 @@ scripts:
       pm.test('Mensaje genérico de credenciales inválidas (sin exposición de detalles internos)', () =>
         pm.expect(pm.response.json().message).to.eql('Credenciales inválidas.'));
     language: text/javascript
-order: 11000
+order: 12000

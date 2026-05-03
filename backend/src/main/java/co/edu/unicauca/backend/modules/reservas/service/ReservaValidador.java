@@ -13,6 +13,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
@@ -232,5 +233,66 @@ public class ReservaValidador {
 
         // Comparar el costo adicional con cero: retorna true solo si es estrictamente positivo
         return decoracion.getDecoracionCostoAdicional().compareTo(BigDecimal.ZERO) > 0;
+    }
+
+    // -----------------------------------------------------------------------
+    // Validación de elegibilidad para marcar inasistencia
+    // -----------------------------------------------------------------------
+
+    /**
+     * Valida que una reserva pueda marcarse como inasistencia según las reglas de negocio.
+     *
+     * <p>Requisitos para marcar inasistencia:
+     * <ul>
+     *   <li>La reserva debe estar en estado {@code CONFIRMADA} (las PENDIENTE no pueden marcarse).</li>
+     *   <li>Deben haber transcurrido al menos 30 minutos desde {@code reservaFechaHoraLlegada}.</li>
+     *   <li>Si el usuario es MESERO: la reserva debe ser del día actual (no pasadas ni futuras).</li>
+     *   <li>Si el usuario es ADMIN: puede marcar inasistencia de cualquier fecha.</li>
+     * </ul>
+     *
+     * @param reserva  entidad de la reserva a validar
+     * @param esMesero {@code true} si el usuario tiene rol MESERO, {@code false} si es ADMIN
+     * @throws BusinessException con código {@code INVALID_STATE} y status {@code 422} si:
+     *         <ul>
+     *           <li>La reserva no está en estado {@code CONFIRMADA}.</li>
+     *           <li>No han transcurrido 30 minutos desde la hora de llegada.</li>
+     *           <li>El usuario es MESERO y la reserva no es del día actual.</li>
+     *         </ul>
+     */
+    public void validarElegibilidadInasistencia(Reserva reserva, boolean esMesero) {
+
+        // 1. Solo reservas CONFIRMADAS pueden marcarse como inasistencia
+        if (reserva.getReservaEstado() != EstadoReserva.CONFIRMADA) {
+            throw new BusinessException(
+                    ErrorCode.INVALID_STATE,
+                    "Solo reservas confirmadas pueden marcarse como inasistencia",
+                    HttpStatus.UNPROCESSABLE_ENTITY
+            );
+        }
+
+        // 2. MESERO solo puede marcar inasistencia de reservas del día actual
+        if (esMesero) {
+            LocalDate fechaReserva = reserva.getReservaFechaHoraLlegada().toLocalDate();
+            LocalDate fechaActual = LocalDate.now();
+
+            if (!fechaReserva.isEqual(fechaActual)) {
+                throw new BusinessException(
+                        ErrorCode.INVALID_STATE,
+                        "Los meseros solo pueden marcar inasistencia de reservas del día actual",
+                        HttpStatus.UNPROCESSABLE_ENTITY
+                );
+            }
+        }
+
+        // 3. Deben haber transcurrido al menos 30 minutos desde la hora de llegada
+        LocalDateTime horaLimite = reserva.getReservaFechaHoraLlegada().plusMinutes(30);
+        if (LocalDateTime.now().isBefore(horaLimite)) {
+            long minutosRestantes = Duration.between(LocalDateTime.now(), horaLimite).toMinutes();
+            throw new BusinessException(
+                    ErrorCode.INVALID_STATE,
+                    "Debe esperar " + minutosRestantes + " minuto(s) más antes de marcar inasistencia",
+                    HttpStatus.UNPROCESSABLE_ENTITY
+            );
+        }
     }
 }

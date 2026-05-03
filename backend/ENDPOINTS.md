@@ -24,10 +24,11 @@ Base URL: `http://localhost:8080/api`
 | POST | `/` | **CLIENTE** | Crear reserva. Puede incluir pre-orden de comanda (estado `PRE_RESERVA`). Valida capacidad de zona, decoración exclusiva, y horarios. |
 | PUT | `/{reservaId}` | **CLIENTE** | Modificar reserva futura. Cutoff: 13:00 día anterior (BASICA), 23:00 día anterior (ESPECIAL). Solo `PENDIENTE`/`CONFIRMADA`. |
 | PATCH | `/{reservaId}/cancelar` | **CLIENTE** | Cancelar reserva. Sin restricción de tiempo. Retorna flag `requiereWhatsApp` si hay abono a reembolsar. |
+| PATCH | `/{reservaId}/marcar-inasistencia` | **MESERO / ADMIN** | Marcar reserva como inasistencia tras 30 minutos de tolerancia. Solo `CONFIRMADA`. Libera zona y decoración. Cambio irreversible. |
 | GET | `/cliente/futuras?emailCliente=` | **CLIENTE** | Lista reservas futuras del cliente (`PENDIENTE`/`CONFIRMADA`) ordenadas ASC por fecha. Ownership validation. |
 | GET | `/cliente/canceladas-devueltas?emailCliente=` | **CLIENTE** | Historial de reservas canceladas (`CANCELADA`/`DEVUELTA`) del cliente. Ownership validation. |
 | GET | `/{reservaId}/detalle` | **CLIENTE / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos. CLIENTE: ownership validation. |
-| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / ADMIN** | Lista reservas activas del día (o fecha especificada). Si se proporciona `identificador`, busca por ID de reserva. |
+| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / ADMIN** | Lista reservas activas del día (o fecha especificada). Si se proporciona `identificador`, busca por ID de reserva. Retorna campo `mostrarBotonInasistencia` calculado dinámicamente. |
 | GET | `/mesero/{reservaId}/detalle` | **MESERO / ADMIN** | Detalle completo para meseros: incluye teléfono cliente, modificaciones de pre-orden, información de contacto. |
 
 ---

@@ -27,4 +27,4 @@ scripts:
         pm.expect(body.message).to.eql('Credenciales inválidas.');
       });
     language: text/javascript
-order: 2000
+order: 3000

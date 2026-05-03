@@ -1,5 +1,6 @@
 $kind: http-request
-name: CA-HU-MR Login de usuario multi-rol — validación de rol primario por prioridad – 200 OK
+name: CA-HU-MR Login de usuario multi-rol — validación de rol primario por
+  prioridad – 200 OK
 description: |-
   **Historia de Usuario:** HU-MR (Multi-Rol)
   **Objetivo:** Verificar que cuando un usuario posee múltiples roles activos, el sistema resuelve correctamente el rol primario utilizando la lógica de prioridad definida en `resolvePrimaryRole()`. Adicionalmente, se verifica que los roles inactivos no aparecen en el listado de roles disponibles.
@@ -35,4 +36,4 @@ scripts:
       pm.test('El rol ADMIN no aparece en los roles activos (ADM está inactivo)', () =>
         pm.expect(body.user.roles).to.not.include('ADMIN'));
     language: text/javascript
-order: 16000
+order: 17000
