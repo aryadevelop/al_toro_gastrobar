@@ -13,6 +13,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepositor
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
@@ -20,9 +21,12 @@ import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoMesa;
+import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -55,6 +59,7 @@ public class MesaAsignarService {
     private final EmpleadoRepository empleadoRepository;
     private final MesaWsPublisher mesaWsPublisher;
     private final NotificacionWsPublisher notificacionWsPublisher;
+    private final NotificacionRepository notificacionRepository;
 
     /**
      * Asigna identificador a una nueva mesa.
@@ -259,5 +264,66 @@ public class MesaAsignarService {
                 })
                 .filter(zona -> zona.getDisponibilidad() > 0)
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Evalúa si la mesa debe transicionar automáticamente al estado {@code ATENDIDA}
+     * y aplica el cambio cuando se cumplen todas las condiciones.
+     *
+     * <p>Condiciones (todas deben cumplirse simultáneamente):
+     * <ol>
+     *   <li>No existen notificaciones {@code PLATOS_LISTOS} en estado {@code ACTIVA} para la visita.</li>
+     *   <li>No existen notificaciones {@code BEBIDAS_LISTAS} en estado {@code ACTIVA} para la visita.</li>
+     *   <li>No existen comandas en estados de producción ({@code PENDIENTE},
+     *       {@code EN_PREPARACION} o {@code LISTO}) para la visita.</li>
+     * </ol>
+     *
+     * <p>Las comandas en {@code BORRADOR} o {@code PRE_RESERVA} no afectan la evaluación
+     * porque aún no fueron enviadas a producción.
+     *
+     * <p>El método es <b>idempotente</b>: si la mesa ya está en {@code ATENDIDA},
+     * no se persiste cambio ni se publica evento WS.
+     *
+     * <p>Cuando aplica el cambio, publica al tópico {@code /topic/mesas} para que
+     * el frontend actualice el mapa en tiempo real.
+     *
+     * @param visitaId identificador de la visita (PK de Mesa)
+     * @throws ResourceNotFoundException si no existe mesa para esa visita
+     */
+    @Transactional
+    public void evaluarYActualizarEstadoMesa(Long visitaId) {
+
+        // Si hay notificaciones PLATOS_LISTOS activas, la mesa aún espera servicio
+        if (notificacionRepository.existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
+                visitaId, TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA)) {
+            return;
+        }
+
+        // Mismo razonamiento para BEBIDAS_LISTAS
+        if (notificacionRepository.existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
+                visitaId, TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA)) {
+            return;
+        }
+
+        // Si hay comandas pendientes/en preparación/listas, la mesa aún tiene producción en curso
+        if (comandaRepository.existsByVisita_VisitaIdAndComandaEstadoIn(
+                visitaId,
+                List.of(EstadoComanda.PENDIENTE, EstadoComanda.EN_PREPARACION, EstadoComanda.LISTO))) {
+            return;
+        }
+
+        Mesa mesa = mesaRepository.findById(visitaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Mesa", visitaId));
+
+        // Idempotencia: evita publicaciones WS duplicadas
+        if (mesa.getMesaEstado() == EstadoMesa.ATENDIDA) {
+            return;
+        }
+
+        mesa.setMesaEstado(EstadoMesa.ATENDIDA);
+        mesaRepository.save(mesa);
+
+        // Notifica al frontend del mapa de mesas el cambio de estado
+        mesaWsPublisher.publicarCambioEstadoMesa(visitaId, EstadoMesa.ATENDIDA);
     }
 }

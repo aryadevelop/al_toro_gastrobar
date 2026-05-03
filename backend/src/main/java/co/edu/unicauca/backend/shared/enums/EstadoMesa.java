@@ -4,9 +4,9 @@ package co.edu.unicauca.backend.shared.enums;
  * Estado operativo de una {@link co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa}.
  *
  * <ul>
- *   <li>{@code ESPERA} — la mesa tiene comanda pendiente pero aún no ha iniciado la preparación.</li>
- *   <li>{@code EN_PREPARACION} — al menos una comanda de la mesa está siendo preparada.</li>
- *   <li>{@code ATENDIDA} — todos los pedidos fueron entregados; la cuenta está pendiente de cierre.</li>
+ *   <li>{@code ESPERA} — la mesa tiene comanda en borrador pero aún no ha iniciado la preparación.</li>
+ *   <li>{@code EN_PREPARACION} — al menos una comanda de la mesa está siendo preparada o está en estado "En preparacion", "Listo", "Completado".</li>
+ *   <li>{@code ATENDIDA} — todos los pedidos fueron entregados y no hay comandas en borrador; la cuenta está pendiente de cierre.</li>
  *   <li>{@code CERRADA} — la cuenta fue cerrada y la mesa queda disponible.</li>
  * </ul>
  */

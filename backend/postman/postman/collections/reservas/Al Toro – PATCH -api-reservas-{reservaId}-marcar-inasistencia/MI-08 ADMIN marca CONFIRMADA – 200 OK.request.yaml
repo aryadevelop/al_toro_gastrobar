@@ -1,5 +1,24 @@
 $kind: http-request
 name: MI-08 ADMIN marca CONFIRMADA – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque requiere una
+  > reserva CONFIRMADA con `fechaHoraLlegada` >= 30 minutos en el pasado, y la validación
+  > `@Future` del DTO `CrearReservaRequest` impide crear reservas con fecha pasada vía
+  > API pública.
+  >
+  > Hasta que exista un mecanismo público para crear reservas back-dated, este test:
+  >   1. Sigue dependiendo de la reserva seed ID 21 en `V3__dev_data.sql`.
+  >   2. Puede romperse en runs repetidos (la reserva pasa a INASISTENCIA tras la primera
+  >      ejecución exitosa).
+  >
+  > Acción pendiente: refactorizar al patrón create-fresh cuando exista forma de crear
+  > reservas con fecha pasada (test seed endpoint, parámetro de bypass, etc.).
+
+  ADMIN puede marcar inasistencia de cualquier reserva CONFIRMADA pasada (sin restricción
+  de día actual aplicable a MESERO).
+  **Resultado esperado:** 200 OK, estado=INASISTENCIA, mensaje confirma liberación.
 url: "{{baseUrl}}/api/reservas/21/marcar-inasistencia"
 method: PATCH
 headers:

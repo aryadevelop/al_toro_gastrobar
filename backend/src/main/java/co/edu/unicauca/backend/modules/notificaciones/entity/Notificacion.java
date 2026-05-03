@@ -1,7 +1,8 @@
 package co.edu.unicauca.backend.modules.notificaciones.entity;
 
-import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import jakarta.persistence.*;
@@ -51,6 +52,24 @@ public class Notificacion {
     @JoinColumn(name = "empleado_id", nullable = false,
                 foreignKey = @ForeignKey(name = "fk_notificacion_empleado"))
     private Empleado empleado;
+
+    /**
+     * Comanda asociada a la notificación.
+     *
+     * <p>Aplica solo a notificaciones generadas desde producción:
+     * <ul>
+     *   <li>{@code PLATOS_LISTOS} — comanda de cocina cuyos platos están listos para servir.</li>
+     *   <li>{@code BEBIDAS_LISTAS} — comanda de barra cuyas bebidas están listas para servir.</li>
+     *   <li>{@code CAMBIO} — comanda que el cliente solicitó modificar.</li>
+     * </ul>
+     *
+     * <p>Es {@code null} para notificaciones {@code ATENCION} (solicitadas por el cliente,
+     * sin relación con una comanda específica).
+     */
+    @ManyToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "comanda_id",
+                foreignKey = @ForeignKey(name = "fk_notificacion_comanda"))
+    private Comanda comanda;
 
     /** Estado actual: {@code ACTIVA} si está pendiente de atención, {@code ATENDIDA} si fue resuelta. */
     @NotNull(message = "El estado de la notificación es obligatorio")

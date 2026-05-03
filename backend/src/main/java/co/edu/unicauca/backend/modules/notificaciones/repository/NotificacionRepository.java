@@ -40,4 +40,18 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
         ORDER BY n.notificacionFechaHora DESC
         """)
     List<Notificacion> findNotificacionesActivasByMesa(@Param("mesaId") Long mesaId);
+
+    /**
+     * Verifica si existe al menos una notificación de un tipo y estado dados para la mesa.
+     *
+     * <p>El evaluador de estado de mesa la utiliza para decidir si la mesa puede
+     * transicionar automáticamente a {@code ATENDIDA}.
+     *
+     * @param visitaId identificador de la visita (PK de Mesa)
+     * @param tipo     tipo de notificación a verificar
+     * @param estado   estado de la notificación a verificar
+     * @return {@code true} si existe alguna notificación que cumple las tres condiciones
+     */
+    boolean existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
+            Long visitaId, TipoNotificacion tipo, EstadoNotificacion estado);
 }

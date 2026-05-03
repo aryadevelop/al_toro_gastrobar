@@ -1,0 +1,19 @@
+$kind: http-request
+name: SB-06 ID de notificación inexistente – 404 Not Found
+description: |-
+  **Objetivo:** Verificar que un ID de notificación que no existe retorna 404.
+  **Pre-condición:** `meseroToken` disponible.
+  **Resultado esperado:** 404 Not Found, code=ENT-001.
+url: "{{baseUrl}}/api/notificaciones/999999/servir-bebidas"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 404', () => pm.response.to.have.status(404));
+      pm.test('code=ENT-001', () => {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 7206

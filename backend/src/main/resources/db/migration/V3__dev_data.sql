@@ -385,6 +385,25 @@ INSERT INTO Notificacion (mesa_id, empleado_id, notificacion_estado, notificacio
 (12, 6,  'ACTIVA',   'ATENCION',       NOW() - INTERVAL '2 minutes');
 
 -- =====================================================
+-- Seed para tests automatizados HE-03-HU-06 (gestionar notificaciones)
+-- IDs resultantes: 11-15 (los 10 anteriores ocupan IDs 1-10)
+--   mesa_id 10  = M-02 (visita 10, mesero_id 4)
+--   mesa_id 11  = M-04 (visita 11, mesero_id 5)
+--   empleado 4  = Diego Muñoz (MESERO), empleado 5 = Tatiana Palacios (MESERO)
+--   empleado 6  = Felipe Solano (MESERO)
+--   comanda 13  = visita 10 COCINA (EN_PREPARACION)
+--   comanda 15  = visita 11 COCINA (PENDIENTE)
+--   comanda 14  = visita 10 BARRA (LISTO)
+--   comanda 16  = visita 11 BARRA (EN_PREPARACION)
+-- =====================================================
+INSERT INTO Notificacion (mesa_id, empleado_id, comanda_id, notificacion_estado, notificacion_tipo) VALUES
+(10, 4, 13, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 11 → seedNotificacionPlatosListosId
+(11, 5, 15, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 12 → seedNotificacionPlatosListosId2
+(10, 4, 14, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 13 → seedNotificacionBebidasListasId
+(11, 5, 16, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 14 → seedNotificacionBebidasListasId2
+(11, 6, 15, 'ACTIVA', 'CAMBIO');          -- ID 15 → seedNotificacionCambioId
+
+-- =====================================================
 -- 14. Venta (una por visita cerrada)
 -- =====================================================
 INSERT INTO Venta (visita_id, cajero_id, venta_fecha_hora, venta_subtotal, venta_descuento, venta_total, venta_metodo) VALUES

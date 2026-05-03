@@ -22,25 +22,37 @@ description: |-
   - Estado debe ser CONFIRMADA (422 si es PENDIENTE, CANCELADA, etc.)
   - Debe haber pasado 30 minutos desde fechaHoraLlegada (422 si es antes)
   - Idempotencia: rechaza si ya está marcada como INASISTENCIA
-
-  **Response:**
-  - MarcarInasistenciaResponse con reservaId, estado (INASISTENCIA), mensaje confirmación
+  - MESERO solo puede marcar inasistencia de reservas del día actual
 
   ## Independencia de datos
 
-  - **Tokens:** login autónomo en `beforeRequest` de cada test (independencia total)
-  - **Reserva CONFIRMADA pasada:** ID 10 del seed (fecha pasada + 30 min cumplidos)
-  - **Reserva PENDIENTE:** ID 11 del seed (para validar estado)
-  - **Reservas futuras:** creadas dinámicamente en MI-07 para validar tolerancia de 30 min
+  Cada test es ejecutable solo, repetidamente y en cualquier orden.
 
-  | ID | Escenario | HTTP |
-  |----|-----------|------|
-  | MI-01 | Sin token de autenticación — 401 Unauthorized | 401 |
-  | MI-02 | CLIENTE sin permiso — 403 Forbidden | 403 |
-  | MI-03 | CAJERO sin permiso — 403 Forbidden | 403 |
-  | MI-04 | COCINERO sin permiso — 403 Forbidden | 403 |
-  | MI-05 | Reserva no encontrada — 404 Not Found | 404 |
-  | MI-06 | Reserva PENDIENTE — 422 Unprocessable Entity | 422 |
-  | MI-07 | Antes de 30 min tolerancia — 422 Unprocessable Entity | 422 |
-  | MI-08 | ADMIN marca CONFIRMADA pasada — 200 OK | 200 |
-  | MI-09 | Idempotencia (ya marcada) — 422 Unprocessable Entity | 422 |
+  | ID    | Escenario                                        | HTTP |
+  |-------|--------------------------------------------------|------|
+  | MI-01 | Sin token de autenticación                       | 401  |
+  | MI-02 | CLIENTE sin permiso                              | 403  |
+  | MI-03 | CAJERO sin permiso                               | 403  |
+  | MI-04 | COCINERO sin permiso                             | 403  |
+  | MI-05 | Reserva no encontrada                            | 404  |
+  | MI-06 | Reserva PENDIENTE                                | 422  |
+  | MI-08 | ADMIN marca CONFIRMADA pasada                    | 200  |
+  | MI-09 | Idempotencia (ya marcada)                        | 422  |
+
+  Tests 401/403 (MI-01..MI-04) no llegan al servicio: el filtro de seguridad rechaza
+  antes. MI-05 (404) usa ID 999999 inexistente — tampoco muta DB.
+
+  > ⚠️ TODO — MI-08 y MI-09 dependientes de seed data
+  >
+  > Los siguientes tests no se pudieron refactorizar al patrón "create fresh data":
+  >   - MI-08 (200 OK ADMIN marca CONFIRMADA pasada): requiere reserva CONFIRMADA con
+  >     `fechaHoraLlegada` >= 30 minutos en el pasado. La validación `@Future` del DTO
+  >     `CrearReservaRequest`/`ModificarReservaRequest` impide crear reservas con fecha
+  >     pasada vía API pública.
+  >   - MI-09 (422 idempotencia): requiere reserva ya en estado INASISTENCIA. El estado
+  >     se logra ejecutando MI-08 primero, lo que rompe la independencia.
+  >
+  > Hasta que exista una vía pública para crear reservas con fecha pasada (o un endpoint
+  > de "back-fill" para tests), ambos tests dependen de seed data en `V3__dev_data.sql`
+  > y pueden romperse en runs repetidos. Refactorizar al patrón create-fresh cuando el
+  > backend exponga un mecanismo apropiado.

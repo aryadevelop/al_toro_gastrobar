@@ -53,4 +53,18 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
         ORDER BY p.productoCategoria, p.productoNombre
         """)
     List<ComandaItem> findItemsEnProduccionByVisita(@Param("visitaId") Long visitaId);
+
+    /**
+     * Verifica si existe al menos una comanda de la visita en alguno de los estados indicados.
+     *
+     * <p>Se utiliza para determinar si quedan comandas en producción
+     * (PENDIENTE, EN_PREPARACION, LISTO) antes de transicionar la mesa a {@code ATENDIDA}.
+     * Las comandas en {@code BORRADOR} o {@code PRE_RESERVA} no afectan la evaluación
+     * porque aún no se enviaron a producción.
+     *
+     * @param visitaId identificador de la visita
+     * @param estados  lista de estados de comanda a buscar
+     * @return {@code true} si existe al menos una comanda en alguno de los estados dados
+     */
+    boolean existsByVisita_VisitaIdAndComandaEstadoIn(Long visitaId, List<EstadoComanda> estados);
 }

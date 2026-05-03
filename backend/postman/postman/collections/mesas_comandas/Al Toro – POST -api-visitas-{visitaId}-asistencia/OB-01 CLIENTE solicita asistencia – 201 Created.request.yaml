@@ -3,75 +3,81 @@ name: OB-01 CLIENTE solicita asistencia – 201 Created
 description: |-
   **Criterio de Aceptación:** CA-04 — Cliente puede solicitar asistencia de mesero.
   **Objetivo:** Verificar creación exitosa de solicitud de asistencia.
-  **Pre-condición:** `clienteToken` disponible. Cliente juan.torres@gmail.com tiene visita activa (ID 12) con mesa asignada.
-  **Resultado esperado:** 201 Created con notificacionId. Evento WS `AsistenciaSolicitadaWsMessage` publicado en /topic/mesas/asistencia.
-  **Efecto observable:** GET /api/visitas/activa mostrará asistenciaSolicitada=true (validado en OA-08, OB-06).
-url: "{{baseUrl}}/api/visitas/12/asistencia"
+  **Resultado esperado:** 201 Created con `data.notificacionId`. Evento WS `AsistenciaSolicitadaWsMessage` publicado en /topic/mesas/asistencia.
+  **Independencia:** Cada ejecución obtiene su propia visita activa y crea una notificación fresca.
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaId}}/asistencia"
 method: POST
 headers:
   Authorization: Bearer {{clienteToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del CLIENTE y limpieza de notificaciones activas previas
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: 'juan.torres@gmail.com',
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (!err && res && res.code === 200) {
-          const token = res.json().accessToken;
-          pm.environment.set('clienteToken', token);
+      // ---------------------------------------------------------------------------
+      // Cadena de setup independiente:
+      //   1) Login CLIENTE (juan.torres)
+      //   2) Login MESERO (para limpieza si hace falta)
+      //   3) GET /api/visitas/activa para obtener visitaId dinámicamente → tmpVisitaId
+      //   4) Si ya existe asistencia activa, atenderla con MESERO (limpieza)
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
 
-          // Verificar si hay notificación activa y limpiarla
-          pm.sendRequest({
-            url: pm.environment.get('baseUrl') + '/api/visitas/activa',
-            method: 'GET',
-            header: { 'Authorization': 'Bearer ' + token }
-          }, (err2, res2) => {
-            if (!err2 && res2 && res2.code === 200) {
-              const estado = res2.json().data;
-              if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
-                // Limpiar notificación activa con login de mesero
-                pm.sendRequest({
-                  url: pm.environment.get('baseUrl') + '/api/auth/login',
-                  method: 'POST',
-                  header: { 'Content-Type': 'application/json' },
-                  body: {
-                    mode: 'raw',
-                    raw: JSON.stringify({
-                      email: pm.environment.get('emailMesero'),
-                      password: pm.environment.get('passwordValida'),
-                      forceSessionOverride: true
-                    })
-                  }
-                }, (err3, res3) => {
-                  if (!err3 && res3 && res3.code === 200) {
-                    pm.sendRequest({
-                      url: pm.environment.get('baseUrl') + '/api/notificaciones/' + estado.notificacionAsistenciaId + '/atender',
-                      method: 'PATCH',
-                      header: { 'Authorization': 'Bearer ' + res3.json().accessToken }
-                    }, (err4, res4) => {
-                      if (err4 || !res4 || res4.code !== 200) {
-                        console.warn('OB-01: limpieza de notificación previa falló', err4, res4 && res4.code);
-                      }
-                    });
-                  }
-                });
+      const login = (email, tokenKey, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-01: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenKey, res.json().accessToken);
+          cb();
+        });
+      };
+
+      const obtenerVisita = (clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-01: GET /visitas/activa falló', err, res && res.code);
+            return;
+          }
+          const estado = res.json().data;
+          pm.environment.set('tmpVisitaId', estado.visitaId);
+
+          // Si ya hay asistencia activa, atenderla primero con MESERO para liberar la mesa
+          if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+            const meseroToken = pm.environment.get('meseroToken');
+            pm.sendRequest({
+              url: baseUrl + '/api/notificaciones/' + estado.notificacionAsistenciaId + '/atender',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + meseroToken }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 200) {
+                console.warn('OB-01: limpieza de notificación previa falló', err2, res2 && res2.code);
               }
-            }
-          });
-        } else {
-          console.warn('OB-01: login CLIENTE falló', err, res && res.code);
-        }
+            });
+          }
+        });
+      };
+
+      login('juan.torres@gmail.com', 'clienteToken', () => {
+        login(pm.environment.get('emailMesero'), 'meseroToken', () => {
+          obtenerVisita(pm.environment.get('clienteToken'));
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -79,13 +85,34 @@ scripts:
       pm.test('El sistema crea la solicitud de asistencia con 201', function () {
         pm.response.to.have.status(201);
       });
-      pm.test('La respuesta contiene notificacionId', function () {
+      pm.test('La respuesta contiene notificacionId y estado=ACTIVA', function () {
         const body = pm.response.json();
         pm.expect(body.data).to.have.property('notificacionId');
         pm.expect(body.data.notificacionId).to.be.a('number');
         pm.expect(body.data.estado).to.equal('ACTIVA');
-        // Guardar ID para tests posteriores
-        pm.environment.set('tmpNotificacionCreada', body.data.notificacionId);
       });
+
+      // Cleanup: atender la notificación recién creada con MESERO para no contaminar siguientes ejecuciones
+      try {
+        const notifId = pm.response.json().data.notificacionId;
+        const baseUrl = pm.environment.get('baseUrl');
+        const meseroToken = pm.environment.get('meseroToken');
+        if (notifId && meseroToken) {
+          pm.sendRequest({
+            url: baseUrl + '/api/notificaciones/' + notifId + '/atender',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + meseroToken }
+          }, (err, res) => {
+            if (err || !res || res.code !== 200) {
+              console.warn('OB-01: cleanup atender notificación falló', err, res && res.code);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('OB-01: cleanup falló', e);
+      }
+
+      pm.environment.unset('tmpVisitaId');
+      pm.environment.unset('tmpNotificacionCreada');
     language: text/javascript
 order: 1000

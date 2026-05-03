@@ -14,12 +14,16 @@ description: |-
 
   ## Independencia de datos
 
-  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección (CLIENTE, MESERO).
+  Cada test crea sus propios datos en `beforeRequest`, sin depender de colecciones externas ni del orden con otras suites.
+
+  - **Tokens:** login secuencial encadenado en cada `beforeRequest` (CLIENTE, MESERO).
   - **Notificaciones para pruebas:**
-    - NC-01: reutiliza la notificación creada por OB-01 (consultada vía GET /visitas/activa para obtener el ID)
-    - NC-02: intenta atender la misma notificación dos veces
-    - NC-03: usa un ID inexistente (999999)
-  - **Orden de ejecución:** Esta colección debe ejecutarse DESPUÉS de la colección POST asistencia, ya que depende de que existan notificaciones activas.
+    - NC-01: hace login CLIENTE+MESERO, obtiene `visitaId` vía `GET /api/visitas/activa`, y crea una notificación nueva con `POST /api/visitas/{visitaId}/asistencia`. El id se guarda en `tmpNotificacionId` y la URL del request usa `{{tmpNotificacionId}}`. Si ya hay una asistencia activa previa, se atiende primero como limpieza.
+    - NC-02: igual a NC-01, y adicionalmente atiende la notificación recién creada antes del request bajo prueba para reproducir el conflicto 409.
+    - NC-03: usa un ID inexistente (999999) — no muta estado.
+    - NC-04: CLIENTE intenta atender — 403 antes de la lógica de negocio, no muta estado.
+    - NC-05: GET de verificación, no muta estado.
+  - **Limpieza:** cada test que use `tmpNotificacionId` lo elimina con `pm.environment.unset('tmpNotificacionId')` en `afterResponse`.
 
   | ID | Escenario | HTTP |
   |----|-----------|------|

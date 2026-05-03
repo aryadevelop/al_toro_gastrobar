@@ -3,8 +3,9 @@ name: AM-11 zona inexistente – 404 Not Found
 description: |-
   **Criterio:** CA-11 — Validación de negocio: zona debe existir.
   **Objetivo:** Verificar que el sistema rechaza asignación con zonaId inexistente.
-  **Pre-condición:** `meseroToken` disponible.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
   **Resultado esperado:** 404 Not Found con código ENT-001.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

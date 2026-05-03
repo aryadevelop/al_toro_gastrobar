@@ -1,0 +1,74 @@
+$kind: collection
+name: Al Toro – PATCH /api/notificaciones/{id}/atender-cambio
+description: |-
+  # PATCH /api/notificaciones/{id}/atender-cambio
+
+  Registra que el mesero atendió la solicitud de cambio en una comanda.
+
+  **Control de acceso:**
+  - MESERO/ADMIN: acceso permitido.
+  - CAJERO/CLIENTE: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Variables de entorno requeridas
+  - `seedNotificacionCambioId` = 15  (notificación ACTIVA CAMBIO para AC-01)
+
+  ## Respuesta exitosa
+  La respuesta 200 incluye `data.comandaId` con el ID de la comanda asociada.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | AC-01 | MESERO atiende cambio válido | 200 |
+  | AC-02 | Sin token | 401 |
+  | AC-03 | CAJERO | 403 |
+  | AC-04 | CLIENTE | 403 |
+  | AC-05 | ID inexistente | 404 |
+  | AC-06 | Ya atendida | 409 |
+
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Modificar una comanda existente para disparar notificación CAMBIO automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('AC pre-request: login ' + emailKey + ' falló');
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript
+order: 7300

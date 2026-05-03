@@ -104,12 +104,6 @@ values:
     value: ''
   - key: decoracionConCostoId2
     value: ''
-  - key: tmpReservaIdAjena
-    value: ''
-  - key: tmpNotificacionId
-    value: ''
-  - key: tmpNotificacionCreada
-    value: ''
   - key: loginExpiresIn
     value: ''
   - key: refreshToken

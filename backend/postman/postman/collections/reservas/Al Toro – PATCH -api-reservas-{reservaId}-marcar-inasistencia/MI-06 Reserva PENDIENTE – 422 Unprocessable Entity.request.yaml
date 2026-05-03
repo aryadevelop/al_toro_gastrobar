@@ -1,27 +1,77 @@
 $kind: http-request
 name: MI-06 Reserva PENDIENTE – 422 Unprocessable Entity
-url: "{{baseUrl}}/api/reservas/11/marcar-inasistencia"
+description: |
+  Solo reservas CONFIRMADAS pueden marcarse como inasistencia. Una reserva PENDIENTE
+  (ESPECIAL con decoración costosa, sin abono) debe ser rechazada con 422.
+  Cada ejecución crea su propia reserva ESPECIAL fresca en estado PENDIENTE.
+  Independiente del orden y de seed data.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaPendienteId}}/marcar-inasistencia"
 method: PATCH
 headers:
   Authorization: Bearer {{meseroToken}}
 scripts:
   - type: beforeRequest
     code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      // Paso 1: cliente crea una reserva ESPECIAL (con decoración costosa) → estado PENDIENTE
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: { mode: 'raw', raw: JSON.stringify({
-          email: pm.environment.get('emailMesero'),
+          email: pm.environment.get('emailCliente'),
           password: pm.environment.get('passwordValida'),
           forceSessionOverride: true
         })}
       }, function (err, res) {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('meseroToken', res.json().accessToken);
-        } else {
-          console.warn('MI-06: login MESERO falló', err, res && res.code);
+        if (err || !res || res.code !== 200) {
+          console.warn('MI-06: login CLIENTE falló', err, res && res.code);
+          return;
         }
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fecha,
+            numeroPersonas: 2,
+            decoracionId: 1
+          })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('MI-06: crear reserva ESPECIAL falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaPendienteId', r2.json().data.reservaId);
+
+          // Paso 2: login MESERO para ejecutar el request principal
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailMesero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('meseroToken', r3.json().accessToken);
+            } else {
+              console.warn('MI-06: login MESERO falló', e3, r3 && r3.code);
+            }
+          });
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -36,5 +86,6 @@ scripts:
         pm.expect(body.code).to.equal('NEG-002');
         pm.expect(body.message).to.include('confirmadas');
       });
+      pm.environment.unset('tmpReservaPendienteId');
     language: text/javascript
 order: 6000

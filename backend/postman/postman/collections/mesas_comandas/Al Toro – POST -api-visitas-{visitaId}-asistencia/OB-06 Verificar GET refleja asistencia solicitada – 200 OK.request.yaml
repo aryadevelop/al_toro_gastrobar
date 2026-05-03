@@ -2,10 +2,9 @@ $kind: http-request
 name: OB-06 Verificar GET refleja asistencia solicitada – 200 OK
 description: |-
   **Criterio de Aceptación:** Validar efecto observable del evento WS AsistenciaSolicitadaWsMessage.
-  **Objetivo:** Después de POST asistencia (OB-01), verificar que GET /visitas/activa refleja el cambio.
-  **Pre-condición:** OB-01 debe ejecutarse primero. Cliente juan.torres@gmail.com tiene visita activa con solicitud de asistencia.
-  **Resultado esperado:** 200 OK con asistenciaSolicitada=true, notificacionAsistenciaId != null.
-  **Nota:** Este test valida indirectamente que el mensaje WS se publicó correctamente con los datos de la notificación.
+  **Objetivo:** Después de POST asistencia, verificar que GET /visitas/activa refleja el cambio.
+  **Resultado esperado:** 200 OK con `asistenciaSolicitada=true` y `notificacionAsistenciaId != null`.
+  **Independencia:** Cada ejecución obtiene su propia visita activa y crea una notificación fresca; el setup garantiza que exista una asistencia ACTIVA antes del GET y la limpia al final.
 url: "{{baseUrl}}/api/visitas/activa"
 method: GET
 headers:
@@ -13,25 +12,78 @@ headers:
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del CLIENTE
-      pm.sendRequest({
-        url: pm.environment.get('baseUrl') + '/api/auth/login',
-        method: 'POST',
-        header: { 'Content-Type': 'application/json' },
-        body: {
-          mode: 'raw',
-          raw: JSON.stringify({
-            email: 'juan.torres@gmail.com',
-            password: pm.environment.get('passwordValida'),
-            forceSessionOverride: true
-          })
-        }
-      }, (err, res) => {
-        if (!err && res && res.code === 200) {
-          pm.environment.set('clienteToken', res.json().accessToken);
-        } else {
-          console.warn('OB-06: login CLIENTE falló', err, res && res.code);
-        }
+      // ---------------------------------------------------------------------------
+      // Setup:
+      //   1) Login CLIENTE + MESERO
+      //   2) GET /api/visitas/activa → tmpVisitaId
+      //   3) Si NO hay asistencia activa, POST /asistencia para crearla.
+      //      Guardar notificacionId en tmpNotificacionCleanup.
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (email, tokenKey, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-06: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenKey, res.json().accessToken);
+          cb();
+        });
+      };
+
+      const crearAsistencia = (visitaId, clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/' + visitaId + '/asistencia',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 201) {
+            console.warn('OB-06: POST asistencia inicial falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpNotificacionCleanup', res.json().data.notificacionId);
+        });
+      };
+
+      const obtenerVisita = (clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-06: GET /visitas/activa setup falló', err, res && res.code);
+            return;
+          }
+          const estado = res.json().data;
+          pm.environment.set('tmpVisitaId', estado.visitaId);
+
+          if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+            pm.environment.set('tmpNotificacionCleanup', estado.notificacionAsistenciaId);
+          } else {
+            crearAsistencia(estado.visitaId, clienteToken);
+          }
+        });
+      };
+
+      login('juan.torres@gmail.com', 'clienteToken', () => {
+        login(pm.environment.get('emailMesero'), 'meseroToken', () => {
+          obtenerVisita(pm.environment.get('clienteToken'));
+        });
       });
     language: text/javascript
   - type: afterResponse
@@ -43,8 +95,30 @@ scripts:
         const body = pm.response.json();
         pm.expect(body.data.asistenciaSolicitada).to.be.true;
         pm.expect(body.data.notificacionAsistenciaId).to.not.be.null;
-        // Guardar ID para tests de PATCH atender
-        pm.environment.set('tmpNotificacionParaAtender', body.data.notificacionAsistenciaId);
       });
+
+      // Cleanup: atender la notificación con MESERO para no contaminar siguientes ejecuciones
+      try {
+        const notifId = pm.environment.get('tmpNotificacionCleanup');
+        const baseUrl = pm.environment.get('baseUrl');
+        const meseroToken = pm.environment.get('meseroToken');
+        if (notifId && meseroToken) {
+          pm.sendRequest({
+            url: baseUrl + '/api/notificaciones/' + notifId + '/atender',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + meseroToken }
+          }, (err, res) => {
+            if (err || !res || res.code !== 200) {
+              console.warn('OB-06: cleanup atender notificación falló', err, res && res.code);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('OB-06: cleanup falló', e);
+      }
+
+      pm.environment.unset('tmpVisitaId');
+      pm.environment.unset('tmpNotificacionCleanup');
+      pm.environment.unset('tmpNotificacionParaAtender');
     language: text/javascript
 order: 6000

@@ -4,7 +4,7 @@ description: |
   El beforeRequest crea una reserva BASICA, la cancela inmediatamente y guarda su ID.
   El request principal intenta cancelarla por segunda vez.
   Resultado esperado: 422 Unprocessable Entity, código INVALID_STATE.
-  No depende de variables de entorno de datos previos.
+  Cada ejecución crea su propia reserva fresca. Independiente del orden.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaYaCancelada}}/cancelar"
 method: PATCH
 headers:

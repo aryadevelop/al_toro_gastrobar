@@ -3,8 +3,9 @@ name: AM-09 numeroPersonas menor a 1 – 400 Bad Request
 description: |-
   **Criterio:** CA-09 — Validación DTO: numeroPersonas debe ser >= 1.
   **Objetivo:** Verificar que el sistema rechaza requests con numeroPersonas=0.
-  **Pre-condición:** `meseroToken` disponible.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
   **Resultado esperado:** 400 o 422 con mensaje de error de validación.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

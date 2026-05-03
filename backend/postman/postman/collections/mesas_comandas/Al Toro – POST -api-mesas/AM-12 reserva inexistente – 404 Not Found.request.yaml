@@ -3,8 +3,9 @@ name: AM-12 reserva inexistente – 404 Not Found
 description: |-
   **Criterio:** CA-12 — Validación de negocio: reserva debe existir si se proporciona reservaId.
   **Objetivo:** Verificar que el sistema rechaza asignación con reservaId inexistente.
-  **Pre-condición:** `meseroToken` disponible.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
   **Resultado esperado:** 404 Not Found con código ENT-001.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

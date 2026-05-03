@@ -244,6 +244,7 @@ CREATE TABLE Notificacion (
     notificacion_id BIGSERIAL PRIMARY KEY,
     mesa_id BIGINT NOT NULL,
     empleado_id BIGINT NOT NULL,
+    comanda_id BIGINT NULL,
     notificacion_estado VARCHAR(20) NOT NULL,
     notificacion_tipo VARCHAR(20) NOT NULL,
     notificacion_fecha_hora TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -254,6 +255,7 @@ CREATE TABLE Notificacion (
         REFERENCES Empleado(usuario_id) ON DELETE RESTRICT,
     CONSTRAINT chk_notificacion_estado CHECK (notificacion_estado IN ('ACTIVA', 'ATENDIDA')),
     CONSTRAINT chk_notificacion_tipo CHECK (notificacion_tipo IN ('ATENCION', 'PLATOS_LISTOS', 'BEBIDAS_LISTAS', 'CAMBIO'))
+    -- FK a Comanda se añade con ALTER TABLE más abajo (Comanda se crea después)
 );
 
 COMMENT ON TABLE Notificacion IS 'Sistema de notificaciones entre empleados';
@@ -411,6 +413,11 @@ COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra, o pre-órdenes de reser
 COMMENT ON COLUMN Comanda.visita_id IS 'NULL mientras la comanda es PRE_RESERVA; se puebla al iniciar la visita';
 COMMENT ON COLUMN Comanda.reserva_id IS 'Presente en pre-órdenes; NULL en comandas de walk-in';
 COMMENT ON COLUMN Comanda.comanda_estacion IS 'NULL en estado PRE_RESERVA; se asigna al convertir a comanda activa';
+
+-- FK diferida: Notificacion → Comanda (Comanda se creó después que Notificacion)
+ALTER TABLE Notificacion
+    ADD CONSTRAINT fk_notificacion_comanda FOREIGN KEY (comanda_id)
+        REFERENCES Comanda(comanda_id) ON DELETE SET NULL;
 
 -- Tabla Comanda_Item
 CREATE TABLE Comanda_Item (
@@ -579,6 +586,7 @@ CREATE INDEX idx_notificacion_empleado_id ON Notificacion(empleado_id);
 CREATE INDEX idx_notificacion_estado ON Notificacion(notificacion_estado);
 CREATE INDEX idx_notificacion_fecha_hora ON Notificacion(notificacion_fecha_hora DESC);
 CREATE INDEX idx_notificacion_activas ON Notificacion(empleado_id, notificacion_fecha_hora DESC) WHERE notificacion_estado = 'ACTIVA';
+CREATE INDEX idx_notificacion_comanda_id ON Notificacion(comanda_id);
 
 CREATE INDEX idx_venta_cajero_id ON Venta(cajero_id);
 CREATE INDEX idx_venta_fecha_hora ON Venta(venta_fecha_hora DESC);

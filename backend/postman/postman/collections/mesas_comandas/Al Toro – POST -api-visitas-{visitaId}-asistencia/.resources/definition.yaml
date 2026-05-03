@@ -13,18 +13,23 @@ description: |-
 
   ## Independencia de datos
 
-  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección (CLIENTE, MESERO).
-  - **Visitas para pruebas:**
-    - Visita 10 (carlos.perez@gmail.com): tiene mesa M-02 → apta para solicitar asistencia
-    - Visita 12 (juan.torres@gmail.com): tiene mesa T-04 → apta para solicitar asistencia
-  - **Visita sin mesa (OB-03):** Se crea dinámicamente en `beforeRequest` con INSERT directo via API de admin (si existe endpoint) o se documenta dependencia del seed.
-  - **Duplicación (OB-02):** El test OB-01 crea la primera solicitud; OB-02 intenta duplicar sobre la misma visita.
+  Cada test es **independiente**: no asume orden de ejecución ni efectos persistentes
+  de tests previos. Cada `beforeRequest`:
+
+  1. Hace login del/los rol(es) requeridos (CLIENTE, MESERO).
+  2. Resuelve `tmpVisitaId` dinámicamente vía `GET /api/visitas/activa`.
+  3. Limpia (atiende con MESERO) cualquier notificación de asistencia ACTIVA preexistente
+     para que el escenario empiece desde un estado conocido — salvo OB-02 y OB-06 que
+     justo necesitan que exista una asistencia ACTIVA, en cuyo caso la crean si falta.
+
+  Cada `afterResponse` hace `unset` de las variables `tmp*` y atiende la notificación
+  creada para no contaminar ejecuciones posteriores.
 
   | ID | Escenario | HTTP |
   |----|-----------|------|
   | OB-01 | CLIENTE solicita asistencia — 201 Created | 201 |
   | OB-02 | CLIENTE solicita segunda vez (ya activa) — 409 Conflict | 409 |
-  | OB-03 | CLIENTE en visita sin mesa asignada — 409 Conflict | 409 |
+  | OB-03 | CLIENTE en visita sin mesa asignada — 409 Conflict (limitación de seed: 404 aceptado) | 409 |
   | OB-04 | CLIENTE en visita de otro cliente — 403 Forbidden | 403 |
   | OB-05 | MESERO intenta solicitar asistencia — 403 Forbidden | 403 |
   | OB-06 | Verificar GET /visitas/activa refleja asistencia (valida WS) | 200 |

@@ -3,8 +3,9 @@ name: AM-10 identificador duplicado – 409 Conflict
 description: |-
   **Criterio:** CA-10 — Validación de negocio: identificador debe ser único entre mesas activas.
   **Objetivo:** Verificar que el sistema rechaza asignación con identificador duplicado.
-  **Pre-condición:** `meseroToken` disponible. Se creará una mesa con "TEST-DUP" en beforeRequest.
+  **Pre-condición:** El beforeRequest hace login MESERO y crea una primera mesa con un identificador único generado dinámicamente; la solicitud principal intenta crear otra mesa con el mismo identificador.
   **Resultado esperado:** 409 Conflict con código ENT-002.
+  Cada ejecución crea sus propios datos. Independiente del orden.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:
@@ -14,14 +15,18 @@ body:
   type: text
   content: |-
     {
-      "mesaIdentificador": "TEST-DUP",
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
       "zonaId": 1,
       "numeroPersonas": 2
     }
 scripts:
   - type: beforeRequest
     code: |-
-      // Login mesero y crear primera mesa con identificador TEST-DUP
+      // Generar identificador único compartido (la primera creación lo registra,
+      // la solicitud principal reutiliza el mismo para forzar el conflicto 409)
+      pm.environment.set('tmpMesaIdentificador', 'DUP-' + String(Date.now()).slice(-6));
+
+      // Login mesero y crear primera mesa con el identificador
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -39,7 +44,7 @@ scripts:
           const token = res.json().accessToken;
           pm.environment.set('meseroToken', token);
 
-          // Crear primera mesa con TEST-DUP
+          // Crear primera mesa con el identificador único
           pm.sendRequest({
             url: pm.environment.get('baseUrl') + '/api/mesas',
             method: 'POST',
@@ -50,7 +55,7 @@ scripts:
             body: {
               mode: 'raw',
               raw: JSON.stringify({
-                mesaIdentificador: 'TEST-DUP',
+                mesaIdentificador: pm.environment.get('tmpMesaIdentificador'),
                 zonaId: 1,
                 numeroPersonas: 2
               })
@@ -130,5 +135,6 @@ scripts:
       }
 
       pm.environment.unset('tmpVisitaIdDup');
+      pm.environment.unset('tmpMesaIdentificador');
     language: text/javascript
 order: 10000

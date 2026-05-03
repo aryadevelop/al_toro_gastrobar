@@ -1,0 +1,29 @@
+$kind: http-request
+name: SB-02 ADMIN sirve bebidas – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Marcar comanda con items BEBIDA como LISTO (rol BARTENDER) para disparar notificación BEBIDAS_LISTAS automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+
+  **Objetivo:** Verificar que ADMIN también puede registrar bebidas servidas.
+  **Pre-condición:** `adminToken` disponible. Notificación ID 14 (ACTIVA, BEBIDAS_LISTAS).
+  **Resultado esperado:** 200 OK.
+url: "{{baseUrl}}/api/notificaciones/14/servir-bebidas"
+method: PATCH
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 7202
