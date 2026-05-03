@@ -35,6 +35,9 @@ export const API_PATHS = {
     },
     clientes: {
         misPuntos: `${API}/clientes/me/puntos`,
+        me: `${API}/clientes/me`,
+        updateMe: `${API}/clientes/me`,
+        changePassword: `${API}/clientes/me/cambiar-contraseña`,
     },
     mesas: {
         mapa: `${API}/mesas`,

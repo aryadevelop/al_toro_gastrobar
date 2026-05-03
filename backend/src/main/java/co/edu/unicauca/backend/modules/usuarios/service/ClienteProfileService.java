@@ -51,7 +51,7 @@ public class ClienteProfileService {
 
     /** Patrón de validación para contraseña fuerte: 8+ caracteres, mayúscula, minúscula, número y símbolo. */
     private static final Pattern PASSWORD_PATTERN = 
-        Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[@$!%*?&])[A-Za-z\\d@$!%*?&]{8,}$");
+        Pattern.compile("^(?=.*[a-z])(?=.*[A-Z])(?=.*\\d)(?=.*[^a-zA-Z\\d]).{8,}$");
 
     /**
      * Obtiene el ID del cliente a partir del email del usuario asociado.
