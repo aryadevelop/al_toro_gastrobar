@@ -38,4 +38,4 @@ scripts:
         pm.environment.set('refreshToken', body.refreshToken);
       }
     language: text/javascript
-order: 9000
+order: 10000

@@ -28,4 +28,4 @@ scripts:
         pm.expect(body.message).to.include('Por favor ingresa un correo electrónico válido');
       });
     language: text/javascript
-order: 6000
+order: 7000

@@ -1,0 +1,50 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-13
+  **Objetivo:** Verificar que no se permite actualizar con rol MESERO (403 Forbidden).
+url: "{{baseUrl}}/api/clientes/me"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Juan Carlos",
+      "email": "unique.{{$timestamp}}@example.com",
+      "telefono": "3102777{{$randomInt}}",
+      "direccion": "Carrera 10 # 25-30, Popayán",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como MESERO para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero@altoro.com',
+            password: 'MeseroPass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 403 – Acceso denegado para rol no CLIENTE', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 2009
+

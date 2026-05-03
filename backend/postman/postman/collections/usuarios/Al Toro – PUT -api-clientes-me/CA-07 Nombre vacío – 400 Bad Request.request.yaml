@@ -1,0 +1,50 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-07
+  **Objetivo:** Verificar que no se permite actualizar con nombre vacío.
+url: "{{baseUrl}}/api/clientes/me"
+method: PUT
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "",
+      "email": "unique.{{$timestamp}}@example.com",
+      "telefono": "3102222{{$randomInt}}",
+      "direccion": "Carrera 10 # 25-30, Popayán",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Nombre vacío no permitido', () => pm.response.to.have.status(400));
+    language: text/javascript
+order: 2003
+

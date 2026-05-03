@@ -42,4 +42,4 @@ scripts:
       pm.environment.set('refreshToken', body.refreshToken);
       pm.environment.set('loginExpiresIn', body.expiresIn);
     language: text/javascript
-order: 1000
+order: 2000

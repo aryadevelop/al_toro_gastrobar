@@ -1,0 +1,59 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-19
+  **Objetivo:** Verificar que se cambia correctamente la contraseña del cliente con datos válidos.
+url: "{{baseUrl}}/api/clientes/me/cambiar-contraseña"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "contraseñaActual": "ClientePass123!",
+      "nuevaContraseña": "NewClientePass123!",
+      "confirmacion": "NewClientePass123!"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Contraseña cambiada exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('Respuesta contiene estructura esperada', () => {
+        pm.expect(body).to.have.property('success', true);
+        pm.expect(body).to.have.property('message');
+      });
+
+      pm.test('Mensaje confirma actualización de contraseña', () => {
+        pm.expect(body.message).to.include('Contraseña actualizada');
+      });
+    language: text/javascript
+order: 3005
+

@@ -24,7 +24,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         inset: 0;
         display: grid;
         place-items: center;
-        background: rgba(24, 29, 27, 0.35);
+        background: rgba(24, 29, 27, 0.7);
+        z-index: 9999;
       }
 
       .dialog {

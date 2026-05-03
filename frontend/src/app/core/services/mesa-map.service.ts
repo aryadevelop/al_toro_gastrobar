@@ -4,9 +4,12 @@ import { map, Observable } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
+  BackendAsignarMesaRequest,
+  BackendMesaAsignadaResponse,
   BackendMapaMesasResponse,
   BackendMesaDetalleResponse,
   BackendMesaItemsProduccionResponse,
+  BackendZonaDisponibleMesaResponse,
 } from '../models/api.models';
 
 export interface MesaNotificacionActiva {
@@ -64,6 +67,33 @@ export interface MesaDetalle {
 export interface MesaItemsProduccion {
   identificadorMesa: string;
   items: MesaItemComanda[];
+}
+
+export interface MesaZonaDisponible {
+  id: string;
+  name: string;
+  capacidadTotal: number;
+  personasOcupadas: number;
+  disponibilidad: number;
+}
+
+export interface MesaAsignacionPayload {
+  mesaIdentificador: string;
+  zonaId: string;
+  numeroPersonas: number;
+  reservaId?: string;
+  mesaNotas?: string;
+}
+
+export interface MesaAsignacionResult {
+  visitaId: string;
+  mesaIdentificador: string;
+  zonaId: string;
+  zonaNombre: string;
+  numeroPersonas: number;
+  estadoMesa: string;
+  emailMesero: string;
+  reservaId?: string;
 }
 
 @Injectable({ providedIn: 'root' })
@@ -143,6 +173,47 @@ export class MesaMapService {
             cantidad: item.cantidad,
             estadoComanda: item.estadoComanda,
           })),
+        }))
+      );
+  }
+
+  getZonasDisponibles(): Observable<MesaZonaDisponible[]> {
+    return this.http
+      .get<ApiEnvelope<BackendZonaDisponibleMesaResponse[]>>(API_PATHS.mesas.zonasDisponibles)
+      .pipe(
+        map((response) =>
+          (response.data ?? []).map((zona) => ({
+            id: String(zona.zonaId),
+            name: zona.zonaNombre,
+            capacidadTotal: zona.capacidadTotal,
+            personasOcupadas: zona.personasOcupadas,
+            disponibilidad: zona.disponibilidad,
+          }))
+        )
+      );
+  }
+
+  asignarMesa(payload: MesaAsignacionPayload): Observable<MesaAsignacionResult> {
+    const request: BackendAsignarMesaRequest = {
+      mesaIdentificador: payload.mesaIdentificador,
+      zonaId: Number(payload.zonaId),
+      numeroPersonas: payload.numeroPersonas,
+      reservaId: payload.reservaId ? Number(payload.reservaId) : undefined,
+      mesaNotas: payload.mesaNotas || undefined,
+    };
+
+    return this.http
+      .post<ApiEnvelope<BackendMesaAsignadaResponse>>(API_PATHS.mesas.asignar, request)
+      .pipe(
+        map((response) => ({
+          visitaId: String(response.data.visitaId),
+          mesaIdentificador: response.data.mesaIdentificador,
+          zonaId: String(response.data.zonaId),
+          zonaNombre: response.data.zonaNombre,
+          numeroPersonas: response.data.numeroPersonas,
+          estadoMesa: response.data.estadoMesa,
+          emailMesero: response.data.emailMesero,
+          reservaId: response.data.reservaId ? String(response.data.reservaId) : undefined,
         }))
       );
   }

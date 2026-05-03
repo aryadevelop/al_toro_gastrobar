@@ -35,4 +35,4 @@ scripts:
 
       pm.environment.set('meseroAccessToken', body.accessToken);
     language: text/javascript
-order: 12000
+order: 13000

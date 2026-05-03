@@ -2,6 +2,7 @@ import { Component, OnDestroy } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { HttpErrorResponse } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 import { ReservationService, ReservationDetailData } from '../../../../core/services/reservation.service';
 import { Subscription, catchError, finalize, of, timer } from 'rxjs';
@@ -87,7 +88,7 @@ import { Subscription, catchError, finalize, of, timer } from 'rxjs';
                 <td data-label="Acciones">
                   <div class="row-actions">
                     <button class="action-btn ghost" (click)="verDetalle(r.id)">Ver</button>
-                    <button class="action-btn primary" (click)="marcarLlegada(r.id)">Marcar llegada</button>
+                    <button class="action-btn primary" (click)="marcarLlegada(r)">Marcar llegada</button>
                   </div>
                 </td>
               </tr>
@@ -131,7 +132,7 @@ import { Subscription, catchError, finalize, of, timer } from 'rxjs';
           </div>
 
           <div class="modal-actions">
-            <button class="action-btn primary" *ngIf="detailData" (click)="marcarLlegada(detailData.reservation.id)">Marcar llegada</button>
+            <button class="action-btn primary" *ngIf="detailData" (click)="marcarLlegada(detailData.reservation)">Marcar llegada</button>
             <button class="action-btn ghost" (click)="cerrarDetalle()">Cerrar</button>
           </div>
         </div>
@@ -414,6 +415,7 @@ export class ReservasListPageComponent implements OnDestroy {
     guests: number;
     time: string;
     status: string;
+    zoneId?: string;
     zoneName?: string;
     decorationName?: string;
     phone?: string;
@@ -428,7 +430,7 @@ export class ReservasListPageComponent implements OnDestroy {
 
   private pollingSub?: Subscription;
 
-  constructor(private reservationService: ReservationService) {
+  constructor(private reservationService: ReservationService, private router: Router) {
     this.buscar();
     // Poll each 30s for real-time-ish updates
     this.pollingSub = timer(30000, 30000).subscribe(() => this.buscar(false));
@@ -469,6 +471,7 @@ export class ReservasListPageComponent implements OnDestroy {
           guests: r.guests,
           time: r.time,
           status: r.status,
+          zoneId: r.zoneId,
           zoneName: r.zoneName,
           decorationName: r.decorationName,
           phone: r.phone,
@@ -508,17 +511,18 @@ export class ReservasListPageComponent implements OnDestroy {
     this.detailData = undefined;
   }
 
-  marcarLlegada(reservaId: string | undefined): void {
-    if (!reservaId) return;
-    this.reservationService.update(reservaId, { status: 'ARRIVED' }).subscribe({
-      next: () => {
-        this.buscar();
-        this.cerrarDetalle();
-      },
-      error: () => {
-        // ignore for now; could show toast
+  marcarLlegada(reserva: { id: string; guests: number; zoneId?: string } | undefined): void {
+    if (!reserva?.id) return;
+    this.router.navigate(['/app/mesero/llegada-reserva'], {
+      state: {
+        openAsignacion: true,
+        origen: 'reservas',
+        reservaId: reserva.id,
+        numeroPersonas: reserva.guests,
+        zonaId: reserva.zoneId,
       },
     });
+    this.cerrarDetalle();
   }
 
   ngOnDestroy(): void {

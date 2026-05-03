@@ -270,27 +270,30 @@ export class ProfilePageComponent implements OnDestroy {
     private readonly pendingChangesService: PendingProfileChangesService,
     public readonly authService: AuthService
   ) {
-    effect(() => {
-      const user = this.authService.currentUser();
-      if (!user) {
-        return;
-      }
+    effect(
+      () => {
+        const user = this.authService.currentUser();
+        if (!user) {
+          return;
+        }
 
-      this.profileForm.patchValue(
-        {
-          fullName: user.fullName,
-          email: user.email,
-          phone: user.phone ?? ''
-        },
-        { emitEvent: false }
-      );
+        this.profileForm.patchValue(
+          {
+            fullName: user.fullName,
+            email: user.email,
+            phone: user.phone ?? ''
+          },
+          { emitEvent: false }
+        );
 
-      this.disablePasswordChangeSection();
-      this.initialSnapshot = this.captureSnapshot();
-      this.profileForm.markAsPristine();
-      this.profileForm.markAsUntouched();
-      this.pendingChangesService.setHasUnsavedChanges(false);
-    });
+        this.disablePasswordChangeSection();
+        this.initialSnapshot = this.captureSnapshot();
+        this.profileForm.markAsPristine();
+        this.profileForm.markAsUntouched();
+        this.pendingChangesService.setHasUnsavedChanges(false);
+      },
+      { allowSignalWrites: true }
+    );
 
     this.profileForm.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.syncPendingState();
@@ -393,7 +396,8 @@ export class ProfilePageComponent implements OnDestroy {
     const payload: UpdateProfileRequest = {
       fullName: formValue.fullName,
       email: formValue.email,
-      phone: formValue.phone
+      phone: formValue.phone,
+      aceptaTerminos: true
     };
 
     if (isPasswordFlow) {
