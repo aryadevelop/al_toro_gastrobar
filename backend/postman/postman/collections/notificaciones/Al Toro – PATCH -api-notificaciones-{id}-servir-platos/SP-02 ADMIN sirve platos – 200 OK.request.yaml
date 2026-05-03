@@ -1,0 +1,29 @@
+$kind: http-request
+name: SP-02 ADMIN sirve platos – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Marcar comanda con items PLATO como LISTO (rol COCINERO) para disparar notificación PLATOS_LISTOS automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+
+  **Objetivo:** Verificar que ADMIN también puede registrar platos servidos.
+  **Pre-condición:** `adminToken` disponible. Notificación ID 12 (ACTIVA, PLATOS_LISTOS).
+  **Resultado esperado:** 200 OK.
+url: "{{baseUrl}}/api/notificaciones/{{seedNotificacionPlatosListosId2}}/servir-platos"
+method: PATCH
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+    language: text/javascript
+order: 7102
