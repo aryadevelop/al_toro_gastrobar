@@ -98,36 +98,10 @@ export class AuthService {
   }
 
   updateProfile(payload: UpdateProfileRequest): Observable<User> {
-<<<<<<< HEAD
-    // Map frontend field names to backend field names (Spanish)
-=======
->>>>>>> 76fdc2a (fix(modificarCliente) corregir modificar campos cliente)
     const backendPayload = {
       nombre: payload.fullName,
       email: payload.email,
       telefono: payload.phone,
-<<<<<<< HEAD
-      aceptaTerminos: payload.aceptaTerminos,
-      currentPassword: payload.currentPassword,
-      newPassword: payload.newPassword,
-      confirmNewPassword: payload.confirmNewPassword
-    };
-
-    return this.http.put<{ data: { cliente: { id: number; nombre: string; email: string; telefono: string } } }>(API_PATHS.users.me, backendPayload).pipe(
-      map((response) => {
-        const cliente = response.data.cliente;
-        const updatedUser: User = {
-          ...this.currentUserState()!,
-          fullName: cliente.nombre,
-          email: cliente.email,
-          phone: cliente.telefono
-        };
-        this.currentUserState.set(updatedUser);
-        this.storageService.setSessionUser(updatedUser);
-        return updatedUser;
-      })
-    );
-=======
       direccion: payload.address ?? '',
       aceptaTerminos: true,
     };
@@ -172,7 +146,6 @@ export class AuthService {
     return this.http
       .get<ApiEnvelope<BackendClienteData>>(API_PATHS.clientes.me)
       .pipe(map((envelope) => envelope.data));
->>>>>>> 76fdc2a (fix(modificarCliente) corregir modificar campos cliente)
   }
 
   logout(): Observable<void> {

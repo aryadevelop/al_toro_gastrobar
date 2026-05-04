@@ -461,17 +461,17 @@ export class ProfilePageComponent implements OnDestroy {
             return;
           }
 
-          if (msg.toLowerCase().includes('coinciden')) {
-            this.formMessage.set(msg);
-            return;
-          }
-
           if (msg.toLowerCase().includes('mayuscula') || msg.toLowerCase().includes('caracteres')) {
             this.setControlError(this.profileForm.controls.newPassword, 'invalidPasswordComplexity');
             return;
           }
 
-          this.formMessage.set(msg || 'No fue posible cambiar la contraseña. Intenta nuevamente.');
+          if (msg.toLowerCase().includes('coinciden')) {
+            this.formMessage.set(msg);
+            return;
+          }
+
+          this.formMessage.set(msg || 'No fue posible actualizar la contraseña. Intenta nuevamente.');
         }
       });
       return;
