@@ -185,6 +185,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
                 </button>
               </div>
 
+              <p class="qty-limit-warning" *ngIf="qtyLimitWarning()">
+                {{ qtyLimitWarning() }}
+              </p>
+
               <p class="special-menu-hint" *ngIf="!showSpecialMenuOption()">
                 Menú especial se habilita con más de 10 personas.
               </p>
@@ -568,6 +572,17 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         font-size: 0.82rem;
       }
 
+      .qty-limit-warning {
+        margin: 0;
+        padding: 0.45rem 0.55rem;
+        border-radius: 8px;
+        border: 1px solid rgba(196, 30, 58, 0.35);
+        background: rgba(196, 30, 58, 0.08);
+        color: #7a1122;
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
       .carta-category-tabs {
         display: flex;
         gap: 0.4rem;
@@ -900,6 +915,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly showNoAvailabilityWarning = signal(false);
   readonly floatingWarningMessage = signal('');
   readonly showFloatingWarning = signal(false);
+  readonly qtyLimitWarning = signal('');
   readonly editMode = signal(false);
   readonly availableDecorations = signal<DecorationOption[]>([]);
   readonly availableZones = signal<ZoneOption[]>([]);
@@ -940,6 +956,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   private cartaCatalogLoaded = false;
   private specialMenusLoaded = false;
   private editFormHydrated = false;
+  private qtyLimitTimeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -1001,6 +1018,9 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.qtyLimitTimeout) {
+      clearTimeout(this.qtyLimitTimeout);
+    }
   }
 
   showRomanticAddonOption(): boolean {
@@ -1377,6 +1397,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onCancelSummary(): void {
+    if (this.editMode()) {
+      this.onClose();
+      return;
+    }
+
     this.showSummary.set(false);
   }
 
@@ -1941,7 +1966,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     const floored = Math.floor(parsed);
     if (floored > MAX_QTY_PER_ITEM) {
-      this.showFloating(MAX_QTY_MESSAGE);
+      this.triggerQtyLimitWarning();
       return MAX_QTY_PER_ITEM;
     }
 
@@ -1983,6 +2008,15 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.floatingWarningMessage.set(message);
     this.showFloatingWarning.set(true);
     setTimeout(() => this.showFloatingWarning.set(false), 3500);
+  }
+
+  private triggerQtyLimitWarning(): void {
+    this.qtyLimitWarning.set(MAX_QTY_MESSAGE);
+    if (this.qtyLimitTimeout) {
+      clearTimeout(this.qtyLimitTimeout);
+    }
+
+    this.qtyLimitTimeout = setTimeout(() => this.qtyLimitWarning.set(''), 3500);
   }
 }
 

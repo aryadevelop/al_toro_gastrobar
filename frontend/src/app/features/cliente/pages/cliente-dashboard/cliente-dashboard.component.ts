@@ -2,7 +2,7 @@ import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
-import { combineLatest, Subscription } from 'rxjs';
+import { combineLatest, finalize, Subscription } from 'rxjs';
 import { DashboardMetric, Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
 import { ActiveVisitService, ActiveVisitState, OrderItem } from '../../../../core/services/active-visit.service';
 import { AuthService } from '../../../../core/services/auth.service';
@@ -13,6 +13,9 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
 const WHATSAPP_COMPANY_NUMBER = '573001112233';
+const ACTIVE_VISIT_CACHE_KEY = 'activeVisitCache';
+const ACTIVE_VISIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const ASSISTANCE_TOAST_DURATION_MS = 6000;
 
 @Component({
   selector: 'app-cliente-dashboard',
@@ -22,6 +25,10 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
     <section class="page-grid cliente-compact">
       <article class="flash-toast card" *ngIf="showFlash()">
         {{ flashMessage() }}
+      </article>
+
+      <article class="toast-assistance card" *ngIf="showAssistanceToast()">
+        {{ assistanceToastMessage() }}
       </article>
 
       <section class="dashboard-header-row">
@@ -46,7 +53,7 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       <section class="page-grid">
         <div class="reservas-head">
           <h2 class="section-title">Reservas futuras</h2>
-          <a class="history-tab" routerLink="/app/cliente/reservas/history">Historial</a>
+          <a class="history-tab" routerLink="/app/cliente/reservas/history" fragment="historial">Historial</a>
         </div>
 
         <article class="card future-card" *ngFor="let reservation of reservasFuturas">
@@ -80,10 +87,10 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       </section>
 
       <!-- HU-06: Estado de tu orden -->
-      <section class="page-grid" *ngIf="activeVisit()">
+      <section class="page-grid">
         <h2 class="section-title">Estado de tu orden</h2>
 
-        <article class="card order-card" [class.order-closed]="activeVisit()!.closed">
+        <article class="card order-card" *ngIf="activeVisit(); else noActiveVisit" [class.order-closed]="activeVisit()!.closed">
           <div *ngIf="activeVisit()!.closed" class="closed-banner">
             La cuenta ya está cerrada. ¡Gracias por tu visita!
           </div>
@@ -120,12 +127,31 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
             </button>
           </div>
         </article>
+
+        <ng-template #noActiveVisit>
+          <article class="card order-card empty-order">
+            <p class="empty-state" *ngIf="activeVisitChecked()">
+              No tienes una visita activa en este momento.
+            </p>
+            <p class="empty-state" *ngIf="!activeVisitChecked()">
+              Consulta si tienes una visita activa para ver el estado de tu orden.
+            </p>
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="onCheckActiveVisit()"
+              [disabled]="activeVisitLoading()"
+            >
+              {{ activeVisitLoading() ? 'Consultando...' : 'Consultar visita activa' }}
+            </button>
+          </article>
+        </ng-template>
       </section>
 
       <app-confirm-dialog
         [open]="showCancelDialog()"
         title="Cancelar reserva"
-        message="¿Deseas cancelar esta reserva?"
+        [message]="cancelDialogMessage()"
         [confirmLabel]="cancelingReservation() ? 'Cancelando...' : 'Sí, cancelar'"
         (confirm)="onConfirmCancelReservation()"
         (cancel)="onCancelDialog()"
@@ -206,6 +232,22 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
         color: #4d3323;
         padding: 0.7rem 0.9rem;
         font-weight: 700;
+      }
+
+      .toast-assistance {
+        position: fixed;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        max-width: 420px;
+        margin: 0 auto;
+        z-index: 1100;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        background: #fff7f0;
+        color: #4d3323;
+        padding: 0.7rem 0.9rem;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
       }
 
       .dashboard-header-row {
@@ -519,10 +561,13 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 export class ClienteDashboardComponent implements OnInit, OnDestroy {
   readonly flashMessage = signal('');
   readonly showFlash = signal(false);
+  readonly assistanceToastMessage = signal('');
+  readonly showAssistanceToast = signal(false);
   readonly points = signal(0);
   readonly showCancelDialog = signal(false);
   readonly cancelingReservation = signal(false);
   readonly reservationPendingCancel = signal<Reserva | null>(null);
+  readonly cancelDialogMessage = signal('¿Deseas cancelar esta reserva?');
 
   // CA-08: Detail modal state
   readonly showDetailModal = signal(false);
@@ -532,6 +577,8 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
 
   // HU-06: Active visit / order state
   readonly activeVisit = signal<ActiveVisitState | null>(null);
+  readonly activeVisitLoading = signal(false);
+  readonly activeVisitChecked = signal(false);
   readonly assistanceRequested = signal(false);
   readonly showAssistanceDialog = signal(false);
 
@@ -539,6 +586,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
   reservasFuturas: Reserva[] = [];
 
   private wsSubscriptions: Subscription[] = [];
+  private assistanceToastTimeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly authService: AuthService,
@@ -559,15 +607,16 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.loadDashboardData();
-    // Only attempt to load active visit for clients to avoid 404 noise in console
-    const current = this.authService.currentUser();
-    if (current?.role === 'CLIENTE') {
+    if (this.shouldAutoLoadActiveVisit()) {
       this.loadActiveVisit();
     }
   }
 
   ngOnDestroy(): void {
     this.wsSubscriptions.forEach((sub) => sub.unsubscribe());
+    if (this.assistanceToastTimeout) {
+      clearTimeout(this.assistanceToastTimeout);
+    }
   }
 
   // ── CA-08: Detail modal methods ──
@@ -652,6 +701,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.reservationPendingCancel.set(reservation);
+    this.cancelDialogMessage.set(this.getCancelDialogMessage(reservation));
     this.showCancelDialog.set(true);
   }
 
@@ -704,6 +754,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
 
     this.showCancelDialog.set(false);
     this.reservationPendingCancel.set(null);
+    this.cancelDialogMessage.set('¿Deseas cancelar esta reserva?');
   }
 
   canModifyReservation(reservation: Reserva): boolean {
@@ -716,6 +767,23 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
 
   canCancelReservation(reservation: Reserva): boolean {
     return this.isFutureReservation(reservation) && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
+  private getCancelDialogMessage(reservation: Reserva): string {
+    if (this.shouldShowRefundNote(reservation)) {
+      return 'Esta reserva especial requiere gestionar el reembolso del abono. ¿Deseas cancelar?';
+    }
+
+    return '¿Deseas cancelar esta reserva?';
+  }
+
+  private shouldShowRefundNote(reservation: Reserva): boolean {
+    return reservation.type === 'SPECIAL' && this.isBeforeRefundCutoff(reservation);
+  }
+
+  private isBeforeRefundCutoff(reservation: Reserva): boolean {
+    const cutoff = new Date(`${reservation.date}T16:00:00`);
+    return Date.now() < cutoff.getTime();
   }
 
   getStatusLabel(status: Reserva['status']): string {
@@ -844,32 +912,56 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     this.activeVisitService.requestAssistance(visit.visitaId).subscribe({
       next: () => {
         this.assistanceRequested.set(true);
-        this.flashMessage.set('Solicitud enviada. El mesero te atenderá en breve.');
-        this.showFlash.set(true);
-        setTimeout(() => this.showFlash.set(false), 3500);
+        this.cacheActiveVisit(true);
+        this.showAssistanceToastMessage('Solicitud enviada. El mesero te atenderá en breve.');
       },
       error: (err: HttpErrorResponse) => {
         const msg = err.error?.message || 'No fue posible enviar la solicitud.';
-        this.flashMessage.set(msg);
-        this.showFlash.set(true);
-        setTimeout(() => this.showFlash.set(false), 3500);
+        this.showAssistanceToastMessage(msg);
       }
     });
   }
 
+  onCheckActiveVisit(): void {
+    const current = this.authService.currentUser();
+    if (current?.role !== 'CLIENTE') {
+      return;
+    }
+
+    this.loadActiveVisit();
+  }
+
   private loadActiveVisit(): void {
-    this.activeVisitService.getActiveVisit().subscribe({
-      next: (visit) => {
-        this.activeVisit.set(visit);
-        if (visit) {
-          this.assistanceRequested.set(visit.assistanceRequested);
-          this.subscribeToVisitWebSocket(visit.visitaId);
+    if (this.activeVisitLoading()) {
+      return;
+    }
+
+    this.activeVisitLoading.set(true);
+
+    this.activeVisitService
+      .getActiveVisit()
+      .pipe(
+        finalize(() => {
+          this.activeVisitLoading.set(false);
+          this.activeVisitChecked.set(true);
+        })
+      )
+      .subscribe({
+        next: (visit) => {
+          this.activeVisit.set(visit);
+          if (visit) {
+            this.assistanceRequested.set(visit.assistanceRequested);
+            this.cacheActiveVisit(true);
+            this.subscribeToVisitWebSocket(visit.visitaId);
+          } else {
+            this.cacheActiveVisit(false);
+          }
+        },
+        error: () => {
+          this.activeVisit.set(null);
+          this.cacheActiveVisit(false);
         }
-      },
-      error: () => {
-        this.activeVisit.set(null);
-      }
-    });
+      });
   }
 
   private subscribeToVisitWebSocket(visitaId: string): void {

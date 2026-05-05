@@ -59,7 +59,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
         <div class="detail-actions">
           <a class="btn-secondary" routerLink="/app/cliente">Volver al dashboard</a>
-          <a class="btn-secondary" routerLink="/app/cliente/reservas/history">Ir a historial</a>
+          <a class="btn-secondary" routerLink="/app/cliente/reservas/history" fragment="historial">Ir a historial</a>
         </div>
       </article>
 

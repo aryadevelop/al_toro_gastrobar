@@ -1,6 +1,6 @@
-import { CommonModule } from '@angular/common';
+import { CommonModule, ViewportScroller } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
-import { Component, OnInit, signal } from '@angular/core';
+import { AfterViewInit, Component, OnInit, signal } from '@angular/core';
 import { Router, RouterLink } from '@angular/router';
 import { combineLatest } from 'rxjs';
 import { Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
@@ -63,7 +63,7 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
         </article>
       </section>
 
-      <section class="page-grid">
+      <section class="page-grid" id="historial">
         <h2 class="section-title">Visitas registradas</h2>
 
         <article class="card visit-card" *ngFor="let visit of visitHistory">
@@ -86,7 +86,7 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       <app-confirm-dialog
         [open]="showCancelDialog()"
         title="Cancelar reserva"
-        message="¿Deseas cancelar esta reserva?"
+        [message]="cancelDialogMessage()"
         [confirmLabel]="cancelingReservation() ? 'Cancelando...' : 'Sí, cancelar'"
         (confirm)="onConfirmCancelReservation()"
         (cancel)="onCancelDialog()"
@@ -328,13 +328,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
     `
   ]
 })
-export class ReservasHistoryPageComponent implements OnInit {
+export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
   readonly points = signal(0);
   readonly flashMessage = signal('');
   readonly showFlash = signal(false);
   readonly showCancelDialog = signal(false);
   readonly cancelingReservation = signal(false);
   readonly reservationPendingCancel = signal<Reserva | null>(null);
+  readonly cancelDialogMessage = signal('¿Deseas cancelar esta reserva?');
 
   // CA-08: Detail modal state
   readonly showDetailModal = signal(false);
@@ -350,11 +351,25 @@ export class ReservasHistoryPageComponent implements OnInit {
     private readonly reservationService: ReservationService,
     private readonly visitService: VisitService,
     private readonly clientePointsService: ClientePointsService,
-    private readonly router: Router
+    private readonly router: Router,
+    private readonly viewportScroller: ViewportScroller
   ) {}
 
   ngOnInit(): void {
     this.loadHistoryData();
+  }
+
+  ngAfterViewInit(): void {
+    this.scrollToFragment();
+  }
+
+  private scrollToFragment(): void {
+    const fragment = this.router.parseUrl(this.router.url).fragment;
+    if (!fragment) {
+      return;
+    }
+
+    setTimeout(() => this.viewportScroller.scrollToAnchor(fragment));
   }
 
   // ── CA-08: Detail modal methods ──
@@ -431,6 +446,7 @@ export class ReservasHistoryPageComponent implements OnInit {
     }
 
     this.reservationPendingCancel.set(reservation);
+    this.cancelDialogMessage.set(this.getCancelDialogMessage(reservation));
     this.showCancelDialog.set(true);
   }
 
@@ -483,6 +499,7 @@ export class ReservasHistoryPageComponent implements OnInit {
 
     this.showCancelDialog.set(false);
     this.reservationPendingCancel.set(null);
+    this.cancelDialogMessage.set('¿Deseas cancelar esta reserva?');
   }
 
   formatDateTime(date: Date): string {
@@ -530,6 +547,23 @@ export class ReservasHistoryPageComponent implements OnInit {
 
   canCancelReservation(reservation: Reserva): boolean {
     return this.toDateTime(reservation).getTime() > Date.now() && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
+  private getCancelDialogMessage(reservation: Reserva): string {
+    if (this.shouldShowRefundNote(reservation)) {
+      return 'Esta reserva especial requiere gestionar el reembolso del abono. ¿Deseas cancelar?';
+    }
+
+    return '¿Deseas cancelar esta reserva?';
+  }
+
+  private shouldShowRefundNote(reservation: Reserva): boolean {
+    return reservation.type === 'SPECIAL' && this.isBeforeRefundCutoff(reservation);
+  }
+
+  private isBeforeRefundCutoff(reservation: Reserva): boolean {
+    const cutoff = new Date(`${reservation.date}T16:00:00`);
+    return Date.now() < cutoff.getTime();
   }
 
   private openDetailModal(reservationId: string): void {
