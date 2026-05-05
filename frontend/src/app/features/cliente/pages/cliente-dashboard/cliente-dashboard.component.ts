@@ -17,6 +17,12 @@ const ACTIVE_VISIT_CACHE_KEY = 'activeVisitCache';
 const ACTIVE_VISIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
 const ASSISTANCE_TOAST_DURATION_MS = 6000;
 
+interface ActiveVisitCacheEntry {
+  hasActiveVisit: boolean;
+  assistanceRequested: boolean;
+  updatedAt: number;
+}
+
 @Component({
   selector: 'app-cliente-dashboard',
   standalone: true,
@@ -166,6 +172,16 @@ const ASSISTANCE_TOAST_DURATION_MS = 6000;
         (confirm)="onConfirmAssistance()"
         (cancel)="showAssistanceDialog.set(false)"
       ></app-confirm-dialog>
+
+      <section class="overlay" *ngIf="showAssistanceResultDialog()">
+        <article class="card assistance-result-modal">
+          <h3>Solicitud enviada</h3>
+          <p>{{ assistanceResultMessage() }}</p>
+          <div class="result-actions">
+            <button type="button" class="btn-secondary" (click)="closeAssistanceResultDialog()">Aceptar</button>
+          </div>
+        </article>
+      </section>
 
       <!-- CA-08: Modal de detalle inline -->
       <section class="overlay" *ngIf="showDetailModal()">
@@ -555,6 +571,23 @@ const ASSISTANCE_TOAST_DURATION_MS = 6000;
         font-size: 0.78rem;
         border-radius: 8px;
       }
+
+      .assistance-result-modal {
+        width: min(420px, 100%);
+        padding: 1rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .assistance-result-modal h3,
+      .assistance-result-modal p {
+        margin: 0;
+      }
+
+      .result-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
     `
   ]
 })
@@ -581,6 +614,8 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
   readonly activeVisitChecked = signal(false);
   readonly assistanceRequested = signal(false);
   readonly showAssistanceDialog = signal(false);
+  readonly showAssistanceResultDialog = signal(false);
+  readonly assistanceResultMessage = signal('Solicitud enviada. El mesero te atenderá en breve.');
 
   metrics: DashboardMetric[] = [];
   reservasFuturas: Reserva[] = [];
@@ -913,7 +948,8 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
       next: () => {
         this.assistanceRequested.set(true);
         this.cacheActiveVisit(true);
-        this.showAssistanceToastMessage('Solicitud enviada. El mesero te atenderá en breve.');
+        this.assistanceResultMessage.set('Solicitud enviada. El mesero te atenderá en breve.');
+        this.showAssistanceResultDialog.set(true);
       },
       error: (err: HttpErrorResponse) => {
         const msg = err.error?.message || 'No fue posible enviar la solicitud.';
@@ -929,6 +965,10 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     }
 
     this.loadActiveVisit();
+  }
+
+  closeAssistanceResultDialog(): void {
+    this.showAssistanceResultDialog.set(false);
   }
 
   private loadActiveVisit(): void {
@@ -962,6 +1002,54 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
           this.cacheActiveVisit(false);
         }
       });
+  }
+
+  private shouldAutoLoadActiveVisit(): boolean {
+    const cache = this.readActiveVisitCache();
+    return Boolean(cache?.hasActiveVisit);
+  }
+
+  private cacheActiveVisit(hasActiveVisit: boolean): void {
+    const payload: ActiveVisitCacheEntry = {
+      hasActiveVisit,
+      assistanceRequested: hasActiveVisit ? this.assistanceRequested() : false,
+      updatedAt: Date.now(),
+    };
+
+    localStorage.setItem(ACTIVE_VISIT_CACHE_KEY, JSON.stringify(payload));
+  }
+
+  private readActiveVisitCache(): ActiveVisitCacheEntry | null {
+    try {
+      const raw = localStorage.getItem(ACTIVE_VISIT_CACHE_KEY);
+      if (!raw) {
+        return null;
+      }
+
+      const parsed = JSON.parse(raw) as ActiveVisitCacheEntry;
+      if (!parsed.updatedAt || Date.now() - parsed.updatedAt > ACTIVE_VISIT_CACHE_TTL_MS) {
+        localStorage.removeItem(ACTIVE_VISIT_CACHE_KEY);
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      localStorage.removeItem(ACTIVE_VISIT_CACHE_KEY);
+      return null;
+    }
+  }
+
+  private showAssistanceToastMessage(message: string): void {
+    this.assistanceToastMessage.set(message);
+    this.showAssistanceToast.set(true);
+
+    if (this.assistanceToastTimeout) {
+      clearTimeout(this.assistanceToastTimeout);
+    }
+
+    this.assistanceToastTimeout = setTimeout(() => {
+      this.showAssistanceToast.set(false);
+    }, ASSISTANCE_TOAST_DURATION_MS);
   }
 
   private subscribeToVisitWebSocket(visitaId: string): void {

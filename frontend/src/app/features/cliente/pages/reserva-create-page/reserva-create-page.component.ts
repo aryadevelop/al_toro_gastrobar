@@ -85,6 +85,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       </article>
 
       <article class="card reservation-card">
+        <p class="context-info">
+          Horario de reservas: 5:00 p.m. a 10:00 p.m. Las decoraciones, zonas y extras dependen de la disponibilidad y compatibilidad de la fecha/hora elegida.
+        </p>
+
         <p class="availability-warning" *ngIf="showNoAvailabilityWarning()">
           Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. Por favor elija otra fecha u hora
         </p>
@@ -138,8 +142,8 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
               <p class="zone-lock-message" *ngIf="isZoneSelectionLocked()">
                 {{ zoneRestrictionMessage() }}
               </p>
-              <div class="card-grid" *ngIf="availableZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
-                <label class="option-card" *ngFor="let zone of availableZones()">
+              <div class="card-grid" *ngIf="filteredZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
+                <label class="option-card" *ngFor="let zone of filteredZones()">
                   <input
                     type="radio"
                     name="zoneId"
@@ -439,6 +443,16 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         background: rgba(111, 78, 55, 0.1);
         color: #4d3323;
         font-size: 0.86rem;
+      }
+
+      .context-info {
+        margin: 0 0 0.85rem;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        border-radius: 8px;
+        padding: 0.6rem 0.75rem;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
+        font-size: 0.84rem;
       }
 
       .schedule-grid {
@@ -1024,7 +1038,12 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   showRomanticAddonOption(): boolean {
-    return !this.reservaForm.controls.decorationId.value && this.reservaForm.controls.zoneId.value === ROMANTIC_ZONE_ID;
+    if (this.reservaForm.controls.decorationId.value) {
+      return false;
+    }
+
+    const selectedZone = this.getZoneById(this.reservaForm.controls.zoneId.value);
+    return this.isRomanticZone(selectedZone);
   }
 
   showSpecialMenuOption(): boolean {
@@ -1655,9 +1674,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private updateAvailableZones(): void {
+    const currentZoneId = this.reservaForm.controls.zoneId.value;
     const zones = this.getZonesForSelection(this.reservaForm.controls.decorationId.value);
-    if (!zones.some((zone) => zone.id === this.reservaForm.controls.zoneId.value)) {
+    if (currentZoneId && !zones.some((zone) => zone.id === currentZoneId)) {
       this.reservaForm.controls.zoneId.setValue('');
+      this.showFloating('La decoración no es compatible con la zona escogida');
     }
   }
 
@@ -1723,6 +1744,10 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     return this.availableZones().filter((zone) => selectedDecoration.compatibleZoneIds.includes(zone.id));
+  }
+
+  filteredZones(): ZoneOption[] {
+    return this.getZonesForSelection(this.reservaForm.controls.decorationId.value);
   }
 
   private isSelectionStillAvailable(date: string, time: string, decorationId: string, zoneId: string): boolean {
@@ -1924,6 +1949,26 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   private getZoneById(zoneId: string): ZoneOption | undefined {
     return this.availableZones().find((item) => item.id === zoneId);
+  }
+
+  private isRomanticZone(zone?: ZoneOption): boolean {
+    if (!zone) {
+      return false;
+    }
+
+    if (zone.id === ROMANTIC_ZONE_ID) {
+      return true;
+    }
+
+    const normalizedName = this.normalizeText(zone.name);
+    return normalizedName.includes('zona romantica') || normalizedName.includes('romantica');
+  }
+
+  private normalizeText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
   }
 
   private getEffectiveZoneId(): string {
