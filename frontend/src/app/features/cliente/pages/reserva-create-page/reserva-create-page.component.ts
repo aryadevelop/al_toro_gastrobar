@@ -85,6 +85,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       </article>
 
       <article class="card reservation-card">
+        <p class="context-info">
+          Horario de reservas: 5:00 p.m. a 10:00 p.m. Las decoraciones, zonas y extras dependen de la disponibilidad y compatibilidad de la fecha/hora elegida.
+        </p>
+
         <p class="availability-warning" *ngIf="showNoAvailabilityWarning()">
           Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. Por favor elija otra fecha u hora
         </p>
@@ -138,8 +142,8 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
               <p class="zone-lock-message" *ngIf="isZoneSelectionLocked()">
                 {{ zoneRestrictionMessage() }}
               </p>
-              <div class="card-grid" *ngIf="availableZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
-                <label class="option-card" *ngFor="let zone of availableZones()">
+              <div class="card-grid" *ngIf="filteredZones().length > 0" [class.disabled-grid]="isZoneSelectionLocked()">
+                <label class="option-card" *ngFor="let zone of filteredZones()">
                   <input
                     type="radio"
                     name="zoneId"
@@ -184,6 +188,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
                   Menú especial
                 </button>
               </div>
+
+              <p class="qty-limit-warning" *ngIf="qtyLimitWarning()">
+                {{ qtyLimitWarning() }}
+              </p>
 
               <p class="special-menu-hint" *ngIf="!showSpecialMenuOption()">
                 Menú especial se habilita con más de 10 personas.
@@ -437,6 +445,16 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         font-size: 0.86rem;
       }
 
+      .context-info {
+        margin: 0 0 0.85rem;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        border-radius: 8px;
+        padding: 0.6rem 0.75rem;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
+        font-size: 0.84rem;
+      }
+
       .schedule-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
@@ -566,6 +584,17 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         background: rgba(111, 78, 55, 0.08);
         color: #4d3323;
         font-size: 0.82rem;
+      }
+
+      .qty-limit-warning {
+        margin: 0;
+        padding: 0.45rem 0.55rem;
+        border-radius: 8px;
+        border: 1px solid rgba(196, 30, 58, 0.35);
+        background: rgba(196, 30, 58, 0.08);
+        color: #7a1122;
+        font-size: 0.82rem;
+        font-weight: 600;
       }
 
       .carta-category-tabs {
@@ -900,6 +929,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly showNoAvailabilityWarning = signal(false);
   readonly floatingWarningMessage = signal('');
   readonly showFloatingWarning = signal(false);
+  readonly qtyLimitWarning = signal('');
   readonly editMode = signal(false);
   readonly availableDecorations = signal<DecorationOption[]>([]);
   readonly availableZones = signal<ZoneOption[]>([]);
@@ -940,6 +970,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   private cartaCatalogLoaded = false;
   private specialMenusLoaded = false;
   private editFormHydrated = false;
+  private qtyLimitTimeout: ReturnType<typeof setTimeout> | undefined;
 
   constructor(
     private readonly formBuilder: FormBuilder,
@@ -1001,10 +1032,18 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.qtyLimitTimeout) {
+      clearTimeout(this.qtyLimitTimeout);
+    }
   }
 
   showRomanticAddonOption(): boolean {
-    return !this.reservaForm.controls.decorationId.value && this.reservaForm.controls.zoneId.value === ROMANTIC_ZONE_ID;
+    if (this.reservaForm.controls.decorationId.value) {
+      return false;
+    }
+
+    const selectedZone = this.getZoneById(this.reservaForm.controls.zoneId.value);
+    return this.isRomanticZone(selectedZone);
   }
 
   showSpecialMenuOption(): boolean {
@@ -1377,6 +1416,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onCancelSummary(): void {
+    if (this.editMode()) {
+      this.onClose();
+      return;
+    }
+
     this.showSummary.set(false);
   }
 
@@ -1630,9 +1674,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private updateAvailableZones(): void {
+    const currentZoneId = this.reservaForm.controls.zoneId.value;
     const zones = this.getZonesForSelection(this.reservaForm.controls.decorationId.value);
-    if (!zones.some((zone) => zone.id === this.reservaForm.controls.zoneId.value)) {
+    if (currentZoneId && !zones.some((zone) => zone.id === currentZoneId)) {
       this.reservaForm.controls.zoneId.setValue('');
+      this.showFloating('La decoración no es compatible con la zona escogida');
     }
   }
 
@@ -1698,6 +1744,10 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     return this.availableZones().filter((zone) => selectedDecoration.compatibleZoneIds.includes(zone.id));
+  }
+
+  filteredZones(): ZoneOption[] {
+    return this.getZonesForSelection(this.reservaForm.controls.decorationId.value);
   }
 
   private isSelectionStillAvailable(date: string, time: string, decorationId: string, zoneId: string): boolean {
@@ -1901,6 +1951,26 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return this.availableZones().find((item) => item.id === zoneId);
   }
 
+  private isRomanticZone(zone?: ZoneOption): boolean {
+    if (!zone) {
+      return false;
+    }
+
+    if (zone.id === ROMANTIC_ZONE_ID) {
+      return true;
+    }
+
+    const normalizedName = this.normalizeText(zone.name);
+    return normalizedName.includes('zona romantica') || normalizedName.includes('romantica');
+  }
+
+  private normalizeText(value: string): string {
+    return value
+      .normalize('NFD')
+      .replace(/[\u0300-\u036f]/g, '')
+      .toLowerCase();
+  }
+
   private getEffectiveZoneId(): string {
     const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
     if (fixedZoneId) {
@@ -1941,7 +2011,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     const floored = Math.floor(parsed);
     if (floored > MAX_QTY_PER_ITEM) {
-      this.showFloating(MAX_QTY_MESSAGE);
+      this.triggerQtyLimitWarning();
       return MAX_QTY_PER_ITEM;
     }
 
@@ -1983,6 +2053,15 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.floatingWarningMessage.set(message);
     this.showFloatingWarning.set(true);
     setTimeout(() => this.showFloatingWarning.set(false), 3500);
+  }
+
+  private triggerQtyLimitWarning(): void {
+    this.qtyLimitWarning.set(MAX_QTY_MESSAGE);
+    if (this.qtyLimitTimeout) {
+      clearTimeout(this.qtyLimitTimeout);
+    }
+
+    this.qtyLimitTimeout = setTimeout(() => this.qtyLimitWarning.set(''), 3500);
   }
 }
 
