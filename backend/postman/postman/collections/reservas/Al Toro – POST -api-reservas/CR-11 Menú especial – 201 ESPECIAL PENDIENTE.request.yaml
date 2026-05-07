@@ -4,10 +4,10 @@ description: |-
   **Criterio de Aceptación:** Un ítem con `esMenuEspecial=true` exige que el producto
   esté marcado como menú especial y que la reserva tenga más de 10 comensales. La
   presencia de un menú especial convierte la reserva en ESPECIAL (estado PENDIENTE).
-  **Objetivo:** Verificar el happy-path de menú especial con modificaciones BEBIDA válidas.
+  **Objetivo:** Verificar el happy-path de menú especial con bebida y modificación de plato válidas.
   **Pre-condición:** `clienteToken` disponible; seed V2 incluye producto id=132
-  (Pechuga en Uchuvas, `menu_especial=TRUE`) y las opciones de BEBIDA con ids 1..4
-  vinculadas a ese producto.
+  (Pechuga en Uchuvas, `menu_especial=TRUE`), opción id=1 (SALSA_PROTEINA_1) vinculada a
+  ese producto, y producto id=138 (Jugo de Maracuyá) disponible como bebida para el menú.
   **Resultado esperado:** 201 Created, `tipo=ESPECIAL`, `estado=PENDIENTE`.
 url: "{{baseUrl}}/api/reservas"
 method: POST
@@ -25,6 +25,7 @@ body:
           "productoId": 132,
           "cantidad": 12,
           "esMenuEspecial": true,
+          "bebidaProductoId": 138,
           "opcionesModificacion": [1]
         }
       ]
