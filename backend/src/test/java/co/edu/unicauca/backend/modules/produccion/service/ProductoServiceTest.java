@@ -43,6 +43,7 @@ class ProductoServiceTest {
 
     @Mock ProductoRepository productoRepository;
     @Mock ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
+    @Mock co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
     @Mock ProductoMapper productoMapper;
 
     @InjectMocks
@@ -190,7 +191,7 @@ class ProductoServiceTest {
             when(productoOpcionModificacionRepository
                     .findOpcionesActivasByProductoId(anyLong(), eq(EstadoGenerico.ACTIVO)))
                     .thenReturn(List.of());
-            when(productoMapper.toMenuEspecialResponse(any(), any()))
+            when(productoMapper.toMenuEspecialResponse(any(), any(), any()))
                     .thenReturn(mock(MenuEspecialResponse.class));
 
             productoService.obtenerMenusEspeciales();
@@ -215,12 +216,12 @@ class ProductoServiceTest {
             when(productoOpcionModificacionRepository
                     .findOpcionesActivasByProductoId(anyLong(), eq(EstadoGenerico.ACTIVO)))
                     .thenReturn(opciones);
-            when(productoMapper.toMenuEspecialResponse(any(), any()))
+            when(productoMapper.toMenuEspecialResponse(any(), any(), any()))
                     .thenReturn(mock(MenuEspecialResponse.class));
 
             productoService.obtenerMenusEspeciales();
 
-            verify(productoMapper, times(2)).toMenuEspecialResponse(any(), any());
+            verify(productoMapper, times(2)).toMenuEspecialResponse(any(), any(), any());
         }
 
         @Test

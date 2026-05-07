@@ -11,13 +11,13 @@ class OpcionModificacionEntityTest {
     void builder_creaInstanciaConCamposEsperados() {
         OpcionModificacion o = OpcionModificacion.builder()
                 .opcionId(1L)
-                .tipoComponente(TipoComponenteMenu.PROTEINA)
+                .tipoComponente(TipoComponenteMenu.SALSA_PROTEINA_1)
                 .opcionNombre("Pollo")
                 .opcionEstado(EstadoGenerico.ACTIVO)
                 .build();
 
         assertThat(o.getOpcionId()).isEqualTo(1L);
-        assertThat(o.getTipoComponente()).isEqualTo(TipoComponenteMenu.PROTEINA);
+        assertThat(o.getTipoComponente()).isEqualTo(TipoComponenteMenu.SALSA_PROTEINA_1);
         assertThat(o.getOpcionNombre()).isEqualTo("Pollo");
         assertThat(o.getOpcionEstado()).isEqualTo(EstadoGenerico.ACTIVO);
     }

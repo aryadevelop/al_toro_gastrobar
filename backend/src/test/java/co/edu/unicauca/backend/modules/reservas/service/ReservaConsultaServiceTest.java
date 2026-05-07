@@ -324,7 +324,7 @@ class ReservaConsultaServiceTest {
 
         when(reservaRepository.findById(reservaId)).thenReturn(Optional.of(reserva));
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA))
-                .thenReturn(Optional.of(comanda));
+                .thenReturn(List.of(comanda));
         when(comandaItemRepository.findByComanda_ComandaId(1000L))
                 .thenReturn(List.of(item1, item2));
         when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reservaId))

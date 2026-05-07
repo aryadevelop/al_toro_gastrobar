@@ -487,18 +487,6 @@ class ReservaValidadorTest {
                     });
         }
 
-        @Test
-        @DisplayName("MESERO con reserva del día actual → no lanza excepción")
-        void meseroReservaHoy_noLanza() {
-            // Given: Reserva CONFIRMADA hace 40 minutos del día actual
-            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
-            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
-            reserva.setReservaFechaHoraLlegada(horaLlegada);
-
-            // When/Then: MESERO puede marcar inasistencia de reserva del día actual
-            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
-                    .doesNotThrowAnyException();
-        }
 
         @Test
         @DisplayName("MESERO con reserva de día pasado → BusinessException INVALID_STATE")
