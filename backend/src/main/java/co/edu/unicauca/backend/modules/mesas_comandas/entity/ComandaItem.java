@@ -82,6 +82,10 @@ public class ComandaItem {
     @Column(name = "comanda_item_descripcion", length = 500)
     private String comandaItemDescripcion;
 
+    /** UUID que agrupa los ítems COCINA+BARRA de un mismo menú especial. NULL para ítems de carta. */
+    @Column(name = "comanda_item_menu_grupo", length = 36)
+    private String comandaItemMenuGrupo;
+
     /** Modificaciones de menú especial seleccionadas para este ítem; vacía si no aplica. */
     @OneToMany(mappedBy = "comandaItem", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)
     @Builder.Default

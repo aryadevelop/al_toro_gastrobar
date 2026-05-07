@@ -239,7 +239,7 @@ INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, com
 (12, 'BARRA',  NOW() - INTERVAL '10 minutes', NULL,                          'Cliente prefiere bebidas frías',         'PENDIENTE');
 
 -- =====================================================
--- 8. Comandas PRE_RESERVA (pre-órdenes unificadas)
+-- 8. Comandas PRE_RESERVA (pre-órdenes split por estación)
 --
 --    Modelo unificado: no existe PreOrden_Detalle.
 --    Las pre-órdenes son Comandas con estado PRE_RESERVA,
@@ -251,40 +251,60 @@ INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, com
 --    Aquí solo se crean las PRE_RESERVA para reservas PENDIENTES
 --    o CONFIRMADAS que aún no tienen visita:
 --      Reserva 10 (12p, CONFIRMADA) → Menú 8b
---      Reserva 12  (2p, PENDIENTE)  → Picanha + Salmón + Gnomo
+--      Reserva 12  (2p, PENDIENTE)  → Picanha + Salmón (COCINA) + Gnomo (BARRA)
 --      Reserva 14 (14p, PENDIENTE)  → Menú 8c
 --      Reserva 17 (11p, PENDIENTE)  → Menú 8d
 --
---    IDs de Comanda resultantes: 18, 19, 20, 21
+--    Cada reserva con menú tiene 2 comandas (COCINA + BARRA).
+--    IDs de Comanda resultantes:
+--      COCINA 18-21: reservas 10, 12, 14, 17
+--      BARRA  22-25: reservas 10, 12, 14, 17
 --    (las 17 comandas de visita ocupan los IDs 1-17)
 -- =====================================================
 
 -- ─── Comandas PRE_RESERVA ────────────────────────────────────────────────────
 INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado) VALUES
-(NULL, 10, NULL, NOW() - INTERVAL '3 days',  NULL,                       'PRE_RESERVA'),
-(NULL, 12, NULL, NOW() - INTERVAL '1 day',   'Cena romántica - velas',   'PRE_RESERVA'),
-(NULL, 14, NULL, NOW(),                       NULL,                       'PRE_RESERVA'),
-(NULL, 17, NULL, NOW() - INTERVAL '1 day',   'Fiesta de graduación',     'PRE_RESERVA');
+-- COCINA comandas (IDs 18-21)
+(NULL, 10, 'COCINA', NOW() - INTERVAL '3 days',  NULL,                     'PRE_RESERVA'),
+(NULL, 12, 'COCINA', NOW() - INTERVAL '1 day',   'Cena romántica - velas', 'PRE_RESERVA'),
+(NULL, 14, 'COCINA', NOW(),                       NULL,                     'PRE_RESERVA'),
+(NULL, 17, 'COCINA', NOW() - INTERVAL '1 day',   'Fiesta de graduación',   'PRE_RESERVA'),
+-- BARRA comandas (IDs 22-25): mismas reservas, para bebidas
+(NULL, 10, 'BARRA',  NOW() - INTERVAL '3 days',  NULL,                     'PRE_RESERVA'),
+(NULL, 12, 'BARRA',  NOW() - INTERVAL '1 day',   NULL,                     'PRE_RESERVA'),
+(NULL, 14, 'BARRA',  NOW(),                       NULL,                     'PRE_RESERVA'),
+(NULL, 17, 'BARRA',  NOW() - INTERVAL '1 day',   NULL,                     'PRE_RESERVA');
 
 -- ─── ComandaItem de las pre-órdenes ───────────────────────────────────────
 -- precio capturado desde el catálogo en el momento de la reserva
-INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio)
-SELECT v.comanda_id, p.producto_id, v.cantidad, p.producto_precio
+-- COCINA: menu platillos con UUID grupo; carta sin UUID
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_menu_grupo)
+SELECT v.comanda_id, p.producto_id, v.cantidad, p.producto_precio, v.grupo
 FROM (VALUES
-    (18, 'Menú 8b - Pechuga y Cerdo',       12),
-    (19, 'Picanha',                           2),
-    (19, 'Salmón a la Marinera',              2),
-    (19, 'Gnomo',                             2),
-    (20, 'Menú 8c - Pechuga y Res en Vino', 14),
-    (21, 'Menú 8d - Cerdo y Res en Vino',   11)
-) AS v(comanda_id, nombre, cantidad)
+    (18::bigint, 'Menú 8b - Pechuga y Cerdo',       12::int, '00000000-0000-0000-0000-000000000010'::varchar),
+    (19,         'Picanha',                           2,      NULL),
+    (19,         'Salmón a la Marinera',              2,      NULL),
+    (20,         'Menú 8c - Pechuga y Res en Vino',  14,     '00000000-0000-0000-0000-000000000014'),
+    (21,         'Menú 8d - Cerdo y Res en Vino',    11,     '00000000-0000-0000-0000-000000000017')
+) AS v(comanda_id, nombre, cantidad, grupo)
+JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- BARRA: bebidas de menú con precio 0 y UUID grupo; carta bebida con precio normal
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_menu_grupo)
+SELECT v.comanda_id, p.producto_id, v.cantidad, COALESCE(v.precio, p.producto_precio), v.grupo
+FROM (VALUES
+    (22::bigint, 'Jugo de Fresa', 12::int, 0::numeric(12,2), '00000000-0000-0000-0000-000000000010'::varchar),
+    (23,         'Gnomo',          2,       NULL,              NULL),
+    (24,         'Jugo de Lulo',  14,       0,                 '00000000-0000-0000-0000-000000000014'),
+    (25,         'Jugo de Fresa', 11,       0,                 '00000000-0000-0000-0000-000000000017')
+) AS v(comanda_id, nombre, cantidad, precio, grupo)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
 -- ─── comanda_menu_modificacion para menús especiales ─────────────────────────
 -- JOIN por (comanda_id + nombre_producto) → comanda_item_id sin hardcodear IDs.
---   Comanda 18 (Menú 8b): SALSA_P1=BBQ | SALSA_P2=Uchuvas | BEBIDA=Fresa
---   Comanda 20 (Menú 8c): SALSA_P1=Uchuvas | SALSA_P2=Vino Tinto | BEBIDA=Lulo
---   Comanda 21 (Menú 8d): SALSA_P1=Vino Tinto | SALSA_P2=BBQ | BEBIDA=Fresa
+--   Comanda 18 (Menú 8b): SALSA_P1=BBQ | SALSA_P2=Uchuvas
+--   Comanda 20 (Menú 8c): SALSA_P1=Uchuvas | SALSA_P2=Vino Tinto
+--   Comanda 21 (Menú 8d): SALSA_P1=Vino Tinto | SALSA_P2=BBQ
 INSERT INTO comanda_menu_modificacion (comanda_item_id, opcion_id)
 SELECT ci.comanda_item_id, o.opcion_id
 FROM Comanda_Item ci
@@ -293,13 +313,10 @@ JOIN Producto         p ON ci.producto_id = p.producto_id
 JOIN (VALUES
     (18::bigint, 'Menú 8b - Pechuga y Cerdo',       'SALSA_PROTEINA_1', 'Salsa BBQ'),
     (18,         'Menú 8b - Pechuga y Cerdo',       'SALSA_PROTEINA_2', 'Salsa de Uchuvas'),
-    (18,         'Menú 8b - Pechuga y Cerdo',       'BEBIDA',           'Jugo de Fresa'),
     (20,         'Menú 8c - Pechuga y Res en Vino', 'SALSA_PROTEINA_1', 'Salsa de Uchuvas'),
     (20,         'Menú 8c - Pechuga y Res en Vino', 'SALSA_PROTEINA_2', 'Salsa de Vino Tinto'),
-    (20,         'Menú 8c - Pechuga y Res en Vino', 'BEBIDA',           'Jugo de Lulo'),
     (21,         'Menú 8d - Cerdo y Res en Vino',   'SALSA_PROTEINA_1', 'Salsa de Vino Tinto'),
-    (21,         'Menú 8d - Cerdo y Res en Vino',   'SALSA_PROTEINA_2', 'Salsa BBQ'),
-    (21,         'Menú 8d - Cerdo y Res en Vino',   'BEBIDA',           'Jugo de Fresa')
+    (21,         'Menú 8d - Cerdo y Res en Vino',   'SALSA_PROTEINA_2', 'Salsa BBQ')
 ) AS v(cmd_id, prod_nombre, tipo, opcion_nombre)
   ON c.comanda_id = v.cmd_id AND p.producto_nombre = v.prod_nombre
 JOIN opcion_modificacion o

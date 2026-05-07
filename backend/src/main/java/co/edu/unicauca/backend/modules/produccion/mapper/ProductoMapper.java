@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaRes
 import co.edu.unicauca.backend.modules.produccion.dto.response.GrupoModificacionResponse;
 import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.produccion.dto.response.OpcionModificacionResponse;
+import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoBebidaResponse;
 import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoCartaResponse;
 import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.produccion.entity.Producto;
@@ -61,23 +62,33 @@ public class ProductoMapper {
     }
 
     /**
-     * Convierte un {@link Producto} de tipo menú especial y sus opciones de modificación
-     * activas en el DTO de respuesta con los grupos por tipo de componente.
+     * Convierte un {@link Producto} de tipo menú especial, sus opciones de modificación activas
+     * y las bebidas disponibles en el DTO de respuesta.
      *
-     * <p>La agrupación se delega en {@link #toGruposModificacion(List)}.
+     * <p>La agrupación de opciones se delega en {@link #toGruposModificacion(List)}.
+     * Las bebidas se convierten individualmente a {@link ProductoBebidaResponse}.
      *
-     * @param menu    producto de tipo menú especial a convertir
-     * @param opciones opciones de modificación activas asociadas al menú
-     * @return {@link MenuEspecialResponse} con los datos del menú y sus grupos de modificación
+     * @param menu               producto de tipo menú especial a convertir
+     * @param opciones           opciones de modificación activas asociadas al menú
+     * @param bebidasDisponibles bebidas activas asociadas al menú; nunca {@code null}
+     * @return {@link MenuEspecialResponse} con los datos del menú, sus grupos de modificación
+     *         y las bebidas disponibles
      */
     public MenuEspecialResponse toMenuEspecialResponse(Producto menu,
-                                                        List<OpcionModificacion> opciones) {
+                                                        List<OpcionModificacion> opciones,
+                                                        List<Producto> bebidasDisponibles) {
+        List<ProductoBebidaResponse> bebidas = bebidasDisponibles.stream()
+                .map(b -> new ProductoBebidaResponse(
+                        b.getProductoId(), b.getProductoNombre(), b.getProductoPrecio()))
+                .toList();
+
         return MenuEspecialResponse.builder()
                 .productoId(menu.getProductoId())
                 .productoNombre(menu.getProductoNombre())
                 .productoDescripcion(menu.getProductoDescripcion())
                 .productoPrecio(menu.getProductoPrecio())
                 .modificacionesPorComponente(toGruposModificacion(opciones))
+                .bebidasDisponibles(bebidas)
                 .build();
     }
 

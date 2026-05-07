@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.produccion.service;
 
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
@@ -42,6 +43,7 @@ public class ProductoService {
     private final ProductoRepository productoRepository;
     private final ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
     private final ProductoMapper productoMapper;
+    private final MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
 
     /**
      * Retorna los productos activos de la carta agrupados por {@link CategoriaCarta},
@@ -98,7 +100,10 @@ public class ProductoService {
                     // Carga las opciones de modificación activas para este menú
                     List<OpcionModificacion> opciones = productoOpcionModificacionRepository
                             .findOpcionesActivasByProductoId(menu.getProductoId(), EstadoGenerico.ACTIVO);
-                    return productoMapper.toMenuEspecialResponse(menu, opciones);
+                    // Carga las bebidas disponibles asociadas al menú
+                    List<Producto> bebidas = menuBebidaDisponibleRepository
+                            .findBebidasByMenuId(menu.getProductoId());
+                    return productoMapper.toMenuEspecialResponse(menu, opciones, bebidas);
                 })
                 .collect(Collectors.toList());
     }

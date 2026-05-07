@@ -141,11 +141,12 @@ public class ReservaConsultaService {
                         HttpStatus.NOT_FOUND
                 ));
 
-        // Obtener pre-orden (comanda PRE_RESERVA)
+        // Obtener pre-orden (puede haber más de una comanda PRE_RESERVA tras el split por estación)
         List<ComandaItem> preOrden = comandaRepository
                 .findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA)
-                .map(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId()))
-                .orElse(List.of());
+                .stream()
+                .flatMap(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId()).stream())
+                .toList();
 
         // Obtener abonos
         List<Abono> abonos = abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reservaId);

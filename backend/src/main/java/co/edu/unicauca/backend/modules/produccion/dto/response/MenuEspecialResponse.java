@@ -51,4 +51,10 @@ public class MenuEspecialResponse {
      * @see GrupoModificacionResponse
      */
     private List<GrupoModificacionResponse> modificacionesPorComponente;
+
+    /**
+     * Bebidas disponibles para seleccionar junto con este menú especial.
+     * Nunca es {@code null}; puede ser vacía si no hay bebidas asociadas.
+     */
+    private List<ProductoBebidaResponse> bebidasDisponibles;
 }

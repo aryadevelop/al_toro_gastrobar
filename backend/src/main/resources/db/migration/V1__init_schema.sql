@@ -312,7 +312,7 @@ CREATE TABLE Producto (
         REFERENCES CategoriaCarta(categoriacarta_id) ON DELETE RESTRICT,
     CONSTRAINT chk_producto_estado CHECK (producto_estado IN ('ACTIVO', 'INACTIVO')),
     CONSTRAINT chk_producto_tipo CHECK (producto_tipo IN ('VENTA_DIRECTA', 'PREPARACION')),
-    CONSTRAINT chk_producto_categoria CHECK (producto_categoria IN ('PLATO', 'BEBIDA', 'OTRO')),
+    CONSTRAINT chk_producto_categoria CHECK (producto_categoria IN ('PLATO', 'BEBIDA')),
     CONSTRAINT chk_producto_precio CHECK (producto_precio >= 0),
     CONSTRAINT chk_producto_stock CHECK (stock_actual IS NULL OR stock_actual >= 0),
     CONSTRAINT chk_menu_especial CHECK (menu_especial IS NULL OR producto_tipo = 'PREPARACION'),
@@ -392,7 +392,7 @@ CREATE TABLE Comanda (
     comanda_id BIGSERIAL PRIMARY KEY,
     visita_id BIGINT,
     reserva_id BIGINT,
-    comanda_estacion VARCHAR(20),
+    comanda_estacion VARCHAR(20) NOT NULL,
     comanda_fecha_hora_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     comanda_fecha_hora_listo TIMESTAMP,
     comanda_notas TEXT,
@@ -404,7 +404,7 @@ CREATE TABLE Comanda (
     CONSTRAINT fk_comanda_reserva FOREIGN KEY (reserva_id)
         REFERENCES Reserva(reserva_id) ON DELETE CASCADE,
     CONSTRAINT chk_comanda_contexto CHECK (visita_id IS NOT NULL OR reserva_id IS NOT NULL),
-    CONSTRAINT chk_comanda_estacion CHECK (comanda_estacion IS NULL OR comanda_estacion IN ('COCINA', 'BARRA')),
+    CONSTRAINT chk_comanda_estacion CHECK (comanda_estacion IN ('COCINA', 'BARRA')),
     CONSTRAINT chk_comanda_estado CHECK (comanda_estado IN ('PRE_RESERVA', 'BORRADOR', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')),
     CONSTRAINT chk_comanda_fechas CHECK (comanda_fecha_hora_listo IS NULL OR comanda_fecha_hora_inicio IS NULL OR comanda_fecha_hora_listo >= comanda_fecha_hora_inicio)
 );
@@ -412,8 +412,6 @@ CREATE TABLE Comanda (
 COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra, o pre-órdenes de reservas (estado PRE_RESERVA)';
 COMMENT ON COLUMN Comanda.visita_id IS 'NULL mientras la comanda es PRE_RESERVA; se puebla al iniciar la visita';
 COMMENT ON COLUMN Comanda.reserva_id IS 'Presente en pre-órdenes; NULL en comandas de walk-in';
-COMMENT ON COLUMN Comanda.comanda_estacion IS 'NULL en estado PRE_RESERVA; se asigna al convertir a comanda activa';
-
 -- FK diferida: Notificacion → Comanda (Comanda se creó después que Notificacion)
 ALTER TABLE Notificacion
     ADD CONSTRAINT fk_notificacion_comanda FOREIGN KEY (comanda_id)
@@ -427,6 +425,7 @@ CREATE TABLE Comanda_Item (
     comanda_item_cantidad INTEGER NOT NULL,
     comanda_item_precio DECIMAL(12,2) NOT NULL,
     comanda_item_descripcion VARCHAR(500),
+    comanda_item_menu_grupo  VARCHAR(36),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT fk_comanda_item_comanda FOREIGN KEY (comanda_id)
         REFERENCES Comanda(comanda_id) ON DELETE CASCADE,
@@ -437,6 +436,7 @@ CREATE TABLE Comanda_Item (
 );
 
 COMMENT ON TABLE Comanda_Item IS 'Línea de producto en una comanda (activa o pre-orden)';
+COMMENT ON COLUMN Comanda_Item.comanda_item_menu_grupo IS 'Agrupa items COCINA y BARRA del mismo menú especial. NULL para items que no son parte de un menú.';
 
 -- Tabla opcion_modificacion
 CREATE TABLE opcion_modificacion (
@@ -446,14 +446,10 @@ CREATE TABLE opcion_modificacion (
     opcion_estado   VARCHAR(20)  NOT NULL DEFAULT 'ACTIVO',
     created_at      TIMESTAMP    NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at      TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
-    CONSTRAINT chk_opcion_tipo_componente CHECK (tipo_componente IN
-               ('ARROZ','PROTEINA','SALSA','SALSA_PROTEINA_1','SALSA_PROTEINA_2',
-                'ACOMPAÑAMIENTO','BEBIDA','ENSALADA')),
     CONSTRAINT chk_opcion_estado CHECK (opcion_estado IN ('ACTIVO','INACTIVO'))
 );
 
 COMMENT ON TABLE opcion_modificacion IS 'Opciones predefinidas de modificación por componente para menús especiales';
-COMMENT ON COLUMN opcion_modificacion.tipo_componente IS 'Agrupa modificaciones por tipo de componente del plato (ej. proteína, salsa, acompañamiento) para facilitar su asignación a productos y selección en pre-orden';
 
 -- Tabla producto_opcion_modificacion
 CREATE TABLE producto_opcion_modificacion (
@@ -468,6 +464,25 @@ CREATE TABLE producto_opcion_modificacion (
 );
 
 COMMENT ON TABLE producto_opcion_modificacion IS 'Define qué opciones de modificación ofrece cada menú especial';
+
+-- Tabla menu_bebida_disponible
+-- Define qué bebidas (Producto con producto_categoria='BEBIDA') puede llevar
+-- cada menú especial (Producto con menu_especial=TRUE). M:N.
+CREATE TABLE menu_bebida_disponible (
+    producto_menu_id   BIGINT NOT NULL,
+    producto_bebida_id BIGINT NOT NULL,
+    created_at         TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    PRIMARY KEY (producto_menu_id, producto_bebida_id),
+    CONSTRAINT fk_menu_bebida_menu   FOREIGN KEY (producto_menu_id)
+        REFERENCES Producto(producto_id) ON DELETE CASCADE,
+    CONSTRAINT fk_menu_bebida_bebida FOREIGN KEY (producto_bebida_id)
+        REFERENCES Producto(producto_id) ON DELETE RESTRICT
+);
+
+COMMENT ON TABLE menu_bebida_disponible IS 'Catálogo de bebidas permitidas por menú especial.';
+
+CREATE INDEX idx_menu_bebida_menu   ON menu_bebida_disponible(producto_menu_id);
+CREATE INDEX idx_menu_bebida_bebida ON menu_bebida_disponible(producto_bebida_id);
 
 -- Tabla comanda_menu_modificacion
 -- Registra las opciones de menú especial seleccionadas para un ítem de comanda
@@ -623,6 +638,7 @@ CREATE INDEX idx_comanda_prereserva ON Comanda(reserva_id) WHERE comanda_estado 
 
 CREATE INDEX idx_comanda_item_comanda_id ON Comanda_Item(comanda_id);
 CREATE INDEX idx_comanda_item_producto_id ON Comanda_Item(producto_id);
+CREATE INDEX idx_comanda_item_menu_grupo ON Comanda_Item(comanda_item_menu_grupo) WHERE comanda_item_menu_grupo IS NOT NULL;
 
 CREATE INDEX idx_insumo_tipo             ON Insumo(tipo_insumo);
 CREATE INDEX idx_opcion_tipo_componente  ON opcion_modificacion(tipo_componente);
