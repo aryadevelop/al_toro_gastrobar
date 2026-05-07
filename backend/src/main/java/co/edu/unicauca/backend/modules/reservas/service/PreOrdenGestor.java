@@ -220,12 +220,15 @@ public class PreOrdenGestor {
                 .ifPresent(comanda -> {
                     List<ComandaItem> items =
                             comandaItemRepository.findByComanda_ComandaId(comanda.getComandaId());
-                    // Borrar modificaciones de menú especial antes que los ítems (FK constraint)
+                            
+                    // Borrar modificaciones de menú especial antes que los ítems
                     items.forEach(item ->
                             comandaMenuModificacionRepository
                                     .deleteByComandaItem_ComandaItemId(item.getComandaItemId()));
-                    // Borrar los ítems antes que la comanda (FK constraint)
+
+                    // Borrar los ítems antes que la comanda
                     comandaItemRepository.deleteAll(items);
+                    
                     // Eliminar la comanda vacía
                     comandaRepository.delete(comanda);
                 });

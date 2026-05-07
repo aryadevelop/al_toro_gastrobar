@@ -448,7 +448,7 @@ CREATE TABLE opcion_modificacion (
     updated_at      TIMESTAMP             DEFAULT CURRENT_TIMESTAMP,
     CONSTRAINT chk_opcion_tipo_componente CHECK (tipo_componente IN
                ('ARROZ','PROTEINA','SALSA','SALSA_PROTEINA_1','SALSA_PROTEINA_2',
-                'ACOMPAÑAMIENTO','BEBIDA','ENSALADA','OTRO')),
+                'ACOMPAÑAMIENTO','BEBIDA','ENSALADA')),
     CONSTRAINT chk_opcion_estado CHECK (opcion_estado IN ('ACTIVO','INACTIVO'))
 );
 
