@@ -274,3 +274,107 @@ export interface BackendMesaAsignadaResponse {
   emailMesero: string;
   reservaId?: number;
 }
+
+export interface BackendVentaDetalleCliente {
+  nombre: string;
+  telefono?: string | null;
+}
+
+export interface BackendVentaDetalleMesa {
+  identificador: string;
+  zona?: string | null;
+}
+
+export interface BackendVentaDetalleItem {
+  nombre: string;
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  especificaciones?: string | null;
+}
+
+export interface BackendVentaDetalleMenuEspecial {
+  nombreMenu: string;
+  valorPorPersona: number;
+  numeroPersonas: number;
+  totalCalculado: number;
+}
+
+export interface BackendVentaDetalleServicioAdicional {
+  nombre: string;
+  costo: number;
+}
+
+export interface BackendVentaDetalleResponse {
+  ventaId: number;
+  fechaHora: string;
+  cliente?: BackendVentaDetalleCliente | null;
+  mesa?: BackendVentaDetalleMesa | null;
+  meseroNombre?: string | null;
+  items: BackendVentaDetalleItem[];
+  menuEspecial?: BackendVentaDetalleMenuEspecial | null;
+  serviciosAdicionales: BackendVentaDetalleServicioAdicional[];
+  notaReserva?: string | null;
+  subtotal: number;
+  total: number;
+  metodoPago?: string | null;
+  estadoReserva?: string | null;
+  alertaReservaCancelada?: string | null;
+}
+
+export interface BackendClienteBusquedaResponse {
+  clienteId: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+}
+
+export interface BackendClienteResumenResponse {
+  clienteId: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+  fechaNacimiento?: string | null;
+  clienteDesde?: string | null;
+}
+
+export interface BackendClienteVentasResumenResponse {
+  totalVisitas: number;
+  totalGastado: number;
+  promedioPorVisita: number;
+  ultimaVisita?: string | null;
+  clienteDesde?: string | null;
+}
+
+export interface BackendClienteVentaDetalle {
+  visitaId: number;
+  subtotal: number;
+  descuento: number;
+  total: number;
+  metodo?: string | null;
+  fechaHora: string;
+  createdAt?: string | null;
+  cajeroNombre?: string | null;
+}
+
+export interface BackendClienteVentasResponse {
+  cliente: BackendClienteResumenResponse;
+  resumen: BackendClienteVentasResumenResponse;
+  ventas: BackendClienteVentaDetalle[];
+  mensajeCumpleanos?: string | null;
+  mensajeInactivo?: string | null;
+  mostrarRecordatorio: boolean;
+}
+
+export interface BackendVentaAgrupadaAnioResponse {
+  anio: number;
+  total: number;
+  cantidad: number;
+}
+
+export interface BackendVentaAgrupadaMesResponse {
+  anio: number;
+  mes: number;
+  total: number;
+  cantidad: number;
+}
