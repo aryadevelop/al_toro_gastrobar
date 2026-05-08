@@ -39,11 +39,25 @@ export const API_PATHS = {
         updateMe: `${API}/clientes/me`,
         changePassword: `${API}/clientes/me/cambiar-contraseña`,
     },
+    clientesAdmin: {
+        buscarNombre: `${API}/clientes/buscar/nombre`,
+        buscarCorreo: `${API}/clientes/buscar/correo`,
+        buscarTelefono: `${API}/clientes/buscar/telefono`,
+        buscarDocumento: `${API}/clientes/buscar/documento`,
+        ventas: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas`,
+        ventasResumen: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/resumen`,
+        ventasAgrupadasAnio: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/agrupadas/anio`,
+        ventasAgrupadasMes: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/agrupadas/mes`,
+        enviarRecordatorio: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/recordatorio`,
+    },
     mesas: {
         mapa: `${API}/mesas`,
         asignar: `${API}/mesas`,
         detalle: (mesaId: string | number) => `${API}/mesas/${mesaId}/detalle`,
         itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
         zonasDisponibles: `${API}/mesas/zonas-disponibles`,
+    },
+    ventas: {
+        detalle: (visitaId: string | number) => `${API}/ventas/${visitaId}/detalle`,
     },
 } as const;
