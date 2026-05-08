@@ -1,7 +1,8 @@
 package co.edu.unicauca.backend.modules.reservas.dto.response;
 
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoBebidaResponse;
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
 import lombok.Builder;
 import lombok.Getter;
 

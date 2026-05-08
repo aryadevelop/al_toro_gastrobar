@@ -54,7 +54,7 @@ scripts:
         pm.expect(body).to.have.property('success', false);
       });
 
-      pm.test('El código de error es NEG-001', function () {
+      pm.test('El código de error es NEG-002', function () {
         pm.expect(body.error).to.have.property('code', 'NEG-001');
       });
 

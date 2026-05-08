@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -9,6 +8,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 
 /**
  * Línea de producto dentro de una {@link Comanda}.

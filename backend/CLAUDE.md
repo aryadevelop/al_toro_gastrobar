@@ -9,6 +9,7 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 - `docs/coding-patterns.md` — Services, Mappers, DTOs, Tests, ApiResponse, WebSocket, Git Commits
 - `docs/postman-conventions.md` — Manual + Automated collections
 - `docs/testing.md` — JaCoCo y estrategia de cobertura
+- `docs/components.md` — Diagrama C4 Nivel 3: capas por módulo, componentes futuros e interacciones entre módulos
 - `ENDPOINTS.md` — Listado completo de endpoints
 
 ---

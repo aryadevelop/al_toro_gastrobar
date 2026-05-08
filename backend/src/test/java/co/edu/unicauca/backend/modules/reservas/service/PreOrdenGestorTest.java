@@ -1,16 +1,16 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.OpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaMenuModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;

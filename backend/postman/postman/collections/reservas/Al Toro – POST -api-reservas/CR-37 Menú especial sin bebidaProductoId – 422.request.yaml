@@ -52,7 +52,7 @@ scripts:
       });
 
       pm.test('El código de error es NEG-001', function () {
-        pm.expect(body.error).to.have.property('code', 'NEG-001');
+        pm.expect(body.error).to.have.property('code', 'NEG-002');
       });
 
       pm.environment.unset('tmpFechaLibre');

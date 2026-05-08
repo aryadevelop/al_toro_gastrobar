@@ -11,10 +11,7 @@ import lombok.*;
 
 /**
  * Entidad OpcionModificacion — opción de componente para menú especial.
- * Representa una alternativa nombrada que puede estar compuesta por varios insumos
- * (ej. "Arroz marinero" = arroz + mariscos). Las opciones se agrupan por
- * tipo_componente (ARROZ, PROTEINA…) para mostrarse como checkboxes en el
- * formulario de pre-orden.
+ * Las opciones se agrupan por tipo_componente. 
  */
 @Entity
 @Table(name = "opcion_modificacion", schema = "restaurante",

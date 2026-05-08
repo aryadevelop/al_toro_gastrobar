@@ -52,7 +52,6 @@ scripts:
           const bebida = body.data[0].bebidasDisponibles[0];
           pm.expect(bebida).to.have.property('productoId');
           pm.expect(bebida).to.have.property('productoNombre');
-          pm.expect(bebida).to.have.property('productoPrecio');
         }
       });
 

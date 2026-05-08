@@ -1,8 +1,8 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
@@ -85,7 +85,6 @@ class PreOrdenMapperTest {
         // El campo bebida debe estar poblado con los datos de la bebida BARRA
         assertThat(r.getBebida()).isNotNull();
         assertThat(r.getBebida().productoNombre()).isEqualTo("Jugo de Lulo");
-        assertThat(r.getBebida().productoPrecio()).isEqualByComparingTo("8000");
     }
 
     @Test

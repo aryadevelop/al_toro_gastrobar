@@ -2,7 +2,8 @@ package co.edu.unicauca.backend.modules.inventario.repository;
 
 import co.edu.unicauca.backend.modules.inventario.entity.MenuBebidaDisponible;
 import co.edu.unicauca.backend.modules.inventario.entity.MenuBebidaDisponibleId;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;

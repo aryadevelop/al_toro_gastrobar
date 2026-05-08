@@ -1,14 +1,15 @@
-package co.edu.unicauca.backend.modules.produccion.mapper;
+package co.edu.unicauca.backend.modules.inventario.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.GrupoModificacionResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.OpcionModificacionResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.GrupoModificacionResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.OpcionModificacionResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoBebidaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -18,7 +19,7 @@ import java.util.stream.Collectors;
 /**
  * Mapper para convertir entidades del módulo de producción en sus DTOs de respuesta.
  *
- * @see co.edu.unicauca.backend.modules.produccion.service.ProductoService
+ * @see co.edu.unicauca.backend.modules.inventario.service.ProductoService
  */
 @Component
 public class ProductoMapper {
@@ -79,7 +80,7 @@ public class ProductoMapper {
                                                         List<Producto> bebidasDisponibles) {
         List<ProductoBebidaResponse> bebidas = bebidasDisponibles.stream()
                 .map(b -> new ProductoBebidaResponse(
-                        b.getProductoId(), b.getProductoNombre(), b.getProductoPrecio()))
+                        b.getProductoId(), b.getProductoNombre()))
                 .toList();
 
         return MenuEspecialResponse.builder()

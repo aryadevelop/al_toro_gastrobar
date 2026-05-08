@@ -1,12 +1,13 @@
-package co.edu.unicauca.backend.modules.produccion.mapper;
+package co.edu.unicauca.backend.modules.inventario.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoBebidaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;

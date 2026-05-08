@@ -1,7 +1,7 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Estado binario de activación para entidades como {@link co.edu.unicauca.backend.modules.produccion.entity.Producto},
+ * Estado binario de activación para entidades como {@link co.edu.unicauca.backend.modules.inventario.entity.Producto},
  * {@link co.edu.unicauca.backend.modules.inventario.entity.Insumo} y
  * {@link co.edu.unicauca.backend.modules.reservas.entity.Decoracion}.
  *

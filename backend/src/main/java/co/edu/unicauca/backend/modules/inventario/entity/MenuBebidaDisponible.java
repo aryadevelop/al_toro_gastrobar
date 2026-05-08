@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.inventario.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import jakarta.persistence.*;
 import java.time.LocalDateTime;
 

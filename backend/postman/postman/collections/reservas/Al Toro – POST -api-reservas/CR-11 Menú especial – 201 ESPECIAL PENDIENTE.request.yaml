@@ -22,7 +22,7 @@ body:
       "numeroPersonas": 12,
       "preOrden": [
         {
-          "productoId": 132,
+          "productoId": 134,
           "cantidad": 12,
           "esMenuEspecial": true,
           "bebidaProductoId": 138,

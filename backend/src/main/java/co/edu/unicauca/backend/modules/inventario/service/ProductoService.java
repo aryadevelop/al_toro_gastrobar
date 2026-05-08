@@ -1,14 +1,14 @@
-package co.edu.unicauca.backend.modules.produccion.service;
+package co.edu.unicauca.backend.modules.inventario.service;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.produccion.mapper.ProductoMapper;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -33,8 +33,8 @@ import java.util.stream.Collectors;
  * </ul>
  *
  * @see ProductoMapper
- * @see co.edu.unicauca.backend.modules.produccion.controller.ProductoController
- * @see co.edu.unicauca.backend.modules.produccion.entity.Producto
+ * @see co.edu.unicauca.backend.modules.inventario.controller.ProductoController
+ * @see co.edu.unicauca.backend.modules.inventario.entity.Producto
  */
 @Service
 @RequiredArgsConstructor
@@ -84,8 +84,7 @@ public class ProductoService {
      *
      * <p>Para cada menú especial se consultan las opciones de modificación activas y se
      * delega la conversión a {@link ProductoMapper#toMenuEspecialResponse}, que internamente
-     * agrupa las opciones por {@code tipoComponente} (p. ej. proteína, guarnición, bebida)
-     * para facilitar la selección por parte del cliente.
+     * agrupa las opciones por {@code tipoComponente} para facilitar la selección por parte del cliente.
      *
      * @return lista de {@link MenuEspecialResponse} ordenada alfabéticamente por nombre
      *         de producto; vacía si no hay menús especiales activos

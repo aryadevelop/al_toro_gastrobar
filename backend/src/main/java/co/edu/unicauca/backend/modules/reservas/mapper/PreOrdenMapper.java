@@ -1,7 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoBebidaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 
@@ -80,6 +80,13 @@ public class PreOrdenMapper {
      * @return {@link PreOrdenItemResponse} con el campo {@code bebida} poblado
      */
     private PreOrdenItemResponse toMenuItemResponse(ComandaItem plato, ComandaItem bebidaItem) {
+        List<PreOrdenItemResponse.OpcionModificacionSeleccionada> mods = plato.getModificaciones().stream()
+                .map(m -> PreOrdenItemResponse.OpcionModificacionSeleccionada.builder()
+                        .opcionId(m.getOpcion().getOpcionId())
+                        .opcionNombre(m.getOpcion().getOpcionNombre())
+                        .tipoComponente(m.getOpcion().getTipoComponente().name())
+                        .build())
+                .toList();
         return PreOrdenItemResponse.builder()
                 .comandaItemId(plato.getComandaItemId())
                 .productoId(plato.getProducto().getProductoId())
@@ -88,10 +95,10 @@ public class PreOrdenMapper {
                 .categoriaProducto(plato.getProducto().getProductoCategoria().name())
                 .precioUnitario(plato.getComandaItemPrecio())
                 .descripcion(plato.getComandaItemDescripcion())
+                .modificaciones(mods.isEmpty() ? null : mods)
                 .bebida(new ProductoBebidaResponse(
                         bebidaItem.getProducto().getProductoId(),
-                        bebidaItem.getProducto().getProductoNombre(),
-                        bebidaItem.getProducto().getProductoPrecio()))
+                        bebidaItem.getProducto().getProductoNombre()))
                 .build();
     }
 
