@@ -11,17 +11,17 @@ import {
   VentaAgrupadaAnio,
   VentaAgrupadaMes,
 } from '../../../../core/services/cliente-ventas-admin.service';
-import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
 type GroupMode = 'none' | 'anio' | 'mes';
 
 @Component({
   selector: 'app-cliente-historial-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule],
   template: `
     <section class="page-grid">
-      <app-page-header title="Historial de compras" subtitle="Consulta administrativa por cliente"></app-page-header>
+      <h1>Historial de compras</h1>
+      <p class="muted">Consulta administrativa por cliente</p>
 
       <article class="card search-card">
         <form class="form-grid form-compact" [formGroup]="searchForm" (ngSubmit)="onSearch()">
@@ -41,6 +41,7 @@ type GroupMode = 'none' | 'anio' | 'mes';
             />
           </label>
           <button class="btn-primary" type="submit" [disabled]="searching()">Buscar</button>
+          <button class="btn-secondary back-btn" type="button" (click)="onBack()">← Volver</button>
         </form>
         <p class="muted" *ngIf="searchMessage() && !searching()">{{ searchMessage() }}</p>
       </article>
@@ -180,6 +181,30 @@ type GroupMode = 'none' | 'anio' | 'mes';
   `,
   styles: [
     `
+      h1 {
+        margin: 0 0 0.3rem 0;
+        font-size: 1.5rem;
+        font-weight: 700;
+        color: #4d3323;
+      }
+
+      .back-btn {
+        padding: 0.42rem 0.62rem;
+        font-size: 0.78rem;
+        border-radius: 8px;
+      }
+
+      @media (max-width: 768px) {
+        h1 {
+          font-size: 1.2rem;
+        }
+
+        .back-btn {
+          width: 100%;
+          padding: 0.5rem 0.8rem;
+        }
+      }
+
       .search-card {
         padding: 1rem;
         max-width: 900px;
@@ -356,6 +381,10 @@ export class ClienteHistorialPageComponent implements OnInit {
       this.selectedClienteId.set(clienteId);
       this.loadHistorial(clienteId);
     }
+  }
+
+  onBack(): void {
+    this.router.navigate(['/app/admin/dashboard']);
   }
 
   searchPlaceholder(): string {
