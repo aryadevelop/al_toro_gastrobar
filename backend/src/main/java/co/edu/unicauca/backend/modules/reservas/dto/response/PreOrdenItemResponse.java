@@ -1,6 +1,8 @@
 package co.edu.unicauca.backend.modules.reservas.dto.response;
 
 import com.fasterxml.jackson.annotation.JsonInclude;
+
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
 import lombok.Builder;
 import lombok.Getter;
 
@@ -54,6 +56,12 @@ public class PreOrdenItemResponse {
      * {@code null} para ítems sin opciones de personalización.
      */
     private List<OpcionModificacionSeleccionada> modificaciones;
+
+    /**
+     * Bebida incluida en el menú especial elegida por el cliente.
+     * Solo está presente cuando el ítem corresponde a un menú especial; {@code null} en ítems de carta.
+     */
+    private ProductoBebidaResponse bebida;
 
     /**
      * Opción de personalización de menú especial seleccionada por el cliente.

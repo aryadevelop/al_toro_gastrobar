@@ -24,19 +24,42 @@ scripts:
         pm.expect(body.data).to.be.an('array');
       });
 
-      pm.test('Cada menú especial tiene los campos requeridos: productoId, productoNombre, productoPrecio, modificacionesPorComponente', () => {
+      pm.test('Cada menú especial tiene los campos requeridos: productoId, productoNombre, productoPrecio, modificacionesPorComponente, bebidasDisponibles', () => {
         if (body.data.length > 0) {
           const menu = body.data[0];
           pm.expect(menu).to.have.property('productoId');
           pm.expect(menu).to.have.property('productoNombre');
           pm.expect(menu).to.have.property('productoPrecio');
           pm.expect(menu).to.have.property('modificacionesPorComponente');
+          pm.expect(menu).to.have.property('bebidasDisponibles');
         }
       });
 
       pm.test('El campo modificacionesPorComponente es un arreglo (nunca null)', () => {
         body.data.forEach(menu => {
           pm.expect(menu.modificacionesPorComponente).to.be.an('array');
+        });
+      });
+
+      pm.test('Cada menú expone bebidasDisponibles como arreglo no vacío', () => {
+        body.data.forEach(menu => {
+          pm.expect(menu.bebidasDisponibles).to.be.an('array').with.lengthOf.above(0);
+        });
+      });
+
+      pm.test('Cada bebida disponible tiene productoId, productoNombre y productoPrecio', () => {
+        if (body.data.length > 0) {
+          const bebida = body.data[0].bebidasDisponibles[0];
+          pm.expect(bebida).to.have.property('productoId');
+          pm.expect(bebida).to.have.property('productoNombre');
+        }
+      });
+
+      pm.test('Ningún grupo de modificaciones tiene tipoComponente BEBIDA', () => {
+        body.data.forEach(menu => {
+          menu.modificacionesPorComponente.forEach(grupo => {
+            pm.expect(grupo.tipoComponente).to.not.eql('BEBIDA');
+          });
         });
       });
 

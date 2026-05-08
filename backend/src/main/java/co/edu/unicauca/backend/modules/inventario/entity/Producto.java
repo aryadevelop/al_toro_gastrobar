@@ -1,4 +1,4 @@
-package co.edu.unicauca.backend.modules.produccion.entity;
+package co.edu.unicauca.backend.modules.inventario.entity;
 
 import co.edu.unicauca.backend.shared.entity.AuditableEntity;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;

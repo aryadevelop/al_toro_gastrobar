@@ -1,10 +1,12 @@
-package co.edu.unicauca.backend.modules.produccion.controller;
+package co.edu.unicauca.backend.modules.inventario.controller;
 
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.service.ProductoService;
+import co.edu.unicauca.backend.modules.inventario.controller.ProductoController;
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
+
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;

@@ -543,10 +543,12 @@ public class ReservaService {
      * @return lista de ítems de pre-orden; vacía si la reserva no tiene pre-orden
      */
     private List<ComandaItem> obtenerItemsPreOrden(Long reservaId) {
+        // Aplana los ítems de todas las comandas PRE_RESERVA (split por estación: COCINA + BARRA)
         return comandaRepository
                 .findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA)
-                .map(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId()))
-                .orElse(List.of());
+                .stream()
+                .flatMap(c -> comandaItemRepository.findByComanda_ComandaId(c.getComandaId()).stream())
+                .toList();
     }
 
     // -----------------------------------------------------------------------

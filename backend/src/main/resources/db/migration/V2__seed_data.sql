@@ -627,71 +627,20 @@ SELECT c.categoriacarta_id,
 FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENÚS ESPECIALES';
 
 -- =====================================================
--- 10. RECETAS DE MENÚS ESPECIALES
---     Permite al cocinero saber qué insumos usar.
---     (Mismo patrón JOIN por nombre que las recetas existentes)
--- =====================================================
-INSERT INTO Receta (insumo_id, producto_id, receta_cantidad)
-SELECT i.insumo_id, p.producto_id, r.cantidad
-FROM (VALUES
-    -- Menú 1 - Pechuga en Salsa de Uchuvas
-    ('Pechuga de Pollo'::text,  'Menú 1 - Pechuga en Salsa de Uchuvas'::text, 0.280::numeric(12,3)),
-    ('Salsa de uchuvas',        'Menú 1 - Pechuga en Salsa de Uchuvas',        0.080),
-    ('Papa Francesa',           'Menú 1 - Pechuga en Salsa de Uchuvas',        0.180),
-    -- Menú 3 - Cerdo BBQ
-    ('Lomo de Cerdo',           'Menú 3 - Cerdo BBQ',                          0.280),
-    ('Salsa BBQ',               'Menú 3 - Cerdo BBQ',                          0.080),
-    ('Papa Francesa',           'Menú 3 - Cerdo BBQ',                          0.180),
-    -- Menú 8a - Doble Proteína con Arroz
-    ('Pechuga de Pollo',        'Menú 8a - Doble Proteína con Arroz',          0.200),
-    ('Salsa de uchuvas',        'Menú 8a - Doble Proteína con Arroz',          0.060),
-    ('Lomo de Cerdo',           'Menú 8a - Doble Proteína con Arroz',          0.200),
-    ('Salsa BBQ',               'Menú 8a - Doble Proteína con Arroz',          0.060),
-    ('Papa Francesa',           'Menú 8a - Doble Proteína con Arroz',          0.180),
-    ('Arroz granjero',          'Menú 8a - Doble Proteína con Arroz',          0.200),
-    -- Menú 8b - Pechuga y Cerdo
-    ('Pechuga de Pollo',        'Menú 8b - Pechuga y Cerdo',                   0.200),
-    ('Salsa de uchuvas',        'Menú 8b - Pechuga y Cerdo',                   0.060),
-    ('Lomo de Cerdo',           'Menú 8b - Pechuga y Cerdo',                   0.200),
-    ('Salsa BBQ',               'Menú 8b - Pechuga y Cerdo',                   0.060),
-    ('Papa Francesa',           'Menú 8b - Pechuga y Cerdo',                   0.180),
-    -- Menú 8c - Pechuga y Res en Vino
-    ('Pechuga de Pollo',        'Menú 8c - Pechuga y Res en Vino',             0.200),
-    ('Salsa de uchuvas',        'Menú 8c - Pechuga y Res en Vino',             0.060),
-    ('Lomo Fino de Res',        'Menú 8c - Pechuga y Res en Vino',             0.200),
-    ('Salsa de vino tinto',     'Menú 8c - Pechuga y Res en Vino',             0.080),
-    ('Papa Francesa',           'Menú 8c - Pechuga y Res en Vino',             0.180),
-    -- Menú 8d - Cerdo y Res en Vino
-    ('Lomo de Cerdo',           'Menú 8d - Cerdo y Res en Vino',               0.200),
-    ('Salsa BBQ',               'Menú 8d - Cerdo y Res en Vino',               0.060),
-    ('Lomo Fino de Res',        'Menú 8d - Cerdo y Res en Vino',               0.200),
-    ('Salsa de vino tinto',     'Menú 8d - Cerdo y Res en Vino',               0.080),
-    ('Papa Francesa',           'Menú 8d - Cerdo y Res en Vino',               0.180)
-) AS r(insumo_nombre, producto_nombre, cantidad)
-JOIN Insumo   i ON i.insumo_nombre   = r.insumo_nombre
-JOIN Producto p ON p.producto_nombre = r.producto_nombre;
-
--- =====================================================
--- 11. OPCIONES DE MODIFICACIÓN
+-- 10. OPCIONES DE MODIFICACIÓN
 --     Cada tipo_componente agrupa una selección en el
 --     formulario de pre-orden (CA-07):
---       BEBIDA           → tipo de jugo (todos los menús)
 --       SALSA_PROTEINA_1 → salsa de la 1ª proteína (menús doble proteína)
 --       SALSA_PROTEINA_2 → salsa de la 2ª proteína (menús doble proteína)
 --       ARROZ            → tipo de arroz (sólo Menú 8a, que incluye arroz)
 --
---     Menús de 1 proteína (Menú 1, Menú 3): salsa fija en la descripción,
---     sólo se elige el jugo.
+--     Menús de 1 proteína (Menú 1, Menú 3): salsa fija en la descripción.
 --     Menús de 2 proteínas (8a-8d): se presenta la elección de salsa
 --     una vez por proteína.
 --     Menú 8a añade además la elección de tipo de arroz.
+--     La bebida se elige de menu_bebida_disponible (sección 14).
 -- =====================================================
 INSERT INTO opcion_modificacion (tipo_componente, opcion_nombre, opcion_estado) VALUES
--- Bebida (todos los menús)
-('BEBIDA',           'Jugo de Maracuyá',    'ACTIVO'),
-('BEBIDA',           'Jugo de Lulo',        'ACTIVO'),
-('BEBIDA',           'Jugo de Mango',       'ACTIVO'),
-('BEBIDA',           'Jugo de Fresa',       'ACTIVO'),
 -- Salsa 1ª proteína (menús 8a, 8b, 8c, 8d)
 ('SALSA_PROTEINA_1', 'Salsa de Uchuvas',    'ACTIVO'),
 ('SALSA_PROTEINA_1', 'Salsa BBQ',           'ACTIVO'),
@@ -706,22 +655,14 @@ INSERT INTO opcion_modificacion (tipo_componente, opcion_nombre, opcion_estado) 
 
 -- =====================================================
 -- 12. VINCULAR MENÚS ESPECIALES CON SUS OPCIONES
---     Menú 1 y Menú 3 (1 proteína): sólo BEBIDA.
+--     Menú 1 y Menú 3 (1 proteína): sin opciones de modificación
+--         (salsa fija; bebida via menu_bebida_disponible).
 --     Menús 8b, 8c, 8d (2 proteínas, sin arroz):
---         SALSA_PROTEINA_1 + SALSA_PROTEINA_2 + BEBIDA.
+--         SALSA_PROTEINA_1 + SALSA_PROTEINA_2.
 --     Menú 8a (2 proteínas, con arroz):
---         SALSA_PROTEINA_1 + SALSA_PROTEINA_2 + ARROZ + BEBIDA.
+--         SALSA_PROTEINA_1 + SALSA_PROTEINA_2 + ARROZ.
+--     La bebida se gestiona via menu_bebida_disponible (sección 14).
 -- =====================================================
-
--- Todos los menús reciben opciones de bebida
-INSERT INTO producto_opcion_modificacion (producto_id, opcion_id)
-SELECT p.producto_id, o.opcion_id
-FROM Producto p
-CROSS JOIN opcion_modificacion o
-WHERE p.menu_especial = TRUE
-  AND p.producto_estado = 'ACTIVO'
-  AND o.tipo_componente = 'BEBIDA'
-  AND o.opcion_estado = 'ACTIVO';
 
 -- Menús de doble proteína (8a, 8b, 8c, 8d): salsa presentada por proteína
 INSERT INTO producto_opcion_modificacion (producto_id, opcion_id)
@@ -745,3 +686,38 @@ CROSS JOIN opcion_modificacion o
 WHERE p.producto_nombre = 'Menú 8a - Doble Proteína con Arroz'
   AND o.tipo_componente = 'ARROZ'
   AND o.opcion_estado = 'ACTIVO';
+
+-- =====================================================
+-- 13. JUGOS DEL MENÚ ESPECIAL
+--     También vendibles como bebida suelta en su precio normal.
+--     La bebida elegida en el menú se cobra con precio 0 en ComandaItem.
+-- =====================================================
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT cc.categoriacarta_id, v.nombre, 'ACTIVO', v.precio, 'PREPARACION', 'BEBIDA', NULL
+FROM CategoriaCarta cc
+CROSS JOIN (VALUES
+    ('Jugo de Maracuyá', 8000::numeric(12,2)),
+    ('Jugo de Lulo',     8000::numeric(12,2)),
+    ('Jugo de Mango',    8000::numeric(12,2)),
+    ('Jugo de Fresa',    8000::numeric(12,2))
+) AS v(nombre, precio)
+WHERE cc.categoria_nombre = 'JUGOS NATURALES'
+  AND NOT EXISTS (
+      SELECT 1 FROM Producto p WHERE p.producto_nombre = v.nombre
+  );
+
+-- =====================================================
+-- 14. BEBIDAS DISPONIBLES POR MENÚ ESPECIAL
+--     Cada menú admite los 4 jugos del catálogo.
+-- =====================================================
+INSERT INTO menu_bebida_disponible (producto_menu_id, producto_bebida_id)
+SELECT m.producto_id, b.producto_id
+FROM Producto m
+CROSS JOIN Producto b
+WHERE m.menu_especial = TRUE
+  AND m.producto_estado = 'ACTIVO'
+  AND b.producto_categoria = 'BEBIDA'
+  AND b.producto_estado = 'ACTIVO'
+  AND b.producto_nombre IN (
+      'Jugo de Maracuyá', 'Jugo de Lulo', 'Jugo de Mango', 'Jugo de Fresa'
+  );

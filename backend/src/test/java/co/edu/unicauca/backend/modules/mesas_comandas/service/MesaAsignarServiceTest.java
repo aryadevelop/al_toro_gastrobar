@@ -252,7 +252,7 @@ class MesaAsignarServiceTest {
             when(visitaRepository.save(any(Visita.class))).thenReturn(visitaConCliente);
             when(mesaRepository.save(any(Mesa.class))).thenReturn(mesaGuardada);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.of(comandaPreReserva));
+                    .thenReturn(List.of(comandaPreReserva));
 
             // Act
             MesaAsignadaResponse response = mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
@@ -260,11 +260,13 @@ class MesaAsignarServiceTest {
             // Assert - Respuesta
             assertThat(response.getReservaId()).isEqualTo(RESERVA_ID);
 
-            // Assert - Comanda procesada
-            ArgumentCaptor<Comanda> comandaCaptor = ArgumentCaptor.forClass(Comanda.class);
-            verify(comandaRepository).save(comandaCaptor.capture());
-            assertThat(comandaCaptor.getValue().getComandaEstado()).isEqualTo(EstadoComanda.BORRADOR);
-            assertThat(comandaCaptor.getValue().getVisita()).isEqualTo(visitaConCliente);
+            // Assert - Comanda procesada (saveAll tras el split por estación)
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<Comanda>> comandaCaptor = ArgumentCaptor.forClass(List.class);
+            verify(comandaRepository).saveAll(comandaCaptor.capture());
+            Comanda comandaGuardada = comandaCaptor.getValue().get(0);
+            assertThat(comandaGuardada.getComandaEstado()).isEqualTo(EstadoComanda.BORRADOR);
+            assertThat(comandaGuardada.getVisita()).isEqualTo(visitaConCliente);
 
             // Assert - Reserva actualizada
             ArgumentCaptor<Reserva> reservaCaptor = ArgumentCaptor.forClass(Reserva.class);
@@ -297,15 +299,16 @@ class MesaAsignarServiceTest {
 
             setupMocksForReserva(visitaConCliente);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.of(comandaPreReserva));
+                    .thenReturn(List.of(comandaPreReserva));
 
             // Act
             mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
 
             // Assert
-            ArgumentCaptor<Comanda> captor = ArgumentCaptor.forClass(Comanda.class);
-            verify(comandaRepository).save(captor.capture());
-            Comanda comandaGuardada = captor.getValue();
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<Comanda>> captor = ArgumentCaptor.forClass(List.class);
+            verify(comandaRepository).saveAll(captor.capture());
+            Comanda comandaGuardada = captor.getValue().get(0);
 
             assertThat(comandaGuardada.getComandaEstado()).isEqualTo(EstadoComanda.BORRADOR);
             assertThat(comandaGuardada.getVisita()).isEqualTo(visitaConCliente);
@@ -324,7 +327,7 @@ class MesaAsignarServiceTest {
 
             setupMocksForReserva(visitaConCliente);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.empty());  // Sin comanda
+                    .thenReturn(List.of());  // Sin comanda
 
             // Act
             mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
@@ -351,7 +354,7 @@ class MesaAsignarServiceTest {
 
             setupMocksForReserva(visitaConCliente);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             // Estado inicial
             assertThat(reserva.getReservaEstado()).isEqualTo(EstadoReserva.CONFIRMADA);
@@ -400,7 +403,7 @@ class MesaAsignarServiceTest {
 
             setupMocksForReserva(visitaConCliente);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             // Act
             mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
@@ -441,7 +444,7 @@ class MesaAsignarServiceTest {
 
             setupMocksForReserva(visitaConCliente);
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             // Act
             mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);

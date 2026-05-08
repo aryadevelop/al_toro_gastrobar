@@ -1,4 +1,4 @@
-package co.edu.unicauca.backend.modules.produccion.dto.response;
+package co.edu.unicauca.backend.modules.inventario.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;

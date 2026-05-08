@@ -1,4 +1,4 @@
-package co.edu.unicauca.backend.modules.produccion.dto.response;
+package co.edu.unicauca.backend.modules.inventario.dto.response;
 
 import lombok.AllArgsConstructor;
 import lombok.Builder;
@@ -12,7 +12,7 @@ import java.util.List;
 /**
  * Respuesta que representa un menú especial del restaurante con sus grupos de modificación.
  *
- * <p>Un menú especial es un {@link co.edu.unicauca.backend.modules.produccion.entity.Producto}
+ * <p>Un menú especial es un {@link co.edu.unicauca.backend.modules.inventario.entity.Producto}
  * cuyo campo {@code menuEspecial} es {@code true}. Está disponible para reservas de grupos
  * de más de 10 personas y permite al cliente personalizar cada componente del plato.
  *
@@ -51,4 +51,10 @@ public class MenuEspecialResponse {
      * @see GrupoModificacionResponse
      */
     private List<GrupoModificacionResponse> modificacionesPorComponente;
+
+    /**
+     * Bebidas disponibles para seleccionar junto con este menú especial.
+     * Nunca es {@code null}; puede ser vacía si no hay bebidas asociadas.
+     */
+    private List<ProductoBebidaResponse> bebidasDisponibles;
 }

@@ -1,13 +1,15 @@
-package co.edu.unicauca.backend.modules.produccion.mapper;
+package co.edu.unicauca.backend.modules.inventario.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.GrupoModificacionResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.OpcionModificacionResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.GrupoModificacionResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.OpcionModificacionResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+
 import org.springframework.stereotype.Component;
 
 import java.util.List;
@@ -17,7 +19,7 @@ import java.util.stream.Collectors;
 /**
  * Mapper para convertir entidades del módulo de producción en sus DTOs de respuesta.
  *
- * @see co.edu.unicauca.backend.modules.produccion.service.ProductoService
+ * @see co.edu.unicauca.backend.modules.inventario.service.ProductoService
  */
 @Component
 public class ProductoMapper {
@@ -61,23 +63,33 @@ public class ProductoMapper {
     }
 
     /**
-     * Convierte un {@link Producto} de tipo menú especial y sus opciones de modificación
-     * activas en el DTO de respuesta con los grupos por tipo de componente.
+     * Convierte un {@link Producto} de tipo menú especial, sus opciones de modificación activas
+     * y las bebidas disponibles en el DTO de respuesta.
      *
-     * <p>La agrupación se delega en {@link #toGruposModificacion(List)}.
+     * <p>La agrupación de opciones se delega en {@link #toGruposModificacion(List)}.
+     * Las bebidas se convierten individualmente a {@link ProductoBebidaResponse}.
      *
-     * @param menu    producto de tipo menú especial a convertir
-     * @param opciones opciones de modificación activas asociadas al menú
-     * @return {@link MenuEspecialResponse} con los datos del menú y sus grupos de modificación
+     * @param menu               producto de tipo menú especial a convertir
+     * @param opciones           opciones de modificación activas asociadas al menú
+     * @param bebidasDisponibles bebidas activas asociadas al menú; nunca {@code null}
+     * @return {@link MenuEspecialResponse} con los datos del menú, sus grupos de modificación
+     *         y las bebidas disponibles
      */
     public MenuEspecialResponse toMenuEspecialResponse(Producto menu,
-                                                        List<OpcionModificacion> opciones) {
+                                                        List<OpcionModificacion> opciones,
+                                                        List<Producto> bebidasDisponibles) {
+        List<ProductoBebidaResponse> bebidas = bebidasDisponibles.stream()
+                .map(b -> new ProductoBebidaResponse(
+                        b.getProductoId(), b.getProductoNombre()))
+                .toList();
+
         return MenuEspecialResponse.builder()
                 .productoId(menu.getProductoId())
                 .productoNombre(menu.getProductoNombre())
                 .productoDescripcion(menu.getProductoDescripcion())
                 .productoPrecio(menu.getProductoPrecio())
                 .modificacionesPorComponente(toGruposModificacion(opciones))
+                .bebidasDisponibles(bebidas)
                 .build();
     }
 

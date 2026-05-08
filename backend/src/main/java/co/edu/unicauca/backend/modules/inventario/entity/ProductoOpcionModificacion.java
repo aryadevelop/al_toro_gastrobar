@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.inventario.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import jakarta.persistence.*;
 import lombok.*;
 
@@ -8,8 +7,7 @@ import java.io.Serializable;
 import java.time.LocalDateTime;
 
 /**
- * Entidad ProductoOpcionModificacion — tabla linking entre Producto (menuEspecial=true)
- * y OpcionModificacion. Define qué opciones de modificación están disponibles para
+ * Define qué opciones de modificación están disponibles para
  * cada menú especial. Al consultar un menú, sus opciones se agrupan por
  * tipo_componente para mostrar checkboxes en el formulario de pre-orden.
  */

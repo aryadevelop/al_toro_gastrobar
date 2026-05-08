@@ -1,11 +1,13 @@
-package co.edu.unicauca.backend.modules.produccion.mapper;
+package co.edu.unicauca.backend.modules.inventario.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.ProductoCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;
@@ -85,11 +87,11 @@ class ProductoMapperTest {
                 .productoCategoria(CategoriaProducto.PLATO)
                 .build();
         List<OpcionModificacion> opciones = List.of(
-                OpcionModificacion.builder().opcionId(1L).opcionNombre("Pollo").tipoComponente(TipoComponenteMenu.PROTEINA).opcionEstado(EstadoGenerico.ACTIVO).build(),
+                OpcionModificacion.builder().opcionId(1L).opcionNombre("Pollo").tipoComponente(TipoComponenteMenu.SALSA_PROTEINA_1).opcionEstado(EstadoGenerico.ACTIVO).build(),
                 OpcionModificacion.builder().opcionId(2L).opcionNombre("Blanco").tipoComponente(TipoComponenteMenu.ARROZ).opcionEstado(EstadoGenerico.ACTIVO).build()
         );
 
-        MenuEspecialResponse resp = mapper.toMenuEspecialResponse(menu, opciones);
+        MenuEspecialResponse resp = mapper.toMenuEspecialResponse(menu, opciones, List.of());
 
         assertThat(resp.getProductoId()).isEqualTo(2L);
         assertThat(resp.getModificacionesPorComponente()).hasSize(2);
@@ -98,8 +100,36 @@ class ProductoMapperTest {
     @Test
     @DisplayName("toMenuEspecialResponse → sin opciones retorna lista vacía de grupos")
     void toMenuEspecialResponse_sinOpciones_retornaGruposVacios() {
-        MenuEspecialResponse resp = mapper.toMenuEspecialResponse(productoBase(), List.of());
+        MenuEspecialResponse resp = mapper.toMenuEspecialResponse(productoBase(), List.of(), List.of());
 
         assertThat(resp.getModificacionesPorComponente()).isEmpty();
+    }
+
+    @Test
+    @DisplayName("toMenuEspecialResponse incluye bebidasDisponibles cuando se proveen")
+    void toMenuEspecialResponse_includesBebidas() {
+        // Create mock Producto for menu
+        Producto menu = new Producto();
+        menu.setProductoId(10L);
+        menu.setProductoNombre("Menú 8b");
+        menu.setProductoDescripcion("Descripción");
+        menu.setProductoPrecio(new java.math.BigDecimal("35000"));
+
+        // Create mock Producto for bebidas
+        Producto jugo1 = new Producto();
+        jugo1.setProductoId(101L);
+        jugo1.setProductoNombre("Jugo de Maracuyá");
+        jugo1.setProductoPrecio(new java.math.BigDecimal("8000"));
+
+        Producto jugo2 = new Producto();
+        jugo2.setProductoId(102L);
+        jugo2.setProductoNombre("Jugo de Lulo");
+        jugo2.setProductoPrecio(new java.math.BigDecimal("8000"));
+
+        MenuEspecialResponse resp = mapper.toMenuEspecialResponse(menu, List.of(), List.of(jugo1, jugo2));
+
+        assertThat(resp.getBebidasDisponibles()).hasSize(2)
+            .extracting(ProductoBebidaResponse::productoNombre)
+            .containsExactlyInAnyOrder("Jugo de Maracuyá", "Jugo de Lulo");
     }
 }

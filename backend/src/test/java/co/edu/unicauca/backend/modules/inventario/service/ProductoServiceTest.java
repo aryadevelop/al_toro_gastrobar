@@ -1,13 +1,14 @@
-package co.edu.unicauca.backend.modules.produccion.service;
+package co.edu.unicauca.backend.modules.inventario.service;
 
+import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
-import co.edu.unicauca.backend.modules.produccion.dto.response.CategoriaCartaResponse;
-import co.edu.unicauca.backend.modules.produccion.dto.response.MenuEspecialResponse;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.produccion.mapper.ProductoMapper;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
+import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -43,6 +44,7 @@ class ProductoServiceTest {
 
     @Mock ProductoRepository productoRepository;
     @Mock ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
+    @Mock co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
     @Mock ProductoMapper productoMapper;
 
     @InjectMocks
@@ -190,7 +192,7 @@ class ProductoServiceTest {
             when(productoOpcionModificacionRepository
                     .findOpcionesActivasByProductoId(anyLong(), eq(EstadoGenerico.ACTIVO)))
                     .thenReturn(List.of());
-            when(productoMapper.toMenuEspecialResponse(any(), any()))
+            when(productoMapper.toMenuEspecialResponse(any(), any(), any()))
                     .thenReturn(mock(MenuEspecialResponse.class));
 
             productoService.obtenerMenusEspeciales();
@@ -215,12 +217,12 @@ class ProductoServiceTest {
             when(productoOpcionModificacionRepository
                     .findOpcionesActivasByProductoId(anyLong(), eq(EstadoGenerico.ACTIVO)))
                     .thenReturn(opciones);
-            when(productoMapper.toMenuEspecialResponse(any(), any()))
+            when(productoMapper.toMenuEspecialResponse(any(), any(), any()))
                     .thenReturn(mock(MenuEspecialResponse.class));
 
             productoService.obtenerMenusEspeciales();
 
-            verify(productoMapper, times(2)).toMenuEspecialResponse(any(), any());
+            verify(productoMapper, times(2)).toMenuEspecialResponse(any(), any(), any());
         }
 
         @Test

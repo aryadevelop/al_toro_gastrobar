@@ -1,6 +1,9 @@
-package co.edu.unicauca.backend.modules.produccion.entity;
+package co.edu.unicauca.backend.modules.inventario.entity;
 
 import org.junit.jupiter.api.Test;
+
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+
 import static org.assertj.core.api.Assertions.assertThat;
 
 class CategoriaCartaEntityTest {

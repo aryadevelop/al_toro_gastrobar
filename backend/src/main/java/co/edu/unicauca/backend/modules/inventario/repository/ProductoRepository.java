@@ -1,6 +1,6 @@
-package co.edu.unicauca.backend.modules.produccion.repository;
+package co.edu.unicauca.backend.modules.inventario.repository;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
