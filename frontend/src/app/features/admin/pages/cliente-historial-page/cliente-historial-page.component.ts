@@ -334,7 +334,6 @@ export class ClienteHistorialPageComponent implements OnInit {
 
   readonly searchModes: Array<{ value: ClienteSearchMode; label: string }> = [
     { value: 'nombre', label: 'Nombre' },
-    { value: 'documento', label: 'Documento / ID' },
     { value: 'correo', label: 'Correo' },
     { value: 'telefono', label: 'Telefono' },
   ];
@@ -363,9 +362,6 @@ export class ClienteHistorialPageComponent implements OnInit {
     const mode = this.searchForm.getRawValue().mode;
     if (mode === 'nombre') {
       return 'Ej: Juan Perez';
-    }
-    if (mode === 'documento') {
-      return 'Ej: 12';
     }
     if (mode === 'telefono') {
       return 'Ej: 3001234567';

@@ -13,7 +13,7 @@ import {
   BackendVentaAgrupadaMesResponse,
 } from '../models/api.models';
 
-export type ClienteSearchMode = 'nombre' | 'correo' | 'telefono' | 'documento';
+export type ClienteSearchMode = 'nombre' | 'correo' | 'telefono';
 
 export interface ClienteBusqueda {
   clienteId: string;
@@ -137,8 +137,6 @@ export class ClienteVentasAdminService {
         return API_PATHS.clientesAdmin.buscarCorreo;
       case 'telefono':
         return API_PATHS.clientesAdmin.buscarTelefono;
-      case 'documento':
-        return API_PATHS.clientesAdmin.buscarDocumento;
       default:
         return API_PATHS.clientesAdmin.buscarCorreo;
     }

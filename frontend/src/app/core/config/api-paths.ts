@@ -43,7 +43,6 @@ export const API_PATHS = {
         buscarNombre: `${API}/clientes/buscar/nombre`,
         buscarCorreo: `${API}/clientes/buscar/correo`,
         buscarTelefono: `${API}/clientes/buscar/telefono`,
-        buscarDocumento: `${API}/clientes/buscar/documento`,
         ventas: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas`,
         ventasResumen: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/resumen`,
         ventasAgrupadasAnio: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/agrupadas/anio`,
