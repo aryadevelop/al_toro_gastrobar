@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
@@ -9,7 +10,10 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -36,6 +40,7 @@ public class MesaValidador {
 
     /** Hora de apertura del restaurante */
     private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
+    
     /** Hora de cierre del restaurante */
     private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
 
@@ -138,5 +143,47 @@ public class MesaValidador {
         }
 
         return reserva;
+    }
+
+    /**
+     * Verifica que el principal autenticado sea el mesero asignado a la mesa
+     * de la visita indicada, o tenga rol ADMIN. Carga y devuelve la entidad
+     * para evitar un refetch en el caller.
+     *
+     * @param visitaId       identificador de la visita (PK de Mesa)
+     * @param authentication contexto de seguridad del request
+     * @return la entidad {@link Mesa} cargada
+     * @throws BusinessException con {@code ENTITY_NOT_FOUND} si la mesa no
+     *         existe o la visita ya está cerrada
+     * @throws BusinessException con {@code ACCESS_DENIED} si el principal no
+     *         es ADMIN ni el mesero asignado
+     */
+    @Transactional(readOnly = true)
+    public Mesa validarOwnership(Long visitaId, Authentication authentication) {
+
+        Mesa mesa = mesaRepository.findById(visitaId)
+                .orElseThrow(() -> new BusinessException(
+                        ErrorCode.ENTITY_NOT_FOUND, "Mesa no encontrada", HttpStatus.NOT_FOUND));
+
+        if (mesa.getVisita().getVisitaFechaHoraFin() != null) {
+            throw new BusinessException(
+                    ErrorCode.ENTITY_NOT_FOUND, "La visita ya está cerrada", HttpStatus.NOT_FOUND);
+        }
+
+        boolean esAdmin = authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_ADMIN"::equals);
+
+        if (!esAdmin) {
+            String emailAsignado = mesa.getMesero().getUsuario().getUsuarioEmail();
+            String emailUsuario = authentication.getName();
+            if (!emailAsignado.equals(emailUsuario)) {
+                throw new BusinessException(
+                        ErrorCode.ACCESS_DENIED,
+                        "Solo el mesero asignado puede operar sobre esta mesa",
+                        HttpStatus.FORBIDDEN);
+            }
+        }
+        return mesa;
     }
 }

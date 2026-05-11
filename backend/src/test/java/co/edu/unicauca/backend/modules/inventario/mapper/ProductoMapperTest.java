@@ -7,7 +7,6 @@ import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResp
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
-import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;

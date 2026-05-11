@@ -2,7 +2,6 @@ package co.edu.unicauca.backend.modules.inventario.controller;
 
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
-import co.edu.unicauca.backend.modules.inventario.controller.ProductoController;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;

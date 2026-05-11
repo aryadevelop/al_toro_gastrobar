@@ -8,7 +8,6 @@ import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
-import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
