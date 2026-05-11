@@ -13,6 +13,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepositor
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
