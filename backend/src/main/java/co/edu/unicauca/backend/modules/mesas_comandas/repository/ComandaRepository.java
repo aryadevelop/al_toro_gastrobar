@@ -59,6 +59,23 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
     List<ComandaItem> findItemsEnProduccionByVisita(@Param("visitaId") Long visitaId);
 
     /**
+     * Obtiene todos los ítems activos de una visita, incluyendo borradores y producción.
+     * Estados: BORRADOR, PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO.
+     *
+     * @param visitaId ID de la visita
+     * @return lista de ComandaItem con producto y comanda cargados, ordenados por categoría y nombre
+     */
+    @Query("""
+        SELECT ci FROM ComandaItem ci
+        JOIN FETCH ci.comanda c
+        JOIN FETCH ci.producto p
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstado IN ('BORRADOR', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')
+        ORDER BY p.productoCategoria, p.productoNombre
+        """)
+    List<ComandaItem> findAllItemsActivosByVisita(@Param("visitaId") Long visitaId);
+
+    /**
      * Verifica si existe al menos una comanda de la visita en alguno de los estados indicados.
      *
      * <p>Se utiliza para determinar si quedan comandas en producción

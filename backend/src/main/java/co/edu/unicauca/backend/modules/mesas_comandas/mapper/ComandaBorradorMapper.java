@@ -1,13 +1,11 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.mapper;
 
 import java.math.BigDecimal;
-import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Objects;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
 
@@ -71,7 +69,10 @@ public class ComandaBorradorMapper {
         List<ItemBorradorResponse> bebidas = mapearEstacion(itemsBarra,  itemsCocina);
 
         BigDecimal total = totalAcumulado != null ? totalAcumulado : BigDecimal.ZERO;
-        BigDecimal subTotal = null;
+        BigDecimal subTotal = Stream.concat(itemsCocina.stream(), itemsBarra.stream())
+                .filter(ci -> ci.getComandaItemPrecio() != null)
+                .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         return BorradorComandaResponse.builder()
                 .visitaId(mesa.getVisitaId())
@@ -116,24 +117,10 @@ public class ComandaBorradorMapper {
     private List<ItemBorradorResponse> mapearEstacion(List<ComandaItem> itemsFuente,
                                                       List<ComandaItem> itemsContraparte) {
         if (itemsFuente == null || itemsFuente.isEmpty()) return List.of();
-
-        Map<Long, List<ComandaItem>> porProducto = itemsFuente.stream()
-        .collect(Collectors.groupingBy(it -> it.getProducto().getProductoId(),
-                                       LinkedHashMap::new, Collectors.toList()));
-
-        List<ItemBorradorResponse> salida = new ArrayList<>();
-        for (List<ComandaItem> grupo : porProducto.values()) {
-        grupo.stream()
+        return itemsFuente.stream()
                 .sorted(POR_NOMBRE)
-                .forEach(it -> salida.add(mapearItem(it, calcularSubtotal(it),
-                                                buscarBebidaDelMenu(itemsContraparte, it))));
-        }
-
-        salida.sort(Comparator.comparing(ItemBorradorResponse::getProductoNombre,
-                                        String.CASE_INSENSITIVE_ORDER));
-
-        return salida;
-
+                .map(it -> mapearItem(it, calcularSubtotal(it), buscarBebidaDelMenu(itemsContraparte, it)))
+                .collect(Collectors.toList());
     }
 
     /**

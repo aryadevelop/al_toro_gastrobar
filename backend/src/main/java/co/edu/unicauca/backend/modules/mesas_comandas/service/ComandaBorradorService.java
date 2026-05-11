@@ -6,6 +6,8 @@ import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AgregarItemReq
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.ModificarItemRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.NotasRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.BorradorComandaResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
@@ -72,6 +74,7 @@ public class ComandaBorradorService {
     private final MesaRepository mesaRepository;
 
     private final ComandaBorradorMapper borradorMapper;
+    private final VisitaEstadoMapper visitaEstadoMapper;
     private final ComandaBorradorValidador validador;
     private final MesaValidador mesaValidador;
 
@@ -442,13 +445,12 @@ public class ComandaBorradorService {
     }
 
     /**
-     * Publica la orden activa del cliente para que vea reflejada la nueva ronda
-     * tras enviar a producción. El campo {@code items} se deja sin poblar: el
-     * mapeo a {@code ItemVisitaResponse} se completará al integrar con el módulo
-     * de visitas en la siguiente iteración.
+     * Publica el estado completo de la orden del cliente: ítems en borrador y en
+     * producción con su estado visible, más el total acumulado.
      */
     private void publicarOrdenClienteActualizada(Long visitaId) {
-        List<ComandaItem> items = comandaRepository.findItemsEnProduccionByVisita(visitaId);
+        List<ComandaItem> items = comandaRepository.findAllItemsActivosByVisita(visitaId);
+        List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(items);
         BigDecimal total = items.stream()
                 .filter(ci -> ci.getComandaItemPrecio() != null)
                 .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
@@ -456,6 +458,7 @@ public class ComandaBorradorService {
         notificacionWsPublisher.publicarVisitaActualizada(visitaId,
                 VisitaActualizadaWsMessage.builder()
                         .visitaId(visitaId)
+                        .items(itemsResponse)
                         .total(total)
                         .build());
     }

@@ -2,7 +2,7 @@ package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.EstadoVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
-import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
@@ -74,11 +74,9 @@ public class VisitaEstadoService {
         Optional<Mesa> mesaOpt = mesaRepository.findByVisita_VisitaId(visitaId);
         String mesaIdentificador = mesaOpt.map(Mesa::getMesaIdentificador).orElse(null);
 
-        // Obtiene todas las comandas de la visita
-        List<Comanda> comandas = comandaRepository.findByVisita_VisitaId(visitaId);
-
-        // Mapea ítems ordenados por categoría (delegado al mapper)
-        List<ItemVisitaResponse> items = visitaEstadoMapper.mapearItemsOrdenados(comandas);
+        // Una sola query: JOIN FETCH de ítems activos (BORRADOR, PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO)
+        List<ComandaItem> itemsActivos = comandaRepository.findAllItemsActivosByVisita(visitaId);
+        List<ItemVisitaResponse> items = visitaEstadoMapper.toItemsVisitaResponse(itemsActivos);
 
         // Verifica si hay una solicitud de asistencia sin atender para esta mesa
         Optional<Notificacion> asistenciaActiva = notificacionRepository
