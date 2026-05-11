@@ -2,15 +2,18 @@ package co.edu.unicauca.backend.modules.inventario.controller;
 
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import java.util.List;
 
@@ -66,5 +69,24 @@ public class ProductoController {
     @Operation(summary = "Obtener menús especiales con opciones de modificación")
     public ResponseEntity<ApiResponse<List<MenuEspecialResponse>>> obtenerMenusEspeciales() {
         return ResponseEntity.ok(ApiResponse.ok(productoService.obtenerMenusEspeciales()));
+    }
+
+    /**
+     * Endpoint del buscador de productos: coincidencia parcial case-insensitive
+     * por nombre, excluyendo menús especiales y productos inactivos.
+     *
+     * @param q fragmento de nombre a buscar
+     * @return productos coincidentes ordenados alfabéticamente
+     */
+    @GetMapping("/buscar")
+    @PreAuthorize("isAuthenticated()")
+    @Operation(summary = "Buscar productos por nombre",
+               description = "Búsqueda parcial case-insensitive del catálogo, excluye menús especiales")
+    public ResponseEntity<ApiResponse<List<ProductoBusquedaResponse>>> buscarProductos(
+            @Parameter(description = "Fragmento de nombre a buscar")
+            @RequestParam("q") String q) {
+
+        List<ProductoBusquedaResponse> resultados = productoService.buscarProductos(q);
+        return ResponseEntity.ok(ApiResponse.ok("Productos encontrados", resultados));
     }
 }
