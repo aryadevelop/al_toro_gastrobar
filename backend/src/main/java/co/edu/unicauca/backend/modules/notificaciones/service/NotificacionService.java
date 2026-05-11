@@ -7,7 +7,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaReposito
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
-import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
