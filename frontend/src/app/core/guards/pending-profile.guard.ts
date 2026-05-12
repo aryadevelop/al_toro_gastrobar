@@ -1,7 +1,8 @@
 import { CanDeactivateFn } from '@angular/router';
+import { Observable } from 'rxjs';
 
 export interface CanExitWithPendingChanges {
-  canDeactivate: () => boolean;
+  canDeactivate: () => boolean | Observable<boolean>;
 }
 
 export const pendingProfileGuard: CanDeactivateFn<CanExitWithPendingChanges> = (component) => {

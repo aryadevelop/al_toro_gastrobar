@@ -24,6 +24,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <button class="btn-outline" type="button" (click)="goBack()">Volver al mapa</button>
         </header>
 
+        <p class="action-message" *ngIf="actionMessage()">{{ actionMessage() }}</p>
+        <p class="comanda-meta" *ngIf="comandaId()">Comanda ID: {{ comandaId() }}</p>
+
         <section class="comanda-summary">
           <h4>En produccion</h4>
           <div class="summary-state" *ngIf="loadingItems()">Cargando items...</div>
@@ -184,6 +187,22 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         cursor: pointer;
       }
 
+      .action-message {
+        margin: 0 0 0.5rem;
+        padding: 0.45rem 0.7rem;
+        border-radius: 10px;
+        background: rgba(46, 125, 50, 0.12);
+        color: #2e7d32;
+        font-size: 0.8rem;
+        font-weight: 600;
+      }
+
+      .comanda-meta {
+        margin: 0 0 0.8rem;
+        font-size: 0.78rem;
+        color: #6b7280;
+      }
+
       .save-note {
         margin: 0;
         color: #2e7d32;
@@ -209,6 +228,8 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   readonly saved = signal(false);
   readonly mesaId = signal<string | null>(null);
   readonly mesaIdentificador = signal<string | null>(null);
+  readonly comandaId = signal<string | null>(null);
+  readonly actionMessage = signal('');
   readonly itemsProduccion = signal<MesaItemComanda[]>([]);
   readonly loadingItems = signal(false);
   readonly loadError = signal<string | null>(null);
@@ -221,6 +242,19 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   });
 
   ngOnInit(): void {
+    const navMessage = this.router.getCurrentNavigation()?.extras.state?.['actionMessage'];
+    if (typeof navMessage === 'string' && navMessage.trim().length > 0) {
+      this.actionMessage.set(navMessage.trim());
+    }
+
+    const comandaId = this.route.snapshot.queryParamMap.get('comandaId');
+    if (comandaId) {
+      this.comandaId.set(comandaId);
+      if (!this.actionMessage()) {
+        this.actionMessage.set('Comanda lista para modificar');
+      }
+    }
+
     const mesaId = this.route.snapshot.queryParamMap.get('mesaId');
     if (mesaId) {
       this.mesaId.set(mesaId);
