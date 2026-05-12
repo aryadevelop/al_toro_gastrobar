@@ -584,8 +584,9 @@ FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
 
 -- Producto VENTA_DIRECTA con stock bajo (CD2-19, CD2-20, CD3-13)
 -- ID esperado: 143
+-- Stock alto para permitir re-runs aditivos de CD2-01/CD2-02 sin agotar stock.
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual)
-VALUES (1, 'HU05-Stock-Bajo', 'ACTIVO', 15000, 'VENTA_DIRECTA', 'PLATO', 2);
+VALUES (1, 'HU05-Stock-Bajo', 'ACTIVO', 15000, 'VENTA_DIRECTA', 'PLATO', 50);
 
 -- Producto menú especial dedicado para test CD2-18 (rechazo → 400)
 -- ID esperado: 144
@@ -593,18 +594,35 @@ INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, produ
 SELECT cc.categoriacarta_id, 'HU05-Menu-Especial', 'ACTIVO', 33000, 'PREPARACION', 'PLATO', TRUE
 FROM CategoriaCarta cc WHERE cc.categoria_nombre = 'MENÚS ESPECIALES';
 
--- Visitas 13, 14, 15 (todas activas, sin reserva, sin fecha fin)
-INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin) VALUES
-(11, NULL, NOW() - INTERVAL '2 hours',  NULL),   -- 13: con borrador completo
-(13, NULL, NOW() - INTERVAL '90 minutes', NULL), -- 14: borrador BARRA con 1 ítem + COCINA vacío
-(15, NULL, NOW() - INTERVAL '60 minutes', NULL); -- 15: sin borradores
+-- Asociar producto 144 (HU05-Menu-Especial) con las 4 bebidas disponibles para menús especiales,
+-- equivalente al seed de V2 sección 14 (V2 corre antes que V3 y por eso 144 quedaba sin bebidas).
+INSERT INTO menu_bebida_disponible (producto_menu_id, producto_bebida_id)
+SELECT m.producto_id, b.producto_id
+FROM Producto m
+CROSS JOIN Producto b
+WHERE m.producto_nombre = 'HU05-Menu-Especial'
+  AND b.producto_categoria = 'BEBIDA'
+  AND b.producto_estado = 'ACTIVO'
+  AND b.producto_nombre IN (
+      'Jugo de Maracuyá', 'Jugo de Lulo', 'Jugo de Mango', 'Jugo de Fresa'
+  );
 
--- Mesas para visitas 13, 14, 15 (mesero_id=5 = mesero2@altoro.com, dueño Postman env emailMesero)
+-- Visitas 13, 14, 15, 16 (todas activas, sin reserva, sin fecha fin)
+-- Visita 16 está dedicada a CD1-02 (borrador vacío) y NUNCA debe ser mutada por tests aditivos.
+-- Visita 15 sigue disponible para tests aditivos (CD2-01, CD2-02, etc.).
+INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin) VALUES
+(12, NULL, NOW() - INTERVAL '2 hours',  NULL),   -- 13: con borrador completo
+(18, NULL, NOW() - INTERVAL '90 minutes', NULL), -- 14: borrador BARRA con 1 ítem + COCINA vacío
+(19, NULL, NOW() - INTERVAL '60 minutes', NULL), -- 15: aditiva (CD2-01, CD2-02)
+(19, NULL, NOW() - INTERVAL '45 minutes', NULL); -- 16: reservada para CD1-02 (read-only, sin borradores)
+
+-- Mesas para visitas 13, 14, 15, 16 (mesero_id=5 = mesero2@altoro.com, dueño Postman env emailMesero)
 -- Mesa 13 en ESPERA para validar transición ESPERA → EN_PREPARACION en CD5-01
 INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado, mesa_notas) VALUES
 (13, 1, 5, 'HU05-T1', 4, 'ESPERA',   'Seed HU-05: visita con borrador completo'),
 (14, 1, 5, 'HU05-T2', 2, 'ATENDIDA', 'Seed HU-05: visita con borrador BARRA'),
-(15, 1, 5, 'HU05-T3', 2, 'ATENDIDA', 'Seed HU-05: visita sin borradores');
+(15, 1, 5, 'HU05-T3', 2, 'ATENDIDA', 'Seed HU-05: visita aditiva (CD2-01/CD2-02)'),
+(16, 1, 5, 'HU05-T4', 2, 'ATENDIDA', 'Seed HU-05: visita read-only para CD1-02');
 
 -- Comandas 26-30 para el seed HU-05
 INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado) VALUES

@@ -2,7 +2,7 @@ $kind: http-request
 name: CD2-08 Stock insuficiente – 409 Conflict
 description: |-
   **Objetivo:** Verificar que se rechaza con NEG-004 cuando la cantidad solicitada excede el stock disponible.
-  **Pre-condición:** `meseroToken` disponible. Producto 139 tiene stock=2; se solicita cantidad=10.
+  **Pre-condición:** `meseroToken` disponible. Producto 143 tiene stock=50; se solicita cantidad=100.
   **Resultado esperado:** 409 Conflict con `code = NEG-004`.
 url: "{{baseUrl}}/api/comandas/borrador/items"
 method: POST
@@ -15,7 +15,7 @@ body:
     {
       "visitaId": 15,
       "productoId": 143,
-      "cantidad": 10
+      "cantidad": 100
     }
 scripts:
   - type: beforeRequest
