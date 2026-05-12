@@ -44,4 +44,21 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
      * @return lista de menús especiales activos ordenada por nombre
      */
     List<Producto> findByProductoEstadoAndMenuEspecialTrueOrderByProductoNombreAsc(EstadoGenerico estado);
+
+    /**
+     * Búsqueda parcial case-insensitive por nombre, excluyendo menús especiales
+     * y productos inactivos. Ordena alfabéticamente por nombre.
+     *
+     * @param nombre fragmento de nombre a buscar (no debe ser null ni vacío)
+     * @param estado estado a exigir (típicamente {@code ACTIVO})
+     * @return productos coincidentes ordenados por nombre asc
+     */
+    @Query("SELECT p FROM Producto p " +
+           "WHERE p.productoEstado = :estado " +
+           "AND (p.menuEspecial IS NULL OR p.menuEspecial = false) " +
+           "AND LOWER(p.productoNombre) LIKE LOWER(CONCAT('%', :nombre, '%')) " +
+           "AND (p.stockActual IS NULL OR p.stockActual >= 1) " +
+           "ORDER BY p.productoNombre ASC")
+    List<Producto> buscarPorNombreSinMenu(@Param("nombre") String nombre,
+                                          @Param("estado") EstadoGenerico estado);
 }

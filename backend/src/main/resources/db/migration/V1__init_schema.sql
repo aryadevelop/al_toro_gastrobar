@@ -395,7 +395,7 @@ CREATE TABLE Comanda (
     comanda_estacion VARCHAR(20) NOT NULL,
     comanda_fecha_hora_inicio TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
     comanda_fecha_hora_listo TIMESTAMP,
-    comanda_notas TEXT,
+    comanda_notas TEXT,    
     comanda_estado VARCHAR(20) NOT NULL,
     created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP,
     updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,

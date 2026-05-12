@@ -1,0 +1,39 @@
+$kind: http-request
+name: 90-07 Actualizar notas de comanda – MESERO
+description: Persiste las notas de una comanda BORRADOR. Reemplaza {comandaId} por un id válido (ej. comandaCocinaId obtenido del 90-01).
+url: "{{baseUrl}}/api/comandas/borrador/1/notas"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "notas": "Servir todos los platos al tiempo"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 9070

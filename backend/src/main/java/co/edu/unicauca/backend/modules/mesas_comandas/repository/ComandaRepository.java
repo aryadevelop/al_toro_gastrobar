@@ -2,12 +2,14 @@ package co.edu.unicauca.backend.modules.mesas_comandas.repository;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
+import java.util.Optional;
 
 /**
  * Repositorio de acceso a datos para la entidad {@link Comanda}.
@@ -57,6 +59,23 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
     List<ComandaItem> findItemsEnProduccionByVisita(@Param("visitaId") Long visitaId);
 
     /**
+     * Obtiene todos los ítems activos de una visita, incluyendo borradores y producción.
+     * Estados: BORRADOR, PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO.
+     *
+     * @param visitaId ID de la visita
+     * @return lista de ComandaItem con producto y comanda cargados, ordenados por categoría y nombre
+     */
+    @Query("""
+        SELECT ci FROM ComandaItem ci
+        JOIN FETCH ci.comanda c
+        JOIN FETCH ci.producto p
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstado IN ('BORRADOR', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')
+        ORDER BY p.productoCategoria, p.productoNombre
+        """)
+    List<ComandaItem> findAllItemsActivosByVisita(@Param("visitaId") Long visitaId);
+
+    /**
      * Verifica si existe al menos una comanda de la visita en alguno de los estados indicados.
      *
      * <p>Se utiliza para determinar si quedan comandas en producción
@@ -69,4 +88,23 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * @return {@code true} si existe al menos una comanda en alguno de los estados dados
      */
     boolean existsByVisita_VisitaIdAndComandaEstadoIn(Long visitaId, List<EstadoComanda> estados);
+
+    /**
+     * Localiza la comanda BORRADOR de una visita para una estación específica.
+     *
+     * <p>Puede haber a lo sumo una BORRADOR por estación.
+     *
+     * @param visitaId identificador de la visita
+     * @param estado estado a buscar (típicamente {@code BORRADOR})
+     * @param estacion estación destino (COCINA o BARRA)
+     * @return Optional con la comanda; vacío si no existe
+     */
+    Optional<Comanda> findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
+            Long visitaId, EstadoComanda estado, EstacionComanda estacion);
+
+    /**
+     * Devuelve todas las comandas de una visita en un estado específico.
+     * Hasta dos por visita en BORRADOR (una por estación).
+     */
+    List<Comanda> findByVisita_VisitaIdAndComandaEstado(Long visitaId, EstadoComanda estado);
 }

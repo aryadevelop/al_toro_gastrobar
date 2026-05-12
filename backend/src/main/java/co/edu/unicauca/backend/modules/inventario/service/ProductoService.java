@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.inventario.service;
 
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
@@ -104,6 +105,24 @@ public class ProductoService {
                             .findBebidasByMenuId(menu.getProductoId());
                     return productoMapper.toMenuEspecialResponse(menu, opciones, bebidas);
                 })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Busca productos del catálogo por coincidencia parcial en el nombre,
+     * excluyendo menús especiales y productos inactivos.
+     *
+     * @param q fragmento de nombre; si es nulo o blanco devuelve lista vacía
+     * @return lista ordenada alfabéticamente; vacía si no hay coincidencias
+     */
+    @Transactional(readOnly = true)
+    public List<ProductoBusquedaResponse> buscarProductos(String q) {
+        if (q == null || q.isBlank()) {
+            return List.of();
+        }
+        return productoRepository.buscarPorNombreSinMenu(q.trim(), EstadoGenerico.ACTIVO)
+                .stream()
+                .map(productoMapper::toBusquedaResponse)
                 .collect(Collectors.toList());
     }
 }

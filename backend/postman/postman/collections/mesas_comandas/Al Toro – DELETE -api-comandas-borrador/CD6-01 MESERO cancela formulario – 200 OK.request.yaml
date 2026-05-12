@@ -1,0 +1,57 @@
+$kind: http-request
+name: CD6-01 MESERO cancela formulario – 200 OK
+description: |-
+  **Objetivo:** Verificar que se eliminan todas las comandas BORRADOR de la visita.
+  **Pre-condición:** beforeRequest crea un ítem único en visita 14 (asegura que haya al menos una comanda BORRADOR).
+  **Resultado esperado:** 200 OK; el GET posterior /borrador?visitaId=14 retorna comandaCocinaId=null (no validamos aquí, solo el status).
+url: "{{baseUrl}}/api/comandas/borrador?visitaId=14"
+method: DELETE
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const unique = 'E6-CD6-01-' + Date.now();
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err1, res1) => {
+        if (err1 || !res1 || res1.code !== 200) { console.warn('CD6-01: login falló'); return; }
+        const token = res1.json().accessToken;
+        pm.environment.set('meseroToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador/items',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            visitaId: 14,
+            productoId: Number(pm.environment.get('productoTestPlatoId')),
+            cantidad: 1,
+            descripcion: unique
+          }) }
+        }, (err2, res2) => {
+          if (err2 || !res2 || res2.code !== 200) {
+            console.warn('CD6-01: POST item falló', err2, res2 && res2.code);
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta confirma la cancelación', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,58 @@
+$kind: http-request
+name: CD1-02 MESERO obtiene borrador vacío – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-02 — Mesero abre el formulario sin borradores previos.
+  **Objetivo:** Verificar que una visita sin comandas BORRADOR retorna estructura vacía pero válida (no 404).
+  **Pre-condición:** `meseroToken` disponible. Seed HU-05 sección 14 aplicado (visita 16 dedicada read-only, sin borradores).
+  **Resultado esperado:** 200 OK con listas vacías, totales en 0 y flags de envío en false.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId=16"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('CD1-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Estructura del borrador es vacía pero válida', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.visitaId).to.equal(16);
+        pm.expect(data.comandaCocinaId).to.equal(null);
+        pm.expect(data.comandaBarraId).to.equal(null);
+        pm.expect(data.platos).to.be.an('array').that.is.empty;
+        pm.expect(data.bebidas).to.be.an('array').that.is.empty;
+      });
+
+      pm.test('Totales en cero y envío deshabilitado', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.subTotal)).to.equal(0);
+        pm.expect(Number(data.total)).to.equal(0);
+        pm.expect(data.puedeEnviarCocina).to.equal(false);
+        pm.expect(data.puedeEnviarBarra).to.equal(false);
+      });
+    language: text/javascript
+order: 1010

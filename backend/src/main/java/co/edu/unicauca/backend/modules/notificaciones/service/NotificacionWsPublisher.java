@@ -28,12 +28,14 @@ public class NotificacionWsPublisher {
 
     private final SimpMessagingTemplate messagingTemplate;
 
+    private static final String TOPIC_VISITA = "/topic/visita/";
+
     /**
      * Notifica al cliente que la lista de ítems de su visita cambió.
      * Call site: servicio de creación/modificación de comanda.
      */
     public void publicarVisitaActualizada(Long visitaId, VisitaActualizadaWsMessage mensaje) {
-        messagingTemplate.convertAndSend("/topic/visita/" + visitaId + "/orden", mensaje);
+        messagingTemplate.convertAndSend(TOPIC_VISITA + visitaId + "/orden", mensaje);
     }
 
     /**
@@ -42,7 +44,7 @@ public class NotificacionWsPublisher {
      * Call site: VentaService.cerrarCuenta.
      */
     public void publicarCuentaCerrada(Long visitaId, CuentaCerradaWsMessage mensaje) {
-        messagingTemplate.convertAndSend("/topic/visita/" + visitaId + "/cuenta", mensaje);
+        messagingTemplate.convertAndSend(TOPIC_VISITA + visitaId + "/cuenta", mensaje);
     }
 
     /**
@@ -50,7 +52,7 @@ public class NotificacionWsPublisher {
      * Call site: NotificacionService.atenderAsistencia.
      */
     public void publicarAsistenciaAtendida(Long visitaId, AsistenciaAtendidaWsMessage mensaje) {
-        messagingTemplate.convertAndSend("/topic/visita/" + visitaId + "/asistencia", mensaje);
+        messagingTemplate.convertAndSend(TOPIC_VISITA + visitaId + "/asistencia", mensaje);
     }
 
     /**

@@ -1,0 +1,81 @@
+$kind: collection
+name: Al Toro – PATCH /api/comandas/borrador/{comandaId}/notas
+description: |-
+  # PATCH /api/comandas/borrador/{comandaId}/notas
+
+  Persiste las notas de una comanda BORRADOR (cocina o barra). El frontend invoca
+  cada vez que el mesero deja de escribir (auto-save incremental).
+  `notas = null` borra las notas existentes.
+
+  **Validaciones DTO:**
+  - `notas` opcional, máximo 500 caracteres.
+
+  **Errores:**
+  - Comanda inexistente → `ENT-001` (404).
+  - Comanda no-BORRADOR → `NEG-002` (409).
+
+  **Control de acceso:** MESERO/ADMIN dueño permitidos; CAJERO/CLIENTE 403; sin token 401.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial MESERO/CAJERO/CLIENTE.
+  - **Producto stockless:** `productoTestPlatoId` resuelto desde Picanha base de visita 13.
+  - **Visita destino:** 14. Cada test que necesita una comanda BORRADOR la auto-provisiona vía POST item.
+  - **CD7-05 (409 no-BORRADOR):** beforeRequest crea comanda + la envía a producción (queda PENDIENTE) y guarda su id.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD7-01 | MESERO actualiza notas — 200 OK | 200 |
+  | CD7-02 | MESERO borra notas (null) — 200 OK | 200 |
+  | CD7-03 | Notas exceden 500 caracteres — 422 Unprocessable | 422 |
+  | CD7-04 | comandaId inexistente — 404 Not Found | 404 |
+  | CD7-05 | Comanda en PENDIENTE — 409 Conflict | 409 |
+  | CD7-06 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD7-07 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD7-08 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const resolverProducto = () => {
+        const token = pm.environment.get('meseroToken');
+        if (!token) return;
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador?visitaId=13',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) return;
+          const platos = res.json().data.platos || [];
+          const picanha = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+          if (picanha) pm.environment.set('productoTestPlatoId', picanha.productoId);
+        });
+      };
+
+      const runLogin = (index) => {
+        if (index >= logins.length) { resolverProducto(); return; }
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            email: pm.environment.get(emailKey),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          }) }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

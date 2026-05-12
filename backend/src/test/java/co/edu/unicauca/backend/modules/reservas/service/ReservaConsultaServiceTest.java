@@ -355,6 +355,38 @@ class ReservaConsultaServiceTest {
     }
 
     @Test
+    @DisplayName("listarReservasDelDia con fecha pasada lanza BusinessException BAD_REQUEST")
+    void listarReservasDelDia_fechaPasada_lanzaBusinessException() {
+        LocalDate ayer = LocalDate.now().minusDays(1);
+
+        assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(ayer, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("No se pueden consultar reservas para fechas pasadas")
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("listarReservasDelDia agrupa reservas sin zona bajo 'Sin asignar' con zonaId null")
+    void listarReservasDelDia_reservaSinZona_seAgrupaSinAsignar() {
+        LocalDate hoy = LocalDate.now();
+        Cliente c1 = cliente(30L, "Sin Zona", "3000000000");
+
+        Reserva sinZona = reserva(700L, hoy.atTime(19, 0), 2, EstadoReserva.PENDIENTE,
+                TipoReserva.BASICA, c1, null, null);
+
+        when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
+                .thenReturn(List.of(sinZona));
+
+        ListadoReservasResponse response = reservaConsultaService.listarReservasDelDia(null, null);
+
+        assertThat(response.getResumenZonas()).hasSize(1);
+        assertThat(response.getResumenZonas().get(0).getZonaNombre()).isEqualTo("Sin asignar");
+        assertThat(response.getResumenZonas().get(0).getZonaId()).isNull();
+        assertThat(response.getResumenZonas().get(0).getCantidadReservas()).isEqualTo(1);
+    }
+
+    @Test
     @DisplayName("obtenerDetalleReserva con reserva inexistente lanza BusinessException con ENTITY_NOT_FOUND")
     void obtenerDetalleReserva_reservaNoExiste_lanzaBusinessException() {
         // Arrange

@@ -561,3 +561,92 @@ FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
 INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
 SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '2 hours', 3, 'Test marcar inasistencia', 'CONFIRMADA', 'BASICA', NOW() - INTERVAL '1 day'
 FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
+
+-- =====================================================
+-- 14. Seed Modificar Comand — soporte para colección Postman
+--
+--     IDs deterministas (BD limpia, orden secuencial):
+--       Producto:      143 = HU05-Stock-Bajo
+--                      144 = HU05-Menu-Especial
+--       Visita:        13  = activa con borrador completo (mesa ESPERA)
+--                      14  = activa, borrador COCINA vacío + borrador BARRA con 1 ítem
+--                      15  = activa sin borradores
+--       Comanda:       26  = BORRADOR COCINA visita 13 (5 ítems)
+--                      27  = BORRADOR BARRA  visita 13 (1 ítem par menú)
+--                      28  = PENDIENTE COCINA visita 13 (1 ítem)
+--                      29  = BORRADOR COCINA visita 14 (sin ítems)
+--                      30  = BORRADOR BARRA  visita 14 (1 ítem)
+--       Comanda_Item:  43-50 (ver detalle abajo)
+--
+--     Tras CD5-01 (enviar a producción) el borrador 26 pasa a PENDIENTE;
+--     re-ejecutar `flyway clean && flyway migrate` para restaurar.
+-- =====================================================
+
+-- Producto VENTA_DIRECTA con stock bajo (CD2-19, CD2-20, CD3-13)
+-- ID esperado: 143
+-- Stock alto para permitir re-runs aditivos de CD2-01/CD2-02 sin agotar stock.
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual)
+VALUES (1, 'HU05-Stock-Bajo', 'ACTIVO', 15000, 'VENTA_DIRECTA', 'PLATO', 50);
+
+-- Producto menú especial dedicado para test CD2-18 (rechazo → 400)
+-- ID esperado: 144
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
+SELECT cc.categoriacarta_id, 'HU05-Menu-Especial', 'ACTIVO', 33000, 'PREPARACION', 'PLATO', TRUE
+FROM CategoriaCarta cc WHERE cc.categoria_nombre = 'MENÚS ESPECIALES';
+
+-- Asociar producto 144 (HU05-Menu-Especial) con las 4 bebidas disponibles para menús especiales,
+-- equivalente al seed de V2 sección 14 (V2 corre antes que V3 y por eso 144 quedaba sin bebidas).
+INSERT INTO menu_bebida_disponible (producto_menu_id, producto_bebida_id)
+SELECT m.producto_id, b.producto_id
+FROM Producto m
+CROSS JOIN Producto b
+WHERE m.producto_nombre = 'HU05-Menu-Especial'
+  AND b.producto_categoria = 'BEBIDA'
+  AND b.producto_estado = 'ACTIVO'
+  AND b.producto_nombre IN (
+      'Jugo de Maracuyá', 'Jugo de Lulo', 'Jugo de Mango', 'Jugo de Fresa'
+  );
+
+-- Visitas 13, 14, 15, 16 (todas activas, sin reserva, sin fecha fin)
+-- Visita 16 está dedicada a CD1-02 (borrador vacío) y NUNCA debe ser mutada por tests aditivos.
+-- Visita 15 sigue disponible para tests aditivos (CD2-01, CD2-02, etc.).
+INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin) VALUES
+(12, NULL, NOW() - INTERVAL '2 hours',  NULL),   -- 13: con borrador completo
+(18, NULL, NOW() - INTERVAL '90 minutes', NULL), -- 14: borrador BARRA con 1 ítem + COCINA vacío
+(19, NULL, NOW() - INTERVAL '60 minutes', NULL), -- 15: aditiva (CD2-01, CD2-02)
+(19, NULL, NOW() - INTERVAL '45 minutes', NULL); -- 16: reservada para CD1-02 (read-only, sin borradores)
+
+-- Mesas para visitas 13, 14, 15, 16 (mesero_id=5 = mesero2@altoro.com, dueño Postman env emailMesero)
+-- Mesa 13 en ESPERA para validar transición ESPERA → EN_PREPARACION en CD5-01
+INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado, mesa_notas) VALUES
+(13, 1, 5, 'HU05-T1', 4, 'ESPERA',   'Seed HU-05: visita con borrador completo'),
+(14, 1, 5, 'HU05-T2', 2, 'ATENDIDA', 'Seed HU-05: visita con borrador BARRA'),
+(15, 1, 5, 'HU05-T3', 2, 'ATENDIDA', 'Seed HU-05: visita aditiva (CD2-01/CD2-02)'),
+(16, 1, 5, 'HU05-T4', 2, 'ATENDIDA', 'Seed HU-05: visita read-only para CD1-02');
+
+-- Comandas 26-30 para el seed HU-05
+INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado) VALUES
+(13, 'COCINA', NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 26
+(13, 'BARRA',  NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 27
+(13, 'COCINA', NOW() - INTERVAL '60 minutes', 'Notas en comanda PENDIENTE seed HU-05', 'PENDIENTE'),  -- 28
+(14, 'COCINA', NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR'),   -- 29 (vacía)
+(14, 'BARRA',  NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR');   -- 30
+
+-- Comanda_Item 43-50 (ver mapping en sección 14)
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.descripcion, v.grupo
+FROM (VALUES
+    -- Comanda 26 BORRADOR COCINA
+    (26::bigint, 'Picanha',                   2::int, 42000::numeric(12,2), NULL::varchar, NULL::varchar),  -- 43: base sin modificados
+    (26,         'Hamburguesa Al Toro',       1,      25000,                NULL,          NULL),           -- 44: base con modificados (cascada)
+    (26,         'Hamburguesa Al Toro',       1,      25000,                'sin tomate',  NULL),           -- 45: modificado 1
+    (26,         'Hamburguesa Al Toro',       1,      25000,                'extra queso', NULL),           -- 46: modificado 2
+    (26,         'Menú 8b - Pechuga y Cerdo', 1,      35000,                NULL,          'HU05-MENU-1'),  -- 47: par menú COCINA
+    -- Comanda 27 BORRADOR BARRA
+    (27,         'Jugo de Fresa',             1,          0,                NULL,          'HU05-MENU-1'),  -- 48: par menú BARRA
+    -- Comanda 28 PENDIENTE COCINA
+    (28,         'Picanha',                   1,      42000,                NULL,          NULL),           -- 49: en PENDIENTE
+    -- Comanda 30 BORRADOR BARRA visita 14
+    (30,         'Coca-Cola',                 1,       6000,                NULL,          NULL)            -- 50: bebida única (último ítem)
+) AS v(comanda_id, nombre, cantidad, precio, descripcion, grupo)
+JOIN Producto p ON p.producto_nombre = v.nombre;
