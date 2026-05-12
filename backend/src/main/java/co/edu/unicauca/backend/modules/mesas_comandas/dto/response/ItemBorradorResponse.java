@@ -54,7 +54,4 @@ public class ItemBorradorResponse {
 
     /** Bebida fusionada del menú especial; {@code null} si el ítem es de carta. */
     private final ItemBebidaMenuResponse bebida;
-
-    /** Stock disponible del producto en catálogo; {@code null} si no se gestiona stock. */
-    private final BigDecimal stockActual;
 }

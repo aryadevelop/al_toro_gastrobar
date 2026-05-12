@@ -150,7 +150,6 @@ public class ComandaBorradorMapper {
                 .menuGrupo(item.getComandaItemMenuGrupo())
                 .modificacionesMenu(mapearModificacionesMenu(item.getModificaciones()))
                 .bebida(bebidaMenu)
-                .stockActual(item.getProducto().getStockActual())
                 .build();
     }
 

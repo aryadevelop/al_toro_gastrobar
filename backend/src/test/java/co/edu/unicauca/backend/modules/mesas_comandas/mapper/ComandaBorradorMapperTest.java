@@ -405,26 +405,6 @@ class ComandaBorradorMapperTest {
             assertThat(resp.getPlatos().get(0).getBebida()).isNull();
         }
 
-        @Test
-        @DisplayName("stockActual_EsMapeadoDesdeProducto")
-        void toBorradorResponse_StockActual_EsMapeadoDesdeProducto() {
-            // Arrange
-            Mesa mesa = mesa(1L, "T-16");
-            Comanda cocina = comanda(100L, EstacionComanda.COCINA, null);
-            BigDecimal stock = BigDecimal.valueOf(12.5);
-            ComandaItem plato = item(1L, "Filete", CategoriaProducto.PLATO,
-                    BigDecimal.valueOf(40_000), 1, null, null, List.of());
-            plato.getProducto().setStockActual(stock);
-
-            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(100L))
-                    .thenReturn(List.of(plato));
-
-            // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
-
-            // Assert
-            assertThat(resp.getPlatos().get(0).getStockActual()).isEqualByComparingTo(stock);
-        }
     }
 
     // -------------------------------------------------------------------------
@@ -473,7 +453,6 @@ class ComandaBorradorMapperTest {
             assertThat(r.getDescripcion()).isEqualTo("Extra picante");
             assertThat(r.getMenuGrupo()).isEqualTo("grupo-xyz");
             assertThat(r.getBebida()).isNull();
-            assertThat(r.getStockActual()).isEqualByComparingTo(BigDecimal.valueOf(5));
         }
 
         @Test
