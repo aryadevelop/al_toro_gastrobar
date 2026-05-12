@@ -78,6 +78,27 @@ class ComandaMenuModificacionTest {
     }
 
     @Test
+    @DisplayName("equals → misma instancia → retorna true")
+    void equals_mismaInstancia_retornaTrue() {
+        ComandaMenuModificacion entity = ComandaMenuModificacion.builder().build();
+        assertThat(entity).isEqualTo(entity);
+    }
+
+    @Test
+    @DisplayName("equals → objeto de clase diferente → retorna false")
+    void equals_claseDiferente_retornaFalse() {
+        ComandaMenuModificacion entity = ComandaMenuModificacion.builder().build();
+        assertThat(entity).isNotEqualTo("no es una modificacion");
+    }
+
+    @Test
+    @DisplayName("equals → objeto null → retorna false")
+    void equals_objetoNull_retornaFalse() {
+        ComandaMenuModificacion entity = ComandaMenuModificacion.builder().build();
+        assertThat(entity.equals(null)).isFalse();
+    }
+
+    @Test
     @DisplayName("hashCode → es consistente con la clase")
     void hashCode_esConsistente() {
         ComandaMenuModificacion entity1 = ComandaMenuModificacion.builder().build();

@@ -3,11 +3,11 @@ package co.edu.unicauca.backend.modules.inventario.mapper;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
-import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;
@@ -131,5 +131,16 @@ class ProductoMapperTest {
         assertThat(resp.getBebidasDisponibles()).hasSize(2)
             .extracting(ProductoBebidaResponse::productoNombre)
             .containsExactlyInAnyOrder("Jugo de Maracuyá", "Jugo de Lulo");
+    }
+
+    @Test
+    @DisplayName("toBusquedaResponse → mapea id, nombre, precio y categoría")
+    void toBusquedaResponse_mapeaCampos() {
+        ProductoBusquedaResponse resp = mapper.toBusquedaResponse(productoBase());
+
+        assertThat(resp.getProductoId()).isEqualTo(1L);
+        assertThat(resp.getProductoNombre()).isEqualTo("Empanada");
+        assertThat(resp.getProductoPrecio()).isEqualByComparingTo(BigDecimal.valueOf(5000));
+        assertThat(resp.getProductoCategoria()).isEqualTo(CategoriaProducto.PLATO.name());
     }
 }

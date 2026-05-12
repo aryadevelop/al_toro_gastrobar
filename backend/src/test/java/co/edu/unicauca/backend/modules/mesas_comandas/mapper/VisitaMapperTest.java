@@ -9,9 +9,16 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
+import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
+import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -193,5 +200,152 @@ class VisitaMapperTest {
 
         // Assert: NO se agrupan, quedan 2 items separados
         assertThat(response.getItemsComanda()).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("toResumen → sin mesa pero con reserva con zona → toma zona de reserva")
+    void toResumen_sinMesaConReservaConZona() {
+        Zona zona = Zona.builder().zonaId(2L).zonaNombre("Salon Principal").build();
+        Reserva reserva = Reserva.builder().reservaId(5L).zona(zona).build();
+        Visita visita = Visita.builder()
+                .visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .reserva(reserva)
+                .build();
+
+        VisitaResumenResponse resp = mapper.toResumen(visita, Optional.empty(), Optional.empty());
+
+        assertThat(resp.getZonaNombre()).isEqualTo("Salon Principal");
+        assertThat(resp.getReservaId()).isEqualTo(5L);
+    }
+
+    @Test
+    @DisplayName("toResumen → sin mesa, reserva sin zona → zonaNombre null")
+    void toResumen_sinMesaReservaSinZona() {
+        Reserva reserva = Reserva.builder().reservaId(5L).zona(null).build();
+        Visita visita = Visita.builder()
+                .visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .reserva(reserva)
+                .build();
+
+        VisitaResumenResponse resp = mapper.toResumen(visita, Optional.empty(), Optional.empty());
+
+        assertThat(resp.getZonaNombre()).isNull();
+    }
+
+    @Test
+    @DisplayName("toDetalle → con mesa con mesero → mapea meseroNombre")
+    void toDetalle_conMesaConMesero() {
+        Empleado mesero = Empleado.builder().empleadoNombre("Carlos Ruiz").build();
+        Zona zona = Zona.builder().zonaNombre("Terraza").build();
+        Mesa mesa = Mesa.builder()
+                .mesaIdentificador("T1")
+                .mesaNumeroPersonas(4)
+                .mesero(mesero)
+                .zona(zona)
+                .build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visitaBase(), List.of(), Optional.empty(), Optional.empty(), Optional.of(mesa));
+
+        assertThat(resp.getMeseroNombre()).isEqualTo("Carlos Ruiz");
+        assertThat(resp.getZonaNombre()).isEqualTo("Terraza");
+        assertThat(resp.getMesaIdentificador()).isEqualTo("T1");
+    }
+
+    @Test
+    @DisplayName("toDetalle → sin mesa, reserva con zona y decoracion → mapea desde reserva")
+    void toDetalle_sinMesaReservaConZonaYDecoracion() {
+        Zona zona = Zona.builder().zonaNombre("VIP").build();
+        Decoracion decoracion = Decoracion.builder().decoracionNombre("Aniversario").build();
+        Reserva reserva = Reserva.builder()
+                .reservaId(7L)
+                .zona(zona)
+                .decoracion(decoracion)
+                .build();
+        Visita visita = Visita.builder()
+                .visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .reserva(reserva)
+                .build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visita, List.of(), Optional.empty(), Optional.empty(), Optional.empty());
+
+        assertThat(resp.getZonaNombre()).isEqualTo("VIP");
+        assertThat(resp.getDecoracionNombre()).isEqualTo("Aniversario");
+        assertThat(resp.getReservaId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("toDetalle → reserva sin decoracion → decoracionNombre null")
+    void toDetalle_reservaSinDecoracion() {
+        Reserva reserva = Reserva.builder().reservaId(8L).decoracion(null).build();
+        Visita visita = Visita.builder()
+                .visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .reserva(reserva)
+                .build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visita, List.of(), Optional.empty(), Optional.empty(), Optional.empty());
+
+        assertThat(resp.getDecoracionNombre()).isNull();
+    }
+
+    @Test
+    @DisplayName("toDetalle → con cliente → mapea clienteId y clienteNombre")
+    void toDetalle_conCliente() {
+        Cliente cliente = Cliente.builder()
+                .usuarioId(42L)
+                .clienteNombre("Ana Gómez")
+                .build();
+        Visita visita = Visita.builder()
+                .visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .visitaFechaHoraFin(LocalDateTime.of(2026, 4, 1, 21, 30))
+                .cliente(cliente)
+                .build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visita, List.of(), Optional.empty(), Optional.empty(), Optional.empty());
+
+        assertThat(resp.getClienteId()).isEqualTo(42L);
+        assertThat(resp.getClienteNombre()).isEqualTo("Ana Gómez");
+        assertThat(resp.getFechaHoraSalida()).isEqualTo("2026-04-01T21:30:00");
+    }
+
+    @Test
+    @DisplayName("toDetalle → con abonos no vacíos → mapea lista de AbonoItemResponse")
+    void toDetalle_conAbonos() {
+        Abono abono = Abono.builder()
+                .abonoId(100L)
+                .abonoMonto(new BigDecimal("20000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 4, 1, 18, 0))
+                .abonoMetodo(MetodoPago.EFECTIVO)
+                .abonoTipo(TipoAbono.ANTICIPO)
+                .build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visitaBase(), List.of(), Optional.of(List.of(abono)),
+                Optional.empty(), Optional.empty());
+
+        assertThat(resp.getAbonos()).hasSize(1);
+        AbonoItemResponse dto = resp.getAbonos().get(0);
+        assertThat(dto.getAbonoId()).isEqualTo(100L);
+        assertThat(dto.getMonto()).isEqualByComparingTo(new BigDecimal("20000"));
+        assertThat(dto.getMetodo()).isEqualTo("EFECTIVO");
+        assertThat(dto.getTipo()).isEqualTo("ANTICIPO");
+    }
+
+    @Test
+    @DisplayName("toDetalle → con abonos vacíos en Optional → abonos null")
+    void toDetalle_conAbonosListaVacia() {
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visitaBase(), List.of(), Optional.of(List.of()),
+                Optional.empty(), Optional.empty());
+
+        assertThat(resp.getAbonos()).isNull();
     }
 }

@@ -1,0 +1,73 @@
+$kind: collection
+name: Al Toro – DELETE /api/comandas/borrador
+description: |-
+  # DELETE /api/comandas/borrador?visitaId={id}
+
+  Cancela el formulario eliminando TODAS las comandas BORRADOR de la visita
+  (cocina y barra) junto con sus ítems y notas. Operación idempotente: si la
+  visita no tiene borradores no falla, simplemente publica el WS del mapa.
+
+  **Errores:**
+  - Visita inexistente o cerrada → `ENT-001` (404) vía `validarOwnership`.
+
+  **Control de acceso:** MESERO/ADMIN dueño permitidos; CAJERO/CLIENTE 403; sin token 401.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial MESERO/CAJERO/CLIENTE.
+  - **Producto stockless:** `productoTestPlatoId` resuelto desde Picanha base de visita 13.
+  - **Visita destino:** 14. CD6-01 auto-provisiona ítem antes de cancelar para garantizar que SÍ haya borradores que eliminar.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD6-01 | MESERO cancela formulario con borradores — 200 OK | 200 |
+  | CD6-02 | visitaId inexistente — 404 Not Found | 404 |
+  | CD6-03 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD6-04 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD6-05 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const resolverProducto = () => {
+        const token = pm.environment.get('meseroToken');
+        if (!token) return;
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador?visitaId=13',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) return;
+          const platos = res.json().data.platos || [];
+          const picanha = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+          if (picanha) pm.environment.set('productoTestPlatoId', picanha.productoId);
+        });
+      };
+
+      const runLogin = (index) => {
+        if (index >= logins.length) { resolverProducto(); return; }
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            email: pm.environment.get(emailKey),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          }) }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

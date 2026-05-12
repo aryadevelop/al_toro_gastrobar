@@ -1,6 +1,10 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
+import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
@@ -12,6 +16,8 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.MetodoPago;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -368,5 +374,84 @@ class ReservaMapperTest {
 
             assertThat(response.getTipo()).isEqualTo("ESPECIAL");
         }
+    }
+
+    // ── toDetalleResponse — casos con pre-orden y abonos ─────────────────────
+
+    @Test
+    @DisplayName("toDetalleResponse → con items y abonos calcula totales y delega items al PreOrdenMapper")
+    void toDetalleResponse_conItemsYAbonos_calculaTotales() {
+        // Items: 2 x 10000 + 1 x 5000 = 25000
+        ComandaItem item1 = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item1.getComandaItemPrecio()).thenReturn(new BigDecimal("10000"));
+        when(item1.getComandaItemCantidad()).thenReturn(2);
+        ComandaItem item2 = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item2.getComandaItemPrecio()).thenReturn(new BigDecimal("5000"));
+        when(item2.getComandaItemCantidad()).thenReturn(1);
+
+        // Abonos: 30000 + 20000 = 50000
+        Abono abono1 = Abono.builder()
+                .abonoId(11L)
+                .abonoMonto(new BigDecimal("30000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 1, 1, 10, 0))
+                .abonoMetodo(MetodoPago.EFECTIVO)
+                .abonoTipo(TipoAbono.ANTICIPO)
+                .build();
+        Abono abono2 = Abono.builder()
+                .abonoId(12L)
+                .abonoMonto(new BigDecimal("20000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 1, 2, 11, 30))
+                .abonoMetodo(MetodoPago.TARJETA)
+                .abonoTipo(TipoAbono.DEVOLUCION)
+                .build();
+
+        // Mock del preOrdenMapper para verificar delegación
+        PreOrdenItemResponse mappedItem = PreOrdenItemResponse.builder()
+                .comandaItemId(1L)
+                .productoNombre("X")
+                .cantidad(2)
+                .precioUnitario(new BigDecimal("10000"))
+                .build();
+        when(preOrdenMapper.toDetalleResponse(List.of(item1, item2))).thenReturn(List.of(mappedItem));
+
+        Reserva reserva = reservaBase();
+        Decoracion deco = Decoracion.builder().decoracionId(7L).decoracionNombre("Velas").build();
+        reserva.setDecoracion(deco);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva,
+                List.of(item1, item2), List.of(abono1, abono2));
+
+        // Totales calculados
+        assertThat(resp.getPreOrdenTotal()).isEqualByComparingTo(new BigDecimal("25000"));
+        assertThat(resp.getTotalAbonado()).isEqualByComparingTo(new BigDecimal("50000"));
+
+        // Items delegados al preOrdenMapper
+        assertThat(resp.getPreOrdenItems()).hasSize(1);
+
+        // Abonos construidos manualmente
+        assertThat(resp.getAbonos()).hasSize(2);
+        AbonoItemResponse a1 = resp.getAbonos().get(0);
+        assertThat(a1.getAbonoId()).isEqualTo(11L);
+        assertThat(a1.getMonto()).isEqualByComparingTo(new BigDecimal("30000"));
+        assertThat(a1.getFechaHora()).isEqualTo("2026-01-01T10:00:00");
+        assertThat(a1.getMetodo()).isEqualTo("EFECTIVO");
+        assertThat(a1.getTipo()).isEqualTo("ANTICIPO");
+        AbonoItemResponse a2 = resp.getAbonos().get(1);
+        assertThat(a2.getMetodo()).isEqualTo("TARJETA");
+        assertThat(a2.getTipo()).isEqualTo("DEVOLUCION");
+
+        // Decoración presente
+        assertThat(resp.getDecoracionNombre()).isEqualTo("Velas");
+    }
+
+    @Test
+    @DisplayName("toResumen → reserva en estado terminal no es modificable")
+    void toResumen_estadoTerminal_noEsModificable() {
+        Reserva reserva = reservaBase();
+        reserva.setReservaEstado(EstadoReserva.CANCELADA);
+
+        ReservaDetalleResponse resp = mapper.toResumen(reserva);
+
+        assertThat(resp.isModificable()).isFalse();
     }
 }

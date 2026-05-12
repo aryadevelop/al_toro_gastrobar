@@ -15,7 +15,6 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -44,9 +43,8 @@ public class MesaService {
     private final ComandaRepository comandaRepository;
     private final NotificacionRepository notificacionRepository;
     private final MesaMapper mesaMapper;
-
-    // NO inyectar MesaWsPublisher - servicio de consulta
-
+    private final MesaValidador mesaValidador;
+    
     /**
      * Obtiene el mapa completo de mesas, opcionalmente filtrado por zona.
      *
@@ -151,46 +149,16 @@ public class MesaService {
      */
     public MesaItemsProduccionResponse obtenerItemsProduccion(Long visitaId, Authentication authentication) {
 
-        // 1. Obtener mesa
-        Mesa mesa = mesaRepository.findById(visitaId)
-                .orElseThrow(() -> new BusinessException(
-                        ErrorCode.ENTITY_NOT_FOUND,
-                        "Mesa no encontrada",
-                        HttpStatus.NOT_FOUND));
+        Mesa mesa = mesaValidador.validarOwnership(visitaId, authentication);
 
-        // 2. Validar que la visita esté activa
-        if (mesa.getVisita().getVisitaFechaHoraFin() != null) {
-            throw new BusinessException(
-                    ErrorCode.ENTITY_NOT_FOUND,
-                    "La visita ya está cerrada",
-                    HttpStatus.NOT_FOUND);
-        }
-
-        // 3. Validar ownership: solo el mesero asignado puede acceder
-        boolean esAdmin = authentication.getAuthorities().stream()
-                .map(GrantedAuthority::getAuthority)
-                .anyMatch(role -> role.equals("ROLE_ADMIN"));
-
-        if (!esAdmin) {
-            String emailMeseroAsignado = mesa.getMesero().getUsuario().getUsuarioEmail();
-            String emailUsuario = authentication.getName();
-
-            if (!emailMeseroAsignado.equals(emailUsuario)) {
-                throw new BusinessException(
-                        ErrorCode.ACCESS_DENIED,
-                        "Solo el mesero asignado puede ver los items de producción de esta mesa",
-                        HttpStatus.FORBIDDEN);
-            }
-        }
-
-        // 4. Obtener items en producción
+        // Obtener items en producción
         List<ComandaItem> items = comandaRepository.findItemsEnProduccionByVisita(visitaId);
 
-        // 5. Agrupar items
+        // Agrupar items
         List<ItemComandaEnProduccionResponse> itemsAgrupados =
             mesaMapper.agruparItemsEnProduccion(items);
 
-        // 6. Mapear a DTO
+        // Mapear a DTO
         return mesaMapper.toMesaItemsProduccionResponse(
                 mesa.getMesaIdentificador(),
                 itemsAgrupados

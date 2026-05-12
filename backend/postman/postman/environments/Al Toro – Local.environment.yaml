@@ -114,3 +114,33 @@ values:
     value: ''
   - key: tmpNotificacionId
     value: ''
+  - key: tmpReservaIdAjena
+    value: ''
+  - key: tmpNotificacionCreada
+    value: ''
+  - key: accessToken
+    value: ''
+  - key: itemPicanhaBaseId
+    value: ''
+  - key: itemHamburguesaSinTomateId
+    value: ''
+  - key: itemHamburguesaExtraQuesoId
+    value: ''
+  - key: productoTestPlatoId
+    value: ''
+  - key: cd401Desc
+    value: ''
+  - key: cd401TargetItemId
+    value: ''
+  - key: cd501Desc
+    value: ''
+  - key: cd501ComandaId
+    value: ''
+  - key: cd502ComandaId
+    value: ''
+  - key: cd701ComandaId
+    value: ''
+  - key: cd702ComandaId
+    value: ''
+  - key: cd705ComandaId
+    value: ''

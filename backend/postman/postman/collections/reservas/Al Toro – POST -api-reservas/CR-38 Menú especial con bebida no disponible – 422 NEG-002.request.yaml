@@ -1,11 +1,13 @@
 $kind: http-request
-name: CR-37 Menú especial sin bebidaProductoId – 422 NEG-001
+name: CR-38 Menú especial con bebida no disponible – 422 NEG-002
 description: |-
-  **Criterio de Aceptación:** CR-37
-  **Objetivo:** Verificar que un ítem con `esMenuEspecial=true` que omite `bebidaProductoId`
-  es rechazado con 422.
-  **Pre-condición:** `clienteToken` disponible; producto id=132 activo con `menu_especial=TRUE`.
-  **Resultado esperado:** 422 con `success: false` y código de error `NEG-001`.
+  **Criterio de Aceptación:** CR-38
+  **Objetivo:** Verificar que un ítem con `esMenuEspecial=true` cuyo `bebidaProductoId`
+  no pertenece a las bebidas disponibles del menú es rechazado con 422.
+  **Pre-condición:** `clienteToken` disponible; producto id=132 activo con `menu_especial=TRUE`;
+  producto id=1 existe pero NO está vinculado como bebida disponible del menú 132
+  (solo los jugos ids 138–141 lo están).
+  **Resultado esperado:** 422 con `success: false` y código de error `NEG-002`.
 url: "{{baseUrl}}/api/reservas"
 method: POST
 headers:
@@ -22,6 +24,7 @@ body:
           "productoId": 132,
           "cantidad": 12,
           "esMenuEspecial": true,
+          "bebidaProductoId": 1,
           "opcionesModificacion": [1]
         }
       ]
@@ -41,7 +44,7 @@ scripts:
     language: text/javascript
   - type: afterResponse
     code: |-
-      pm.test('Status 422 – menú especial sin bebidaProductoId rechazado', function () {
+      pm.test('Status 422 – bebida no disponible para el menú rechazada', function () {
         pm.response.to.have.status(422);
       });
 
@@ -51,10 +54,10 @@ scripts:
         pm.expect(body).to.have.property('success', false);
       });
 
-      pm.test('El código de error es NEG-001', function () {
-        pm.expect(body.error).to.have.property('code', 'NEG-002');
+      pm.test('El código de error es NEG-002', function () {
+        pm.expect(body).to.have.property('code', 'NEG-002');
       });
 
       pm.environment.unset('tmpFechaLibre');
     language: text/javascript
-order: 37000
+order: 38000

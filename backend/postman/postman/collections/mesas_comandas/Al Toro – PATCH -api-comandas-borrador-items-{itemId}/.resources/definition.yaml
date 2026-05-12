@@ -1,0 +1,106 @@
+$kind: collection
+name: Al Toro – PATCH /api/comandas/borrador/items/{itemId}
+description: |-
+  # PATCH /api/comandas/borrador/items/{itemId}
+
+  Modifica la cantidad y/o la descripción de un ítem existente del borrador.
+  Cualquier campo `null` en el payload se interpreta como "no cambiar".
+  Revalida stock al cambiar la cantidad.
+
+  **Validaciones DTO:**
+  - `cantidad` opcional, rango `[1, 250]`.
+  - `descripcion` opcional, máximo 500 caracteres.
+
+  **Reglas de negocio:**
+  - Ítem inexistente → `ENT-001` (404).
+  - Ítem en comanda no-BORRADOR → `NEG-002` (409).
+  - Stock insuficiente → `NEG-004` (409).
+
+  **Control de acceso:**
+  - MESERO/ADMIN dueño de la mesa: permitido.
+  - CAJERO/CLIENTE: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial en `beforeRequest` (MESERO, CAJERO, CLIENTE).
+  - **Resolución dinámica de itemIds:** tras el login MESERO se llama `GET /api/comandas/borrador?visitaId=13` y se buscan en `data.platos` los ítems por `productoNombre`+`descripcion`. Se guardan en env vars `itemPicanhaBaseId`, `itemHamburguesaSinTomateId`, `itemHamburguesaExtraQuesoId`.
+  - **Visitas seed HU-05:** `13` con borrador completo en cocina (Picanha base, Hamburguesa base + 2 modificados, par menú).
+  - **No interfiere con E2** porque E2 opera sobre visita 15.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD3-01 | MESERO modifica cantidad (ítem Picanha base → 3) — 200 OK | 200 |
+  | CD3-02 | MESERO modifica descripción (Hamburguesa "sin tomate" → "sin tomate ni lechuga") — 200 OK | 200 |
+  | CD3-03 | MESERO modifica cantidad + descripción (Hamburguesa "extra queso" → cantidad 2 + "extra queso doble") — 200 OK | 200 |
+  | CD3-04 | Cantidad fuera de rango (0) — 422 Unprocessable | 422 |
+  | CD3-05 | Cantidad fuera de rango (251) — 422 Unprocessable | 422 |
+  | CD3-06 | itemId inexistente — 404 Not Found | 404 |
+  | CD3-07 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD3-08 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD3-09 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // 1) Login secuencial: MESERO, CAJERO, CLIENTE.
+      // 2) Tras el login MESERO, resuelve los itemIds del borrador de visita 13.
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const resolverItems = () => {
+        const token = pm.environment.get('meseroToken');
+        if (!token) return;
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador?visitaId=13',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD3 pre-request: resolver itemIds falló', err, res && res.code);
+            return;
+          }
+          const platos = res.json().data.platos || [];
+          const picanhaBase = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+          const hamSinTomate = platos.find(p => p.productoNombre === 'Hamburguesa Al Toro' && p.descripcion === 'sin tomate');
+          const hamExtraQueso = platos.find(p => p.productoNombre === 'Hamburguesa Al Toro' && p.descripcion === 'extra queso');
+          if (picanhaBase)    pm.environment.set('itemPicanhaBaseId',          picanhaBase.comandaItemId);
+          if (hamSinTomate)   pm.environment.set('itemHamburguesaSinTomateId', hamSinTomate.comandaItemId);
+          if (hamExtraQueso)  pm.environment.set('itemHamburguesaExtraQuesoId', hamExtraQueso.comandaItemId);
+        });
+      };
+
+      const runLogin = (index) => {
+        if (index >= logins.length) {
+          resolverItems();
+          return;
+        }
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD3 pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

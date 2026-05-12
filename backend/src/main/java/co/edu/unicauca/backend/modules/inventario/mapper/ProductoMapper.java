@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.inventario.dto.response.GrupoModificacion
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.OpcionModificacionResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
@@ -90,6 +91,22 @@ public class ProductoMapper {
                 .productoPrecio(menu.getProductoPrecio())
                 .modificacionesPorComponente(toGruposModificacion(opciones))
                 .bebidasDisponibles(bebidas)
+                .build();
+    }
+
+    /**
+     * Convierte un {@link Producto} a {@link ProductoBusquedaResponse} para la
+     * respuesta del buscador del formulario de modificar comanda.
+     *
+     * @param p producto persistido a transformar
+     * @return DTO con los campos de búsqueda
+     */
+    public ProductoBusquedaResponse toBusquedaResponse(Producto p) {
+        return ProductoBusquedaResponse.builder()
+                .productoId(p.getProductoId())
+                .productoNombre(p.getProductoNombre())
+                .productoPrecio(p.getProductoPrecio())
+                .productoCategoria(p.getProductoCategoria().name())
                 .build();
     }
 

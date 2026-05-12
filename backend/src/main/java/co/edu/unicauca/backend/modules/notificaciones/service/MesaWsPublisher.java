@@ -1,4 +1,4 @@
-package co.edu.unicauca.backend.modules.mesas_comandas.service;
+package co.edu.unicauca.backend.modules.notificaciones.service;
 
 import co.edu.unicauca.backend.shared.enums.EstadoMesa;
 import lombok.AllArgsConstructor;
@@ -11,12 +11,6 @@ import org.springframework.stereotype.Service;
 
 /**
  * Publicador de mensajes WebSocket para actualizaciones del mapa de mesas.
- *
- * <p>Publica eventos cuando:
- * - Se crea una mesa (nueva visita)
- * - Cambia el estado de una mesa
- * - Se cierra una mesa
- * - Se crea/atiende una notificación en una mesa
  *
  * <p>Destino: /topic/mesas
  */
@@ -54,7 +48,7 @@ public class MesaWsPublisher {
         MesaWsMessage mensaje = MesaWsMessage.builder()
                 .visitaId(visitaId)
                 .tipoEvento(TipoEventoMesa.ACTUALIZAR)
-                .nuevoEstado(nuevoEstado.name())  // Enum → String
+                .nuevoEstado(nuevoEstado.name())
                 .timestamp(System.currentTimeMillis())
                 .build();
 

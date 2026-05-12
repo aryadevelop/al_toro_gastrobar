@@ -1,0 +1,32 @@
+$kind: http-request
+name: 90-05 Enviar comanda a producción – MESERO
+description: Transiciona una comanda BORRADOR → PENDIENTE. Reemplaza {comandaId} en la URL por uno válido (ej. comandaCocinaId obtenido del 90-01).
+url: "{{baseUrl}}/api/comandas/borrador/1/enviar"
+method: POST
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 9050

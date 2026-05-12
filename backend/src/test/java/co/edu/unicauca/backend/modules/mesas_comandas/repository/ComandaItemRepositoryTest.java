@@ -1,0 +1,207 @@
+package co.edu.unicauca.backend.modules.mesas_comandas.repository;
+
+import co.edu.unicauca.backend.modules.auth.entity.Usuario;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
+import co.edu.unicauca.backend.shared.enums.TipoProducto;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
+import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
+import org.springframework.test.context.TestPropertySource;
+
+import java.math.BigDecimal;
+import java.time.LocalDateTime;
+import java.util.List;
+
+import static org.assertj.core.api.Assertions.assertThat;
+
+@DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
+@TestPropertySource(properties = {
+        "spring.datasource.url=jdbc:h2:mem:comandaitemdb;MODE=PostgreSQL;INIT=CREATE SCHEMA IF NOT EXISTS restaurante",
+        "spring.datasource.driver-class-name=org.h2.Driver",
+        "spring.datasource.username=sa",
+        "spring.datasource.password=",
+        "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.flyway.enabled=false"
+})
+@DisplayName("ComandaItemRepository")
+class ComandaItemRepositoryTest {
+
+    @Autowired TestEntityManager em;
+    @Autowired ComandaItemRepository repo;
+
+    private Comanda comandaBorrador;
+    private Producto productoPlato;
+    private Producto productoBebida;
+
+    @BeforeEach
+    void setUp() {
+        Usuario usuario = em.persistAndFlush(Usuario.builder()
+                .usuarioEmail("ci" + System.nanoTime() + "@altoro.com")
+                .usuarioPassword("pass")
+                .build());
+
+        Cliente cliente = em.persistAndFlush(Cliente.builder()
+                .usuario(usuario)
+                .clienteNombre("Cliente Test")
+                .clienteTelefono("3001112233")
+                .clienteAceptaTerminos(true)
+                .clienteFechaAceptacion(LocalDateTime.now())
+                .build());
+
+        Visita visita = em.persistAndFlush(Visita.builder()
+                .cliente(cliente)
+                .visitaFechaHoraInicio(LocalDateTime.now())
+                .build());
+
+        comandaBorrador = em.persistAndFlush(Comanda.builder()
+                .visita(visita)
+                .comandaEstado(EstadoComanda.BORRADOR)
+                .comandaEstacion(EstacionComanda.COCINA)
+                .build());
+
+        CategoriaCarta cat = em.persistAndFlush(CategoriaCarta.builder()
+                .categoriaNombre("Cat" + System.nanoTime())
+                .build());
+
+        productoPlato = em.persistAndFlush(Producto.builder()
+                .categoriaCarta(cat)
+                .productoNombre("Pasta")
+                .productoEstado(EstadoGenerico.ACTIVO)
+                .productoPrecio(new BigDecimal("12000"))
+                .productoTipo(TipoProducto.VENTA_DIRECTA)
+                .productoCategoria(CategoriaProducto.PLATO)
+                .build());
+
+        productoBebida = em.persistAndFlush(Producto.builder()
+                .categoriaCarta(cat)
+                .productoNombre("Agua")
+                .productoEstado(EstadoGenerico.ACTIVO)
+                .productoPrecio(new BigDecimal("3000"))
+                .productoTipo(TipoProducto.VENTA_DIRECTA)
+                .productoCategoria(CategoriaProducto.BEBIDA)
+                .build());
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumCantidadComprometidaByProducto
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumCantidadComprometidaByProducto")
+    class SumCantidadComprometida {
+
+        @Test
+        @DisplayName("sin items comprometidos → devuelve 0")
+        void sinItems_devuelveCero() {
+            Long total = repo.sumCantidadComprometidaByProducto(productoPlato.getProductoId());
+            assertThat(total).isZero();
+        }
+
+        @Test
+        @DisplayName("item en BORRADOR sin menuGrupo → suma la cantidad")
+        void itemBorradorSinMenuGrupo_sumaLaCantidad() {
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPlato)
+                    .comandaItemCantidad(3)
+                    .comandaItemPrecio(productoPlato.getProductoPrecio())
+                    .build());
+
+            Long total = repo.sumCantidadComprometidaByProducto(productoPlato.getProductoId());
+            assertThat(total).isEqualTo(3L);
+        }
+
+        @Test
+        @DisplayName("item con menuGrupo → no se cuenta (menú especial)")
+        void itemConMenuGrupo_noSeContabiliza() {
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPlato)
+                    .comandaItemCantidad(5)
+                    .comandaItemPrecio(productoPlato.getProductoPrecio())
+                    .comandaItemMenuGrupo("uuid-grupo-menu")
+                    .build());
+
+            Long total = repo.sumCantidadComprometidaByProducto(productoPlato.getProductoId());
+            assertThat(total).isZero();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // findByComanda_ComandaIdOrderByProductoNombreAsc
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("findByComanda_ComandaIdOrderByProductoNombreAsc")
+    class FindOrdenado {
+
+        @Test
+        @DisplayName("items en comanda → retorna ordenados alfabéticamente por nombre")
+        void itemsEnComanda_ordenaAlfabeticamente() {
+            // productoPlato = "Pasta", productoBebida = "Agua" → Agua antes que Pasta
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPlato)
+                    .comandaItemCantidad(1)
+                    .comandaItemPrecio(productoPlato.getProductoPrecio())
+                    .build());
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoBebida)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(productoBebida.getProductoPrecio())
+                    .build());
+
+            List<ComandaItem> items = repo.findByComanda_ComandaIdOrderByProductoNombreAsc(
+                    comandaBorrador.getComandaId());
+
+            assertThat(items).hasSize(2);
+            assertThat(items.get(0).getProducto().getProductoNombre()).isEqualTo("Agua");
+            assertThat(items.get(1).getProducto().getProductoNombre()).isEqualTo("Pasta");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumTotalActivosByVisita
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumTotalActivosByVisita")
+    class SumTotalActivos {
+
+        @Test
+        @DisplayName("items con precio → suma precio × cantidad")
+        void itemsConPrecio_sumaCorrectamente() {
+            // 1 × 12000 + 2 × 3000 = 18000
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPlato)
+                    .comandaItemCantidad(1)
+                    .comandaItemPrecio(new BigDecimal("12000"))
+                    .build());
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoBebida)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(new BigDecimal("3000"))
+                    .build());
+
+            BigDecimal total = repo.sumTotalActivosByVisita(
+                    comandaBorrador.getVisita().getVisitaId());
+
+            assertThat(total).isEqualByComparingTo(new BigDecimal("18000"));
+        }
+    }
+}
