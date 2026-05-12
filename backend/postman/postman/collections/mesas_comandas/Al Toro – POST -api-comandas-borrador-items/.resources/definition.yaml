@@ -1,0 +1,88 @@
+$kind: collection
+name: Al Toro – POST /api/comandas/borrador/items
+description: |-
+  # POST /api/comandas/borrador/items
+
+  Agrega un ítem al borrador. El servicio resuelve la estación destino (cocina
+  o barra) según la categoría del producto. Si la comanda BORRADOR de la
+  estación no existe, la crea. Si ya hay un ítem con el mismo `productoId` y
+  la misma `descripcion`, acumula la cantidad.
+
+  **Validaciones del DTO:**
+  - `visitaId` obligatorio.
+  - `productoId` obligatorio.
+  - `cantidad` obligatoria, rango `[1, 250]`.
+  - `descripcion` opcional, máximo 500 caracteres.
+
+  **Reglas de negocio:**
+  - Productos con `menuEspecial=true` se rechazan con `NEG-001` (deben cargarse vía pre-orden).
+  - Stock insuficiente devuelve `NEG-004` (409).
+  - Visita inexistente o cerrada → `ENT-001` (404).
+  - Producto inexistente → `ENT-001` (404).
+
+  **Control de acceso:**
+  - MESERO/ADMIN: permitido (mesero dueño de la mesa).
+  - CAJERO/CLIENTE: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial en `beforeRequest` (MESERO, CAJERO, CLIENTE).
+  - **Productos seed HU-05:**
+    - `139` `HU05-Stock-Bajo` — PLATO, stock 2, precio 15.000.
+    - `140` `HU05-Menu-Especial` — PLATO marcado `menu_especial=true`.
+  - **Visitas seed HU-05:** `13` borrador completo, `15` sin borradores.
+  - **Mesero dueño:** `mesero2@altoro.com` = `emailMesero`.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD2-01 | MESERO agrega ítem base (producto 139, visita 15) — 200 OK | 200 |
+  | CD2-02 | MESERO agrega ítem con descripción libre — 200 OK | 200 |
+  | CD2-03 | Cantidad fuera de rango (0) — 400 Bad Request | 400 |
+  | CD2-04 | Cantidad fuera de rango (251) — 400 Bad Request | 400 |
+  | CD2-05 | Producto de menú especial rechazado — 400 Bad Request | 400 |
+  | CD2-06 | productoId inexistente — 404 Not Found | 404 |
+  | CD2-07 | visitaId inexistente — 404 Not Found | 404 |
+  | CD2-08 | Stock insuficiente (cantidad 3 sobre stock 2) — 409 Conflict | 409 |
+  | CD2-09 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD2-10 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD2-11 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial: MESERO, CAJERO, CLIENTE (ADMIN no se requiere aquí).
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD2 pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

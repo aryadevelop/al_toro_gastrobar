@@ -65,8 +65,11 @@ public class ComandaBorradorMapper {
         List<ComandaItem> itemsCocina = cargarItems(cocina);
         List<ComandaItem> itemsBarra  = cargarItems(barra);
 
+        // platos: lado cocina con la bebida del par menú embebida.
+        // bebidas: lado barra sin lookup de contraparte; el campo "bebida" queda null
+        // (el ítem ya ES la bebida; embeber un plato sería contradictorio).
         List<ItemBorradorResponse> platos  = mapearEstacion(itemsCocina, itemsBarra);
-        List<ItemBorradorResponse> bebidas = mapearEstacion(itemsBarra,  itemsCocina);
+        List<ItemBorradorResponse> bebidas = mapearEstacion(itemsBarra,  List.of());
 
         BigDecimal total = totalAcumulado != null ? totalAcumulado : BigDecimal.ZERO;
         BigDecimal subTotal = Stream.concat(itemsCocina.stream(), itemsBarra.stream())

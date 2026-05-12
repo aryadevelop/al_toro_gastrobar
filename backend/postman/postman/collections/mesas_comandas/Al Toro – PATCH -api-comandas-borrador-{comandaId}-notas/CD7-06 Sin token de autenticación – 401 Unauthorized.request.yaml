@@ -1,0 +1,23 @@
+$kind: http-request
+name: CD7-06 Sin token de autenticación – 401 Unauthorized
+description: |-
+  **Objetivo:** Verificar que la API rechaza la solicitud sin header Authorization.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/comandas/borrador/1/notas"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "notas": "test"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 401', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 1050

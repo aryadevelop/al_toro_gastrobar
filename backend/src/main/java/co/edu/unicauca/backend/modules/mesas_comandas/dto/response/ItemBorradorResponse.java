@@ -7,11 +7,18 @@ import java.math.BigDecimal;
 import java.util.List;
 
 /**
- * Ítem del formulario de modificar comanda. 
- * 
- * <p>Cuando el ítem proviene de un menú especial se fusiona el par COCINA+BARRA
- * del mismo {@code menuGrupo} en una sola fila: {@code bebida} contiene la
- * bebida del menú y {@code modificacionesMenu} las opciones seleccionadas.
+ * Ítem del formulario de modificar comanda.
+ *
+ * <p>Para menús especiales el par COCINA+BARRA del mismo {@code menuGrupo} se
+ * representa con dos filas:
+ * <ul>
+ *   <li>En {@code platos[]}: el lado cocina con {@code bebida} embebida apuntando
+ *       al producto bebida del par y {@code modificacionesMenu} con las opciones
+ *       seleccionadas.</li>
+ *   <li>En {@code bebidas[]}: el lado barra como fila normal (su propio
+ *       {@code productoNombre}, {@code menuGrupo} establecido, {@code bebida}
+ *       en {@code null}). Su presencia habilita el envío a barra.</li>
+ * </ul>
  */
 @Getter @Builder
 public class ItemBorradorResponse {

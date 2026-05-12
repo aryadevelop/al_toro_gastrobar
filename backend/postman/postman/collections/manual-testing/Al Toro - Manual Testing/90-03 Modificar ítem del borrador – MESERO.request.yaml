@@ -1,0 +1,40 @@
+$kind: http-request
+name: 90-03 Modificar ítem del borrador – MESERO
+description: Actualiza cantidad y descripción del ítem. Reemplaza {itemId} en la URL por uno del borrador (ej. ítem de Picanha base en visita 13).
+url: "{{baseUrl}}/api/comandas/borrador/items/1"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cantidad": 2,
+      "descripcion": "Modificación de prueba manual"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 9030

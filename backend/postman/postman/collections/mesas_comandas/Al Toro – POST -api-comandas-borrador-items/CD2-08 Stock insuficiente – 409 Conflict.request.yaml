@@ -1,0 +1,48 @@
+$kind: http-request
+name: CD2-08 Stock insuficiente – 409 Conflict
+description: |-
+  **Objetivo:** Verificar que se rechaza con NEG-004 cuando la cantidad solicitada excede el stock disponible.
+  **Pre-condición:** `meseroToken` disponible. Producto 139 tiene stock=2; se solicita cantidad=10.
+  **Resultado esperado:** 409 Conflict con `code = NEG-004`.
+url: "{{baseUrl}}/api/comandas/borrador/items"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "visitaId": 15,
+      "productoId": 143,
+      "cantidad": 10
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 409', function () {
+        pm.response.to.have.status(409);
+      });
+
+      pm.test('Código de error es NEG-004', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-004');
+      });
+    language: text/javascript
+order: 1070

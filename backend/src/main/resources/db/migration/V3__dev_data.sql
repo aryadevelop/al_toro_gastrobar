@@ -566,8 +566,8 @@ FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
 -- 14. Seed Modificar Comand — soporte para colección Postman
 --
 --     IDs deterministas (BD limpia, orden secuencial):
---       Producto:      139 = HU05-Stock-Bajo
---                      140 = HU05-Menu-Especial
+--       Producto:      143 = HU05-Stock-Bajo
+--                      144 = HU05-Menu-Especial
 --       Visita:        13  = activa con borrador completo (mesa ESPERA)
 --                      14  = activa, borrador COCINA vacío + borrador BARRA con 1 ítem
 --                      15  = activa sin borradores
@@ -583,12 +583,12 @@ FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
 -- =====================================================
 
 -- Producto VENTA_DIRECTA con stock bajo (CD2-19, CD2-20, CD3-13)
--- ID esperado: 139
+-- ID esperado: 143
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual)
 VALUES (1, 'HU05-Stock-Bajo', 'ACTIVO', 15000, 'VENTA_DIRECTA', 'PLATO', 2);
 
 -- Producto menú especial dedicado para test CD2-18 (rechazo → 400)
--- ID esperado: 140
+-- ID esperado: 144
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial)
 SELECT cc.categoriacarta_id, 'HU05-Menu-Especial', 'ACTIVO', 33000, 'PREPARACION', 'PLATO', TRUE
 FROM CategoriaCarta cc WHERE cc.categoria_nombre = 'MENÚS ESPECIALES';

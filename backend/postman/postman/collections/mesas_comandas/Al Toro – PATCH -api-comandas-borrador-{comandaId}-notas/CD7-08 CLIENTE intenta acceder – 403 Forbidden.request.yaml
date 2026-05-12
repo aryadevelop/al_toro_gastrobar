@@ -1,0 +1,41 @@
+$kind: http-request
+name: CD7-08 CLIENTE intenta acceder – 403 Forbidden
+description: |-
+  **Objetivo:** Verificar que un usuario con rol CLIENTE recibe 403.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/comandas/borrador/1/notas"
+method: PATCH
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "notas": "test"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 1070

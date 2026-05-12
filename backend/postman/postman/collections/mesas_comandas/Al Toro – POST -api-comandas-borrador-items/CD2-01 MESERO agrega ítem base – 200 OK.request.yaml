@@ -1,0 +1,61 @@
+$kind: http-request
+name: CD2-01 MESERO agrega ítem base – 200 OK
+description: |-
+  **Objetivo:** Verificar que se agrega un producto plato a una visita sin borradores previos. La comanda BORRADOR COCINA se crea automáticamente.
+  **Pre-condición:** `meseroToken` disponible. Visita 15 sin borradores, producto 139 (HU05-Stock-Bajo, PLATO, stock 2).
+  **Resultado esperado:** 200 OK con `comandaCocinaId` no nulo y `platos[]` no vacío.
+url: "{{baseUrl}}/api/comandas/borrador/items"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "visitaId": 15,
+      "productoId": 143,
+      "cantidad": 1
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('CD2-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La comanda BORRADOR COCINA se creó y contiene el ítem', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.visitaId).to.equal(15);
+        pm.expect(data.comandaCocinaId).to.not.equal(null);
+        pm.expect(data.platos).to.be.an('array').that.is.not.empty;
+        pm.expect(data.puedeEnviarCocina).to.equal(true);
+      });
+
+      pm.test('El ítem tiene productoId 143 y cantidad 1', function () {
+        const platos = pm.response.json().data.platos;
+        const item = platos.find(p => p.productoId === 143);
+        pm.expect(item).to.not.be.undefined;
+        pm.expect(item.cantidad).to.equal(1);
+      });
+    language: text/javascript
+order: 1000

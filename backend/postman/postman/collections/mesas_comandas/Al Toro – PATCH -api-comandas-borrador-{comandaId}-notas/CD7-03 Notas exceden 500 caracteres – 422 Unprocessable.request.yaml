@@ -1,0 +1,47 @@
+$kind: http-request
+name: CD7-03 Notas exceden 500 caracteres – 422 Unprocessable
+description: |-
+  **Objetivo:** Verificar la validación `@Size(max=500)`. Se envía un texto de 501 caracteres.
+  **Resultado esperado:** 422 Unprocessable Entity con `code = VAL-001`.
+url: "{{baseUrl}}/api/comandas/borrador/1/notas"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+scripts:
+  - type: beforeRequest
+    code: |-
+      // 1) Login MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+
+      // 2) Generar body con 501 caracteres y sobreescribir el cuerpo del request actual
+      const notas = 'X'.repeat(501);
+      pm.request.body.update({
+        mode: 'raw',
+        raw: JSON.stringify({ notas: notas })
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 422', function () {
+        pm.response.to.have.status(422);
+      });
+
+      pm.test('Código de error es VAL-001', function () {
+        pm.expect(pm.response.json().code).to.equal('VAL-001');
+      });
+    language: text/javascript
+order: 1020

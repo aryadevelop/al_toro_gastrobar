@@ -1,0 +1,68 @@
+$kind: http-request
+name: CD5-01 MESERO envía comanda a producción – 200 OK
+description: |-
+  **Objetivo:** Verificar transición BORRADOR → PENDIENTE. Tras el envío, `comandaCocinaId` del borrador remanente es null.
+  **Pre-condición:** beforeRequest crea una comanda BORRADOR COCINA fresca en visita 14 con un ítem único y guarda su id en `cd501ComandaId`.
+  **Resultado esperado:** 200 OK; el borrador remanente NO tiene comanda cocina.
+url: "{{baseUrl}}/api/comandas/borrador/{{cd501ComandaId}}/enviar"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const unique = 'E5-CD5-01-' + Date.now();
+      pm.environment.set('cd501Desc', unique);
+
+      // 1) Login MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err1, res1) => {
+        if (err1 || !res1 || res1.code !== 200) {
+          console.warn('CD5-01: login falló', err1, res1 && res1.code);
+          return;
+        }
+        const token = res1.json().accessToken;
+        pm.environment.set('meseroToken', token);
+
+        // 2) POST ítem nuevo en visita 14 → crea (o reutiliza) BORRADOR COCINA
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador/items',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            visitaId: 14,
+            productoId: Number(pm.environment.get('productoTestPlatoId')),
+            cantidad: 1,
+            descripcion: unique
+          }) }
+        }, (err2, res2) => {
+          if (err2 || !res2 || res2.code !== 200) {
+            console.warn('CD5-01: POST item falló', err2, res2 && res2.code, res2 && res2.text());
+            return;
+          }
+          const comandaCocinaId = res2.json().data.comandaCocinaId;
+          if (comandaCocinaId) pm.environment.set('cd501ComandaId', comandaCocinaId);
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Tras enviar, no queda BORRADOR de cocina en la visita', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaCocinaId).to.equal(null);
+        pm.expect(data.puedeEnviarCocina).to.equal(false);
+      });
+    language: text/javascript
+order: 1000

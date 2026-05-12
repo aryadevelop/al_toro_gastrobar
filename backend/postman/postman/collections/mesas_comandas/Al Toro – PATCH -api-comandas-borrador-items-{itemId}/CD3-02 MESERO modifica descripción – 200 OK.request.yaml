@@ -1,0 +1,48 @@
+$kind: http-request
+name: CD3-02 MESERO modifica descripción – 200 OK
+description: |-
+  **Objetivo:** Verificar que se actualiza solo la descripción (la cantidad nula no la altera).
+  **Pre-condición:** `meseroToken` y `itemHamburguesaSinTomateId` disponibles.
+  **Resultado esperado:** 200 OK; existe un ítem Hamburguesa con `descripcion = "sin tomate ni lechuga"`.
+url: "{{baseUrl}}/api/comandas/borrador/items/{{itemHamburguesaSinTomateId}}"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "descripcion": "sin tomate ni lechuga"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La descripción se actualizó a "sin tomate ni lechuga"', function () {
+        const platos = pm.response.json().data.platos;
+        const item = platos.find(p => p.productoNombre === 'Hamburguesa Al Toro' && p.descripcion === 'sin tomate ni lechuga');
+        pm.expect(item).to.not.be.undefined;
+      });
+    language: text/javascript
+order: 1010

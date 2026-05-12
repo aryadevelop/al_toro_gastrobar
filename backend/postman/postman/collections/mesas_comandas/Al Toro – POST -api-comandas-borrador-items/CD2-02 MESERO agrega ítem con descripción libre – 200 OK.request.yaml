@@ -1,0 +1,53 @@
+$kind: http-request
+name: CD2-02 MESERO agrega ítem con descripción libre – 200 OK
+description: |-
+  **Objetivo:** Verificar que un ítem con `descripcion` se persiste como modificación libre (mismo productoId pero fila separada).
+  **Pre-condición:** `meseroToken` disponible. Visita 15.
+  **Resultado esperado:** 200 OK; el `platos[]` incluye un ítem con `descripcion = "sin sal"`.
+url: "{{baseUrl}}/api/comandas/borrador/items"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "visitaId": 15,
+      "productoId": 143,
+      "cantidad": 1,
+      "descripcion": "sin sal"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('CD2-02: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La modificación libre quedó como ítem separado', function () {
+        const data = pm.response.json().data;
+        const modificados = data.platos.filter(p => p.productoId === 143 && p.descripcion === 'sin sal');
+        pm.expect(modificados.length).to.be.greaterThan(0);
+      });
+    language: text/javascript
+order: 1010
