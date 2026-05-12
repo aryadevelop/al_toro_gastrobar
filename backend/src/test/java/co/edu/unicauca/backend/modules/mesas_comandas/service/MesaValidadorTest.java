@@ -1,11 +1,14 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
@@ -14,11 +17,17 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
+import org.mockito.MockedStatic;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
+import org.springframework.security.authentication.UsernamePasswordAuthenticationToken;
+import org.springframework.security.core.Authentication;
+import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.*;
@@ -132,23 +141,157 @@ class MesaValidadorTest {
     class ValidarHorarioAtencion {
 
         @Test
-        @Disabled("Cannot mock LocalTime.now() without PowerMock or additional test infrastructure. " +
-                  "This method will be tested indirectly via service integration tests.")
-        @DisplayName("Debe permitir horario dentro de 17:00-22:00")
-        void debePermitirHorarioDentroDeRango() {
-            // This test is disabled because validarHorarioAtencion() uses LocalTime.now() directly
-            // and we cannot easily mock static methods without PowerMock or MockedStatic
-            // The method will be covered by integration tests where we can control the time of execution
+        @DisplayName("Debe permitir hora exactamente en apertura (17:00)")
+        void debePermitirHoraApertura() {
+            LocalTime fixed = LocalTime.of(17, 0);
+            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
+                mocked.when(LocalTime::now).thenReturn(fixed);
+                assertThatCode(() -> mesaValidador.validarHorarioAtencion())
+                        .doesNotThrowAnyException();
+            }
         }
 
         @Test
-        @Disabled("Cannot mock LocalTime.now() without PowerMock or additional test infrastructure. " +
-                  "This method will be tested indirectly via service integration tests.")
-        @DisplayName("Debe lanzar excepción cuando horario fuera de rango")
-        void debeLanzarExcepcionCuandoHorarioFueraDeRango() {
-            // This test is disabled because validarHorarioAtencion() uses LocalTime.now() directly
-            // and we cannot easily mock static methods without PowerMock or MockedStatic
-            // The method will be covered by integration tests where we can control the time of execution
+        @DisplayName("Debe permitir hora dentro del rango (19:30)")
+        void debePermitirHoraDentroDeRango() {
+            LocalTime fixed = LocalTime.of(19, 30);
+            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
+                mocked.when(LocalTime::now).thenReturn(fixed);
+                assertThatCode(() -> mesaValidador.validarHorarioAtencion())
+                        .doesNotThrowAnyException();
+            }
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción antes de la apertura (16:59)")
+        void debeLanzarExcepcionAntesDeApertura() {
+            LocalTime fixed = LocalTime.of(16, 59);
+            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
+                mocked.when(LocalTime::now).thenReturn(fixed);
+                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
+                        .isInstanceOf(BusinessException.class)
+                        .hasFieldOrPropertyWithValue("code", "NEG-001")
+                        .hasMessageContaining("horario de atención");
+            }
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción exactamente en la hora de cierre (22:00 exclusivo)")
+        void debeLanzarExcepcionEnCierre() {
+            LocalTime fixed = LocalTime.of(22, 0);
+            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
+                mocked.when(LocalTime::now).thenReturn(fixed);
+                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
+                        .isInstanceOf(BusinessException.class)
+                        .hasFieldOrPropertyWithValue("code", "NEG-001");
+            }
+        }
+
+        @Test
+        @DisplayName("Debe lanzar excepción después del cierre (23:00)")
+        void debeLanzarExcepcionDespuesDelCierre() {
+            LocalTime fixed = LocalTime.of(23, 0);
+            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
+                mocked.when(LocalTime::now).thenReturn(fixed);
+                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
+                        .isInstanceOf(BusinessException.class)
+                        .hasFieldOrPropertyWithValue("code", "NEG-001");
+            }
+        }
+    }
+
+    @Nested
+    @DisplayName("validarOwnership")
+    class ValidarOwnership {
+
+        private Mesa crearMesa(String emailMesero, LocalDateTime fechaFin) {
+            Usuario usuario = Usuario.builder()
+                    .usuarioId(1L)
+                    .usuarioEmail(emailMesero)
+                    .usuarioPassword("pwd")
+                    .build();
+            Empleado empleado = Empleado.builder()
+                    .usuarioId(1L)
+                    .usuario(usuario)
+                    .empleadoNombre("Mesero")
+                    .build();
+            Visita visita = Visita.builder()
+                    .visitaId(10L)
+                    .visitaFechaHoraInicio(LocalDateTime.now())
+                    .visitaFechaHoraFin(fechaFin)
+                    .build();
+            Mesa mesa = Mesa.builder()
+                    .visitaId(10L)
+                    .mesaIdentificador("M01")
+                    .visita(visita)
+                    .mesero(empleado)
+                    .build();
+            return mesa;
+        }
+
+        private Authentication auth(String email, String... roles) {
+            List<SimpleGrantedAuthority> auths = java.util.Arrays.stream(roles)
+                    .map(SimpleGrantedAuthority::new).toList();
+            return new UsernamePasswordAuthenticationToken(email, "N/A", auths);
+        }
+
+        @Test
+        @DisplayName("Debe retornar mesa cuando el mesero asignado coincide con principal")
+        void debeRetornarMesaCuandoMeseroCoincide() {
+            Mesa mesa = crearMesa("mesero1@altoro.com", null);
+            when(mesaRepository.findById(10L)).thenReturn(Optional.of(mesa));
+
+            Mesa resultado = mesaValidador.validarOwnership(10L, auth("mesero1@altoro.com", "ROLE_MESERO"));
+
+            assertThat(resultado).isSameAs(mesa);
+            verify(mesaRepository).findById(10L);
+        }
+
+        @Test
+        @DisplayName("Debe retornar mesa cuando el usuario es ADMIN aunque no sea el mesero asignado")
+        void debeRetornarMesaCuandoEsAdmin() {
+            Mesa mesa = crearMesa("mesero1@altoro.com", null);
+            when(mesaRepository.findById(10L)).thenReturn(Optional.of(mesa));
+
+            Mesa resultado = mesaValidador.validarOwnership(10L, auth("admin@altoro.com", "ROLE_ADMIN"));
+
+            assertThat(resultado).isSameAs(mesa);
+        }
+
+        @Test
+        @DisplayName("Debe lanzar ENT-001 cuando la mesa no existe")
+        void debeLanzarCuandoMesaNoExiste() {
+            when(mesaRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> mesaValidador.validarOwnership(99L, auth("x@x.com", "ROLE_MESERO")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", "ENT-001")
+                    .hasMessageContaining("Mesa no encontrada");
+        }
+
+        @Test
+        @DisplayName("Debe lanzar ENT-001 cuando la visita ya está cerrada")
+        void debeLanzarCuandoVisitaCerrada() {
+            Mesa mesa = crearMesa("mesero1@altoro.com", LocalDateTime.now().minusHours(1));
+            when(mesaRepository.findById(10L)).thenReturn(Optional.of(mesa));
+
+            assertThatThrownBy(() -> mesaValidador.validarOwnership(10L, auth("mesero1@altoro.com", "ROLE_MESERO")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", "ENT-001")
+                    .hasMessageContaining("visita ya está cerrada");
+        }
+
+        @Test
+        @DisplayName("Debe lanzar AUTH-002 cuando el mesero no es el asignado y no es ADMIN")
+        void debeLanzarCuandoNoEsMeseroNiAdmin() {
+            Mesa mesa = crearMesa("mesero1@altoro.com", null);
+            when(mesaRepository.findById(10L)).thenReturn(Optional.of(mesa));
+
+            assertThatThrownBy(() ->
+                    mesaValidador.validarOwnership(10L, auth("otro@altoro.com", "ROLE_MESERO")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", "AUTH-002")
+                    .hasMessageContaining("Solo el mesero asignado");
         }
     }
 

@@ -157,6 +157,91 @@ class MesaMapperTest {
     }
 
     @Test
+    @DisplayName("agruparItemsEnProduccion: items EN_PREPARACION con descripcion null se agrupan por clave 'nombre|'")
+    void agruparItemsEnProduccion_DescripcionNullSeAgrupan() {
+        // Arrange - dos items confirmados con descripcion null deben agruparse (clave "nombre|")
+        ComandaItem item1 = crearItem("Cerveza", null, 2, EstadoComanda.EN_PREPARACION, CategoriaProducto.BEBIDA);
+        ComandaItem item2 = crearItem("Cerveza", null, 3, EstadoComanda.LISTO, CategoriaProducto.BEBIDA);
+
+        // Act
+        List<ItemComandaEnProduccionResponse> resultado = mapper.agruparItemsEnProduccion(List.of(item1, item2));
+
+        // Assert
+        assertThat(resultado).hasSize(1);
+        assertThat(resultado.get(0).getCantidad()).isEqualTo(5);
+        assertThat(resultado.get(0).getDescripcion()).isNull();
+        assertThat(resultado.get(0).getEstadoComanda()).isEqualTo("CONFIRMADO");
+    }
+
+    @Test
+    @DisplayName("agruparItemsEnProduccion: respeta orden PLATO -> BEBIDA -> OTRO en resultado final")
+    void agruparItemsEnProduccion_OrdenPorCategoria() {
+        // Arrange
+        ComandaItem bebida = crearItem("Limonada", null, 1, EstadoComanda.EN_PREPARACION, CategoriaProducto.BEBIDA);
+        ComandaItem otro = crearItem("Postre", null, 1, EstadoComanda.LISTO, CategoriaProducto.OTRO);
+        ComandaItem plato = crearItem("Bandeja", null, 1, EstadoComanda.COMPLETADO, CategoriaProducto.PLATO);
+
+        // Act
+        List<ItemComandaEnProduccionResponse> resultado = mapper.agruparItemsEnProduccion(List.of(otro, bebida, plato));
+
+        // Assert: orden PLATO -> BEBIDA -> OTRO
+        assertThat(resultado).hasSize(3);
+        assertThat(resultado.get(0).getCategoriaProducto()).isEqualTo("PLATO");
+        assertThat(resultado.get(1).getCategoriaProducto()).isEqualTo("BEBIDA");
+        assertThat(resultado.get(2).getCategoriaProducto()).isEqualTo("OTRO");
+    }
+
+    @Test
+    @DisplayName("toMesaDetalleResponse: concatena notas de comandas distintas y descarta vacías/null")
+    void toMesaDetalleResponse_ConcatenaNotasComandasDistintas() {
+        // Arrange - 3 items con notas distintas: una válida, una null, una vacía/whitespace, una duplicada
+        Mesa mesa = crearMesa("T-07", "mesero1@altoro.com", "Juan Pérez");
+        Visita visita = new Visita();
+        visita.setVisitaId(1L);
+        visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+        mesa.setVisita(visita);
+
+        ComandaItem itemConNota = crearItemConNotaComanda("Cerveza", "Sin hielo");
+        ComandaItem itemNotaNull = crearItemConNotaComanda("Limonada", null);
+        ComandaItem itemNotaVacia = crearItemConNotaComanda("Agua", "   ");
+        ComandaItem itemNotaDuplicada = crearItemConNotaComanda("Cerveza2", "Sin hielo");
+        ComandaItem itemOtraNota = crearItemConNotaComanda("Vino", "Servido frío");
+
+        // Act
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(
+                mesa,
+                List.of(itemConNota, itemNotaNull, itemNotaVacia, itemNotaDuplicada, itemOtraNota),
+                List.of());
+
+        // Assert: distincts only, separadas por " | ", null/blank descartadas
+        assertThat(response.getNotasComandas()).contains("Sin hielo");
+        assertThat(response.getNotasComandas()).contains("Servido frío");
+        assertThat(response.getNotasComandas().split(" \\| ")).hasSize(2);
+    }
+
+    @Test
+    @DisplayName("toMesaDetalleResponse: todos los items con notas vacías/null → notasComandas null")
+    void toMesaDetalleResponse_TodasNotasNullONotasVacias() {
+        // Arrange
+        Mesa mesa = crearMesa("T-08", "mesero1@altoro.com", "Juan Pérez");
+        Visita visita = new Visita();
+        visita.setVisitaId(1L);
+        visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+        mesa.setVisita(visita);
+
+        ComandaItem itemA = crearItemConNotaComanda("X", null);
+        ComandaItem itemB = crearItemConNotaComanda("Y", "");
+        ComandaItem itemC = crearItemConNotaComanda("Z", "  ");
+
+        // Act
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(
+                mesa, List.of(itemA, itemB, itemC), List.of());
+
+        // Assert
+        assertThat(response.getNotasComandas()).isNull();
+    }
+
+    @Test
     @DisplayName("toMesaItemsProduccionResponse mapea correctamente")
     void toMesaItemsProduccionResponse_MapeaCorrectamente() {
         // Arrange
@@ -230,6 +315,23 @@ class MesaMapperTest {
         mesa.setMesaNotas("Cliente frecuente, atención preferencial");
 
         return mesa;
+    }
+
+    private ComandaItem crearItemConNotaComanda(String nombreProducto, String notaComanda) {
+        Producto producto = new Producto();
+        producto.setProductoNombre(nombreProducto);
+        producto.setProductoCategoria(CategoriaProducto.BEBIDA);
+
+        Comanda comanda = new Comanda();
+        comanda.setComandaId(1L);
+        comanda.setComandaNotas(notaComanda);
+        comanda.setComandaEstado(EstadoComanda.PENDIENTE);
+
+        ComandaItem item = new ComandaItem();
+        item.setProducto(producto);
+        item.setComandaItemCantidad(1);
+        item.setComanda(comanda);
+        return item;
     }
 
     private ComandaItem crearItem(String nombreProducto, String descripcion, int cantidad, EstadoComanda estadoComanda, CategoriaProducto categoria) {
