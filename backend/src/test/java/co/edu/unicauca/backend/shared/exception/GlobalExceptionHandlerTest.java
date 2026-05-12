@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.shared.exception;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
+import io.jsonwebtoken.JwtException;
 import jakarta.validation.Valid;
 import jakarta.validation.constraints.NotBlank;
 import jakarta.validation.constraints.Positive;
@@ -147,11 +148,28 @@ class GlobalExceptionHandlerTest {
         @PostMapping("/test/validation")
         void validacion(@Valid @RequestBody TestDto dto) {}
 
+        // ── MissingServletRequestParameterException ───────────────────────────
+
+        @GetMapping("/test/missing-param")
+        void missingParam(@RequestParam("obligatorio") String obligatorio) {}
+
+        // ── MethodArgumentTypeMismatchException ───────────────────────────────
+
+        @GetMapping("/test/type-mismatch")
+        void typeMismatch(@RequestParam("numero") Integer numero) {}
+
         // ── BadCredentialsException ───────────────────────────────────────────
 
         @GetMapping("/test/bad-credentials")
         void badCredentials() {
             throw new BadCredentialsException("Detalles internos que no deben exponerse");
+        }
+
+        // ── JwtException ──────────────────────────────────────────────────────
+
+        @GetMapping("/test/jwt-exception")
+        void jwtException() {
+            throw new JwtException("Token JWT malformado — detalle interno");
         }
 
         // ── AccessDeniedException ─────────────────────────────────────────────
@@ -346,6 +364,74 @@ class GlobalExceptionHandlerTest {
                             .contentType(MediaType.APPLICATION_JSON)
                             .content("{\"nombre\": \"\", \"capacidad\": 1}"))
                     .andExpect(jsonPath("$.data").doesNotExist());
+        }
+    }
+
+    /**
+     * Verifica que {@link GlobalExceptionHandler#handleMissingParam} produce
+     * {@code 400 BAD_REQUEST} con código {@code VAL-001} cuando falta un
+     * parámetro de query obligatorio.
+     */
+    @Nested
+    @DisplayName("handleMissingParam — MissingServletRequestParameterException → 400")
+    class ParametroFaltante {
+
+        @Test
+        @DisplayName("Falta param obligatorio → 400 con código VAL-001 y nombre del param en mensaje")
+        void faltaParam_retorna400() throws Exception {
+            mockMvc.perform(get("/test/missing-param"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(ErrorCode.VALIDATION_ERROR.getCode()))
+                    .andExpect(jsonPath("$.message", containsString("obligatorio")));
+        }
+    }
+
+    /**
+     * Verifica que {@link GlobalExceptionHandler#handleTypeMismatch} produce
+     * {@code 400 BAD_REQUEST} con código {@code VAL-001} cuando el tipo del
+     * parámetro no coincide (p.ej. texto donde se espera un entero).
+     */
+    @Nested
+    @DisplayName("handleTypeMismatch — MethodArgumentTypeMismatchException → 400")
+    class TipoParametroInvalido {
+
+        @Test
+        @DisplayName("Tipo inválido → 400 con código VAL-001 y nombre del param en mensaje")
+        void tipoInvalido_retorna400() throws Exception {
+            mockMvc.perform(get("/test/type-mismatch").param("numero", "no-es-numero"))
+                    .andExpect(status().isBadRequest())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(ErrorCode.VALIDATION_ERROR.getCode()))
+                    .andExpect(jsonPath("$.message", containsString("numero")));
+        }
+    }
+
+    /**
+     * Verifica que {@link GlobalExceptionHandler#handleJwtException} produce
+     * {@code 401 UNAUTHORIZED} con código {@code AUTH-001} y mensaje fijo,
+     * sin exponer detalles internos del token al cliente.
+     */
+    @Nested
+    @DisplayName("handleJwtException — JwtException → 401")
+    class TokenJwtInvalido {
+
+        @Test
+        @DisplayName("Retorna 401 UNAUTHORIZED con código AUTH-001")
+        void retorna401ConCodeInvalidCredentials() throws Exception {
+            mockMvc.perform(get("/test/jwt-exception"))
+                    .andExpect(status().isUnauthorized())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.code").value(ErrorCode.INVALID_CREDENTIALS.getCode()));
+        }
+
+        @Test
+        @DisplayName("Mensaje es el fijo del ErrorCode, no el de la excepción original")
+        void mensajeFijoNoExponeDetallesInternos() throws Exception {
+            mockMvc.perform(get("/test/jwt-exception"))
+                    .andExpect(jsonPath("$.message").value(ErrorCode.INVALID_CREDENTIALS.getMessage()))
+                    .andExpect(jsonPath("$.message",
+                            not(containsString("Token JWT malformado — detalle interno"))));
         }
     }
 
