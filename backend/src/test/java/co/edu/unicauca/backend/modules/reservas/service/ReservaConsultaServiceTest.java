@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
@@ -7,7 +8,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepo
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ListadoReservasResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
@@ -324,7 +324,7 @@ class ReservaConsultaServiceTest {
 
         when(reservaRepository.findById(reservaId)).thenReturn(Optional.of(reserva));
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA))
-                .thenReturn(Optional.of(comanda));
+                .thenReturn(List.of(comanda));
         when(comandaItemRepository.findByComanda_ComandaId(1000L))
                 .thenReturn(List.of(item1, item2));
         when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reservaId))

@@ -230,7 +230,14 @@ export class LoginPageComponent {
     this.loading.set(true);
     this.errorMessage.set('');
 
-    this.authService.login(this.loginForm.getRawValue()).subscribe({
+    const formValue = this.loginForm.getRawValue();
+    const credentials: LoginCredentials = {
+      email: formValue.email.trim(),
+      password: formValue.password,
+      forceSessionOverride: true
+    };
+
+    this.authService.login(credentials).subscribe({
       next: (user) => {
         this.loading.set(false);
         void this.router.navigateByUrl(this.authService.getLandingRouteForRole(user.role));
@@ -244,7 +251,7 @@ export class LoginPageComponent {
         if (code === 'PASSWORD_EXPIRED') {
           void this.router.navigateByUrl('/auth/change-password');
         } else if (code === 'ACTIVE_SESSION' || hasActiveSession) {
-          this.pendingCredentials.set(this.loginForm.getRawValue());
+          this.pendingCredentials.set(credentials);
           this.showActiveSessionDialog.set(true);
         } else {
           this.errorMessage.set(err.error?.message ?? 'Error al iniciar sesión');

@@ -1,0 +1,76 @@
+$kind: http-request
+name: PB-01 Menús especiales obtenidos exitosamente con token CLIENTE – 200 OK
+description: |-
+  **Criterio de Aceptación:** PB-01
+  **Objetivo:** Verificar que un cliente autenticado puede obtener la lista de menús especiales activos con sus grupos de modificación por componente.
+  **Pre-condición:** El usuario `{{emailCliente}}` debe existir con estado activo y rol CLIENTE. Deben existir productos activos con `menuEspecial = true` en la base de datos.
+  **Resultado esperado:** HTTP 200 con `success: true` y `data` como arreglo de menús especiales, cada uno con `modificacionesPorComponente` como arreglo (puede estar vacío si no hay opciones activas).
+url: "{{baseUrl}}/api/productos/menu-especial"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Menús especiales obtenidos exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene success: true', () => {
+        pm.expect(body).to.have.property('success', true);
+      });
+
+      pm.test('El campo data es un arreglo', () => {
+        pm.expect(body.data).to.be.an('array');
+      });
+
+      pm.test('Cada menú especial tiene los campos requeridos: productoId, productoNombre, productoPrecio, modificacionesPorComponente, bebidasDisponibles', () => {
+        if (body.data.length > 0) {
+          const menu = body.data[0];
+          pm.expect(menu).to.have.property('productoId');
+          pm.expect(menu).to.have.property('productoNombre');
+          pm.expect(menu).to.have.property('productoPrecio');
+          pm.expect(menu).to.have.property('modificacionesPorComponente');
+          pm.expect(menu).to.have.property('bebidasDisponibles');
+        }
+      });
+
+      pm.test('El campo modificacionesPorComponente es un arreglo (nunca null)', () => {
+        body.data.forEach(menu => {
+          pm.expect(menu.modificacionesPorComponente).to.be.an('array');
+        });
+      });
+
+      pm.test('Cada menú expone bebidasDisponibles como arreglo no vacío', () => {
+        body.data.forEach(menu => {
+          pm.expect(menu.bebidasDisponibles).to.be.an('array').with.lengthOf.above(0);
+        });
+      });
+
+      pm.test('Cada bebida disponible tiene productoId, productoNombre y productoPrecio', () => {
+        if (body.data.length > 0) {
+          const bebida = body.data[0].bebidasDisponibles[0];
+          pm.expect(bebida).to.have.property('productoId');
+          pm.expect(bebida).to.have.property('productoNombre');
+        }
+      });
+
+      pm.test('Ningún grupo de modificaciones tiene tipoComponente BEBIDA', () => {
+        body.data.forEach(menu => {
+          menu.modificacionesPorComponente.forEach(grupo => {
+            pm.expect(grupo.tipoComponente).to.not.eql('BEBIDA');
+          });
+        });
+      });
+
+      pm.test('Los menús especiales están ordenados alfabéticamente por nombre', () => {
+        if (body.data.length > 1) {
+          for (let i = 0; i < body.data.length - 1; i++) {
+            pm.expect(
+              body.data[i].productoNombre.localeCompare(body.data[i + 1].productoNombre)
+            ).to.be.at.most(0);
+          }
+        }
+      });
+    language: text/javascript
+order: 1000

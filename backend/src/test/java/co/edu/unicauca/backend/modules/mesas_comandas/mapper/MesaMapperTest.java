@@ -1,11 +1,11 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.mapper;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
+import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.*;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.*;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
-import co.edu.unicauca.backend.modules.produccion.entity.CategoriaCarta;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;

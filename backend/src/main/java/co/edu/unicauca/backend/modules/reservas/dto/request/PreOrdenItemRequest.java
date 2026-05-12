@@ -21,6 +21,9 @@ import java.util.List;
  *       a un menú especial.</li>
  *   <li>{@code opcionesModificacion} solo aplica cuando {@code esMenuEspecial = true};
  *       contiene los IDs de {@code OpcionModificacion} seleccionados.</li>
+ *   <li>{@code bebidaProductoId} es obligatorio cuando {@code esMenuEspecial = true};
+ *       identifica la bebida del menú elegida por el cliente, la cual debe estar disponible
+ *       en la tabla {@code menu_bebida_disponible} para el menú indicado.</li>
  * </ul>
  *
  * @see CrearReservaRequest
@@ -60,4 +63,11 @@ public class PreOrdenItemRequest {
      * Solo aplica cuando {@code esMenuEspecial = true}; {@code null} o lista vacía si no hay opciones.
      */
     private List<Long> opcionesModificacion;
+
+    /**
+     * Identificador de la bebida seleccionada para acompañar el menú especial.
+     * Obligatorio cuando {@code esMenuEspecial = true}; debe existir en {@code menu_bebida_disponible}
+     * para el menú indicado en {@code productoId}.
+     */
+    private Long bebidaProductoId;
 }

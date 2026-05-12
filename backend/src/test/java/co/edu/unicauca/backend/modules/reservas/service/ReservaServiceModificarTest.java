@@ -183,7 +183,7 @@ class ReservaServiceModificarTest {
         when(reservaRepository.sumPersonasByZonaEnDiaExcluyendo(anyLong(), any(), any(), any(), anyLong()))
                 .thenReturn(0);
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(anyLong(), any()))
-                .thenReturn(Optional.empty());
+                .thenReturn(List.of());
     }
 
     /** Variante de stubDisponibilidadLibre que incluye decoraciones en la respuesta. */
@@ -202,7 +202,7 @@ class ReservaServiceModificarTest {
         when(reservaRepository.sumPersonasByZonaEnDiaExcluyendo(anyLong(), any(), any(), any(), anyLong()))
                 .thenReturn(0);
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(anyLong(), any()))
-                .thenReturn(Optional.empty());
+                .thenReturn(List.of());
     }
 
     // ─── Validaciones previas ─────────────────────────────────────────────────

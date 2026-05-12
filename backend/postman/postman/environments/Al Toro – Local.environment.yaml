@@ -108,9 +108,9 @@ values:
     value: ''
   - key: refreshToken
     value: ''
-  - key: accessToken
-    value: ''
   - key: tmpClienteToken
     value: ''
   - key: mesero2Token
+    value: ''
+  - key: tmpNotificacionId
     value: ''

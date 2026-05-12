@@ -1,7 +1,6 @@
 package co.edu.unicauca.backend.modules.inventario.entity;
 
 import co.edu.unicauca.backend.shared.entity.AuditableEntity;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.DecimalMin;
 import jakarta.validation.constraints.Digits;

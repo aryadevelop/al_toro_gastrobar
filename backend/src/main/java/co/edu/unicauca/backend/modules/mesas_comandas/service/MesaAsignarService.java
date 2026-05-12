@@ -37,7 +37,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -120,7 +119,6 @@ public class MesaAsignarService {
         visita = visitaRepository.save(visita);
 
         // 7. Crear Mesa (estado ESPERA)
-        // NOTA: visitaId se asigna automáticamente por @MapsId - NO establecer manualmente
         Mesa mesa = Mesa.builder()
                 .visita(visita)
                 .zona(zona)
@@ -161,16 +159,16 @@ public class MesaAsignarService {
      * @param visita visita creada
      */
     private void procesarReserva(Reserva reserva, Visita visita) {
-        // 1. Buscar comanda PRE_RESERVA
-        Optional<Comanda> comandaOpt = comandaRepository.findByReserva_ReservaIdAndComandaEstado(
+        // 1. Buscar comandas PRE_RESERVA (puede haber más de una tras el split por estación)
+        List<Comanda> preordenes = comandaRepository.findByReserva_ReservaIdAndComandaEstado(
                 reserva.getReservaId(), EstadoComanda.PRE_RESERVA);
 
-        // 2. Si existe, cambiar a BORRADOR y vincular a visita
-        comandaOpt.ifPresent(comanda -> {
+        // 2. Cambiar cada comanda a BORRADOR y vincular a visita
+        for (Comanda comanda : preordenes) {
             comanda.setComandaEstado(EstadoComanda.BORRADOR);
             comanda.setVisita(visita);
-            comandaRepository.save(comanda);
-        });
+        }
+        comandaRepository.saveAll(preordenes);
 
         // 3. Cambiar estado de reserva a ATENDIDA
         reserva.setReservaEstado(EstadoReserva.ATENDIDA);

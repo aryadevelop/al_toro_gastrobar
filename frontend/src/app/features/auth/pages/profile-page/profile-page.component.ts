@@ -10,7 +10,7 @@ import {
   Validators
 } from '@angular/forms';
 import { Router } from '@angular/router';
-import { Subject, takeUntil } from 'rxjs';
+import { Observable, Subject, takeUntil } from 'rxjs';
 import { UpdateProfileRequest } from '../../../../core/models/auth.models';
 import { AuthService } from '../../../../core/services/auth.service';
 import { PendingProfileChangesService } from '../../../../core/services/pending-profile-changes.service';
@@ -200,6 +200,16 @@ const confirmPasswordMatchValidator: ValidatorFn = (control: AbstractControl): V
         (cancel)="showCancelDialog.set(false)"
         (confirm)="onConfirmCancel()"
       ></app-confirm-dialog>
+
+      <app-confirm-dialog
+        [open]="showNavigateAwayDialog()"
+        title="Cambios sin guardar"
+        message="Tienes cambios sin guardar. ¿Estás seguro de que deseas salir?"
+        cancelLabel="No, seguir editando"
+        confirmLabel="Sí, salir"
+        (cancel)="onNavigateAwayCancel()"
+        (confirm)="onNavigateAwayConfirm()"
+      ></app-confirm-dialog>
     </section>
   `,
   styles: [
@@ -256,6 +266,9 @@ export class ProfilePageComponent implements OnDestroy {
   readonly loading = signal(false);
   readonly changingPassword = signal(false);
   readonly showCancelDialog = signal(false);
+  readonly showNavigateAwayDialog = signal(false);
+
+  private navigateAwaySubject: Subject<boolean> | null = null;
   readonly formMessage = signal('');
   readonly successMessage = signal('');
 
@@ -336,6 +349,11 @@ export class ProfilePageComponent implements OnDestroy {
     this.destroy$.next();
     this.destroy$.complete();
     this.pendingChangesService.setHasUnsavedChanges(false);
+    if (this.navigateAwaySubject) {
+      this.navigateAwaySubject.next(true);
+      this.navigateAwaySubject.complete();
+      this.navigateAwaySubject = null;
+    }
   }
 
   @HostListener('window:beforeunload', ['$event'])
@@ -348,7 +366,7 @@ export class ProfilePageComponent implements OnDestroy {
     event.returnValue = true;
   }
 
-  canDeactivate(): boolean {
+  canDeactivate(): boolean | Observable<boolean> {
     if (this.pendingChangesService.consumeSkipNextPrompt()) {
       return true;
     }
@@ -357,7 +375,23 @@ export class ProfilePageComponent implements OnDestroy {
       return true;
     }
 
-    return window.confirm('Tienes cambios sin guardar. ¿Estás seguro de que deseas salir?');
+    this.navigateAwaySubject = new Subject<boolean>();
+    this.showNavigateAwayDialog.set(true);
+    return this.navigateAwaySubject.asObservable();
+  }
+
+  onNavigateAwayConfirm(): void {
+    this.showNavigateAwayDialog.set(false);
+    this.navigateAwaySubject?.next(true);
+    this.navigateAwaySubject?.complete();
+    this.navigateAwaySubject = null;
+  }
+
+  onNavigateAwayCancel(): void {
+    this.showNavigateAwayDialog.set(false);
+    this.navigateAwaySubject?.next(false);
+    this.navigateAwaySubject?.complete();
+    this.navigateAwaySubject = null;
   }
 
   onPhoneInput(): void {

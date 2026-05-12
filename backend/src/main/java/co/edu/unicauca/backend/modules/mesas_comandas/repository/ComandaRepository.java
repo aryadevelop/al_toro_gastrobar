@@ -8,7 +8,6 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.util.List;
-import java.util.Optional;
 
 /**
  * Repositorio de acceso a datos para la entidad {@link Comanda}.
@@ -29,13 +28,16 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
     List<Comanda> findByVisita_VisitaId(Long visitaId);
 
     /**
-     * Devuelve la comanda PRE_RESERVA de una reserva, si existe.
+     * Devuelve las comandas en el estado indicado asociadas a una reserva.
+     *
+     * <p>Retorna lista para soportar el split por estación (COCINA + BARRA), donde
+     * una reserva con menú especial puede tener más de una comanda PRE_RESERVA.
      *
      * @param reservaId identificador de la reserva
      * @param estado    estado a filtrar (típicamente {@code PRE_RESERVA})
-     * @return comanda en ese estado asociada a la reserva; vacía si no existe
+     * @return lista de comandas en ese estado asociadas a la reserva; vacía si no existe ninguna
      */
-    Optional<Comanda> findByReserva_ReservaIdAndComandaEstado(Long reservaId, EstadoComanda estado);
+    List<Comanda> findByReserva_ReservaIdAndComandaEstado(Long reservaId, EstadoComanda estado);
 
     /**
      * Obtiene todos los items de comandas en producción de una visita.
