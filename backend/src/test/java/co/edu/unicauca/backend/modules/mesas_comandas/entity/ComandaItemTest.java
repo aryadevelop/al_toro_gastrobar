@@ -84,6 +84,27 @@ class ComandaItemTest {
     }
 
     @Test
+    @DisplayName("equals → misma instancia → retorna true")
+    void equals_mismaInstancia_retornaTrue() {
+        ComandaItem entity = ComandaItem.builder().build();
+        assertThat(entity).isEqualTo(entity);
+    }
+
+    @Test
+    @DisplayName("equals → objeto de clase diferente → retorna false")
+    void equals_claseDiferente_retornaFalse() {
+        ComandaItem entity = ComandaItem.builder().build();
+        assertThat(entity).isNotEqualTo("no es un comanda item");
+    }
+
+    @Test
+    @DisplayName("equals → objeto null → retorna false")
+    void equals_objetoNull_retornaFalse() {
+        ComandaItem entity = ComandaItem.builder().build();
+        assertThat(entity.equals(null)).isFalse();
+    }
+
+    @Test
     @DisplayName("hashCode → es consistente con la clase")
     void hashCode_esConsistente() {
         ComandaItem entity1 = ComandaItem.builder().build();
