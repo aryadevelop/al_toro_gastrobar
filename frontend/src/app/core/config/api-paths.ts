@@ -56,6 +56,12 @@ export const API_PATHS = {
         itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
         zonasDisponibles: `${API}/mesas/zonas-disponibles`,
     },
+    notificaciones: {
+        atender: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/atender`,
+        servirPlatos: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/servir-platos`,
+        servirBebidas: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/servir-bebidas`,
+        atenderCambio: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/atender-cambio`,
+    },
     ventas: {
         detalle: (visitaId: string | number) => `${API}/ventas/${visitaId}/detalle`,
     },

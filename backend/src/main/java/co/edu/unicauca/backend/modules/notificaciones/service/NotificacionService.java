@@ -161,6 +161,9 @@ public class NotificacionService {
 
         // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de campana)
         mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+
+                // Re-evalúa si la mesa puede pasar a ATENDIDA
+                mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
     }
 
     /**
