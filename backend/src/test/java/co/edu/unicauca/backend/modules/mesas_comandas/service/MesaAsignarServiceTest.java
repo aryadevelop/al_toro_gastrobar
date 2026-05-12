@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.mesas_comandas.service;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AsignarMesaRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MesaAsignadaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ZonaDisponibleMesaResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
@@ -69,6 +70,7 @@ class MesaAsignarServiceTest {
     @Mock EmpleadoRepository empleadoRepository;
     @Mock MesaWsPublisher mesaWsPublisher;
     @Mock NotificacionWsPublisher notificacionWsPublisher;
+    @Mock VisitaEstadoMapper visitaEstadoMapper;
 
     @InjectMocks MesaAsignarService mesaAsignarService;
 
@@ -640,5 +642,7 @@ class MesaAsignarServiceTest {
         when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_MESERO)).thenReturn(Optional.of(mesero));
         when(visitaRepository.save(any(Visita.class))).thenReturn(visitaConCliente);
         when(mesaRepository.save(any(Mesa.class))).thenReturn(mesaGuardada);
+        when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
+        when(visitaEstadoMapper.toItemsVisitaResponse(any())).thenReturn(List.of());
     }
 }

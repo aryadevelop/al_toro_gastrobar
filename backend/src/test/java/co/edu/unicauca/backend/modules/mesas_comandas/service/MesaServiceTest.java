@@ -13,6 +13,7 @@ import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.shared.enums.EstadoMesa;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import org.springframework.http.HttpStatus;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -45,6 +46,7 @@ class MesaServiceTest {
     @Mock ComandaRepository comandaRepository;
     @Mock NotificacionRepository notificacionRepository;
     @Mock MesaMapper mesaMapper;
+    @Mock MesaValidador mesaValidador;
 
     @InjectMocks MesaService mesaService;
 
@@ -91,8 +93,8 @@ class MesaServiceTest {
                 .collect(Collectors.toList());
 
         Authentication auth = mock(Authentication.class);
-        when(auth.getName()).thenReturn(email);
-        when(auth.getAuthorities()).thenReturn((Collection) authorities);
+        lenient().when(auth.getName()).thenReturn(email);
+        lenient().when(auth.getAuthorities()).thenReturn((Collection) authorities);
         
         return auth;
     }
@@ -335,7 +337,7 @@ class MesaServiceTest {
 
             Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
 
-            when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+            when(mesaValidador.validarOwnership(eq(1L), any())).thenReturn(mesa);
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(items);
             when(mesaMapper.agruparItemsEnProduccion(items)).thenReturn(itemsDto);
             when(mesaMapper.toMesaItemsProduccionResponse("T1", itemsDto)).thenReturn(expectedResponse);
@@ -346,7 +348,7 @@ class MesaServiceTest {
             // Assert
             assertThat(resultado).isEqualTo(expectedResponse);
 
-            verify(mesaRepository).findById(1L);
+            verify(mesaValidador).validarOwnership(eq(1L), any());
             verify(comandaRepository).findItemsEnProduccionByVisita(1L);
             verify(mesaMapper).agruparItemsEnProduccion(items);
             verify(mesaMapper).toMesaItemsProduccionResponse("T1", itemsDto);
@@ -367,7 +369,7 @@ class MesaServiceTest {
 
             Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
 
-            when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+            when(mesaValidador.validarOwnership(eq(1L), any())).thenReturn(mesa);
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(itemsVacios);
             when(mesaMapper.agruparItemsEnProduccion(itemsVacios)).thenReturn(itemsDtoVacios);
             when(mesaMapper.toMesaItemsProduccionResponse("T1", itemsDtoVacios)).thenReturn(expectedResponse);
@@ -384,17 +386,17 @@ class MesaServiceTest {
         @DisplayName("con visitaId inexistente lanza BusinessException")
         void conVisitaIdInexistente_lanzaBusinessException() {
             // Arrange
-            // Authentication no es necesario porque la excepción se lanza antes de usarlo
-            when(mesaRepository.findById(999L)).thenReturn(Optional.empty());
+            doThrow(new BusinessException(ErrorCode.ENTITY_NOT_FOUND, "Mesa no encontrada", HttpStatus.NOT_FOUND))
+                    .when(mesaValidador).validarOwnership(eq(999L), any());
 
             // Act & Assert
-            // Pasamos null ya que authentication no se usa cuando la mesa no existe
             assertThatThrownBy(() -> mesaService.obtenerItemsProduccion(999L, null))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", ErrorCode.ENTITY_NOT_FOUND.getCode())
                     .hasMessageContaining("Mesa no encontrada");
 
-            verify(mesaRepository).findById(999L);
+            verify(mesaValidador).validarOwnership(eq(999L), any());
+            verifyNoInteractions(mesaRepository);
             verifyNoInteractions(comandaRepository);
             verifyNoInteractions(mesaMapper);
         }
