@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.inventario.service;
 
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
@@ -235,6 +236,64 @@ class ProductoServiceTest {
 
             verify(productoRepository)
                     .findByProductoEstadoAndMenuEspecialTrueOrderByProductoNombreAsc(EstadoGenerico.ACTIVO);
+        }
+    }
+
+    // =========================================================================
+    //  buscarProductos
+    // =========================================================================
+
+    @Nested
+    @DisplayName("buscarProductos")
+    class BuscarProductosTests {
+
+        @Test
+        @DisplayName("query null retorna lista vacia sin consultar repositorio")
+        void queryNull_retornaListaVacia() {
+            List<ProductoBusquedaResponse> result = productoService.buscarProductos(null);
+
+            assertThat(result).isEmpty();
+            verify(productoRepository, never()).buscarPorNombreSinMenu(any(), any());
+        }
+
+        @Test
+        @DisplayName("query en blanco retorna lista vacia sin consultar repositorio")
+        void queryBlank_retornaListaVacia() {
+            List<ProductoBusquedaResponse> result = productoService.buscarProductos("   ");
+
+            assertThat(result).isEmpty();
+            verify(productoRepository, never()).buscarPorNombreSinMenu(any(), any());
+        }
+
+        @Test
+        @DisplayName("query valida hace trim y delega al mapper por cada resultado")
+        void queryValida_trimYDelegaAlMapper() {
+            Producto p1 = mock(Producto.class);
+            Producto p2 = mock(Producto.class);
+            ProductoBusquedaResponse r1 = mock(ProductoBusquedaResponse.class);
+            ProductoBusquedaResponse r2 = mock(ProductoBusquedaResponse.class);
+
+            when(productoRepository.buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO))
+                    .thenReturn(List.of(p1, p2));
+            when(productoMapper.toBusquedaResponse(p1)).thenReturn(r1);
+            when(productoMapper.toBusquedaResponse(p2)).thenReturn(r2);
+
+            List<ProductoBusquedaResponse> result = productoService.buscarProductos("  emp  ");
+
+            assertThat(result).containsExactly(r1, r2);
+            verify(productoRepository).buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO);
+            verify(productoMapper, times(2)).toBusquedaResponse(any());
+        }
+
+        @Test
+        @DisplayName("query sin coincidencias retorna lista vacia")
+        void querySinCoincidencias_retornaListaVacia() {
+            when(productoRepository.buscarPorNombreSinMenu("xyz", EstadoGenerico.ACTIVO))
+                    .thenReturn(List.of());
+
+            List<ProductoBusquedaResponse> result = productoService.buscarProductos("xyz");
+
+            assertThat(result).isEmpty();
         }
     }
 }
