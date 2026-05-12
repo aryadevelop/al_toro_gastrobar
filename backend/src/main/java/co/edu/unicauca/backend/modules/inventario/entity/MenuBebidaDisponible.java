@@ -23,7 +23,7 @@ public class MenuBebidaDisponible {
     @JoinColumn(name = "producto_bebida_id")
     private Producto bebida;
 
-    @Column(name = "created_at", updatable = false)
+    @Column(name = "created_at", updatable = false, nullable = false)
     private LocalDateTime createdAt;
 
     @PrePersist

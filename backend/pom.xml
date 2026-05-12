@@ -186,6 +186,15 @@
 				<groupId>org.jacoco</groupId>
 				<artifactId>jacoco-maven-plugin</artifactId>
 				<version>0.8.12</version>
+				<configuration>
+					<excludes>
+						<exclude>**/modules/reportes/**</exclude>
+						<exclude>**/modules/reportes_clientes/**</exclude>
+						<exclude>**/modules/reportes_ventas_detalle/**</exclude>
+						<exclude>**/modules/auth/**</exclude>
+						<exclude>**/BackendApplication.*</exclude>
+					</excludes>
+				</configuration>
 				<executions>
 					<execution>
 						<id>prepare-agent</id>

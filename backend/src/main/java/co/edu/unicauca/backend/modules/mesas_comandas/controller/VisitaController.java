@@ -54,7 +54,15 @@ public class VisitaController {
             @RequestParam String emailCliente,
             Authentication authentication) {
 
-        validarOwnershipCliente(emailCliente, authentication);
+        // Solo aplica la restricción cuando el solicitante es CLIENTE
+        boolean esCliente = authentication.getAuthorities().stream()
+                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
+
+        // Compara ignorando mayúsculas para evitar falsos negativos por capitalización
+        if (esCliente && !authentication.getName().equalsIgnoreCase(emailCliente)) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "Solo puedes consultar tu propio historial de visitas.", HttpStatus.FORBIDDEN);
+        }
 
         List<VisitaResumenResponse> response = visitaService.obtenerHistorialVisitas(emailCliente);
 
@@ -146,26 +154,5 @@ public class VisitaController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Solicitud de asistencia enviada.", response));
-    }
-
-    /**
-     * Valida que el cliente autenticado sea el propietario del recurso solicitado.
-     *
-     * <p>Solo aplica restricción cuando el solicitante tiene rol {@code CLIENTE}. Roles como
-     * {@code ADMIN} pueden consultar visitas de cualquier cliente sin restricción.
-     *
-     * @param emailPropietario email del propietario del recurso
-     * @param authentication   contexto de autenticación del request actual
-     * @throws BusinessException con HTTP 403 si el cliente autenticado no es el propietario
-     */
-    private void validarOwnershipCliente(String emailPropietario, Authentication authentication) {
-        // Solo aplica la restricción cuando el solicitante es CLIENTE
-        boolean esCliente = authentication.getAuthorities().stream()
-                .anyMatch(a -> a.getAuthority().equals("ROLE_CLIENTE"));
-        // Compara ignorando mayúsculas para evitar falsos negativos por capitalización
-        if (esCliente && !authentication.getName().equalsIgnoreCase(emailPropietario)) {
-            throw new BusinessException(ErrorCode.ACCESS_DENIED,
-                    "Solo puedes consultar tu propio historial de visitas.", HttpStatus.FORBIDDEN);
-        }
     }
 }

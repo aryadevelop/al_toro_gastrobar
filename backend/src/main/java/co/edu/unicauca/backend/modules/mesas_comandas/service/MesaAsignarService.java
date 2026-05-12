@@ -201,8 +201,7 @@ public class MesaAsignarService {
 
         // 2. SOLO SI HAY CLIENTE: Publicar estado visita con ítems BORRADOR si existen
         if (visita.getCliente() != null) {
-            List<ComandaItem> itemsActivos =
-                    comandaRepository.findAllItemsActivosByVisita(visita.getVisitaId());
+            List<ComandaItem> itemsActivos = comandaRepository.findAllItemsActivosByVisita(visita.getVisitaId());
             List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(itemsActivos);
             BigDecimal total = itemsActivos.stream()
                     .filter(ci -> ci.getComandaItemPrecio() != null)
