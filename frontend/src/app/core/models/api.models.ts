@@ -192,6 +192,10 @@ export interface BackendNotificacionAsistencia {
   notificacionId: number;
 }
 
+export interface BackendAtenderCambioResponse {
+  comandaId: number;
+}
+
 export interface BackendNotificacionActiva {
   notificacionId: number;
   tipo: string;

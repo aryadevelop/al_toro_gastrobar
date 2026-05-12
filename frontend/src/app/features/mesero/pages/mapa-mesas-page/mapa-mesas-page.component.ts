@@ -1,9 +1,17 @@
 import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { Subject, timer } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
-import { MesaMapService, MesaDetalle, MesaMapaItem, MesaZonaMapa } from '../../../../core/services/mesa-map.service';
+import {
+  MesaMapService,
+  MesaDetalle,
+  MesaMapaItem,
+  MesaNotificacionActiva,
+  MesaZonaMapa,
+} from '../../../../core/services/mesa-map.service';
+import { MesaNotificacionService } from '../../../../core/services/mesa-notificacion.service';
 import { WebSocketService } from '../../../../core/services/websocket.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
@@ -20,6 +28,10 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         <div class="mapa-state error" *ngIf="!loading() && errorMessage()">
           <p>{{ errorMessage() }}</p>
           <button class="btn-outline" type="button" (click)="loadMapa()">Reintentar</button>
+        </div>
+
+        <div class="mapa-message" *ngIf="actionMessage()" [ngClass]="actionTone()">
+          {{ actionMessage() }}
         </div>
 
         <ng-container *ngIf="!loading() && !errorMessage()">
@@ -61,15 +73,22 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
                       Mesero: {{ mesa.nombreMesero }}
                     </p>
 
-                    <div class="mesa-tags" *ngIf="mesa.tieneBorrador || mesa.notificaciones.length">
+                    <div class="mesa-tags" *ngIf="mesa.tieneBorrador || visibleNotifications(mesa).length">
                       <span class="tag tag-draft" *ngIf="mesa.tieneBorrador">Borrador</span>
-                      <span
-                        class="tag"
-                        *ngFor="let notificacion of mesa.notificaciones"
-                        [attr.title]="notificationTitle(notificacion.tipo)"
-                      >
-                        {{ notificationShort(notificacion.tipo) }}
-                      </span>
+                      <div class="mesa-notifications" *ngIf="visibleNotifications(mesa).length">
+                        <button
+                          class="notif-icon"
+                          *ngFor="let notificacion of visibleNotifications(mesa)"
+                          type="button"
+                          [ngClass]="notificationClass(notificacion.tipo)"
+                          [attr.title]="notificationTitle(notificacion.tipo)"
+                          [attr.aria-label]="notificationTitle(notificacion.tipo)"
+                          [disabled]="isNotificationPending(notificacion.id)"
+                          (click)="handleNotification(mesa, notificacion)"
+                        >
+                          <span class="notif-emoji">{{ notificationShort(notificacion.tipo) }}</span>
+                        </button>
+                      </div>
                     </div>
 
                     <div class="mesa-actions">
@@ -180,6 +199,26 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .mapa-state.error {
         color: var(--mesa-secondary);
+      }
+
+      .mapa-message {
+        margin: 0.4rem 0 0.8rem;
+        padding: 0.5rem 0.8rem;
+        border-radius: 12px;
+        font-size: 0.82rem;
+        font-weight: 600;
+      }
+
+      .mapa-message.success {
+        background: rgba(46, 125, 50, 0.12);
+        color: #2e7d32;
+        border: 1px solid rgba(46, 125, 50, 0.2);
+      }
+
+      .mapa-message.error {
+        background: rgba(196, 30, 58, 0.12);
+        color: #c41e3a;
+        border: 1px solid rgba(196, 30, 58, 0.2);
       }
 
       .mapa-empty {
@@ -309,6 +348,60 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         display: flex;
         flex-wrap: wrap;
         gap: 0.4rem;
+        align-items: center;
+      }
+
+      .mesa-notifications {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.35rem;
+      }
+
+      .notif-icon {
+        border: 1px solid rgba(44, 24, 16, 0.2);
+        background: #ffffff;
+        color: var(--mesa-primary);
+        width: 28px;
+        height: 28px;
+        border-radius: 50%;
+        display: grid;
+        place-items: center;
+        cursor: pointer;
+        padding: 0;
+      }
+
+      .notif-icon:disabled {
+        opacity: 0.5;
+        cursor: not-allowed;
+      }
+
+      .notif-emoji {
+        font-size: 0.95rem;
+        line-height: 1;
+      }
+
+      .notif-attention {
+        background: rgba(196, 30, 58, 0.16);
+        color: #c41e3a;
+        border-color: rgba(196, 30, 58, 0.35);
+      }
+
+      .notif-platos {
+        background: rgba(255, 179, 71, 0.2);
+        color: #b96500;
+        border-color: rgba(185, 101, 0, 0.3);
+      }
+
+      .notif-bebidas {
+        background: rgba(46, 125, 50, 0.16);
+        color: #2e7d32;
+        border-color: rgba(46, 125, 50, 0.3);
+      }
+
+      .notif-cambio {
+        background: rgba(41, 98, 150, 0.16);
+        color: #296296;
+        border-color: rgba(41, 98, 150, 0.3);
       }
 
       .tag {
@@ -530,6 +623,7 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   private readonly mesaService = inject(MesaMapService);
   private readonly webSocket = inject(WebSocketService);
   private readonly router = inject(Router);
+  private readonly notificacionService = inject(MesaNotificacionService);
   private readonly destroy$ = new Subject<void>();
 
   readonly loading = signal(true);
@@ -537,6 +631,9 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   readonly mapa = signal<{ zonas: MesaZonaMapa[]; totalMesas: number }>({ zonas: [], totalMesas: 0 });
   readonly expandedZoneId = signal<string | null>(null);
   readonly selectedMesa = signal<MesaDetalle | null>(null);
+  readonly actionMessage = signal('');
+  readonly actionTone = signal<'success' | 'error' | ''>('');
+  readonly pendingNotifications = signal<Set<string>>(new Set());
 
   ngOnInit(): void {
     this.loadMapa();
@@ -668,6 +765,25 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
     }
   }
 
+  notificationClass(tipo: string): string {
+    switch (tipo?.toUpperCase()) {
+      case 'ATENCION':
+      case 'AT':
+        return 'notif-attention';
+      case 'PLATOS_LISTOS':
+      case 'PL':
+        return 'notif-platos';
+      case 'BEBIDAS_LISTAS':
+      case 'BE':
+        return 'notif-bebidas';
+      case 'CAMBIO':
+      case 'CA':
+        return 'notif-cambio';
+      default:
+        return '';
+    }
+  }
+
   notificationTitle(tipo: string): string {
     switch (tipo?.toUpperCase()) {
       case 'ATENCION':
@@ -687,6 +803,69 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
     }
   }
 
+  visibleNotifications(mesa: MesaMapaItem): MesaNotificacionActiva[] {
+    const notificaciones = mesa.notificaciones ?? [];
+    if (mesa.esMesaPropia) {
+      return notificaciones;
+    }
+
+    return notificaciones.filter((notificacion) => this.isSharedNotification(notificacion.tipo));
+  }
+
+  isNotificationPending(notificacionId: string): boolean {
+    return this.pendingNotifications().has(notificacionId);
+  }
+
+  handleNotification(mesa: MesaMapaItem, notificacion: MesaNotificacionActiva): void {
+    const action = this.resolveActionType(notificacion.tipo);
+    if (!action) {
+      return;
+    }
+
+    if (this.isNotificationPending(notificacion.id)) {
+      return;
+    }
+
+    this.setPending(notificacion.id, true);
+    this.actionMessage.set('');
+    this.actionTone.set('');
+
+    switch (action) {
+      case 'ATENCION':
+        this.notificacionService.atenderAsistencia(notificacion.id).subscribe({
+          next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Atencion registrada'),
+          error: (err) => this.handleActionError(notificacion.id, err),
+        });
+        break;
+      case 'PLATOS_LISTOS':
+        this.notificacionService.servirPlatos(notificacion.id).subscribe({
+          next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Platos servidos'),
+          error: (err) => this.handleActionError(notificacion.id, err),
+        });
+        break;
+      case 'BEBIDAS_LISTAS':
+        this.notificacionService.servirBebidas(notificacion.id).subscribe({
+          next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Bebidas servidas'),
+          error: (err) => this.handleActionError(notificacion.id, err),
+        });
+        break;
+      case 'CAMBIO':
+        this.notificacionService.atenderCambio(notificacion.id).subscribe({
+          next: (result) => {
+            this.setPending(notificacion.id, false);
+            this.removeNotification(mesa.id, notificacion.id);
+            this.loadMapa(false);
+            this.router.navigate(['/app/mesero/comanda-editor'], {
+              queryParams: { mesaId: mesa.id, comandaId: result.comandaId },
+              state: { actionMessage: 'Comanda lista para modificar' },
+            });
+          },
+          error: (err) => this.handleActionError(notificacion.id, err),
+        });
+        break;
+    }
+  }
+
   formatDateTime(value?: string): string {
     if (!value) {
       return 'Sin hora';
@@ -699,5 +878,82 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
       dateStyle: 'short',
       timeStyle: 'short',
     });
+  }
+
+  private isSharedNotification(tipo: string): boolean {
+    const normalized = tipo?.toUpperCase() ?? '';
+    return normalized === 'PLATOS_LISTOS' || normalized === 'PL' || normalized === 'BEBIDAS_LISTAS' || normalized === 'BE';
+  }
+
+  private resolveActionType(tipo: string): 'ATENCION' | 'PLATOS_LISTOS' | 'BEBIDAS_LISTAS' | 'CAMBIO' | null {
+    switch (tipo?.toUpperCase()) {
+      case 'ATENCION':
+      case 'AT':
+        return 'ATENCION';
+      case 'PLATOS_LISTOS':
+      case 'PL':
+        return 'PLATOS_LISTOS';
+      case 'BEBIDAS_LISTAS':
+      case 'BE':
+        return 'BEBIDAS_LISTAS';
+      case 'CAMBIO':
+      case 'CA':
+        return 'CAMBIO';
+      default:
+        return null;
+    }
+  }
+
+  private handleActionSuccess(mesaId: string, notificacionId: string, message: string): void {
+    this.setPending(notificacionId, false);
+    this.removeNotification(mesaId, notificacionId);
+    this.actionMessage.set(message);
+    this.actionTone.set('success');
+    this.loadMapa(false);
+  }
+
+  private handleActionError(notificacionId: string, err: unknown): void {
+    this.setPending(notificacionId, false);
+    this.actionMessage.set(this.resolveErrorMessage(err));
+    this.actionTone.set('error');
+  }
+
+  private removeNotification(mesaId: string, notificacionId: string): void {
+    const current = this.mapa();
+    const zonas = current.zonas.map((zona) => ({
+      ...zona,
+      mesas: zona.mesas.map((mesa) =>
+        mesa.id === mesaId
+          ? {
+              ...mesa,
+              notificaciones: mesa.notificaciones.filter((item) => item.id !== notificacionId),
+            }
+          : mesa
+      ),
+    }));
+
+    this.mapa.set({ ...current, zonas });
+  }
+
+  private setPending(notificacionId: string, pending: boolean): void {
+    const next = new Set(this.pendingNotifications());
+    if (pending) {
+      next.add(notificacionId);
+    } else {
+      next.delete(notificacionId);
+    }
+    this.pendingNotifications.set(next);
+  }
+
+  private resolveErrorMessage(err: unknown): string {
+    if (err instanceof HttpErrorResponse) {
+      if (typeof err.error?.message === 'string' && err.error.message.trim().length > 0) {
+        return err.error.message;
+      }
+      if (typeof err.error === 'string' && err.error.trim().length > 0) {
+        return err.error;
+      }
+    }
+    return 'No fue posible completar la accion.';
   }
 }
