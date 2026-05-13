@@ -56,6 +56,13 @@ export const API_PATHS = {
         itemsProduccion: (mesaId: string | number) => `${API}/mesas/${mesaId}/items-produccion`,
         zonasDisponibles: `${API}/mesas/zonas-disponibles`,
     },
+    comandas: {
+        borrador: `${API}/comandas/borrador`,
+        borradorItems: `${API}/comandas/borrador/items`,
+        borradorItem: (itemId: string | number) => `${API}/comandas/borrador/items/${itemId}`,
+        enviar: (comandaId: string | number) => `${API}/comandas/borrador/${comandaId}/enviar`,
+        notas: (comandaId: string | number) => `${API}/comandas/borrador/${comandaId}/notas`,
+    },
     notificaciones: {
         atender: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/atender`,
         servirPlatos: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/servir-platos`,

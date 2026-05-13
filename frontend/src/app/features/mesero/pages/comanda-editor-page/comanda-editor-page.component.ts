@@ -2,8 +2,9 @@ import { CommonModule } from '@angular/common';
 import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
-import { Subject } from 'rxjs';
+import { forkJoin, of, Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { ComandaDraftData, ComandaDraftItem, ComandaService } from '../../../../core/services/comanda.service';
 import { ProductCatalogService, CartaCatalogItem } from '../../../../core/services/product-catalog.service';
 import { MesaItemComanda, MesaMapService } from '../../../../core/services/mesa-map.service';
 import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
@@ -24,13 +25,6 @@ interface DraftItem {
   stockBase: number;
 }
 
-interface DraftStoragePayload {
-  items: DraftItem[];
-  kitchenNote: string;
-  barNote: string;
-  sentAccumulated: number;
-}
-
 @Component({
   selector: 'app-comanda-editor-page',
   standalone: true,
@@ -38,11 +32,6 @@ interface DraftStoragePayload {
   template: `
     <section class="page-grid comanda-shell">
       <app-page-header title="Modificar comanda" subtitle="Edición de borrador para cocina y barra"></app-page-header>
-
-      <p class="integration-note">
-        Integración parcial activa: la carga de mesa/producción es en tiempo real; guardar y enviar operan en modo local
-        mientras se habilitan endpoints de comanda en backend.
-      </p>
 
       <article class="card comanda-card">
         <header class="comanda-head">
@@ -127,7 +116,7 @@ interface DraftStoragePayload {
                     min="1"
                     max="250"
                     [value]="item.quantity"
-                    (input)="setQuantity(item.id, $any($event.target).value)"
+                    (change)="setQuantity(item.id, $any($event.target).value)"
                   />
                   <button type="button" (click)="changeQuantity(item.id, 1)">+</button>
                 </div>
@@ -141,7 +130,7 @@ interface DraftStoragePayload {
                   <input
                     class="input-field"
                     [value]="item.description"
-                    (input)="setDescription(item.id, $any($event.target).value)"
+                    (change)="setDescription(item.id, $any($event.target).value)"
                     placeholder="Sin cebolla, término 3/4, etc."
                   />
                 </label>
@@ -206,7 +195,7 @@ interface DraftStoragePayload {
                   <input
                     class="input-field"
                     [value]="item.description"
-                    (input)="setDescription(item.id, $any($event.target).value)"
+                    (change)="setDescription(item.id, $any($event.target).value)"
                     placeholder="Sin hielo, menos azúcar, etc."
                   />
                 </label>
@@ -625,6 +614,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   private readonly route = inject(ActivatedRoute);
   private readonly router = inject(Router);
   private readonly mesaService = inject(MesaMapService);
+  private readonly comandaService = inject(ComandaService);
   private readonly productCatalogService = inject(ProductCatalogService);
   private readonly destroy$ = new Subject<void>();
   private readonly defaultStock = 250;
@@ -647,7 +637,10 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   readonly showCancelDialog = signal(false);
   readonly deletingItemId = signal<string | null>(null);
   readonly modificationDraftMap = signal<Record<string, string>>({});
-  readonly sentAccumulated = signal(0);
+  readonly comandaCocinaId = signal<string | null>(null);
+  readonly comandaBarraId = signal<string | null>(null);
+  readonly subtotalBorrador = signal(0);
+  readonly totalBackend = signal(0);
 
   readonly comandaForm = this.formBuilder.nonNullable.group({
     kitchenNotes: [''],
@@ -678,7 +671,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
     const mesaId = this.route.snapshot.queryParamMap.get('mesaId');
     if (mesaId) {
       this.mesaId.set(mesaId);
-      this.restoreDraft(mesaId);
+      this.fetchBorrador(mesaId);
       this.fetchItemsProduccion(mesaId);
       this.fetchMesaDetalle(mesaId);
       return;
@@ -716,31 +709,24 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   }
 
   onSelectSuggestion(item: CartaCatalogItem): void {
-    const existing = this.draftItems().find((entry) => !entry.isModification && entry.baseProductId === item.productId);
-    if (existing) {
-      this.changeQuantity(existing.id, 1);
-    } else {
-      this.draftItems.set(
-        this.sortDraftItems([
-          ...this.draftItems(),
-          {
-            id: this.buildId(),
-            baseProductId: item.productId,
-            name: item.productName,
-            category: item.category,
-            quantity: 1,
-            unitPrice: item.unitPrice,
-            description: '',
-            isModification: false,
-            stockBase: this.defaultStock,
-          },
-        ])
-      );
-      this.persistDraft();
+    const visitaId = this.mesaId();
+    if (!visitaId) {
+      return;
     }
 
-    this.searchTerm.set('');
-    this.filteredSuggestions.set([]);
+    this.comandaService
+      .addItem({ visitaId, productoId: item.productId, cantidad: 1 })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => {
+          this.applyDraft(draft);
+          this.searchTerm.set('');
+          this.filteredSuggestions.set([]);
+          this.actionTone.set('success');
+          this.actionMessage.set('Producto agregado al borrador.');
+        },
+        error: () => this.handleActionError('No pudimos agregar el producto al borrador.'),
+      });
   }
 
   changeQuantity(itemId: string, delta: number): void {
@@ -760,12 +746,20 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   }
 
   setDescription(itemId: string, value: string): void {
-    this.patchItem(itemId, (item) => ({ ...item, description: value.trim() }));
+    this.comandaService
+      .updateItem(itemId, { descripcion: value.trim() })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => this.applyDraft(draft),
+        error: () => this.handleActionError('No pudimos actualizar la descripción del item.'),
+      });
   }
 
   setItemPrice(itemId: string, rawValue: string): void {
-    const price = Math.max(0, Number(rawValue) || 0);
-    this.patchItem(itemId, (item) => ({ ...item, unitPrice: price }));
+    const _itemId = itemId;
+    const _rawValue = rawValue;
+    this.actionTone.set('error');
+    this.actionMessage.set('El valor del item se define desde backend para este flujo.');
   }
 
   setModificationDraft(parentId: string, value: string): void {
@@ -789,26 +783,26 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    this.draftItems.set(
-      this.sortDraftItems([
-        ...this.draftItems(),
-        {
-          id: this.buildId(),
-          baseProductId: parent.baseProductId,
-          name: `${parent.name} (modificación)`,
-          category: parent.category,
-          quantity: 1,
-          unitPrice: parent.unitPrice,
-          description: text,
-          isModification: true,
-          parentId,
-          stockBase: parent.stockBase,
-        },
-      ])
-    );
+    const visitaId = this.mesaId();
+    if (!visitaId) {
+      return;
+    }
 
-    this.setModificationDraft(parentId, '');
-    this.persistDraft();
+    this.comandaService
+      .addItem({
+        visitaId,
+        productoId: parent.baseProductId,
+        cantidad: 1,
+        descripcion: text,
+      })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => {
+          this.applyDraft(draft);
+          this.setModificationDraft(parentId, '');
+        },
+        error: () => this.handleActionError('No pudimos guardar la modificación.'),
+      });
   }
 
   requestDelete(itemId: string): void {
@@ -829,13 +823,19 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const updated = target.isModification
-      ? this.draftItems().filter((item) => item.id !== target.id)
-      : this.draftItems().filter((item) => item.id !== target.id && item.parentId !== target.id);
-
-    this.draftItems.set(this.sortDraftItems(updated));
-    this.persistDraft();
-    this.cancelDelete();
+    this.comandaService
+      .deleteItem(target.id)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => {
+          this.applyDraft(draft);
+          this.cancelDelete();
+        },
+        error: () => {
+          this.cancelDelete();
+          this.handleActionError('No pudimos eliminar el item del borrador.');
+        },
+      });
   }
 
   itemSubtotal(item: DraftItem): number {
@@ -843,15 +843,18 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   }
 
   subtotalDraft(): number {
-    return this.draftItems().reduce((acc, item) => acc + this.itemSubtotal(item), 0);
+    return this.subtotalBorrador();
   }
 
   totalAccumulated(): number {
-    return this.subtotalDraft() + this.sentAccumulated();
+    return this.totalBackend();
   }
 
   canSendToProduction(): boolean {
-    return this.draftItems().length > 0;
+    return Boolean(
+      (this.comandaCocinaId() && this.draftPlatos().length) ||
+        (this.comandaBarraId() && this.draftBebidas().length)
+    );
   }
 
   onSendToProduction(): void {
@@ -859,30 +862,52 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       return;
     }
 
-    const sent = this.draftItems().map((item) => ({
-      nombreProducto: item.name,
-      descripcion: item.description || undefined,
-      categoriaProducto: item.category,
-      cantidad: item.quantity,
-      estadoComanda: 'PENDIENTE',
-    }));
+    const requests = [] as Array<ReturnType<ComandaService['enviarAProduccion']>>;
+    const cocinaId = this.comandaCocinaId();
+    const barraId = this.comandaBarraId();
 
-    this.itemsProduccion.set([...this.itemsProduccion(), ...sent]);
-    this.sentAccumulated.set(this.sentAccumulated() + this.subtotalDraft());
-    this.draftItems.set([]);
-    this.modificationDraftMap.set({});
-    this.saved.set(false);
-    this.actionTone.set('success');
-    this.actionMessage.set('Comanda enviada en modo local. Pendiente integración backend para envío real a producción.');
-    this.persistDraft();
+    if (cocinaId && this.draftPlatos().length) {
+      requests.push(this.comandaService.enviarAProduccion(cocinaId));
+    }
+    if (barraId && this.draftBebidas().length) {
+      requests.push(this.comandaService.enviarAProduccion(barraId));
+    }
+    if (!requests.length) {
+      return;
+    }
+
+    forkJoin(requests)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (responses) => {
+          const last = responses[responses.length - 1];
+          if (last) {
+            this.applyDraft(last);
+          }
+          const visitaId = this.mesaId();
+          if (visitaId) {
+            this.fetchItemsProduccion(visitaId);
+          }
+          this.saved.set(false);
+          this.actionTone.set('success');
+          this.actionMessage.set('Comanda enviada a producción.');
+        },
+        error: () => this.handleActionError('No pudimos enviar la comanda a producción.'),
+      });
   }
 
   onSaveDraftAndClose(): void {
-    this.saved.set(true);
-    this.persistDraft();
-    this.router.navigate(['/app/mesero/mesas'], {
-      state: { actionMessage: 'Comanda guardada en modo local. Pendiente persistencia backend.' },
-    });
+    this.persistNotes()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.saved.set(true);
+          this.router.navigate(['/app/mesero/mesas'], {
+            state: { actionMessage: 'Comanda guardada con éxito.' },
+          });
+        },
+        error: () => this.handleActionError('No pudimos guardar las notas de la comanda.'),
+      });
   }
 
   onCancelForm(): void {
@@ -894,12 +919,23 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   }
 
   confirmCancelForm(): void {
-    const key = this.draftStorageKey();
-    if (key) {
-      localStorage.removeItem(key);
+    const visitaId = this.mesaId();
+    if (!visitaId) {
+      this.showCancelDialog.set(false);
+      this.goBack();
+      return;
     }
-    this.showCancelDialog.set(false);
-    this.goBack();
+
+    this.comandaService
+      .cancelarFormulario(visitaId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.showCancelDialog.set(false);
+          this.goBack();
+        },
+        error: () => this.handleActionError('No pudimos cancelar la edición de la comanda.'),
+      });
   }
 
   private goBack(): void {
@@ -909,22 +945,14 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   private updateQuantityWithValidation(item: DraftItem, requested: number): void {
     const parsed = Number.isFinite(requested) ? Math.trunc(requested) : item.quantity;
     const bounded = Math.min(250, Math.max(1, parsed));
-    const maxStock = this.availableStockForItem(item);
 
-    if (bounded > maxStock) {
-      this.actionTone.set('error');
-      this.actionMessage.set(`Solo hay ${maxStock} unidades disponibles de este producto`);
-      return;
-    }
-
-    this.patchItem(item.id, (current) => ({ ...current, quantity: bounded }));
-  }
-
-  private availableStockForItem(item: DraftItem): number {
-    const reservedByOthers = this.draftItems()
-      .filter((entry) => entry.baseProductId === item.baseProductId && entry.id !== item.id)
-      .reduce((acc, entry) => acc + entry.quantity, 0);
-    return Math.max(1, item.stockBase - reservedByOthers);
+    this.comandaService
+      .updateItem(item.id, { cantidad: bounded })
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => this.applyDraft(draft),
+        error: () => this.handleActionError('No pudimos actualizar la cantidad del item.'),
+      });
   }
 
   private groupedDraftItems(category: DraftCategory): DraftItem[] {
@@ -943,12 +971,6 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
 
   private sortDraftItems(items: DraftItem[]): DraftItem[] {
     return [...items].sort((a, b) => a.name.localeCompare(b.name, 'es'));
-  }
-
-  private patchItem(itemId: string, updater: (item: DraftItem) => DraftItem): void {
-    const updated = this.draftItems().map((item) => (item.id === itemId ? updater(item) : item));
-    this.draftItems.set(updated);
-    this.persistDraft();
   }
 
   private loadCatalog(): void {
@@ -980,6 +1002,16 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       });
   }
 
+  private fetchBorrador(visitaId: string): void {
+    this.comandaService
+      .getBorrador(visitaId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => this.applyDraft(draft),
+        error: () => this.handleActionError('No pudimos cargar el borrador de comanda.'),
+      });
+  }
+
   private fetchItemsProduccion(mesaId: string): void {
     this.loadingItems.set(true);
     this.loadError.set(null);
@@ -1000,43 +1032,86 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       });
   }
 
-  private restoreDraft(mesaId: string): void {
-    const raw = localStorage.getItem(this.draftStorageKey(mesaId));
-    if (!raw) {
-      return;
-    }
+  private applyDraft(draft: ComandaDraftData): void {
+    this.mesaIdentificador.set(draft.mesaIdentificador || this.mesaIdentificador());
+    this.comandaCocinaId.set(draft.comandaCocinaId ?? null);
+    this.comandaBarraId.set(draft.comandaBarraId ?? null);
+    this.subtotalBorrador.set(draft.subTotal);
+    this.totalBackend.set(draft.total);
+    this.draftItems.set(this.mapDraftItems(draft));
+    this.comandaForm.patchValue(
+      {
+        kitchenNotes: draft.notasCocina ?? '',
+        barNotes: draft.notasBarra ?? '',
+      },
+      { emitEvent: false }
+    );
 
-    try {
-      const parsed = JSON.parse(raw) as DraftStoragePayload;
-      this.draftItems.set(Array.isArray(parsed.items) ? parsed.items : []);
-      this.sentAccumulated.set(Number(parsed.sentAccumulated) || 0);
-      this.comandaForm.patchValue({
-        kitchenNotes: parsed.kitchenNote ?? '',
-        barNotes: parsed.barNote ?? '',
-      });
-    } catch {
-      localStorage.removeItem(this.draftStorageKey(mesaId));
+    if (!this.comandaId()) {
+      this.comandaId.set(draft.comandaCocinaId ?? draft.comandaBarraId ?? null);
     }
   }
 
-  private persistDraft(): void {
-    const key = this.draftStorageKey();
-    if (!key) {
-      return;
-    }
+  private mapDraftItems(draft: ComandaDraftData): DraftItem[] {
+    const mapCategory = (items: ComandaDraftItem[], category: DraftCategory): DraftItem[] => {
+      const baseItems = items.filter((item) => !(item.descripcion ?? '').trim());
+      const mappedBase = baseItems.map((item) => ({
+        id: item.comandaItemId,
+        baseProductId: item.productoId,
+        name: item.productoNombre,
+        category,
+        quantity: item.cantidad,
+        unitPrice: item.precioUnitario,
+        description: item.descripcion ?? '',
+        isModification: false,
+        stockBase: this.defaultStock,
+      }));
 
-    const payload: DraftStoragePayload = {
-      items: this.draftItems(),
-      kitchenNote: this.comandaForm.controls.kitchenNotes.value,
-      barNote: this.comandaForm.controls.barNotes.value,
-      sentAccumulated: this.sentAccumulated(),
+      const mappedMods = items
+        .filter((item) => (item.descripcion ?? '').trim())
+        .map((item) => {
+          const parent = mappedBase.find((root) => root.baseProductId === item.productoId);
+          return {
+            id: item.comandaItemId,
+            baseProductId: item.productoId,
+            name: item.productoNombre,
+            category,
+            quantity: item.cantidad,
+            unitPrice: item.precioUnitario,
+            description: item.descripcion ?? '',
+            isModification: true,
+            parentId: parent?.id,
+            stockBase: this.defaultStock,
+          } satisfies DraftItem;
+        });
+
+      return this.sortDraftItems([...mappedBase, ...mappedMods]);
     };
-    localStorage.setItem(key, JSON.stringify(payload));
+
+    return [...mapCategory(draft.platos, 'Platos'), ...mapCategory(draft.bebidas, 'Bebidas')];
   }
 
-  private draftStorageKey(mesaIdParam?: string): string {
-    const mesa = mesaIdParam ?? this.mesaId() ?? 'unknown';
-    return `mesero-comanda-draft-${mesa}`;
+  private persistNotes() {
+    const requests = [] as Array<ReturnType<ComandaService['updateNotas']>>;
+    const kitchenId = this.comandaCocinaId();
+    const barId = this.comandaBarraId();
+
+    if (kitchenId) {
+      requests.push(this.comandaService.updateNotas(kitchenId, this.comandaForm.controls.kitchenNotes.value));
+    }
+    if (barId) {
+      requests.push(this.comandaService.updateNotas(barId, this.comandaForm.controls.barNotes.value));
+    }
+    if (!requests.length) {
+      return of([]);
+    }
+
+    return forkJoin(requests);
+  }
+
+  private handleActionError(message: string): void {
+    this.actionTone.set('error');
+    this.actionMessage.set(message);
   }
 
   private isReloadNavigation(): boolean {
@@ -1044,7 +1119,4 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
     return navEntry?.type === 'reload';
   }
 
-  private buildId(): string {
-    return `${Date.now()}-${Math.random().toString(36).slice(2, 8)}`;
-  }
 }

@@ -196,6 +196,33 @@ export interface BackendAtenderCambioResponse {
   comandaId: number;
 }
 
+export interface BackendItemBorradorResponse {
+  comandaItemId: number;
+  productoId: number;
+  productoNombre: string;
+  categoriaProducto: string;
+  precioUnitario: number;
+  cantidad: number;
+  subtotal: number;
+  descripcion?: string;
+  menuGrupo?: string;
+}
+
+export interface BackendBorradorComandaResponse {
+  visitaId: number;
+  mesaIdentificador: string;
+  comandaCocinaId?: number;
+  comandaBarraId?: number;
+  platos: BackendItemBorradorResponse[];
+  bebidas: BackendItemBorradorResponse[];
+  subTotal: number;
+  total: number;
+  notasCocina?: string;
+  notasBarra?: string;
+  puedeEnviarCocina: boolean;
+  puedeEnviarBarra: boolean;
+}
+
 export interface BackendNotificacionActiva {
   notificacionId: number;
   tipo: string;
