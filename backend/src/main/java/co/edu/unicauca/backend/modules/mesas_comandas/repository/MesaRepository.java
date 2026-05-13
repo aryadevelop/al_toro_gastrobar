@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.time.LocalDateTime;
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -111,4 +112,21 @@ public interface MesaRepository extends JpaRepository<Mesa, Long> {
         GROUP BY m.zona.zonaId
         """)
     List<Object[]> sumPersonasPorZonaActiva();
+
+    /**
+     * Recupera en lote las mesas correspondientes a un conjunto de visitas y
+     * el mesero junto con su usuario asociado para evitar consultas
+     * adicionales por cada mesa al construir vistas agregadas.
+     *
+     * @param visitaIds identificadores de visita a consultar
+     * @return mesas encontradas con {@code mesero} y {@code mesero.usuario}
+     *         hidratados
+     */
+    @Query("""
+        SELECT m FROM Mesa m
+        JOIN FETCH m.mesero me
+        JOIN FETCH me.usuario u
+        WHERE m.visitaId IN :visitaIds
+        """)
+    List<Mesa> findByVisita_VisitaIdIn(@Param("visitaIds") Collection<Long> visitaIds);
 }

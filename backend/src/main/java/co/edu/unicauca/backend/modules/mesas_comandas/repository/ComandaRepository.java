@@ -4,10 +4,13 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -107,4 +110,49 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * Hasta dos por visita en BORRADOR (una por estación).
      */
     List<Comanda> findByVisita_VisitaIdAndComandaEstado(Long visitaId, EstadoComanda estado);
+
+    /**
+     * Recupera las comandas de una estación cuyo estado pertenece al conjunto
+     * indicado.
+     *
+     * <p>El ordenamiento se delega al servicio, que aplica comparadores
+     * diferenciados por estado con respaldo en {@code createdAt} cuando los
+     * timestamps de transición no están presentes.
+     *
+     * @param estacion estación destino ({@code COCINA} o {@code BARRA})
+     * @param estados  estados de comanda a incluir
+     * @return comandas que satisfacen el filtro con la visita hidratada;
+     *         lista vacía cuando no existen coincidencias
+     */
+    @Query("""
+        SELECT c FROM Comanda c
+        JOIN FETCH c.visita v
+        WHERE c.comandaEstacion = :estacion
+        AND c.comandaEstado IN :estados
+        """)
+    List<Comanda> findByEstacionAndEstadoIn(@Param("estacion") EstacionComanda estacion,
+                                            @Param("estados") Collection<EstadoComanda> estados);
+
+    /**
+     * Localiza la comanda en estado {@code BORRADOR} asociada a una visita y a
+     * una estación, adquiriendo un bloqueo pesimista de escritura sobre la
+     * fila resultante.
+     *
+     * <p>El bloqueo evita condiciones de carrera cuando dos transacciones
+     * intentan fusionar simultáneamente contenido sobre el mismo borrador.
+     *
+     * @param visitaId identificador de la visita
+     * @param estacion estación destino
+     * @return {@link Optional} con la comanda en {@code BORRADOR} bloqueada;
+     *         vacío cuando no existe ningún borrador para esa combinación
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT c FROM Comanda c
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstacion = :estacion
+        AND c.comandaEstado = co.edu.unicauca.backend.shared.enums.EstadoComanda.BORRADOR
+        """)
+    Optional<Comanda> findBorradorActivoByVisitaYEstacion(@Param("visitaId") Long visitaId,
+                                                          @Param("estacion") EstacionComanda estacion);
 }
