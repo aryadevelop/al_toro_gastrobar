@@ -1,16 +1,22 @@
 package co.edu.unicauca.backend.modules.notificaciones.service;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.DescripcionNormalizer;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
@@ -25,6 +31,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.LocalDateTime;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio de negocio para solicitar y atender asistencia de mesero en mesa.
@@ -41,6 +51,7 @@ public class NotificacionService {
     private final NotificacionRepository notificacionRepository;
     private final NotificacionWsPublisher wsPublisher;
     private final ComandaRepository comandaRepository;
+    private final ComandaItemRepository comandaItemRepository;
     private final MesaAsignarService mesaAsignarService;
     private final MesaWsPublisher mesaWsPublisher;
 
@@ -103,16 +114,13 @@ public class NotificacionService {
                 .build();
         notificacion = notificacionRepository.save(notificacion);
 
-        String clienteNombre = visita.getCliente() != null
-                ? visita.getCliente().getClienteNombre()
-                : "Cliente";
-
+        // La validación previa de ownership garantiza que el cliente está presente.
         // Broadcast a todos los empleados conectados con los datos de la mesa
         wsPublisher.publicarAsistenciaSolicitada(AsistenciaSolicitadaWsMessage.builder()
                 .visitaId(visitaId)
                 .notificacionId(notificacion.getNotificacionId())
                 .mesaIdentificador(mesa.getMesaIdentificador())
-                .clienteNombre(clienteNombre)
+                .clienteNombre(visita.getCliente().getClienteNombre())
                 .fechaHora(LocalDateTime.now())
                 .build());
 
@@ -237,8 +245,14 @@ public class NotificacionService {
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
-        // Notifica al dashboard del cocinero para eliminar la comanda de "Listas"
-        wsPublisher.publicarComandaCompletada(comanda.getComandaId(), comanda.getComandaEstacion().name());
+        // Notifica al tablero de producción de la estación para retirar la comanda de "Listas"
+        wsPublisher.publicarEventoProduccion(
+                comanda.getComandaEstacion(),
+                new ComandaProduccionEventoWsMessage(
+                        TipoEventoProduccion.COMPLETADA,
+                        comanda.getComandaEstacion().name(),
+                        comanda.getComandaId(),
+                        null));
 
         Long visitaId = notificacion.getMesa().getVisitaId();
 
@@ -290,8 +304,14 @@ public class NotificacionService {
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
-        // Notifica al dashboard del bartender para eliminar la comanda de "Listas"
-        wsPublisher.publicarComandaCompletada(comanda.getComandaId(), comanda.getComandaEstacion().name());
+        // Notifica al tablero de producción de la estación para retirar la comanda de "Listas"
+        wsPublisher.publicarEventoProduccion(
+                comanda.getComandaEstacion(),
+                new ComandaProduccionEventoWsMessage(
+                        TipoEventoProduccion.COMPLETADA,
+                        comanda.getComandaEstacion().name(),
+                        comanda.getComandaId(),
+                        null));
 
         Long visitaId = notificacion.getMesa().getVisitaId();
 
@@ -303,23 +323,33 @@ public class NotificacionService {
     }
 
     /**
-     * Atiende una notificación de cambio de comanda.
+     * Atiende una notificación de cambio y reabsorbe la comanda asociada al
+     * borrador activo de la misma visita y estación.
      *
-     * <p>Marca la notificación como {@code ATENDIDA} y devuelve el {@code comandaId}
-     * para que el frontend cargue la comanda en modo edición.
-     *
-     * <p>A diferencia de {@code servirPlatos}/{@code servirBebidas}, este flujo:
+     * <p>Cuando la comanda referenciada está en estado {@code PENDIENTE}:
      * <ul>
-     *   <li>NO cambia el estado de la comanda.</li>
-     *   <li>NO publica eventos al dashboard de producción.</li>
-     *   <li>NO evalúa transición de estado de mesa.</li>
+     *   <li>Si la visita no tiene un borrador para esa estación, la comanda
+     *       se devuelve a {@code BORRADOR} (limpiando su timestamp de envío
+     *       a producción) y la notificación queda {@code ATENDIDA}.</li>
+     *   <li>Si la visita tiene un borrador, los ítems de la comanda
+     *       {@code PENDIENTE} se fusionan dentro del borrador y la comanda
+     *       {@code PENDIENTE} se elimina físicamente (en cascada también la
+     *       notificación). La regla de fusión empareja ítems por
+     *       {@code (productoId, descripción normalizada)}; los coincidentes
+     *       suman cantidades y los no coincidentes se clonan en el borrador
+     *       junto con sus modificaciones de menú especial.</li>
      * </ul>
+     *
+     * <p>En ambos casos se emite un evento {@code ELIMINADA} al tópico de la
+     * estación para que el tablero retire la comanda de su columna.
      *
      * @param notificacionId identificador de la notificación CAMBIO
      * @param emailEmpleado  correo del empleado autenticado
-     * @return DTO con el ID de la comanda a modificar
+     * @return DTO con el identificador de la comanda que el frontend debe
+     *         cargar en modo edición (el borrador resultante)
      * @throws ResourceNotFoundException si la notificación no existe
-     * @throws BusinessException         si el tipo no es CAMBIO, ya está atendida o no tiene comanda
+     * @throws BusinessException         si el tipo no es CAMBIO, ya está
+     *                                   atendida o no tiene comanda asociada
      */
     @Transactional
     public AtenderCambioResponse atenderCambio(Long notificacionId, String emailEmpleado) {
@@ -342,19 +372,135 @@ public class NotificacionService {
 
         // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
+        Long visitaId = notificacion.getMesa().getVisitaId();
+        Long comandaIdOriginal = comanda.getComandaId();
+        Long resultadoComandaId = comandaIdOriginal;
 
-        // Marcar la notificación como ATENDIDA para que no se procese de nuevo
-        notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
-        notificacionRepository.save(notificacion);
+        if (comanda.getComandaEstado() == EstadoComanda.PENDIENTE) {
+
+            java.util.Optional<Comanda> borradorOpt = comandaRepository
+                    .findBorradorActivoByVisitaYEstacion(visitaId, comanda.getComandaEstacion());
+
+            if (borradorOpt.isPresent()) {
+                // Caso fusión: los ítems de la pendiente migran al borrador y la pendiente desaparece
+                Comanda borrador = borradorOpt.get();
+                fusionarItemsEnBorrador(comanda, borrador);
+                resultadoComandaId = borrador.getComandaId();
+
+                // Se borra primero la notificación gestionada por la sesión Hibernate para evitar
+                // dejar una entidad colgada cuando el cascade FK eliminaría su fila. Acto seguido
+                // se borra la comanda; el cascade FK limpiará los ítems y sus modificaciones.
+                notificacionRepository.delete(notificacion);
+                comandaRepository.delete(comanda);
+            } else {
+                // Caso devolución directa: la pendiente vuelve a BORRADOR
+                comanda.setComandaEstado(EstadoComanda.BORRADOR);
+                comanda.setComandaFechaHoraInicio(null);
+                comandaRepository.save(comanda);
+
+                notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
+                notificacionRepository.save(notificacion);
+            }
+
+            // Aviso al tablero de producción para retirar la comanda pendiente
+            wsPublisher.publicarEventoProduccion(
+                    comanda.getComandaEstacion(),
+                    new ComandaProduccionEventoWsMessage(
+                            TipoEventoProduccion.ELIMINADA,
+                            comanda.getComandaEstacion().name(),
+                            comandaIdOriginal,
+                            null));
+        } else {
+            // Flujo defensivo: si la comanda no está en PENDIENTE, la notificación se marca atendida
+            notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
+            notificacionRepository.save(notificacion);
+        }
 
         // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de cambio)
-        mesaWsPublisher.publicarActualizacionMesa(
-                notificacion.getMesa().getVisitaId(),
-                MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+        mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
-        // No se publica evento a producción porque el mesero debe cargar la comanda en modo edición
         return AtenderCambioResponse.builder()
-                .comandaId(comanda.getComandaId())
+                .comandaId(resultadoComandaId)
                 .build();
+    }
+
+    /**
+     * Migra los ítems de la comanda {@code PENDIENTE} dentro del borrador
+     * activo de la misma visita y estación. Los ítems se emparejan por
+     * producto y descripción normalizada; los coincidentes suman cantidades
+     * y los no coincidentes se clonan junto con sus modificaciones.
+     *
+     * @param pendiente comanda en estado {@code PENDIENTE} cuyos ítems se
+     *                  migran y que será eliminada físicamente después
+     * @param borrador  comanda destino, ya bloqueada por la transacción
+     */
+    private void fusionarItemsEnBorrador(Comanda pendiente, Comanda borrador) {
+        // Carga los ítems de ambas comandas con el producto para construir la clave de fusión
+        List<ComandaItem> itemsPendiente = comandaItemRepository
+                .findByComanda_ComandaIdOrderByProductoNombreAsc(pendiente.getComandaId());
+        List<ComandaItem> itemsBorrador = comandaItemRepository
+                .findByComanda_ComandaIdOrderByProductoNombreAsc(borrador.getComandaId());
+
+        // Indexa el borrador por (productoId, descripción normalizada) para emparejamiento rápido
+        Map<String, ComandaItem> indice = new HashMap<>();
+        for (ComandaItem item : itemsBorrador) {
+            indice.put(claveFusion(item), item);
+        }
+
+        // Itera los ítems de la pendiente y los fusiona en el borrador usando el índice
+        for (ComandaItem item : itemsPendiente) {
+            String clave = claveFusion(item);
+            ComandaItem coincidente = indice.get(clave);
+            if (coincidente != null) {
+                // Coincidencia: las cantidades se acumulan sobre el ítem del borrador existente
+                coincidente.setComandaItemCantidad(
+                        coincidente.getComandaItemCantidad() + item.getComandaItemCantidad());
+                comandaItemRepository.save(coincidente);
+            } else {
+                // Sin coincidencia: el ítem se clona dentro del borrador con todas sus modificaciones
+                ComandaItem clon = clonarItem(item, borrador);
+                ComandaItem persistido = comandaItemRepository.save(clon);
+                // El clon recién persistido se registra en el índice para evitar duplicados intra-pendiente
+                indice.put(clave, persistido);
+            }
+        }
+    }
+
+    /**
+     * Construye la clave de fusión de un ítem combinando el identificador de
+     * producto y la descripción normalizada
+     */
+    private String claveFusion(ComandaItem item) {
+        return item.getProducto().getProductoId() + "|"
+                + DescripcionNormalizer.normalizar(item.getComandaItemDescripcion());
+    }
+
+    /**
+     * Crea una copia transitoria de un {@link ComandaItem} apuntando a una
+     * comanda destino distinta. Las {@link ComandaMenuModificacion} asociadas
+     * se replican como entidades nuevas vinculadas al clon.
+     */
+    private ComandaItem clonarItem(ComandaItem origen, Comanda destino) {
+        // Copia campos de identidad y precio congelado; la nueva entidad apunta al borrador destino
+        ComandaItem clon = ComandaItem.builder()
+                .comanda(destino)
+                .producto(origen.getProducto())
+                .comandaItemCantidad(origen.getComandaItemCantidad())
+                .comandaItemPrecio(origen.getComandaItemPrecio())
+                .comandaItemDescripcion(origen.getComandaItemDescripcion())
+                .comandaItemMenuGrupo(origen.getComandaItemMenuGrupo())
+                .modificaciones(new ArrayList<>())
+                .build();
+
+        // Replica las modificaciones de menú especial como entidades nuevas vinculadas al clon
+        if (origen.getModificaciones() != null) {
+            for (ComandaMenuModificacion mod : origen.getModificaciones()) {
+                clon.getModificaciones().add(ComandaMenuModificacion.builder()
+                        .comandaItem(clon)
+                        .opcion(mod.getOpcion())
+                        .build());
+            }
+        }
+        return clon;
     }
 }

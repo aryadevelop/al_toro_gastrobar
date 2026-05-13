@@ -2,10 +2,12 @@ package co.edu.unicauca.backend.modules.notificaciones.service;
 
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
-import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaCompletadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.CuentaCerradaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -113,17 +115,30 @@ class NotificacionWsPublisherTest {
     }
 
     @Test
-    @DisplayName("publicarComandaCompletada envía a /topic/comandas/completado con comandaId y estación")
-    void publicarComandaCompletada_enviaTopicYPayload() {
-        ArgumentCaptor<ComandaCompletadaWsMessage> payloadCaptor =
-                ArgumentCaptor.forClass(ComandaCompletadaWsMessage.class);
+    @DisplayName("publicarEventoProduccion COCINA: envía a /topic/produccion/cocina con payload")
+    void publicarEventoProduccion_cocina() {
+        ArgumentCaptor<ComandaProduccionEventoWsMessage> captor =
+                ArgumentCaptor.forClass(ComandaProduccionEventoWsMessage.class);
+        ComandaProduccionEventoWsMessage mensaje = new ComandaProduccionEventoWsMessage(
+                TipoEventoProduccion.COMPLETADA, "COCINA", 15L, null);
 
-        publisher.publicarComandaCompletada(15L, "COCINA");
+        publisher.publicarEventoProduccion(EstacionComanda.COCINA, mensaje);
 
-        verify(messagingTemplate).convertAndSend(eq("/topic/comandas/completado"), payloadCaptor.capture());
-        ComandaCompletadaWsMessage actual = payloadCaptor.getValue();
-        assertThat(actual.comandaId()).isEqualTo(15L);
-        assertThat(actual.estacion()).isEqualTo("COCINA");
+        verify(messagingTemplate).convertAndSend(eq("/topic/produccion/cocina"), captor.capture());
+        assertThat(captor.getValue().tipo()).isEqualTo(TipoEventoProduccion.COMPLETADA);
+        assertThat(captor.getValue().comandaId()).isEqualTo(15L);
+        verifyNoMoreInteractions(messagingTemplate);
+    }
+
+    @Test
+    @DisplayName("publicarEventoProduccion BARRA: envía a /topic/produccion/barra")
+    void publicarEventoProduccion_barra() {
+        ComandaProduccionEventoWsMessage mensaje = new ComandaProduccionEventoWsMessage(
+                TipoEventoProduccion.CREADA, "BARRA", 20L, null);
+
+        publisher.publicarEventoProduccion(EstacionComanda.BARRA, mensaje);
+
+        verify(messagingTemplate).convertAndSend("/topic/produccion/barra", (Object) mensaje);
         verifyNoMoreInteractions(messagingTemplate);
     }
 }
