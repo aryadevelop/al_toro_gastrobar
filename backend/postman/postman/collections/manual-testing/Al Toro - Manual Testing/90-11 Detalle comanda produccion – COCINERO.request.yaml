@@ -1,0 +1,35 @@
+$kind: http-request
+name: 90-11 Detalle comanda produccion – COCINERO
+description: Carga el detalle de una comanda visible en producción para el cocinero
+url: "{{baseUrl}}/api/comandas/produccion/{{tmpComandaId}}"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCocineroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.environment.set('tmpComandaId', '1');
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cocinero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCocineroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpComandaId');
+      pm.environment.unset('tmpCocineroToken');
+    language: text/javascript
+order: 8030

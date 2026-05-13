@@ -1,0 +1,27 @@
+$kind: http-request
+name: AC-01 COCINERO obtiene tablero – 200 OK
+description: |-
+  **Objetivo:** Un cocinero recibe el tablero con la estación COCINA y las tres columnas.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección.
+  **Resultado esperado:** 200 OK; `data.estaciones` incluye "COCINA"; tres listas presentes.
+url: "{{baseUrl}}/api/comandas/produccion"
+method: GET
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('La estación COCINA está presente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('estaciones');
+        pm.expect(data.estaciones).to.include('COCINA');
+      });
+      pm.test('Tres columnas del tablero presentes', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.pendientes).to.be.an('array');
+        pm.expect(data.enPreparacion).to.be.an('array');
+        pm.expect(data.listos).to.be.an('array');
+      });
+    language: text/javascript
+order: 1010

@@ -1,0 +1,26 @@
+$kind: http-request
+name: AC-07 Comanda en estado no visible – 404 Not Found
+description: |-
+  **Objetivo:** Una comanda en estado COMPLETADO (no visible en producción) responde 404.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  `comandaIdCompletada` apunta a una comanda COMPLETADO de la estación COCINA.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/comandas/produccion/{{comandaIdCompletada}}"
+method: GET
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      if (!pm.environment.get('comandaIdCompletada')) {
+        pm.environment.set('comandaIdCompletada', '1');
+      }
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 404', function () { pm.response.to.have.status(404); });
+      pm.test('Código ENT-001', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 2070

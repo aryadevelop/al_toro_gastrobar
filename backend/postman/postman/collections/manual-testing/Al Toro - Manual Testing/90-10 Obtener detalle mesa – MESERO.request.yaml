@@ -1,0 +1,38 @@
+$kind: http-request
+name: 90-10 Obtener detalle mesa – MESERO
+description: Obtiene el detalle completo de una mesa (visitaId=1)
+url: "{{baseUrl}}/api/mesas/{{tmpVisitaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar visitaId temporal (usar ID conocido de seed)
+      pm.environment.set('tmpVisitaId', '1');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpVisitaId');
+      pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 8030

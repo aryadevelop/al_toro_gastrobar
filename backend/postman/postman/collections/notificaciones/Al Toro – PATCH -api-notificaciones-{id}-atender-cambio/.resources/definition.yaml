@@ -24,6 +24,15 @@ description: |-
   | AC-04 | CLIENTE | 403 |
   | AC-05 | ID inexistente | 404 |
   | AC-06 | Ya atendida | 409 |
+  | AC-07 | Refactor — sin borrador activo: pendiente vuelve a BORRADOR | 200 |
+  | AC-08 | Refactor — con borrador activo: fusión y delete físico | 200 |
+
+  ## Variables adicionales para AC-07 y AC-08
+  - `notificacionIdSinBorrador`: notificación CAMBIO cuya comanda PENDIENTE no tiene borrador
+    en la misma visita+estación.
+  - `notificacionIdConBorrador`: notificación CAMBIO cuya comanda PENDIENTE comparte
+    visita+estación con un borrador activo.
+  - `comandaIdBorradorDestino`: identificador del borrador destino para AC-08.
 
   > ⚠️ TODO — Test dependiente de seed data
   >

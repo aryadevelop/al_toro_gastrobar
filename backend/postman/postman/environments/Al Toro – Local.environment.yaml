@@ -112,8 +112,6 @@ values:
     value: ''
   - key: mesero2Token
     value: ''
-  - key: tmpNotificacionId
-    value: ''
   - key: tmpReservaIdAjena
     value: ''
   - key: tmpNotificacionCreada
@@ -143,4 +141,18 @@ values:
   - key: cd702ComandaId
     value: ''
   - key: cd705ComandaId
+    value: ''
+  - key: notificacionIdSinBorrador
+    value: ''
+  - key: notificacionIdConBorrador
+    value: ''
+  - key: comandaIdBorradorDestino
+    value: ''
+  - key: bartenderToken
+    value: ''
+  - key: comandaIdCocinaVisible
+    value: ''
+  - key: comandaIdBarraVisible
+    value: ''
+  - key: comandaIdCompletada
     value: ''
