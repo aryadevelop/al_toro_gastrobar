@@ -25,6 +25,8 @@ import org.springframework.test.context.TestPropertySource;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -36,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.flyway.enabled=false"
 })
 @DisplayName("ComandaRepository")
@@ -195,6 +198,132 @@ class ComandaRepositoryTest {
 
             assertThat(resultado).isPresent();
             assertThat(resultado.get().getComandaEstacion()).isEqualTo(EstacionComanda.COCINA);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // findByEstacionAndEstadoIn (HU-02 tablero producción)
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("findByEstacionAndEstadoIn")
+    class FindByEstacionAndEstadoIn {
+
+        @Test
+        @DisplayName("filtra por estación y devuelve solo estados solicitados")
+        void filtraEstacionYEstados() {
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.LISTO)
+                    .build());
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.COMPLETADO)
+                    .build());
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            List<Comanda> resultado = repo.findByEstacionAndEstadoIn(
+                    EstacionComanda.COCINA,
+                    Set.of(EstadoComanda.PENDIENTE, EstadoComanda.EN_PREPARACION, EstadoComanda.LISTO));
+
+            assertThat(resultado)
+                    .hasSize(2)
+                    .extracting(Comanda::getComandaEstado)
+                    .containsExactlyInAnyOrder(EstadoComanda.PENDIENTE, EstadoComanda.LISTO);
+            assertThat(resultado).extracting(Comanda::getComandaEstacion)
+                    .containsOnly(EstacionComanda.COCINA);
+        }
+
+        @Test
+        @DisplayName("hidrata visita (JOIN FETCH evita N+1)")
+        void hidrataVisita() {
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            em.clear();
+
+            List<Comanda> resultado = repo.findByEstacionAndEstadoIn(
+                    EstacionComanda.COCINA, Set.of(EstadoComanda.PENDIENTE));
+
+            // Si visita no estuviera fetcheada, acceder al ID forzaría una nueva consulta
+            // (en H2 no falla, pero asertamos que la visita está hidratada).
+            assertThat(resultado).hasSize(1);
+            assertThat(resultado.get(0).getVisita().getVisitaId()).isEqualTo(visita.getVisitaId());
+        }
+
+        @Test
+        @DisplayName("sin coincidencias devuelve lista vacía")
+        void sinCoincidencias_vacia() {
+            List<Comanda> resultado = repo.findByEstacionAndEstadoIn(
+                    EstacionComanda.BARRA, Set.of(EstadoComanda.LISTO));
+
+            assertThat(resultado).isEmpty();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // findBorradorActivoByVisitaYEstacion (HU-02 fusión atender cambio)
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("findBorradorActivoByVisitaYEstacion")
+    class FindBorradorActivo {
+
+        @Test
+        @DisplayName("encuentra el borrador de la estación solicitada")
+        void encuentraBorrador() {
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build());
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build());
+
+            Optional<Comanda> cocina = repo.findBorradorActivoByVisitaYEstacion(
+                    visita.getVisitaId(), EstacionComanda.COCINA);
+
+            assertThat(cocina).isPresent();
+            assertThat(cocina.get().getComandaEstacion()).isEqualTo(EstacionComanda.COCINA);
+            assertThat(cocina.get().getComandaEstado()).isEqualTo(EstadoComanda.BORRADOR);
+        }
+
+        @Test
+        @DisplayName("ignora comandas no-BORRADOR de la misma visita+estación")
+        void ignoraNoBorrador() {
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            Optional<Comanda> resultado = repo.findBorradorActivoByVisitaYEstacion(
+                    visita.getVisitaId(), EstacionComanda.COCINA);
+
+            assertThat(resultado).isEmpty();
+        }
+
+        @Test
+        @DisplayName("sin borrador para esa estación → Optional vacío")
+        void sinBorrador_vacio() {
+            Optional<Comanda> resultado = repo.findBorradorActivoByVisitaYEstacion(
+                    visita.getVisitaId(), EstacionComanda.BARRA);
+
+            assertThat(resultado).isEmpty();
         }
     }
 }

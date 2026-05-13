@@ -15,10 +15,12 @@ import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaBorradorMapp
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
-import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaEstacionWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaNuevaMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
-import co.edu.unicauca.backend.modules.notificaciones.service.EstacionWsPublisher;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMapper;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.shared.config.RabbitMQConfig;
@@ -54,15 +56,6 @@ import java.util.Optional;
  *   <li>Enviar la comanda a producción (transición BORRADOR → PENDIENTE) y
  *       cancelar el formulario descartando los borradores.</li>
  * </ul>
- *
- * <p>Tópicos WebSocket utilizados:
- * <ul>
- *   <li>{@code /topic/mesas}: cambios en {@code tieneBorrador} y estado de mesa.</li>
- *   <li>{@code /topic/visita/{visitaId}/orden}: al enviar a producción, refresca
- *       la orden visible al cliente.</li>
- *   <li>{@code /topic/estacion/{estacion}}: al enviar a producción, alimenta el
- *       dashboard de cocina o barra.</li>
- * </ul>
  */
 @Service
 @RequiredArgsConstructor
@@ -80,7 +73,7 @@ public class ComandaBorradorService {
 
     private final MesaWsPublisher mesaWsPublisher;
     private final NotificacionWsPublisher notificacionWsPublisher;
-    private final EstacionWsPublisher estacionWsPublisher;
+    private final ComandaProduccionMapper comandaProduccionMapper;
     private final RabbitTemplate rabbitTemplate;
 
     /**
@@ -141,11 +134,15 @@ public class ComandaBorradorService {
                         .comandaEstacion(estacion)
                         .build()));
 
-        // Si ya existe un ítem con el mismo productoId y misma descripción, se acumula la cantidad.
-        // Descripciones distintas generan ítems separados.
+        // Si ya existe un ítem con el mismo productoId y descripción equivalente, se acumula la cantidad.
+        // La comparación normaliza mayúsculas, espacios extremos y espacios internos consecutivos.
+        String descripcionNormalizada = DescripcionNormalizer.normalizar(req.getDescripcion());
         Optional<ComandaItem> existente = comandaItemRepository
-                .findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                        comanda.getComandaId(), req.getProductoId(), req.getDescripcion());
+                .findByComanda_ComandaIdAndProducto_ProductoId(comanda.getComandaId(), req.getProductoId())
+                .stream()
+                .filter(ci -> DescripcionNormalizer.normalizar(ci.getComandaItemDescripcion())
+                        .equals(descripcionNormalizada))
+                .findFirst();
         if (existente.isPresent()) {
             ComandaItem ci = existente.get();
             int nuevaCantidad = ci.getComandaItemCantidad() + req.getCantidad();
@@ -210,12 +207,26 @@ public class ComandaBorradorService {
             item.setComandaItemCantidad(req.getCantidad());
         }
         
-        // Si se modifica la descripción, persistir el cambio. El ítem se interpreta como modificado
+        // Si se modifica la descripción, antes de persistir se verifica que el cambio no genere un
+        // duplicado contra otro ítem del mismo producto en la comanda (comparación normalizada).
         if (req.getDescripcion() != null) {
+            String descripcionNormalizada = DescripcionNormalizer.normalizar(req.getDescripcion());
+            boolean colision = comandaItemRepository
+                    .findByComanda_ComandaIdAndProducto_ProductoId(
+                            comanda.getComandaId(), item.getProducto().getProductoId())
+                    .stream()
+                    .filter(otro -> !otro.getComandaItemId().equals(item.getComandaItemId()))
+                    .anyMatch(otro -> DescripcionNormalizer.normalizar(otro.getComandaItemDescripcion())
+                            .equals(descripcionNormalizada));
+            if (colision) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "Ya existe otro ítem del mismo producto con esa descripción.",
+                        HttpStatus.CONFLICT);
+            }
             item.setComandaItemDescripcion(req.getDescripcion());
         }
 
-        // Gaurdar el item modificado
+        // Guardar el item modificado
         comandaItemRepository.save(item);
 
         // Publicar actualización
@@ -383,14 +394,20 @@ public class ComandaBorradorService {
                         .fechaHoraInicio(comanda.getComandaFechaHoraInicio())
                         .build());
 
-        // Publicar la comanda enviada a producción para que aparezca en el dashboard de estación.
-        estacionWsPublisher.publicarComandaEnviada(
-                ComandaEstacionWsMessage.builder()
-                        .comandaId(comanda.getComandaId())
-                        .visitaId(visitaId)
-                        .estacion(comanda.getComandaEstacion().name())
-                        .items(borradorMapper.toItemsResponse(items))
-                        .build());
+        // Anuncia la aparición de la comanda en el tablero de producción.
+        int totalItems = items.stream()
+                .mapToInt(ComandaItem::getComandaItemCantidad)
+                .sum();
+
+        ComandaProduccionResumenResponse resumen = comandaProduccionMapper.toResumen(comanda, mesa, totalItems);
+        
+        notificacionWsPublisher.publicarEventoProduccion(
+                comanda.getComandaEstacion(),
+                new ComandaProduccionEventoWsMessage(
+                        TipoEventoProduccion.CREADA,
+                        comanda.getComandaEstacion().name(),
+                        comanda.getComandaId(),
+                        resumen));
 
         // Publicar actualización del mapa y de la orden del cliente para reflejar el cambio.
         publicarMesasActualizada(visitaId);

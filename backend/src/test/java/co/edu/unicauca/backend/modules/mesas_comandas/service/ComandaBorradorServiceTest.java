@@ -15,7 +15,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
-import co.edu.unicauca.backend.modules.notificaciones.service.EstacionWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
@@ -59,8 +58,8 @@ class ComandaBorradorServiceTest {
     @Mock MesaValidador             mesaValidador;
     @Mock MesaWsPublisher           mesaWsPublisher;
     @Mock NotificacionWsPublisher   notificacionWsPublisher;
-    @Mock EstacionWsPublisher       estacionWsPublisher;
     @Mock RabbitTemplate            rabbitTemplate;
+    @Mock co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMapper comandaProduccionMapper;
 
     @InjectMocks ComandaBorradorService service;
 
@@ -160,9 +159,8 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
                     1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
                     .thenReturn(Optional.of(borradorComanda));
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    10L, 3L, null))
-                    .thenReturn(Optional.of(existente));
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of(existente));
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -191,9 +189,8 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
                     1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
                     .thenReturn(Optional.of(borradorComanda));
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    10L, 3L, null))
-                    .thenReturn(Optional.of(existente));
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of(existente));
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -222,9 +219,8 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
                     1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
                     .thenReturn(Optional.of(borradorComanda));
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    10L, 3L, null))
-                    .thenReturn(Optional.empty());
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -256,9 +252,8 @@ class ComandaBorradorServiceTest {
                     1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
                     .thenReturn(Optional.empty());
             when(comandaRepository.save(any(Comanda.class))).thenReturn(nuevaComanda);
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    11L, 3L, null))
-                    .thenReturn(Optional.empty());
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(11L, 3L))
+                    .thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(nuevaComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -288,9 +283,8 @@ class ComandaBorradorServiceTest {
                     1L, EstadoComanda.BORRADOR, EstacionComanda.BARRA))
                     .thenReturn(Optional.empty());
             when(comandaRepository.save(any(Comanda.class))).thenReturn(nuevaComanda);
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    12L, 4L, null))
-                    .thenReturn(Optional.empty());
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(12L, 4L))
+                    .thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(nuevaComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -318,9 +312,8 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
                     1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
                     .thenReturn(Optional.of(borradorComanda));
-            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcion(
-                    10L, 3L, null))
-                    .thenReturn(Optional.empty());
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -329,6 +322,35 @@ class ComandaBorradorServiceTest {
             service.agregarItem(req, auth);
 
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+        }
+
+        @Test
+        @DisplayName("descripción con distinto case/espacios acumula sobre el ítem existente")
+        void descripcionEquivalente_acumula() {
+            Authentication auth = crearAuth();
+            Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
+            AgregarItemRequest req = agregarReq(1L, 3L, 2, "  SIN AZUCAR  ");
+            Producto prod = producto(3L, CategoriaProducto.PLATO, false);
+            Comanda borradorComanda = comanda(10L, EstadoComanda.BORRADOR, EstacionComanda.COCINA, mesa.getVisita());
+            ComandaItem existente = item(20L, borradorComanda, prod, 1, "sin azucar", null);
+
+            when(mesaValidador.validarOwnership(1L, auth)).thenReturn(mesa);
+            when(productoRepository.findById(3L)).thenReturn(Optional.of(prod));
+            when(validador.resolverEstacion(prod)).thenReturn(EstacionComanda.COCINA);
+            when(comandaRepository.findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
+                    1L, EstadoComanda.BORRADOR, EstacionComanda.COCINA))
+                    .thenReturn(Optional.of(borradorComanda));
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of(existente));
+            when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
+                    .thenReturn(List.of(borradorComanda));
+            when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
+            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+
+            service.agregarItem(req, auth);
+
+            assertThat(existente.getComandaItemCantidad()).isEqualTo(3);
+            verify(comandaItemRepository).save(existente);
         }
     }
 
@@ -454,6 +476,31 @@ class ComandaBorradorServiceTest {
             assertThat(it.getComandaItemCantidad()).isEqualTo(4);
             assertThat(it.getComandaItemDescripcion()).isEqualTo("extra picante");
             verify(validador).validarStock(prod, 4, 2);
+        }
+
+        @Test
+        @DisplayName("descripción que colisiona con otro ítem del mismo producto lanza 409")
+        void descripcionColisiona_lanza409() {
+            Authentication auth = crearAuth();
+            Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
+            Producto prod = producto(3L, CategoriaProducto.PLATO, false);
+            Comanda borrador = comanda(10L, EstadoComanda.BORRADOR, EstacionComanda.COCINA, mesa.getVisita());
+            ComandaItem it = item(20L, borrador, prod, 2, "sin sal", null);
+            ComandaItem otro = item(21L, borrador, prod, 1, "SIN AZUCAR", null);
+            ModificarItemRequest req = modificarReq(null, "  sin azucar  ");
+
+            when(comandaItemRepository.findById(20L)).thenReturn(Optional.of(it));
+            when(mesaValidador.validarOwnership(1L, auth)).thenReturn(mesa);
+            when(comandaItemRepository.findByComanda_ComandaIdAndProducto_ProductoId(10L, 3L))
+                    .thenReturn(List.of(it, otro));
+
+            assertThatThrownBy(() -> service.modificarItem(20L, req, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(org.springframework.http.HttpStatus.CONFLICT));
+            // El cambio no se aplica
+            assertThat(it.getComandaItemDescripcion()).isEqualTo("sin sal");
+            verify(comandaItemRepository, never()).save(any());
         }
 
         @Test
@@ -846,7 +893,6 @@ class ComandaBorradorServiceTest {
             when(mesaValidador.validarOwnership(1L, auth)).thenReturn(mesa);
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(10L))
                     .thenReturn(List.of(it));
-            when(borradorMapper.toItemsResponse(anyList())).thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -928,9 +974,17 @@ class ComandaBorradorServiceTest {
                     eq("altoro.topic"),
                     eq("comanda.nueva"),
                     any(Object.class));
-            verify(estacionWsPublisher).publicarComandaEnviada(any());
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
             verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
+
+            // Publish CREADA al tablero de producción con el contrato unificado
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage> creadaCaptor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage.class);
+            verify(notificacionWsPublisher).publicarEventoProduccion(
+                    eq(co.edu.unicauca.backend.shared.enums.EstacionComanda.COCINA), creadaCaptor.capture());
+            assertThat(creadaCaptor.getValue().tipo())
+                    .isEqualTo(co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion.CREADA);
+            assertThat(creadaCaptor.getValue().comandaId()).isEqualTo(10L);
         }
 
         @Test
@@ -948,7 +1002,6 @@ class ComandaBorradorServiceTest {
             when(mesaValidador.validarOwnership(1L, auth)).thenReturn(mesa);
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(10L))
                     .thenReturn(List.of(itBorrador));
-            when(borradorMapper.toItemsResponse(anyList())).thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
@@ -973,7 +1026,6 @@ class ComandaBorradorServiceTest {
             when(mesaValidador.validarOwnership(mesa.getVisitaId(), auth)).thenReturn(mesa);
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(borrador.getComandaId()))
                     .thenReturn(List.of(it));
-            when(borradorMapper.toItemsResponse(anyList())).thenReturn(List.of());
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(mesa.getVisitaId(), EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(mesa.getVisitaId())).thenReturn(BigDecimal.ZERO);
