@@ -1,0 +1,19 @@
+$kind: http-request
+name: AC-02 BARTENDER obtiene tablero – 200 OK
+description: |-
+  **Objetivo:** Un bartender recibe el tablero con la estación BARRA.
+  **Pre-condición:** `bartenderToken` lo provee el `beforeRequest` de colección.
+  **Resultado esperado:** 200 OK; `data.estaciones` incluye "BARRA".
+url: "{{baseUrl}}/api/comandas/produccion"
+method: GET
+headers:
+  Authorization: Bearer {{bartenderToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('La estación BARRA está presente', function () {
+        pm.expect(pm.response.json().data.estaciones).to.include('BARRA');
+      });
+    language: text/javascript
+order: 1020

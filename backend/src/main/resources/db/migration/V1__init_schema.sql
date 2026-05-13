@@ -413,9 +413,12 @@ COMMENT ON TABLE Comanda IS 'Comandas de cocina o barra, o pre-órdenes de reser
 COMMENT ON COLUMN Comanda.visita_id IS 'NULL mientras la comanda es PRE_RESERVA; se puebla al iniciar la visita';
 COMMENT ON COLUMN Comanda.reserva_id IS 'Presente en pre-órdenes; NULL en comandas de walk-in';
 -- FK diferida: Notificacion → Comanda (Comanda se creó después que Notificacion)
+-- La regla de borrado es ON DELETE CASCADE porque una notificación carece de
+-- significado funcional sin la comanda que la originó; al eliminar la comanda
+-- se eliminan sus notificaciones asociadas.
 ALTER TABLE Notificacion
     ADD CONSTRAINT fk_notificacion_comanda FOREIGN KEY (comanda_id)
-        REFERENCES Comanda(comanda_id) ON DELETE SET NULL;
+        REFERENCES Comanda(comanda_id) ON DELETE CASCADE;
 
 -- Tabla Comanda_Item
 CREATE TABLE Comanda_Item (

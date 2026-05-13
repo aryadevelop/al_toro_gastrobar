@@ -55,4 +55,13 @@ public class AuthUserResponse {
 
     /** Fecha y hora de creación del registro de usuario en el sistema. */
     private LocalDateTime createdAt;
+
+    /**
+     * Estaciones de producción habilitadas para el usuario. Contiene
+     * {@code "COCINA"} cuando el usuario tiene rol {@code COCINERO},
+     * {@code "BARRA"} cuando tiene rol {@code BARTENDER} y ambos valores
+     * cuando los dos roles están activos. Vale {@code null} cuando el usuario
+     * no tiene ningún rol de producción.
+     */
+    private List<String> estaciones;
 }

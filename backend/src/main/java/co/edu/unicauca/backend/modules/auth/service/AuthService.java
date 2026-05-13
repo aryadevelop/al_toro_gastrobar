@@ -409,6 +409,9 @@ public class AuthService {
                 .sorted()
                 .collect(java.util.stream.Collectors.toList());
 
+        // Estaciones de producción del usuario, derivadas de sus roles activos.
+        List<String> estaciones = resolverEstaciones(activeRoles);
+
         // Los clientes tienen su nombre en la tabla cliente, no en la de usuario
         if (primaryRole == RolNombre.CLIENTE) {
             Optional<Cliente> cliente = clienteRepository.findByUsuario_UsuarioEmail(usuario.getUsuarioEmail());
@@ -420,7 +423,8 @@ public class AuthService {
                     .roles(roles)
                     .status("ACTIVE")
                     .createdAt(usuario.getCreatedAt())
-                    .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
+                    .estaciones(estaciones)
+                    .build()).orElseGet(() -> fallbackUser(usuario, role, roles, estaciones));
         }
 
         // Los empleados (CAJERO, MESERO, ADMIN) tienen su nombre en la tabla empleado
@@ -433,7 +437,33 @@ public class AuthService {
                 .roles(roles)
                 .status("ACTIVE")
                 .createdAt(usuario.getCreatedAt())
-                .build()).orElseGet(() -> fallbackUser(usuario, role, roles));
+                .estaciones(estaciones)
+                .build()).orElseGet(() -> fallbackUser(usuario, role, roles, estaciones));
+    }
+
+    /**
+     * Deriva las estaciones de producción del usuario a partir de sus roles
+     * activos. El rol {@code COCINERO} aporta {@code "COCINA"} y el rol
+     * {@code BARTENDER} aporta {@code "BARRA"}; el resultado se ordena
+     * alfabéticamente por consistencia con el campo {@code roles}.
+     *
+     * @param activeRoles roles activos del usuario
+     * @return lista ordenada de estaciones, o {@code null} cuando el usuario
+     *         no tiene ningún rol de producción
+     */
+    private List<String> resolverEstaciones(List<UsuarioRol> activeRoles) {
+        List<String> estaciones = activeRoles.stream()
+                .map(UsuarioRol::getRolNombre)
+                .map(rol -> switch (rol) {
+                    case COCINERO -> "COCINA";
+                    case BARTENDER -> "BARRA";
+                    default -> null;
+                })
+                .filter(java.util.Objects::nonNull)
+                .distinct()
+                .sorted()
+                .collect(java.util.stream.Collectors.toList());
+        return estaciones.isEmpty() ? null : estaciones;
     }
 
     /**
@@ -445,7 +475,7 @@ public class AuthService {
      * @param roles   todos los roles en formato frontend
      * @return {@link AuthUserResponse} con datos mínimos del usuario
      */
-    private AuthUserResponse fallbackUser(Usuario usuario, String role, List<String> roles) {
+    private AuthUserResponse fallbackUser(Usuario usuario, String role, List<String> roles, List<String> estaciones) {
         return AuthUserResponse.builder()
                 .id(String.valueOf(usuario.getUsuarioId()))
                 .nombre(usuario.getUsuarioEmail())
@@ -454,6 +484,7 @@ public class AuthService {
                 .roles(roles)
                 .status("ACTIVE")
                 .createdAt(usuario.getCreatedAt())
+                .estaciones(estaciones)
                 .build();
     }
 

@@ -132,7 +132,9 @@ docker compose down -v && docker compose up --build
 Exchange: `altoro.topic` (durable, topic). Routing keys: `comanda.nueva`, `impresion.ticket`, `notificacion.email`, `notificacion.ws`.
 
 ### WebSocket — tópicos existentes
-`/topic/mesas`, `/topic/mesas/asistencia`, `/topic/visita/{id}/orden`, `/topic/visita/{id}/cuenta`, `/topic/visita/{id}/asistencia`, `/topic/reservas/cambios`, `/topic/comandas/completado`. **NO crear duplicados.** Detalle del patrón en `docs/coding-patterns.md`.
+`/topic/mesas`, `/topic/mesas/asistencia`, `/topic/visita/{id}/orden`, `/topic/visita/{id}/cuenta`, `/topic/visita/{id}/asistencia`, `/topic/reservas/cambios`, `/topic/produccion/{cocina|barra}`. **NO crear duplicados.** Detalle del patrón en `docs/coding-patterns.md`.
+
+El tópico `/topic/produccion/{cocina|barra}` transporta el contrato unificado `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen)` con `tipo ∈ {CREADA, ELIMINADA, COMPLETADA}`. Sustituye al legado `/topic/comandas/completado`.
 
 ### ErrorCode rápido
 `ENT-001` (404 not found), `AUTH-001` (401), `AUTH-002` (403), `NEG-001` (400/409 regla violada), `NEG-002` (409 estado inválido), `VAL-001` (400 validación). Tabla completa en `docs/coding-patterns.md`.

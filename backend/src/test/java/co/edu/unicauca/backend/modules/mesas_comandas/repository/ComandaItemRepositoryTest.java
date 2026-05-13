@@ -204,4 +204,69 @@ class ComandaItemRepositoryTest {
             assertThat(total).isEqualByComparingTo(new BigDecimal("18000"));
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumCantidadByComandaIdIn
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumCantidadByComandaIdIn")
+    class SumCantidadByComandaIdIn {
+
+        @Test
+        @DisplayName("agrupa cantidades por comanda para los identificadores indicados")
+        void agrupa_cantidades_por_comanda() {
+            Comanda comandaA = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            Comanda comandaB = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaA).producto(productoPlato)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(new BigDecimal("5000"))
+                    .build());
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaA).producto(productoBebida)
+                    .comandaItemCantidad(3)
+                    .comandaItemPrecio(new BigDecimal("4000"))
+                    .build());
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaB).producto(productoBebida)
+                    .comandaItemCantidad(7)
+                    .comandaItemPrecio(new BigDecimal("4000"))
+                    .build());
+
+            java.util.List<Object[]> resultado = repo.sumCantidadByComandaIdIn(
+                    java.util.Set.of(comandaA.getComandaId(), comandaB.getComandaId()));
+
+            java.util.Map<Long, Integer> mapa = new java.util.HashMap<>();
+            for (Object[] fila : resultado) {
+                mapa.put(((Number) fila[0]).longValue(), ((Number) fila[1]).intValue());
+            }
+
+            assertThat(mapa).containsEntry(comandaA.getComandaId(), 5);
+            assertThat(mapa).containsEntry(comandaB.getComandaId(), 7);
+        }
+
+        @Test
+        @DisplayName("comandas sin ítems quedan fuera del resultado")
+        void comandas_sin_items_se_omiten() {
+            Comanda vacia = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            java.util.List<Object[]> resultado = repo.sumCantidadByComandaIdIn(
+                    java.util.Set.of(vacia.getComandaId()));
+
+            assertThat(resultado).isEmpty();
+        }
+    }
 }

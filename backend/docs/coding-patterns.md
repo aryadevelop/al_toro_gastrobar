@@ -233,9 +233,11 @@ public MiResponse crear(MiRequest req) {
 | `/topic/visita/{visitaId}/cuenta` | Cierre de cuenta |
 | `/topic/visita/{visitaId}/asistencia` | Asistencia atendida (al cliente) |
 | `/topic/reservas/cambios` | Cambios de reservas |
-| `/topic/comandas/completado` | Comanda servida (cocinero/bartender) |
+| `/topic/produccion/{cocina\|barra}` | Eventos de ciclo de vida de comanda en producción (contrato unificado) |
 
 **Patrón "señal, no data":** El payload de `/topic/mesas` es minimal (`visitaId`, `tipoEvento`). El frontend recibe la señal y hace re-fetch vía REST. Usar `MesaWsPublisher.publicarActualizacionMesa(visitaId, TipoEventoMesa.NOTIFICACION)` para refrescar el mapa al atender notificaciones.
+
+**Patrón "evento unificado de producción":** Los tópicos `/topic/produccion/cocina` y `/topic/produccion/barra` transportan `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen)` donde `tipo ∈ {CREADA, ELIMINADA, COMPLETADA}`. El campo `resumen` solo viaja en `CREADA` para que el cliente pueda añadir la comanda al tablero sin un GET adicional. Publicar mediante `NotificacionWsPublisher.publicarEventoProduccion(EstacionComanda, ComandaProduccionEventoWsMessage)`. Cualquier emisión a estos tópicos debe pasar por ese método para preservar el contrato.
 
 ---
 

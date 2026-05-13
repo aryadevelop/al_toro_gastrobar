@@ -94,23 +94,6 @@ public class ComandaBorradorMapper {
     }
 
     /**
-     * Convierte una lista plana de {@link ComandaItem} a una lista de
-     * {@link ItemBorradorResponse} sin fusión de menú ni anidado de modificaciones.
-     * Lo usa el publisher WebSocket {@code /topic/estacion/{estacion}} al enviar
-     * a producción.
-     *
-     * @param items ítems de la comanda enviada
-     * @return lista de respuestas ordenada por nombre de producto
-     */
-    public List<ItemBorradorResponse> toItemsResponse(List<ComandaItem> items) {
-        if (items == null || items.isEmpty()) return List.of();
-        return items.stream()
-                .sorted(POR_NOMBRE)
-                .map(it -> mapearItem(it, BigDecimal.ZERO, null))
-                .collect(Collectors.toList());
-    }
-
-    /**
      * Mapea los ítems de UNA estación
      *
      * @param itemsFuente      ítems de la estación que se quiere mostrar

@@ -76,6 +76,8 @@ Base URL: `http://localhost:8080/api`
 | POST | `/borrador/{comandaId}/enviar` | **MESERO / ADMIN** | BORRADOR → PENDIENTE. Valida stock sin decrementarlo (el descuento ocurre al transicionar a EN_PREPARACION). Publica `comanda.nueva` en RabbitMQ (bridge impresión), WS `/topic/estacion/{estacion}` (dashboard producción), `/topic/mesas` y `/topic/visita/{visitaId}/orden`. |
 | DELETE | `/borrador?visitaId=` | **MESERO / ADMIN** | Elimina todas las comandas BORRADOR de la visita; dispara WS `/topic/mesas`. Idempotente. |
 | PATCH | `/borrador/{comandaId}/notas` | **MESERO / ADMIN** | Persiste las notas (cocina o barra) de una comanda BORRADOR en tiempo real. |
+| GET | `/produccion` | **PRODUCCION** (COCINERO / BARTENDER) | Tablero de comandas de la(s) estación(es) del usuario, en tres columnas (`pendientes`, `enPreparacion`, `listos`). Las comandas se enriquecen con mesa, mesero y total de ítems. Si el usuario tiene ambos roles, el tablero combina las dos estaciones. |
+| GET | `/produccion/{comandaId}` | **PRODUCCION** (COCINERO / BARTENDER) | Detalle de una comanda visible en producción con ítems agrupados por categoría (PLATO, BEBIDA, OTRO). Valida que la estación pertenezca al usuario (403) y que el estado sea `PENDIENTE`, `EN_PREPARACION` o `LISTO` (404 en otro caso). |
 
 ---
 
