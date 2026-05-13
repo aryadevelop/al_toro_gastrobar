@@ -650,3 +650,9 @@ FROM (VALUES
     (30,         'Coca-Cola',                 1,       6000,                NULL,          NULL)            -- 50: bebida única (último ítem)
 ) AS v(comanda_id, nombre, cantidad, precio, descripcion, grupo)
 JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- Notificación CAMBIO adicional para AC-08 de "atender-cambio": visita 13 tiene comanda 28
+-- (PENDIENTE COCINA) con borrador adyacente (comanda 26). El ID 16 se obtiene tras las 15
+-- notificaciones previas (sección 13).
+INSERT INTO Notificacion (mesa_id, empleado_id, comanda_id, notificacion_estado, notificacion_tipo) VALUES
+(13, 5, 28, 'ACTIVA', 'CAMBIO');          -- ID 16 → seedNotificacionCambioConBorradorId
