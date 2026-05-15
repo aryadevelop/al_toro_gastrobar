@@ -298,8 +298,8 @@ class ComandaBorradorServiceTest {
         }
 
         @Test
-        @DisplayName("después de agregar publica /topic/mesas")
-        void agregarItem_publicaMesas() {
+        @DisplayName("después de agregar publica /topic/mesas y /topic/visita/{id}/orden")
+        void agregarItem_publicaMesasYOrdenCliente() {
             Authentication auth = crearAuth();
             Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
             AgregarItemRequest req = agregarReq(1L, 3L, 1, null);
@@ -322,6 +322,7 @@ class ComandaBorradorServiceTest {
             service.agregarItem(req, auth);
 
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
         }
 
         @Test
@@ -504,8 +505,8 @@ class ComandaBorradorServiceTest {
         }
 
         @Test
-        @DisplayName("publica /topic/mesas al finalizar")
-        void modificarItem_publicaMesas() {
+        @DisplayName("publica /topic/mesas y /topic/visita/{id}/orden al finalizar")
+        void modificarItem_publicaMesasYOrdenCliente() {
             Authentication auth = crearAuth();
             Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
             Producto prod = producto(3L, CategoriaProducto.PLATO, false);
@@ -523,6 +524,7 @@ class ComandaBorradorServiceTest {
             service.modificarItem(20L, req, auth);
 
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
         }
     }
 
@@ -676,8 +678,8 @@ class ComandaBorradorServiceTest {
         }
 
         @Test
-        @DisplayName("publica /topic/mesas al finalizar (ítem modificado)")
-        void eliminarItemModificado_publicaMesas() {
+        @DisplayName("publica /topic/mesas y /topic/visita/{id}/orden al finalizar (ítem modificado)")
+        void eliminarItemModificado_publicaMesasYOrdenCliente() {
             Authentication auth = crearAuth();
             Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
             Producto prod = producto(3L, CategoriaProducto.PLATO, false);
@@ -696,11 +698,12 @@ class ComandaBorradorServiceTest {
             service.eliminarItem(21L, auth);
 
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
         }
 
         @Test
-        @DisplayName("publica /topic/mesas al finalizar (ítem base con cascade)")
-        void eliminarItemBase_publicaMesas() {
+        @DisplayName("publica /topic/mesas y /topic/visita/{id}/orden al finalizar (ítem base con cascade)")
+        void eliminarItemBase_publicaMesasYOrdenCliente() {
             Authentication auth = crearAuth();
             Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
             Producto prod = producto(3L, CategoriaProducto.PLATO, false);
@@ -722,6 +725,7 @@ class ComandaBorradorServiceTest {
             service.eliminarItem(20L, auth);
 
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
         }
     }
 
@@ -1091,6 +1095,22 @@ class ComandaBorradorServiceTest {
 
             verify(mesaWsPublisher, times(1))
                     .publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
+        }
+
+        @Test
+        @DisplayName("publica /topic/visita/{id}/orden al finalizar para reflejar la eliminación al cliente")
+        void cancelarFormulario_publicaOrdenCliente() {
+            Authentication auth = crearAuth();
+            Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
+            Comanda b = comanda(10L, EstadoComanda.BORRADOR, EstacionComanda.COCINA, mesa.getVisita());
+
+            when(mesaValidador.validarOwnership(1L, auth)).thenReturn(mesa);
+            when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
+                    .thenReturn(List.of(b));
+
+            service.cancelarFormulario(1L, auth);
+
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
         }
     }
 

@@ -1,10 +1,14 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Receta;
+import co.edu.unicauca.backend.modules.inventario.repository.RecetaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
+import co.edu.unicauca.backend.shared.enums.TipoProducto;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -29,6 +33,9 @@ class ComandaBorradorValidadorTest {
 
     @Mock
     private ComandaItemRepository comandaItemRepository;
+
+    @Mock
+    private RecetaRepository recetaRepository;
 
     @InjectMocks
     private ComandaBorradorValidador validador;
@@ -133,6 +140,86 @@ class ComandaBorradorValidadorTest {
             assertThatThrownBy(() -> validador.validarStock(producto, 5, 0))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("4 unidades disponibles");
+        }
+    }
+
+    // -------------------------------------------------------------------------
+    // validarStock — PREPARACION
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("validarStock — PREPARACION")
+    class ValidarStockPreparacion {
+
+        @Test
+        @DisplayName("Insumo con stock suficiente no lanza excepción")
+        void insumoSuficiente_noLanza() {
+            // Arrange: producto PREPARACION, insumo con stock=10, recetaCantidad=0.5
+            // validar(producto, 4, 0): requerido=4*0.5=2, comprometido=0-0=0,
+            // disponible=10-0=10 → 2 ≤ 10 → OK
+            Insumo insumo = insumoConStock(10L, "Tomate", BigDecimal.valueOf(10));
+            Receta receta = recetaConCantidad(insumo, BigDecimal.valueOf(0.5));
+            Producto producto = productoPreparacion(20L);
+
+            when(recetaRepository.findByProductoIdFetchInsumo(20L)).thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(10L))
+                    .thenReturn(BigDecimal.ZERO);
+
+            // Act & Assert
+            assertThatCode(() -> validador.validarStock(producto, 4, 0))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Insumo con stock insuficiente lanza BusinessException con nombre del insumo")
+        void insumoInsuficiente_lanza() {
+            // Arrange: stock=1.0, recetaCantidad=0.5, comprometido=0
+            // validar(producto, 4, 0): requerido=2.0 > disponible=1.0 → lanza
+            Insumo insumo = insumoConStock(11L, "Cebolla", BigDecimal.valueOf(1));
+            Receta receta = recetaConCantidad(insumo, BigDecimal.valueOf(0.5));
+            Producto producto = productoPreparacion(21L);
+
+            when(recetaRepository.findByProductoIdFetchInsumo(21L)).thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(11L))
+                    .thenReturn(BigDecimal.ZERO);
+
+            // Act & Assert
+            assertThatThrownBy(() -> validador.validarStock(producto, 4, 0))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("Cebolla");
+        }
+
+        @Test
+        @DisplayName("cantidadAnterior ajusta el comprometido para no doble-contar")
+        void cantidadAnteriorAjusta() {
+            // Arrange: recetaCantidad=0.5, comprometido total insumo = 2 (= 4 items × 0.5)
+            // cantidadAnterior=2 → yaContabilizado=2*0.5=1.0
+            // ajustado comprometido = 2.0 - 1.0 = 1.0; disponible = 5 - 1.0 = 4.0
+            // requerido = 4 * 0.5 = 2.0 ≤ 4.0 → OK
+            Insumo insumo = insumoConStock(12L, "Pimiento", BigDecimal.valueOf(5));
+            Receta receta = recetaConCantidad(insumo, BigDecimal.valueOf(0.5));
+            Producto producto = productoPreparacion(22L);
+
+            when(recetaRepository.findByProductoIdFetchInsumo(22L)).thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(12L))
+                    .thenReturn(BigDecimal.valueOf(2));
+
+            // Act & Assert — cantidadAnterior=2
+            assertThatCode(() -> validador.validarStock(producto, 4, 2))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Sin receta registrada no lanza excepción")
+        void sinReceta_noLanza() {
+            // Arrange
+            Producto producto = productoPreparacion(23L);
+
+            when(recetaRepository.findByProductoIdFetchInsumo(23L)).thenReturn(List.of());
+
+            // Act & Assert
+            assertThatCode(() -> validador.validarStock(producto, 4, 0))
+                    .doesNotThrowAnyException();
         }
     }
 
@@ -262,6 +349,49 @@ class ComandaBorradorValidadorTest {
                 .productoId(id)
                 .productoCategoria(categoria)
                 .stockActual(BigDecimal.valueOf(stock))
+                .build();
+    }
+
+    /**
+     * Crea un Producto de tipo PREPARACION sin stock directo (gestionado por insumos de receta).
+     *
+     * @param id identificador del producto
+     */
+    private static Producto productoPreparacion(Long id) {
+        return Producto.builder()
+                .productoId(id)
+                .productoTipo(TipoProducto.PREPARACION)
+                .productoCategoria(CategoriaProducto.PLATO)
+                .productoNombre("Producto preparacion " + id)
+                .build();
+    }
+
+    /**
+     * Crea un Insumo con stock dado, usando el builder minimal necesario para los tests.
+     *
+     * @param id     identificador del insumo
+     * @param nombre nombre del insumo
+     * @param stock  stock actual
+     */
+    private static Insumo insumoConStock(Long id, String nombre, BigDecimal stock) {
+        return Insumo.builder()
+                .insumoId(id)
+                .insumoNombre(nombre)
+                .insumoStockActual(stock)
+                .build();
+    }
+
+    /**
+     * Crea una Receta con el insumo y cantidad indicados (productoId irrelevante para unit tests).
+     *
+     * @param insumo          insumo de la receta
+     * @param recetaCantidad  cantidad de insumo por unidad de producto
+     */
+    private static Receta recetaConCantidad(Insumo insumo, BigDecimal recetaCantidad) {
+        return Receta.builder()
+                .insumoId(insumo.getInsumoId())
+                .insumo(insumo)
+                .recetaCantidad(recetaCantidad)
                 .build();
     }
 }

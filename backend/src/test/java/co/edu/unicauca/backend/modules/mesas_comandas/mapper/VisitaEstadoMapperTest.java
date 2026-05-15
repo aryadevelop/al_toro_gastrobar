@@ -119,13 +119,33 @@ class VisitaEstadoMapperTest {
     }
 
     @Test
-    @DisplayName("toItemsVisitaResponse → comanda PENDIENTE → estadoItem 'En preparación' (default)")
-    void toItemsVisitaResponse_pendiente_mapeaEnPreparacion() {
+    @DisplayName("toItemsVisitaResponse → comanda PENDIENTE → estadoItem 'En espera'")
+    void toItemsVisitaResponse_pendiente_mapeaEnEspera() {
         ComandaItem item = itemConEstado(EstadoComanda.PENDIENTE, 4L);
 
         List<ItemVisitaResponse> result = mapper.toItemsVisitaResponse(List.of(item));
 
+        assertThat(result.get(0).getEstadoItem()).isEqualTo("En espera");
+    }
+
+    @Test
+    @DisplayName("toItemsVisitaResponse → comanda EN_PREPARACION → estadoItem 'En preparación'")
+    void toItemsVisitaResponse_enPreparacion_mapeaEnPreparacion() {
+        ComandaItem item = itemConEstado(EstadoComanda.EN_PREPARACION, 5L);
+
+        List<ItemVisitaResponse> result = mapper.toItemsVisitaResponse(List.of(item));
+
         assertThat(result.get(0).getEstadoItem()).isEqualTo("En preparación");
+    }
+
+    @Test
+    @DisplayName("toItemsVisitaResponse → comanda PRE_RESERVA → estadoItem 'En espera' (defensivo)")
+    void toItemsVisitaResponse_preReserva_mapeaEnEspera() {
+        ComandaItem item = itemConEstado(EstadoComanda.PRE_RESERVA, 6L);
+
+        List<ItemVisitaResponse> result = mapper.toItemsVisitaResponse(List.of(item));
+
+        assertThat(result.get(0).getEstadoItem()).isEqualTo("En espera");
     }
 
     // ---------- toEstadoVisitaResponse: rama visitaCerrada ----------

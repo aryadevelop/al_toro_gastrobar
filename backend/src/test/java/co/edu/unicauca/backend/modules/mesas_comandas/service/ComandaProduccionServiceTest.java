@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.service.InventarioDescuentoService;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemDetalleResponse;
@@ -13,11 +14,20 @@ import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMa
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
+import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
+import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -39,9 +49,15 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.lenient;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.verifyNoInteractions;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -52,6 +68,12 @@ class ComandaProduccionServiceTest {
     @Mock ComandaItemRepository comandaItemRepository;
     @Mock MesaRepository mesaRepository;
     @Mock EstacionResolver estacionResolver;
+    @Mock InventarioDescuentoService inventarioDescuentoService;
+    @Mock NotificacionWsPublisher wsPublisher;
+    @Mock EmpleadoRepository empleadoRepository;
+    @Mock co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper visitaEstadoMapper;
+    @Mock NotificacionRepository notificacionRepository;
+    @Mock MesaWsPublisher mesaWsPublisher;
     @Mock Authentication auth;
 
     ComandaProduccionService service;
@@ -61,7 +83,9 @@ class ComandaProduccionServiceTest {
         ComandaProduccionMapper realMapper = new ComandaProduccionMapper();
         service = new ComandaProduccionService(
                 comandaRepository, comandaItemRepository, mesaRepository,
-                estacionResolver, realMapper);
+                estacionResolver, realMapper,
+                inventarioDescuentoService, wsPublisher, empleadoRepository,
+                visitaEstadoMapper, notificacionRepository, mesaWsPublisher);
     }
 
     private Visita visita(Long id) {
@@ -280,6 +304,261 @@ class ComandaProduccionServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                             .isEqualTo(HttpStatus.NOT_FOUND));
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("iniciarPreparacion")
+    class IniciarPreparacionTests {
+
+        private static final Long COMANDA_ID = 10L;
+        private static final Long VISITA_ID = 5L;
+        private static final String ACTOR_EMAIL = "cocinero@altoro.co";
+
+        private Comanda comandaPendienteCocina() {
+            return comanda(COMANDA_ID, VISITA_ID, EstacionComanda.COCINA,
+                    EstadoComanda.PENDIENTE, null, null,
+                    LocalDateTime.of(2026, 5, 14, 19, 0));
+        }
+
+        @Test
+        @DisplayName("Happy path: PENDIENTE COCINA, descuento OK → EN_PREPARACION + WS publicados")
+        void happyPath_pendienteCocinaConDescuentoOK_transicionaYPublica() {
+            Comanda comanda = comandaPendienteCocina();
+            Empleado empleado = Empleado.builder().build();
+
+            when(auth.getName()).thenReturn(ACTOR_EMAIL);
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
+            when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
+
+            service.iniciarPreparacion(COMANDA_ID, auth);
+
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.EN_PREPARACION);
+            assertThat(comanda.getComandaFechaHoraInicio()).isNotNull();
+            verify(comandaRepository).save(comanda);
+            verify(wsPublisher).publicarEventoProduccion(
+                    eq(EstacionComanda.COCINA),
+                    argThat(m -> m.tipo() == TipoEventoProduccion.ACTUALIZADA
+                            && "EN_PREPARACION".equals(m.nuevoEstado())));
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any());
+        }
+
+        @Test
+        @DisplayName("Comanda inexistente: lanza ResourceNotFoundException")
+        void comandaInexistente_lanzaResourceNotFoundException() {
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Estado no PENDIENTE (EN_PREPARACION): lanza BusinessException INVALID_STATE 409")
+        void estadoNoPendiente_lanzaInvalidState_409() {
+            Comanda comanda = comanda(COMANDA_ID, VISITA_ID, EstacionComanda.COCINA,
+                    EstadoComanda.EN_PREPARACION, LocalDateTime.now(), null,
+                    LocalDateTime.of(2026, 5, 14, 19, 0));
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException be = (BusinessException) ex;
+                        assertThat(be.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                        assertThat(be.getCode()).isEqualTo("NEG-002");
+                    });
+        }
+
+        @Test
+        @DisplayName("Estación ajena (sólo BARRA, comanda COCINA): lanza BusinessException ACCESS_DENIED 403")
+        void estacionAjena_lanzaAccessDenied_403() {
+            Comanda comanda = comandaPendienteCocina();
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException be = (BusinessException) ex;
+                        assertThat(be.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                        assertThat(be.getCode()).isEqualTo("AUTH-002");
+                    });
+        }
+
+        @Test
+        @DisplayName("Descuento falla: excepción propagada, save y WS no invocados")
+        void descuentoFalla_noTransicionaNiPublica() {
+            Comanda comanda = comandaPendienteCocina();
+            Empleado empleado = Empleado.builder().build();
+
+            when(auth.getName()).thenReturn(ACTOR_EMAIL);
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
+            doThrow(new BusinessException(
+                    co.edu.unicauca.backend.shared.exception.ErrorCode.INSUFFICIENT_STOCK,
+                    "Stock insuficiente.", HttpStatus.CONFLICT))
+                    .when(inventarioDescuentoService).descontarPorComanda(comanda, empleado);
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class);
+
+            verify(comandaRepository, never()).save(any());
+            verifyNoInteractions(wsPublisher);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("marcarListo")
+    class MarcarListoTests {
+
+        private static final Long COMANDA_ID = 20L;
+        private static final Long VISITA_ID = 9L;
+
+        private Comanda comandaEnPreparacion(EstacionComanda estacion) {
+            return comanda(COMANDA_ID, VISITA_ID, estacion,
+                    EstadoComanda.EN_PREPARACION, LocalDateTime.of(2026, 5, 15, 19, 0), null,
+                    LocalDateTime.of(2026, 5, 15, 19, 0));
+        }
+
+        /** Stubs comunes al happy path: helper publicarVisitaActualizadaCliente no pete. */
+        private void mockHelperVisita() {
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
+            when(visitaEstadoMapper.toItemsVisitaResponse(List.of())).thenReturn(List.of());
+        }
+
+        @Test
+        @DisplayName("Happy COCINA: EN_PREPARACION → LISTO, notificación PLATOS_LISTOS y WS publicados")
+        void happyCocina_transicionaCreaPlatosListosYPublica() {
+            Comanda comanda = comandaEnPreparacion(EstacionComanda.COCINA);
+            Mesa mesa = mesa(VISITA_ID, "T-01", "Mesero1");
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
+            when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
+            mockHelperVisita();
+
+            service.marcarListo(COMANDA_ID, auth);
+
+            // Estado y timestamp
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.LISTO);
+            assertThat(comanda.getComandaFechaHoraListo()).isNotNull();
+
+            // Persistencia de comanda
+            verify(comandaRepository).save(comanda);
+
+            // Notificación con tipo PLATOS_LISTOS y estado ACTIVA
+            verify(notificacionRepository).save(argThat(n ->
+                    n.getNotificacionTipo() == TipoNotificacion.PLATOS_LISTOS
+                    && n.getNotificacionEstado() == EstadoNotificacion.ACTIVA
+                    && n.getComanda() == comanda));
+
+            // WS estación de producción
+            verify(wsPublisher).publicarEventoProduccion(
+                    eq(EstacionComanda.COCINA),
+                    argThat(m -> m.tipo() == TipoEventoProduccion.ACTUALIZADA
+                            && "LISTO".equals(m.nuevoEstado())));
+
+            // WS cliente (visita)
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any());
+
+            // WS mapa de mesas
+            verify(mesaWsPublisher).publicarActualizacionMesa(
+                    eq(VISITA_ID), eq(MesaWsPublisher.TipoEventoMesa.NOTIFICACION));
+        }
+
+        @Test
+        @DisplayName("Happy BARRA: EN_PREPARACION → LISTO, notificación BEBIDAS_LISTAS y WS publicados")
+        void happyBarra_creaBebidasListas() {
+            Comanda comanda = comandaEnPreparacion(EstacionComanda.BARRA);
+            Mesa mesa = mesa(VISITA_ID, "T-02", "Mesero2");
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
+            when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
+            mockHelperVisita();
+
+            service.marcarListo(COMANDA_ID, auth);
+
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.LISTO);
+            assertThat(comanda.getComandaFechaHoraListo()).isNotNull();
+
+            verify(notificacionRepository).save(argThat(n ->
+                    n.getNotificacionTipo() == TipoNotificacion.BEBIDAS_LISTAS
+                    && n.getNotificacionEstado() == EstadoNotificacion.ACTIVA
+                    && n.getComanda() == comanda));
+
+            verify(wsPublisher).publicarEventoProduccion(
+                    eq(EstacionComanda.BARRA),
+                    argThat(m -> m.tipo() == TipoEventoProduccion.ACTUALIZADA
+                            && "LISTO".equals(m.nuevoEstado())));
+
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any());
+            verify(mesaWsPublisher).publicarActualizacionMesa(
+                    eq(VISITA_ID), eq(MesaWsPublisher.TipoEventoMesa.NOTIFICACION));
+        }
+
+        @Test
+        @DisplayName("Estado no EN_PREPARACION (PENDIENTE): lanza BusinessException INVALID_STATE 409")
+        void estadoNoEnPreparacion_lanzaInvalidState() {
+            Comanda comanda = comanda(COMANDA_ID, VISITA_ID, EstacionComanda.COCINA,
+                    EstadoComanda.PENDIENTE, null, null,
+                    LocalDateTime.of(2026, 5, 15, 19, 0));
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException be = (BusinessException) ex;
+                        assertThat(be.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                        assertThat(be.getCode()).isEqualTo("NEG-002");
+                    });
+
+            verify(comandaRepository, never()).save(any());
+            verifyNoInteractions(notificacionRepository);
+        }
+
+        @Test
+        @DisplayName("Estación ajena (sólo BARRA, comanda COCINA): lanza BusinessException ACCESS_DENIED 403")
+        void estacionAjena_lanzaAccessDenied() {
+            Comanda comanda = comandaEnPreparacion(EstacionComanda.COCINA);
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException be = (BusinessException) ex;
+                        assertThat(be.getStatus()).isEqualTo(HttpStatus.FORBIDDEN);
+                        assertThat(be.getCode()).isEqualTo("AUTH-002");
+                    });
+
+            verify(comandaRepository, never()).save(any());
+            verifyNoInteractions(notificacionRepository);
+        }
+
+        @Test
+        @DisplayName("Comanda inexistente: lanza ResourceNotFoundException")
+        void comandaInexistente_lanzaResourceNotFound() {
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
+                    .isInstanceOf(ResourceNotFoundException.class);
         }
     }
 }
