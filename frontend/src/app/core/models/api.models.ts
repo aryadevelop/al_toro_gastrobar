@@ -76,6 +76,14 @@ export interface BackendReservaConsultaItem {
   numeroPersonas?: number;
   clienteTelefono?: string;
   estado?: string;
+  mostrarBotonInasistencia?: boolean;
+}
+
+export interface BackendMarcarInasistenciaResponse {
+  reservaId: number;
+  estado: string;
+  zonaLiberada?: string;
+  decoracionLiberada?: string;
 }
 
 export interface BackendListadoReservasResponse {

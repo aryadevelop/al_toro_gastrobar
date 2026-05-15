@@ -38,10 +38,10 @@ public class MesaValidador {
     private final ZonaRepository zonaRepository;
     private final ReservaRepository reservaRepository;
 
-    /** Hora de apertura del restaurante */
+    /** Hora de apertura del restaurante — TODO: Restaurar a (17, 0) después de testing */
     private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
     
-    /** Hora de cierre del restaurante */
+    /** Hora de cierre del restaurante — TODO: Restaurar a (22, 0) después de testing */
     private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
 
     /**
