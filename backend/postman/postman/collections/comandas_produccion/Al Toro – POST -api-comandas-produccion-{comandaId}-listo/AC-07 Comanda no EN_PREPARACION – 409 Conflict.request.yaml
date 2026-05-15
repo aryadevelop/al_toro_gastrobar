@@ -1,0 +1,20 @@
+$kind: http-request
+name: AC-07 Comanda no EN_PREPARACION – 409 Conflict
+description: |-
+  **Objetivo:** Intentar marcar listo una comanda que está en PENDIENTE devuelve 409.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 15 (COCINA, PENDIENTE) no está en EN_PREPARACION.
+  **Resultado esperado:** 409 Conflict con código NEG-002.
+url: "{{baseUrl}}/api/comandas/produccion/15/listo"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 409', function () { pm.response.to.have.status(409); });
+      pm.test('Código NEG-002 — estado inválido', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 4070

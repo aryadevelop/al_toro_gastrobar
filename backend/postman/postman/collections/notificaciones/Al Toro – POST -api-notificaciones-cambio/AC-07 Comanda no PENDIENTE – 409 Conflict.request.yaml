@@ -1,0 +1,27 @@
+$kind: http-request
+name: AC-07 Comanda no PENDIENTE – 409 Conflict
+description: |-
+  **Objetivo:** Intentar notificar cambio sobre una comanda que no está en PENDIENTE devuelve 409.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 13 (COCINA, EN_PREPARACION) no está en PENDIENTE.
+  **Resultado esperado:** 409 Conflict con código NEG-002.
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "comandaId": 13
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 409', function () { pm.response.to.have.status(409); });
+      pm.test('Código NEG-002 — estado inválido', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 5070

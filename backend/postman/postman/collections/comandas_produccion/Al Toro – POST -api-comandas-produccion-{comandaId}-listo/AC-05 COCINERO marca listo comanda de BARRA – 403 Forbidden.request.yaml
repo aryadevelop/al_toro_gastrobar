@@ -1,0 +1,20 @@
+$kind: http-request
+name: AC-05 COCINERO marca listo comanda de BARRA – 403 Forbidden
+description: |-
+  **Objetivo:** El cocinero intenta marcar listo una comanda de BARRA (estación ajena) y recibe 403.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 16 (BARRA, EN_PREPARACION) es de la estación BARRA.
+  **Resultado esperado:** 403 Forbidden con código AUTH-002.
+url: "{{baseUrl}}/api/comandas/produccion/16/listo"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 403', function () { pm.response.to.have.status(403); });
+      pm.test('Código AUTH-002 — estación ajena', function () {
+        pm.expect(pm.response.json().code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 4050

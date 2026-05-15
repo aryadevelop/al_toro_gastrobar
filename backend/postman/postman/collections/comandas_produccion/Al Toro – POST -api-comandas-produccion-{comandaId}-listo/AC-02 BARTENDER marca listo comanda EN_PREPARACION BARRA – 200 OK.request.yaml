@@ -1,0 +1,26 @@
+$kind: http-request
+name: AC-02 BARTENDER marca listo comanda EN_PREPARACION BARRA – 200 OK
+description: |-
+  **Objetivo:** El bartender transiciona una comanda EN_PREPARACION de BARRA a LISTO.
+  **Pre-condición:** `bartenderToken` lo provee el `beforeRequest` de colección;
+  comanda 29 (visita 11, BARRA) está en estado EN_PREPARACION.
+  **Nota:** Esta acción es destructiva — requiere reseed (`docker compose down -v && up`) para repetir.
+  **Resultado esperado:** 200 OK con `data.comandaEstado === 'LISTO'` y `data.estacion === 'BARRA'`.
+url: "{{baseUrl}}/api/comandas/produccion/29/listo"
+method: POST
+headers:
+  Authorization: Bearer {{bartenderToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('Estado transicionado a LISTO', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaEstado).to.equal('LISTO');
+      });
+      pm.test('Estación es BARRA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estacion).to.equal('BARRA');
+      });
+    language: text/javascript
+order: 4020

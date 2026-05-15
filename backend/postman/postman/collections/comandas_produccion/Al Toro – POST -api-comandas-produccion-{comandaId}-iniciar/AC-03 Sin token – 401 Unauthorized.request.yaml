@@ -1,0 +1,14 @@
+$kind: http-request
+name: AC-03 Sin token – 401 Unauthorized
+description: |-
+  **Objetivo:** Sin header Authorization el endpoint rechaza la solicitud.
+  **Pre-condición:** Ninguna.
+  **Resultado esperado:** 401 Unauthorized.
+url: "{{baseUrl}}/api/comandas/produccion/15/iniciar"
+method: POST
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 401', function () { pm.response.to.have.status(401); });
+    language: text/javascript
+order: 3030

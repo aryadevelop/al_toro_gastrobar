@@ -1,0 +1,19 @@
+$kind: http-request
+name: AC-04 MESERO intenta iniciar – 403 Forbidden
+description: |-
+  **Objetivo:** Un mesero no tiene el rol PRODUCCION y no puede iniciar comandas.
+  **Pre-condición:** `meseroToken` lo provee el `beforeRequest` de colección.
+  **Resultado esperado:** 403 Forbidden con código AUTH-002.
+url: "{{baseUrl}}/api/comandas/produccion/15/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 403', function () { pm.response.to.have.status(403); });
+      pm.test('Código AUTH-002', function () {
+        pm.expect(pm.response.json().code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 3040

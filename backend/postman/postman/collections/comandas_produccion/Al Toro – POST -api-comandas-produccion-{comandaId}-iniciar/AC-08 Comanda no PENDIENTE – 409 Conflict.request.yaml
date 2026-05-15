@@ -1,0 +1,20 @@
+$kind: http-request
+name: AC-08 Comanda no PENDIENTE – 409 Conflict
+description: |-
+  **Objetivo:** Intentar iniciar una comanda que ya está en EN_PREPARACION devuelve 409.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 13 (COCINA, EN_PREPARACION) ya no está en PENDIENTE.
+  **Resultado esperado:** 409 Conflict con código NEG-002.
+url: "{{baseUrl}}/api/comandas/produccion/13/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 409', function () { pm.response.to.have.status(409); });
+      pm.test('Código NEG-002 — estado inválido', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 3080
