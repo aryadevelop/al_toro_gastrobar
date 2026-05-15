@@ -3,11 +3,11 @@
 ## Services
 
 **Reglas obligatorias:**
-- ❌ NO logging (`@Slf4j`, `log.debug()`)
-- ✅ Javadoc detallado con flujo paso a paso
-- ✅ `@Transactional(readOnly = true)` en consultas; `@Transactional` en escritura
-- ✅ `@RequiredArgsConstructor` para inyección
-- ✅ `Optional.orElseThrow()` con `ErrorCode` específico o `ResourceNotFoundException`
+- NO logging (`@Slf4j`, `log.debug()`)
+- Javadoc detallado con flujo paso a paso
+- `@Transactional(readOnly = true)` en consultas; `@Transactional` en escritura
+- `@RequiredArgsConstructor` para inyección
+- `Optional.orElseThrow()` con `ErrorCode` específico o `ResourceNotFoundException`
 
 **Estructura:**
 ```java
@@ -37,12 +37,12 @@ public class MiService {
 ## Mappers
 
 **Reglas obligatorias:**
-- ✅ **SIEMPRE ordenar items por categoría ANTES de agrupar/mapear**
-- ✅ Reutilizar comparador estático
-- ✅ Enums → String usando `.name()`
-- ✅ `empleadoNombre` (campo completo), NO separación nombre/apellido
-- ✅ `usuarioNombre` (campo único), NO existe `usuarioApellido`
-- ❌ NO builders inline en services — toda transformación entity→DTO en mapper dedicado
+- **SIEMPRE ordenar items por categoría ANTES de agrupar/mapear**
+- Reutilizar comparador estático
+- Enums → String usando `.name()`
+- `empleadoNombre` (campo completo), NO separación nombre/apellido
+- `usuarioNombre` (campo único), NO existe `usuarioApellido`
+- NO builders inline en services — toda transformación entity→DTO en mapper dedicado
 
 **Comparador estándar:**
 ```java
@@ -237,16 +237,16 @@ public MiResponse crear(MiRequest req) {
 
 **Patrón "señal, no data":** El payload de `/topic/mesas` es minimal (`visitaId`, `tipoEvento`). El frontend recibe la señal y hace re-fetch vía REST. Usar `MesaWsPublisher.publicarActualizacionMesa(visitaId, TipoEventoMesa.NOTIFICACION)` para refrescar el mapa al atender notificaciones.
 
-**Patrón "evento unificado de producción":** Los tópicos `/topic/produccion/cocina` y `/topic/produccion/barra` transportan `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen)` donde `tipo ∈ {CREADA, ELIMINADA, COMPLETADA}`. El campo `resumen` solo viaja en `CREADA` para que el cliente pueda añadir la comanda al tablero sin un GET adicional. Publicar mediante `NotificacionWsPublisher.publicarEventoProduccion(EstacionComanda, ComandaProduccionEventoWsMessage)`. Cualquier emisión a estos tópicos debe pasar por ese método para preservar el contrato.
+**Patrón "evento unificado de producción":** Los tópicos `/topic/produccion/cocina` y `/topic/produccion/barra` transportan `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen, nuevoEstado)` donde `tipo ∈ {CREADA, ACTUALIZADA, ELIMINADA, COMPLETADA}`. El campo `resumen` solo viaja en `CREADA` para que el cliente pueda añadir la comanda al tablero sin un GET adicional. El campo `nuevoEstado` solo viaja en `ACTUALIZADA` e indica la columna destino (`EN_PREPARACION` o `LISTO`) cuando una comanda transiciona de estado dentro del tablero. Publicar mediante `NotificacionWsPublisher.publicarEventoProduccion(EstacionComanda, ComandaProduccionEventoWsMessage)`. Cualquier emisión a estos tópicos debe pasar por ese método para preservar el contrato.
 
 ---
 
 ## Git Commits
 
 **Reglas:**
-- ❌ NO ejecutar commits automáticamente — reportar mensaje en español
-- ✅ Formato: `<tipo>(<módulo>): <descripción en español>`
-- ✅ Co-author obligatorio: `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
+- NO ejecutar commits automáticamente — reportar mensaje en español
+- Formato: `<tipo>(<módulo>): <descripción en español>`
+- Co-author obligatorio: `Co-Authored-By: Claude Sonnet 4.5 <noreply@anthropic.com>`
 
 **Tipos:** `feat`, `fix`, `refactor`, `test`, `docs`, `style`, `chore`
 

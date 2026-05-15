@@ -1,0 +1,86 @@
+$kind: collection
+name: Al Toro – POST /api/comandas/produccion/{comandaId}/listo
+description: |-
+  # POST /api/comandas/produccion/{comandaId}/listo
+
+  Transiciona una comanda de EN_PREPARACION a LISTO. Genera una notificación de tipo
+  PLATOS_LISTOS (estación COCINA) o BEBIDAS_LISTAS (estación BARRA) dirigida al mesero
+  de la visita.
+
+  **Control de acceso:**
+  - COCINERO: puede marcar listo comandas de la estación COCINA.
+  - BARTENDER: puede marcar listo comandas de la estación BARRA.
+  - Estación ajena: 403 AUTH-002.
+  - MESERO/CAJERO/CLIENTE/ADMIN: 403 AUTH-002.
+  - Sin token: 401 Unauthorized.
+
+  **Reglas de negocio:**
+  - La comanda debe estar en estado EN_PREPARACION; cualquier otro estado devuelve 409 NEG-002.
+  - Comanda inexistente: 404 ENT-001.
+
+  **Campos de ComandaProduccionResumenResponse:**
+  - `comandaId`, `estacion`, `comandaEstado`, `mesaIdentificador`, `meseroNombre`,
+    `totalItems`, `createdAt`, `fechaHoraInicio`, `fechaHoraListo`, `notas`.
+
+  ## Comandas del seed usadas
+  Los IDs van fijos en cada request (no dependen de variables de entorno,
+  que Postman puede descartar). Provienen del seed `V3__dev_data.sql`:
+  - Comanda 28 (COCINA, EN_PREPARACION) y 29 (BARRA, EN_PREPARACION): dedicadas a los AC happy-path.
+  - Comanda 15 (COCINA, PENDIENTE) y 16 (BARRA, EN_PREPARACION): comandas operativas
+    reutilizadas por los AC de error (no mutan estado).
+
+  ## Nota sobre idempotencia
+  Los AC-01 y AC-02 mutan el estado de la comanda a LISTO. Para repetir
+  la ejecución se requiere reseed:
+  ```bash
+  docker compose down -v && docker compose up --build
+  ```
+
+  | ID    | Escenario                                               | HTTP |
+  |-------|---------------------------------------------------------|------|
+  | AC-01 | COCINERO marca listo comanda EN_PREPARACION COCINA      | 200  |
+  | AC-02 | BARTENDER marca listo comanda EN_PREPARACION BARRA      | 200  |
+  | AC-03 | Sin token                                               | 401  |
+  | AC-04 | MESERO intenta marcar listo                             | 403  |
+  | AC-05 | COCINERO marca listo comanda de BARRA (estación ajena)  | 403  |
+  | AC-06 | Comanda inexistente                                     | 404  |
+  | AC-07 | Comanda no EN_PREPARACION                               | 409  |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailCocinero',  tokenKey: 'cocineroToken'  },
+        { emailKey: 'emailBartender', tokenKey: 'bartenderToken' },
+        { emailKey: 'emailMesero',    tokenKey: 'meseroToken'    },
+        { emailKey: 'emailCajero',    tokenKey: 'cajeroToken'    },
+        { emailKey: 'emailCliente',   tokenKey: 'clienteToken'   },
+        { emailKey: 'emailAdmin',     tokenKey: 'adminToken'     }
+      ];
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('produccion-listo pre-request: login ' + emailKey + ' falló');
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript
+order: 4000

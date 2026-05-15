@@ -116,8 +116,6 @@ values:
     value: ''
   - key: tmpNotificacionCreada
     value: ''
-  - key: accessToken
-    value: ''
   - key: itemPicanhaBaseId
     value: ''
   - key: itemHamburguesaSinTomateId

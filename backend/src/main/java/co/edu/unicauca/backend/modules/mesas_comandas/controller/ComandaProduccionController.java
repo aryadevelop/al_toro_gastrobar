@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.controller;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionDetalleResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.TableroProduccionResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.ComandaProduccionService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
@@ -13,6 +14,7 @@ import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -66,5 +68,43 @@ public class ComandaProduccionController {
             Authentication auth) {
         ComandaProduccionDetalleResponse data = comandaProduccionService.obtenerDetalleComanda(comandaId, auth);
         return ResponseEntity.ok(ApiResponse.ok("Detalle de comanda obtenido exitosamente", data));
+    }
+
+    /**
+     * Transiciona la comanda indicada de {@code PENDIENTE} a
+     * {@code EN_PREPARACION}, ejecutando el descuento de inventario asociado.
+     *
+     * @param comandaId identificador de la comanda
+     * @param auth      contexto del usuario autenticado
+     * @return resumen actualizado de la comanda
+     */
+    @PostMapping("/{comandaId}/iniciar")
+    @PreAuthorize("hasRole('PRODUCCION')")
+    @Operation(summary = "Iniciar preparación de una comanda",
+            description = "Cambia el estado de la comanda a EN_PREPARACION y descuenta el inventario consumido")
+    public ResponseEntity<ApiResponse<ComandaProduccionResumenResponse>> iniciar(
+            @Parameter(description = "Identificador de la comanda") @PathVariable Long comandaId,
+            Authentication auth) {
+        ComandaProduccionResumenResponse data = comandaProduccionService.iniciarPreparacion(comandaId, auth);
+        return ResponseEntity.ok(ApiResponse.ok("Comanda iniciada exitosamente", data));
+    }
+
+    /**
+     * Marca la comanda indicada como {@code LISTO} y crea la notificación al
+     * mesero según la estación.
+     *
+     * @param comandaId identificador de la comanda
+     * @param auth      contexto del usuario autenticado
+     * @return resumen actualizado de la comanda
+     */
+    @PostMapping("/{comandaId}/listo")
+    @PreAuthorize("hasRole('PRODUCCION')")
+    @Operation(summary = "Marcar comanda como lista",
+            description = "Cambia el estado de la comanda a LISTO y crea la notificación PLATOS_LISTOS o BEBIDAS_LISTAS según la estación")
+    public ResponseEntity<ApiResponse<ComandaProduccionResumenResponse>> marcarListo(
+            @Parameter(description = "Identificador de la comanda") @PathVariable Long comandaId,
+            Authentication auth) {
+        ComandaProduccionResumenResponse data = comandaProduccionService.marcarListo(comandaId, auth);
+        return ResponseEntity.ok(ApiResponse.ok("Comanda marcada como lista", data));
     }
 }

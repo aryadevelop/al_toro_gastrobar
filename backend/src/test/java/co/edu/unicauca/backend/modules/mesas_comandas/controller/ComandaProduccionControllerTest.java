@@ -3,10 +3,12 @@ package co.edu.unicauca.backend.modules.mesas_comandas.controller;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionDetalleResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.TableroProduccionResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.ComandaProduccionService;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -28,8 +30,10 @@ import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -143,5 +147,134 @@ class ComandaProduccionControllerTest {
                     .andExpect(status().isForbidden())
                     .andExpect(jsonPath("$.code").value("AUTH-002"));
         }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("POST /api/comandas/produccion/{comandaId}/iniciar")
+    class IniciarPreparacion {
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("comanda PENDIENTE accesible → 200 OK con resumen")
+        void happy() throws Exception {
+            when(comandaProduccionService.iniciarPreparacion(eq(1L), any())).thenReturn(resumenStub());
+
+            mockMvc.perform(post("/api/comandas/produccion/1/iniciar"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.comandaId").value(1L));
+
+            verify(comandaProduccionService).iniciarPreparacion(eq(1L), any());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("comanda inexistente → 404")
+        void inexistente_404() throws Exception {
+            when(comandaProduccionService.iniciarPreparacion(eq(99L), any()))
+                    .thenThrow(new ResourceNotFoundException("Comanda", 99L));
+
+            mockMvc.perform(post("/api/comandas/produccion/99/iniciar"))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("estado inválido → 409")
+        void estado_409() throws Exception {
+            when(comandaProduccionService.iniciarPreparacion(eq(1L), any()))
+                    .thenThrow(new BusinessException(ErrorCode.INVALID_STATE, "msg", HttpStatus.CONFLICT));
+
+            mockMvc.perform(post("/api/comandas/produccion/1/iniciar"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("estación ajena → 403")
+        void estacion_403() throws Exception {
+            when(comandaProduccionService.iniciarPreparacion(eq(1L), any()))
+                    .thenThrow(new BusinessException(ErrorCode.ACCESS_DENIED, "msg", HttpStatus.FORBIDDEN));
+
+            mockMvc.perform(post("/api/comandas/produccion/1/iniciar"))
+                    .andExpect(status().isForbidden());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("stock insuficiente → 409")
+        void stock_409() throws Exception {
+            when(comandaProduccionService.iniciarPreparacion(eq(1L), any()))
+                    .thenThrow(new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "msg", HttpStatus.CONFLICT));
+
+            mockMvc.perform(post("/api/comandas/produccion/1/iniciar"))
+                    .andExpect(status().isConflict());
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("POST /api/comandas/produccion/{comandaId}/listo")
+    class MarcarListo {
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("comanda EN_PREPARACION accesible → 200 OK con resumen")
+        void happy() throws Exception {
+            when(comandaProduccionService.marcarListo(eq(1L), any())).thenReturn(resumenStub());
+
+            mockMvc.perform(post("/api/comandas/produccion/1/listo"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.comandaId").value(1L));
+
+            verify(comandaProduccionService).marcarListo(eq(1L), any());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("comanda inexistente → 404")
+        void inexistente_404() throws Exception {
+            when(comandaProduccionService.marcarListo(eq(99L), any()))
+                    .thenThrow(new ResourceNotFoundException("Comanda", 99L));
+
+            mockMvc.perform(post("/api/comandas/produccion/99/listo"))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("estado inválido → 409")
+        void estado_409() throws Exception {
+            when(comandaProduccionService.marcarListo(eq(1L), any()))
+                    .thenThrow(new BusinessException(ErrorCode.INVALID_STATE, "msg", HttpStatus.CONFLICT));
+
+            mockMvc.perform(post("/api/comandas/produccion/1/listo"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @WithMockUser(roles = "PRODUCCION")
+        @DisplayName("estación ajena → 403")
+        void estacion_403() throws Exception {
+            when(comandaProduccionService.marcarListo(eq(1L), any()))
+                    .thenThrow(new BusinessException(ErrorCode.ACCESS_DENIED, "msg", HttpStatus.FORBIDDEN));
+
+            mockMvc.perform(post("/api/comandas/produccion/1/listo"))
+                    .andExpect(status().isForbidden());
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    private ComandaProduccionResumenResponse resumenStub() {
+        return ComandaProduccionResumenResponse.builder()
+                .comandaId(1L)
+                .estacion("COCINA")
+                .comandaEstado("EN_PREPARACION")
+                .mesaIdentificador("Mesa 3")
+                .meseroNombre("Juan")
+                .totalItems(2)
+                .build();
     }
 }

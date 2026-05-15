@@ -1,0 +1,26 @@
+$kind: http-request
+name: AC-02 BARTENDER inicia comanda PENDIENTE BARRA – 200 OK
+description: |-
+  **Objetivo:** El bartender transiciona una comanda PENDIENTE de BARRA a EN_PREPARACION.
+  **Pre-condición:** `bartenderToken` lo provee el `beforeRequest` de colección;
+  comanda 27 (visita 11, BARRA) está en estado PENDIENTE.
+  **Nota:** Esta acción es destructiva — requiere reseed (`docker compose down -v && up`) para repetir.
+  **Resultado esperado:** 200 OK con `data.comandaEstado === 'EN_PREPARACION'` y `data.estacion === 'BARRA'`.
+url: "{{baseUrl}}/api/comandas/produccion/27/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{bartenderToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('Estado transicionado a EN_PREPARACION', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaEstado).to.equal('EN_PREPARACION');
+      });
+      pm.test('Estación es BARRA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estacion).to.equal('BARRA');
+      });
+    language: text/javascript
+order: 3020

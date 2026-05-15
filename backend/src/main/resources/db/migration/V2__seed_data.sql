@@ -165,6 +165,23 @@ INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_es
 ('Aceitunas',            'KG',      1.500, 'ACTIVO');
 
 -- =====================================================
+-- 8. INSUMOS SEMIELABORADOS
+--    Preparaciones de cocina que el cocinero registra
+--    como porciones listas mediante MovimientoInventario INGRESO.
+--    No requieren tabla de receta de preparación; el cocinero
+--    ingresa directamente cuántas porciones/kg preparó.
+-- =====================================================
+INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_estado, tipo_insumo) VALUES
+('Salsa de uchuvas',        'KG',     3.000, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de vino tinto',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
+('Arroz granjero',          'KG',    10.000, 'ACTIVO', 'SEMIELABORADO'),
+('Tostones preparados',     'UNIDAD', 80,    'ACTIVO', 'SEMIELABORADO'),
+('Chips de plátano listos', 'KG',     4.000, 'ACTIVO', 'SEMIELABORADO'),
+('Puré de papa casero',     'KG',     6.000, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de ajo casera',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
+('Hogao casero',            'KG',     5.000, 'ACTIVO', 'SEMIELABORADO'),
+('Crema de aguacate',       'KG',     3.000, 'ACTIVO', 'SEMIELABORADO');
+-- =====================================================
 -- 6. PRODUCTO
 -- =====================================================
 
@@ -386,7 +403,7 @@ INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, produ
 -- autogenerados (BIGSERIAL).  El JOIN es INNER: si algún
 -- nombre no coincide exactamente la fila se omite sin error.
 -- Verificar filas insertadas en log post-deploy con:
---   SELECT COUNT(*) FROM Receta;  -- debe ser 80
+--   SELECT COUNT(*) FROM Receta;  -- debe ser 86
 -- =====================================================
 INSERT INTO Receta (insumo_id, producto_id, receta_cantidad)
 SELECT i.insumo_id, p.producto_id, r.cantidad
@@ -531,28 +548,17 @@ FROM (VALUES
     ('Limón',                    'Soda Temple',                0.020),
     -- Soda Tropical
     ('Sirope de Maracuyá',       'Soda Tropical',             30.000),
-    ('Limón',                    'Soda Tropical',              0.020)
+    ('Limón',                    'Soda Tropical',              0.020),
+    -- Recetas que consumen insumos semielaborados (preparaciones de cocina en batch)
+    ('Chips de plátano listos',  'Picada Gran Toro',           0.080),
+    ('Hogao casero',             'Caribe Crunch',              0.050),
+    ('Puré de papa casero',      'Filet Mignon',               0.150),
+    ('Chips de plátano listos',  'Filet Mignon',               0.050),
+    ('Chips de plátano listos',  'Ceviche de Pescado',         0.060),
+    ('Chips de plátano listos',  'Arroz de Mariscos',          0.060)
 ) AS r(insumo_nombre, producto_nombre, cantidad)
 JOIN Insumo   i ON i.insumo_nombre   = r.insumo_nombre
 JOIN Producto p ON p.producto_nombre = r.producto_nombre;
-
--- =====================================================
--- 8. INSUMOS SEMIELABORADOS
---    Preparaciones de cocina que el cocinero registra
---    como porciones listas mediante MovimientoInventario INGRESO.
---    No requieren tabla de receta de preparación; el cocinero
---    ingresa directamente cuántas porciones/kg preparó.
--- =====================================================
-INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_estado, tipo_insumo) VALUES
-('Salsa de uchuvas',        'KG',     3.000, 'ACTIVO', 'SEMIELABORADO'),
-('Salsa de vino tinto',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
-('Arroz granjero',          'KG',    10.000, 'ACTIVO', 'SEMIELABORADO'),
-('Tostones preparados',     'UNIDAD', 80,    'ACTIVO', 'SEMIELABORADO'),
-('Chips de plátano listos', 'KG',     4.000, 'ACTIVO', 'SEMIELABORADO'),
-('Puré de papa casero',     'KG',     6.000, 'ACTIVO', 'SEMIELABORADO'),
-('Salsa de ajo casera',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
-('Hogao casero',            'KG',     5.000, 'ACTIVO', 'SEMIELABORADO'),
-('Crema de aguacate',       'KG',     3.000, 'ACTIVO', 'SEMIELABORADO');
 
 -- =====================================================
 -- 9. CATEGORÍA Y PRODUCTOS MENÚ ESPECIAL ALTERNATIVO

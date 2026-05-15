@@ -1,0 +1,87 @@
+$kind: collection
+name: Al Toro – POST /api/comandas/produccion/{comandaId}/iniciar
+description: |-
+  # POST /api/comandas/produccion/{comandaId}/iniciar
+
+  Transiciona una comanda de PENDIENTE a EN_PREPARACION. Descuenta el inventario de
+  los insumos asociados a los ítems de la comanda.
+
+  **Control de acceso:**
+  - COCINERO: puede iniciar comandas de la estación COCINA.
+  - BARTENDER: puede iniciar comandas de la estación BARRA.
+  - Estación ajena (COCINERO sobre BARRA o viceversa): 403 AUTH-002.
+  - MESERO/CAJERO/CLIENTE/ADMIN: 403 AUTH-002.
+  - Sin token: 401 Unauthorized.
+
+  **Reglas de negocio:**
+  - La comanda debe estar en estado PENDIENTE; cualquier otro estado devuelve 409 NEG-002.
+  - Comanda inexistente: 404 ENT-001.
+  - Stock insuficiente para descontar inventario: 409 NEG-001.
+
+  **Campos de ComandaProduccionResumenResponse:**
+  - `comandaId`, `estacion`, `comandaEstado`, `mesaIdentificador`, `meseroNombre`,
+    `totalItems`, `createdAt`, `fechaHoraInicio`, `fechaHoraListo`, `notas`.
+
+  ## Comandas del seed usadas
+  Los IDs van fijos en cada request (no dependen de variables de entorno,
+  que Postman puede descartar). Provienen del seed `V3__dev_data.sql`:
+  - Comanda 26 (COCINA, PENDIENTE) y 27 (BARRA, PENDIENTE): dedicadas a los AC happy-path.
+  - Comanda 13 (COCINA, EN_PREPARACION) y 17 (BARRA, PENDIENTE): comandas operativas
+    reutilizadas por los AC de error (no mutan estado).
+
+  ## Nota sobre idempotencia
+  Los AC-01 y AC-02 mutan el estado de la comanda a EN_PREPARACION. Para repetir
+  la ejecución se requiere reseed:
+  ```bash
+  docker compose down -v && docker compose up --build
+  ```
+
+  | ID    | Escenario                                          | HTTP |
+  |-------|----------------------------------------------------|------|
+  | AC-01 | COCINERO inicia comanda PENDIENTE COCINA           | 200  |
+  | AC-02 | BARTENDER inicia comanda PENDIENTE BARRA           | 200  |
+  | AC-03 | Sin token                                          | 401  |
+  | AC-04 | MESERO intenta iniciar                             | 403  |
+  | AC-05 | CLIENTE intenta iniciar                            | 403  |
+  | AC-06 | COCINERO inicia comanda de BARRA (estación ajena)  | 403  |
+  | AC-07 | Comanda inexistente                                | 404  |
+  | AC-08 | Comanda no PENDIENTE (ya EN_PREPARACION o LISTO)   | 409  |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailCocinero',  tokenKey: 'cocineroToken'  },
+        { emailKey: 'emailBartender', tokenKey: 'bartenderToken' },
+        { emailKey: 'emailMesero',    tokenKey: 'meseroToken'    },
+        { emailKey: 'emailCajero',    tokenKey: 'cajeroToken'    },
+        { emailKey: 'emailCliente',   tokenKey: 'clienteToken'   },
+        { emailKey: 'emailAdmin',     tokenKey: 'adminToken'     }
+      ];
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('produccion-iniciar pre-request: login ' + emailKey + ' falló');
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript
+order: 3000

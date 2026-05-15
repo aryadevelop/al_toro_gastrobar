@@ -78,6 +78,8 @@ Base URL: `http://localhost:8080/api`
 | PATCH | `/borrador/{comandaId}/notas` | **MESERO / ADMIN** | Persiste las notas (cocina o barra) de una comanda BORRADOR en tiempo real. |
 | GET | `/produccion` | **PRODUCCION** (COCINERO / BARTENDER) | Tablero de comandas de la(s) estación(es) del usuario, en tres columnas (`pendientes`, `enPreparacion`, `listos`). Las comandas se enriquecen con mesa, mesero y total de ítems. Si el usuario tiene ambos roles, el tablero combina las dos estaciones. |
 | GET | `/produccion/{comandaId}` | **PRODUCCION** (COCINERO / BARTENDER) | Detalle de una comanda visible en producción con ítems agrupados por categoría (PLATO, BEBIDA, OTRO). Valida que la estación pertenezca al usuario (403) y que el estado sea `PENDIENTE`, `EN_PREPARACION` o `LISTO` (404 en otro caso). |
+| POST | `/produccion/{comandaId}/iniciar` | **PRODUCCION** (COCINERO / BARTENDER) | `PENDIENTE` → `EN_PREPARACION`. Descuenta el inventario consumido (VENTA_DIRECTA contra `Producto.stockActual`; PREPARACION contra `Insumo.stockActual` vía receta; menús especiales exentos) y registra `MovimientoInventario` de EGRESO. Si el descuento falla la transacción revierte. Registra `comandaFechaHoraInicio`. Publica WS `ACTUALIZADA` al tópico de producción y actualización al cliente. 409 si no está `PENDIENTE`, 403 si la estación no es del usuario. |
+| POST | `/produccion/{comandaId}/listo` | **PRODUCCION** (COCINERO / BARTENDER) | `EN_PREPARACION` → `LISTO`. Registra `comandaFechaHoraListo`, crea notificación `PLATOS_LISTOS` (cocina) o `BEBIDAS_LISTAS` (barra) para el mesero. Publica WS `ACTUALIZADA`, actualización al cliente y refresco del mapa de mesas. 409 si no está `EN_PREPARACION`, 403 si la estación no es del usuario. |
 
 ---
 
@@ -105,6 +107,7 @@ Base URL: `http://localhost:8080/api`
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
 | PATCH | `/{notificacionId}/atender` | **MESERO / ADMIN** | Marca solicitud de asistencia como atendida (`ACTIVA` → `ATENDIDA`). Publica evento WebSocket al cliente de la visita. |
+| POST | `/cambio` | **PRODUCCION** (COCINERO / BARTENDER) | Crea una notificación `CAMBIO` sobre una comanda `PENDIENTE` para que el mesero acuda a la mesa y acuerde la sustitución con el cliente. Body: `{ comandaId }`. Refresca el mapa de mesas vía WebSocket. 409 si la comanda no está `PENDIENTE` o ya tiene una notificación `CAMBIO` activa, 403 si la estación no es del usuario. |
 
 ---
 

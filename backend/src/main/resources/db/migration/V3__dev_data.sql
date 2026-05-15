@@ -421,6 +421,47 @@ INSERT INTO Notificacion (mesa_id, empleado_id, comanda_id, notificacion_estado,
 (11, 6, 15, 'ACTIVA', 'CAMBIO');          -- ID 15 → seedNotificacionCambioId
 
 -- =====================================================
+-- 13b. Comandas dedicadas a las pruebas Postman de
+--      transición de estado en producción (HE-04-HU-03).
+--
+--      Los endpoints iniciar/listo mutan el estado de la
+--      comanda, por lo que cada prueba happy-path necesita
+--      su propia comanda fresca para no colisionar con las
+--      demás dentro de una misma corrida ni con las comandas
+--      operativas de las visitas activas.
+--
+--      IDs resultantes (las 25 comandas previas ocupan 1-25):
+--        26  visita 10 COCINA PENDIENTE       → iniciar happy COCINA
+--        27  visita 11 BARRA  PENDIENTE       → iniciar happy BARRA
+--        28  visita 10 COCINA EN_PREPARACION  → marcar listo happy COCINA
+--        29  visita 11 BARRA  EN_PREPARACION  → marcar listo happy BARRA
+--        30  visita 12 COCINA PENDIENTE       → notificar cambio happy
+--
+--      La comanda 26 incluye 'Picada Gran Toro' (receta con el
+--      insumo semielaborado 'Chips de plátano listos') y
+--      'La Taurina' (receta con insumos crudos) para que la
+--      prueba de iniciar ejercite ambas ramas del descuento.
+-- =====================================================
+INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_fecha_hora_listo, comanda_notas, comanda_estado) VALUES
+(10, 'COCINA', NOW() - INTERVAL '15 minutes', NULL, 'Postman: iniciar preparación COCINA', 'PENDIENTE'),
+(11, 'BARRA',  NOW() - INTERVAL '14 minutes', NULL, 'Postman: iniciar preparación BARRA',  'PENDIENTE'),
+(10, 'COCINA', NOW() - INTERVAL '13 minutes', NULL, 'Postman: marcar listo COCINA',        'EN_PREPARACION'),
+(11, 'BARRA',  NOW() - INTERVAL '12 minutes', NULL, 'Postman: marcar listo BARRA',         'EN_PREPARACION'),
+(12, 'COCINA', NOW() - INTERVAL '11 minutes', NULL, 'Postman: notificar cambio',           'PENDIENTE');
+
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion)
+SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.descripcion
+FROM (VALUES
+    (26, 'Picada Gran Toro', 1, 70000::numeric, NULL),
+    (26, 'La Taurina',       1, 46000,          NULL),
+    (27, 'Mojito Clásico',   2, 22000,          NULL),
+    (28, 'Costillas BBQ',    1, 28000,          NULL),
+    (29, 'Negroni',          1, 27000,          NULL),
+    (30, 'Picanha',          1, 42000,          NULL)
+) AS v(comanda_id, nombre, cantidad, precio, descripcion)
+JOIN Producto p ON p.producto_nombre = v.nombre;
+
+-- =====================================================
 -- 14. Venta (una por visita cerrada)
 -- =====================================================
 INSERT INTO Venta (visita_id, cajero_id, venta_fecha_hora, venta_subtotal, venta_descuento, venta_total, venta_metodo) VALUES

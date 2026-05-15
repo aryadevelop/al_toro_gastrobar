@@ -1,24 +1,30 @@
 package co.edu.unicauca.backend.modules.notificaciones.service;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.DescripcionNormalizer;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.EstacionResolver;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
+import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
@@ -27,14 +33,17 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
+import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 /**
  * Servicio de negocio para solicitar y atender asistencia de mesero en mesa.
@@ -54,6 +63,8 @@ public class NotificacionService {
     private final ComandaItemRepository comandaItemRepository;
     private final MesaAsignarService mesaAsignarService;
     private final MesaWsPublisher mesaWsPublisher;
+    private final EstacionResolver estacionResolver;
+    private final VisitaEstadoMapper visitaEstadoMapper;
 
     /**
      * Registra una solicitud de asistencia para la mesa de la visita indicada.
@@ -174,6 +185,77 @@ public class NotificacionService {
     }
 
     /**
+     * Crea una notificación {@code CAMBIO} sobre una comanda {@code PENDIENTE}
+     * para que el mesero acuda a la mesa y acuerde con el cliente la
+     * sustitución del producto que producción no puede preparar.
+     *
+     * @param comandaId identificador de la comanda
+     * @param auth      contexto del usuario autenticado (rol PRODUCCION,
+     *                  estación que coincida con la de la comanda)
+     * @return identificador y estado inicial de la notificación creada
+     * @throws ResourceNotFoundException si la comanda no existe
+     * @throws BusinessException con {@code INVALID_STATE} si la comanda no está PENDIENTE
+     *                           o si ya existe una notificación CAMBIO ACTIVA;
+     *                           con {@code ACCESS_DENIED} si la estación no es accesible;
+     *                           con {@code BUSINESS_ERROR} si la visita no tiene mesa asignada
+     */
+    @Transactional
+    public NotificarCambioResponse notificarCambio(Long comandaId, Authentication auth) {
+
+        // Resuelve las estaciones del usuario autenticado; lanza 403 si no tiene rol de producción
+        Set<EstacionComanda> estaciones = estacionResolver.resolverEstaciones(auth);
+
+        // Localiza la comanda o lanza excepción si no existe
+        Comanda comanda = comandaRepository.findById(comandaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda", comandaId));
+
+        // Solo comandas PENDIENTE pueden recibir una notificación de cambio
+        if (comanda.getComandaEstado() != EstadoComanda.PENDIENTE) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se puede notificar cambio sobre comandas PENDIENTE.", HttpStatus.CONFLICT);
+        }
+
+        // Valida que la comanda pertenezca a una estación accesible para el usuario
+        if (!estaciones.contains(comanda.getComandaEstacion())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "La comanda no pertenece a una estación accesible para el usuario.", HttpStatus.FORBIDDEN);
+        }
+
+        // No se puede crear una segunda notificación de cambio mientras haya una ACTIVA
+        boolean existeActiva = notificacionRepository
+                .findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                        comandaId, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA)
+                .isPresent();
+        if (existeActiva) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Ya existe una notificación de cambio activa para esta comanda.", HttpStatus.CONFLICT);
+        }
+
+        // La visita debe tener mesa asignada para poder notificar al mesero
+        Long visitaId = comanda.getVisita().getVisitaId();
+        Mesa mesa = mesaRepository.findByVisita_VisitaId(visitaId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "La visita no tiene mesa asignada.", HttpStatus.CONFLICT));
+
+        // Persiste la notificación de cambio apuntando al mesero asignado a la mesa
+        Notificacion notificacion = notificacionRepository.save(Notificacion.builder()
+                .comanda(comanda)
+                .mesa(mesa)
+                .empleado(mesa.getMesero())
+                .notificacionTipo(TipoNotificacion.CAMBIO)
+                .notificacionEstado(EstadoNotificacion.ACTIVA)
+                .build());
+
+        // Refresca el mapa de mesas para que los meseros vean el ícono de cambio
+        mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+
+        return NotificarCambioResponse.builder()
+                .notificacionId(notificacion.getNotificacionId())
+                .estado("ACTIVA")
+                .build();
+    }
+
+    /**
      * Devuelve la comanda asociada a la notificación o lanza {@link BusinessException}
      * si la relación es {@code null}. Las notificaciones {@code PLATOS_LISTOS},
      * {@code BEBIDAS_LISTAS} y {@code CAMBIO} siempre deben tener una comanda asignada
@@ -252,6 +334,7 @@ public class NotificacionService {
                         TipoEventoProduccion.COMPLETADA,
                         comanda.getComandaEstacion().name(),
                         comanda.getComandaId(),
+                        null,
                         null));
 
         Long visitaId = notificacion.getMesa().getVisitaId();
@@ -261,6 +344,9 @@ public class NotificacionService {
 
         // Re-evalúa si la mesa puede pasar a ATENDIDA
         mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
+
+        // Notifica al cliente que el estado visible de su comanda cambió a COMPLETADO
+        publicarVisitaActualizadaCliente(visitaId);
     }
 
     /**
@@ -311,6 +397,7 @@ public class NotificacionService {
                         TipoEventoProduccion.COMPLETADA,
                         comanda.getComandaEstacion().name(),
                         comanda.getComandaId(),
+                        null,
                         null));
 
         Long visitaId = notificacion.getMesa().getVisitaId();
@@ -320,6 +407,9 @@ public class NotificacionService {
 
         // Re-evalúa si la mesa puede pasar a ATENDIDA
         mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
+
+        // Notifica al cliente que el estado visible de su comanda cambió a COMPLETADO
+        publicarVisitaActualizadaCliente(visitaId);
     }
 
     /**
@@ -375,7 +465,7 @@ public class NotificacionService {
         Long visitaId = notificacion.getMesa().getVisitaId();
         Long comandaIdOriginal = comanda.getComandaId();
         Long resultadoComandaId = comandaIdOriginal;
-
+        
         if (comanda.getComandaEstado() == EstadoComanda.PENDIENTE) {
 
             java.util.Optional<Comanda> borradorOpt = comandaRepository
@@ -409,6 +499,7 @@ public class NotificacionService {
                             TipoEventoProduccion.ELIMINADA,
                             comanda.getComandaEstacion().name(),
                             comandaIdOriginal,
+                            null,
                             null));
         } else {
             // Flujo defensivo: si la comanda no está en PENDIENTE, la notificación se marca atendida
@@ -419,9 +510,33 @@ public class NotificacionService {
         // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de cambio)
         mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
+        // Notifica al cliente que el estado de su orden cambió (comanda volvió a BORRADOR o fue fusionada)
+        publicarVisitaActualizadaCliente(visitaId);
+
         return AtenderCambioResponse.builder()
                 .comandaId(resultadoComandaId)
                 .build();
+    }
+
+    /**
+     * Construye y publica en {@code /topic/visita/{visitaId}/orden} el estado
+     * completo de los ítems activos y el total acumulado de la visita.
+     * Se invoca al final de cualquier transición que altere el estado visible
+     * de las comandas para el cliente.
+     */
+    private void publicarVisitaActualizadaCliente(Long visitaId) {
+        List<ComandaItem> items = comandaRepository.findAllItemsActivosByVisita(visitaId);
+        List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(items);
+        BigDecimal total = items.stream()
+                .filter(ci -> ci.getComandaItemPrecio() != null)
+                .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        wsPublisher.publicarVisitaActualizada(visitaId,
+                VisitaActualizadaWsMessage.builder()
+                        .visitaId(visitaId)
+                        .items(itemsResponse)
+                        .total(total)
+                        .build());
     }
 
     /**

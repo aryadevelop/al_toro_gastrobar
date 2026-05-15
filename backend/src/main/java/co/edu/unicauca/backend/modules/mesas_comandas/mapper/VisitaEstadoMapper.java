@@ -93,13 +93,21 @@ public class VisitaEstadoMapper {
 
     /**
      * Convierte el estado interno de la comanda al texto visible para el cliente.
-     * BORRADOR → "En espera"; LISTO/COMPLETADO → "Servido"; resto → "En preparación".
+     *
+     * <p>Mapping:
+     * <ul>
+     *   <li>{@code BORRADOR}, {@code PENDIENTE} → {@code "En espera"}</li>
+     *   <li>{@code EN_PREPARACION} → {@code "En preparación"}</li>
+     *   <li>{@code LISTO}, {@code COMPLETADO} → {@code "Servido"}</li>
+     *   <li>cualquier otro estado → {@code "En espera"} (defensivo)</li>
+     * </ul>
      */
     private String resolverEstadoItem(EstadoComanda estado) {
         return switch (estado) {
-            case BORRADOR -> "En espera";
-            case LISTO, COMPLETADO -> "Servido";
-            default -> "En preparación";
+            case BORRADOR, PENDIENTE -> "En espera";
+            case EN_PREPARACION      -> "En preparación";
+            case LISTO, COMPLETADO   -> "Servido";
+            default                  -> "En espera";
         };
     }
 }

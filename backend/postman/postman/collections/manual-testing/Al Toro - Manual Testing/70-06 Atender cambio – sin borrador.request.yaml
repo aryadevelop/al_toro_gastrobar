@@ -1,5 +1,5 @@
 $kind: http-request
-name: 90-12 Atender cambio – sin borrador
+name: 70-06 Atender cambio – sin borrador
 description: |-
   Caso "atender cambio" sin borrador activo: la comanda PENDIENTE asociada vuelve a BORRADOR
   y se publica el evento ELIMINADA al tablero de producción.

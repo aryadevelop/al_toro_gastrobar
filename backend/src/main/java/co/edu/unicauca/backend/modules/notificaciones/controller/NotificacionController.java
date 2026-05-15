@@ -1,11 +1,15 @@
 package co.edu.unicauca.backend.modules.notificaciones.controller;
 
+import co.edu.unicauca.backend.modules.notificaciones.dto.request.NotificarCambioRequest;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
+import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
@@ -83,6 +87,26 @@ public class NotificacionController {
 
         notificacionService.servirBebidas(notificacionId, authentication.getName());
         return ResponseEntity.ok(ApiResponse.message("Bebidas servidas."));
+    }
+
+    /**
+     * Endpoint para que el personal de producción registre una notificación de
+     * cambio sobre una comanda pendiente.
+     *
+     * @param request        cuerpo con el identificador de la comanda
+     * @param authentication contexto de seguridad del request
+     * @return 201 Created con identificador y estado de la notificación
+     */
+    @PostMapping("/cambio")
+    @PreAuthorize("hasRole('PRODUCCION')")
+    @Operation(summary = "Notificar cambio sobre una comanda pendiente",
+            description = "Crea una notificación CAMBIO en la mesa para que el mesero acuda a acordar la sustitución con el cliente")
+    public ResponseEntity<ApiResponse<NotificarCambioResponse>> notificarCambio(
+            @Valid @RequestBody NotificarCambioRequest request,
+            Authentication authentication) {
+        NotificarCambioResponse data = notificacionService.notificarCambio(request.getComandaId(), authentication);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("Notificación de cambio creada", data));
     }
 
     /**

@@ -1,0 +1,33 @@
+$kind: http-request
+name: AC-01 COCINERO marca listo comanda EN_PREPARACION COCINA – 200 OK
+description: |-
+  **Objetivo:** El cocinero transiciona una comanda EN_PREPARACION de COCINA a LISTO.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 28 (visita 10, COCINA) está en estado EN_PREPARACION.
+  **Nota:** Esta acción es destructiva — requiere reseed (`docker compose down -v && up`) para repetir.
+  **Resultado esperado:** 200 OK con `data.comandaEstado === 'LISTO'` y `data.estacion === 'COCINA'`.
+url: "{{baseUrl}}/api/comandas/produccion/28/listo"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('Estado transicionado a LISTO', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaEstado).to.equal('LISTO');
+      });
+      pm.test('Estación es COCINA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estacion).to.equal('COCINA');
+      });
+      pm.test('Estructura de resumen completa', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('comandaId');
+        pm.expect(data).to.have.property('mesaIdentificador');
+        pm.expect(data).to.have.property('totalItems');
+        pm.expect(data).to.have.property('fechaHoraListo');
+      });
+    language: text/javascript
+order: 4010

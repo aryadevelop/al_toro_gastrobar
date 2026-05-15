@@ -141,4 +141,31 @@ public interface ComandaItemRepository extends JpaRepository<ComandaItem, Long> 
         GROUP BY ci.comanda.comandaId
         """)
     List<Object[]> sumCantidadByComandaIdIn(@Param("comandaIds") Collection<Long> comandaIds);
+
+    /**
+     * Suma la cantidad de un insumo comprometida por todas las comandas en
+     * estado {@code BORRADOR} o {@code PENDIENTE} que utilicen ese insumo a
+     * través de un producto de tipo {@code PREPARACION}.
+     *
+     * <p>Excluye los ítems con {@code comandaItemMenuGrupo IS NOT NULL} (los
+     * menús especiales no decrementan inventario por contrato del módulo) y los
+     * ítems con productos {@code VENTA_DIRECTA} (que se controlan por
+     * {@code Producto.stockActual}).
+     *
+     * @param insumoId identificador del insumo
+     * @return suma de {@code recetaCantidad × comandaItemCantidad}; {@code 0}
+     *         si no hay comandas que comprometan el insumo
+     */
+    @Query("""
+        SELECT COALESCE(SUM(r.recetaCantidad * ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        JOIN Receta r ON r.productoId = ci.producto.productoId
+        WHERE r.insumoId = :insumoId
+          AND ci.comandaItemMenuGrupo IS NULL
+          AND ci.producto.productoTipo = co.edu.unicauca.backend.shared.enums.TipoProducto.PREPARACION
+          AND ci.comanda.comandaEstado IN (
+              co.edu.unicauca.backend.shared.enums.EstadoComanda.BORRADOR,
+              co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE)
+    """)
+    java.math.BigDecimal sumCantidadInsumoComprometida(@Param("insumoId") Long insumoId);
 }

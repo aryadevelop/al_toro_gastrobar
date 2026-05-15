@@ -1,25 +1,41 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
+import co.edu.unicauca.backend.modules.inventario.service.InventarioDescuentoService;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.TableroProduccionResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMapper;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
+import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
+import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -51,6 +67,12 @@ public class ComandaProduccionService {
     private final MesaRepository mesaRepository;
     private final EstacionResolver estacionResolver;
     private final ComandaProduccionMapper comandaProduccionMapper;
+    private final InventarioDescuentoService inventarioDescuentoService;
+    private final NotificacionWsPublisher wsPublisher;
+    private final EmpleadoRepository empleadoRepository;
+    private final VisitaEstadoMapper visitaEstadoMapper;
+    private final NotificacionRepository notificacionRepository;
+    private final MesaWsPublisher mesaWsPublisher;
 
     /**
      * Construye el tablero de producción para el usuario autenticado.
@@ -160,6 +182,177 @@ public class ComandaProduccionService {
                 .findByComanda_ComandaIdOrderByProductoNombreAsc(comandaId);
 
         return comandaProduccionMapper.toDetalle(comanda, mesa, items);
+    }
+
+    /**
+     * Transiciona una comanda en estado {@code PENDIENTE} a {@code EN_PREPARACION}.
+     *
+     * <p>Antes del cambio de estado descuenta el inventario consumido por todos
+     * los ítems no pertenecientes a un menú especial. Si el descuento falla la
+     * transacción revierte y la comanda permanece en {@code PENDIENTE}.
+     *
+     * @param comandaId identificador de la comanda
+     * @param auth      contexto de autenticación; debe pertenecer a la estación
+     *                  de la comanda
+     * @return resumen actualizado de la comanda
+     * @throws ResourceNotFoundException si la comanda o el empleado no existen
+     * @throws BusinessException con {@link ErrorCode#INVALID_STATE} si la comanda
+     *                           no está en {@code PENDIENTE}, o con
+     *                           {@link ErrorCode#ACCESS_DENIED} si la estación no
+     *                           es accesible para el usuario
+     */
+    @Transactional
+    public ComandaProduccionResumenResponse iniciarPreparacion(Long comandaId, Authentication auth) {
+        // Resuelve estaciones antes de cargar la comanda para evitar revelar su existencia
+        Set<EstacionComanda> estaciones = estacionResolver.resolverEstaciones(auth);
+
+        Comanda comanda = comandaRepository.findById(comandaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda", comandaId));
+
+        // Sólo comandas en PENDIENTE pueden transicionar a EN_PREPARACION
+        if (comanda.getComandaEstado() != EstadoComanda.PENDIENTE) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se pueden iniciar comandas en estado PENDIENTE.", HttpStatus.CONFLICT);
+        }
+
+        // El usuario debe operar sobre una estación que le pertenezca
+        if (!estaciones.contains(comanda.getComandaEstacion())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "La comanda no pertenece a una estación accesible para el usuario.",
+                    HttpStatus.FORBIDDEN);
+        }
+
+        Empleado actor = empleadoRepository.findByUsuario_UsuarioEmail(auth.getName())
+                .orElseThrow(() -> new ResourceNotFoundException("Empleado", auth.getName()));
+
+        // El descuento se realiza antes del cambio de estado; si falla la tx revierte
+        inventarioDescuentoService.descontarPorComanda(comanda, actor);
+
+        comanda.setComandaEstado(EstadoComanda.EN_PREPARACION);
+        comanda.setComandaFechaHoraInicio(LocalDateTime.now());
+        comandaRepository.save(comanda);
+
+        Long visitaId = comanda.getVisita().getVisitaId();
+        Mesa mesa = mesaRepository.findByVisita_VisitaId(visitaId).orElse(null);
+        int totalItems = comandaItemRepository.sumCantidadByComandaIdIn(Set.of(comandaId)).stream()
+                .findFirst()
+                .map(r -> ((Number) r[1]).intValue())
+                .orElse(0);
+        ComandaProduccionResumenResponse resumen = comandaProduccionMapper.toResumen(comanda, mesa, totalItems);
+
+        // Notifica al tablero de producción de la estación
+        wsPublisher.publicarEventoProduccion(
+                comanda.getComandaEstacion(),
+                new ComandaProduccionEventoWsMessage(
+                        TipoEventoProduccion.ACTUALIZADA,
+                        comanda.getComandaEstacion().name(),
+                        comandaId,
+                        null,
+                        EstadoComanda.EN_PREPARACION.name()));
+
+        // Notifica al cliente que el estado de su visita cambió
+        publicarVisitaActualizadaCliente(visitaId);
+
+        return resumen;
+    }
+
+    /**
+     * Transiciona una comanda en estado {@code EN_PREPARACION} a {@code LISTO},
+     * crea la notificación correspondiente al mesero según la estación
+     * ({@code PLATOS_LISTOS} para cocina, {@code BEBIDAS_LISTAS} para barra) y
+     * propaga el cambio por los tópicos de producción y de la visita, además de
+     * refrescar el mapa de mesas.
+     *
+     * @param comandaId identificador de la comanda
+     * @param auth      contexto de autenticación; debe pertenecer a la estación
+     *                  de la comanda
+     * @return resumen actualizado de la comanda
+     * @throws ResourceNotFoundException si la comanda no existe
+     * @throws BusinessException con {@code INVALID_STATE} si la comanda no está en {@code EN_PREPARACION},
+     *                           con {@code ACCESS_DENIED} si la estación no es accesible para el usuario
+     */
+    @Transactional
+    public ComandaProduccionResumenResponse marcarListo(Long comandaId, Authentication auth) {
+        Set<EstacionComanda> estaciones = estacionResolver.resolverEstaciones(auth);
+
+        Comanda comanda = comandaRepository.findById(comandaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Comanda", comandaId));
+
+        // Sólo comandas en EN_PREPARACION pueden transicionar a LISTO
+        if (comanda.getComandaEstado() != EstadoComanda.EN_PREPARACION) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se pueden marcar listas comandas en EN_PREPARACION.", HttpStatus.CONFLICT);
+        }
+
+        // El usuario debe operar sobre una estación que le pertenezca
+        if (!estaciones.contains(comanda.getComandaEstacion())) {
+            throw new BusinessException(ErrorCode.ACCESS_DENIED,
+                    "La comanda no pertenece a una estación accesible para el usuario.", HttpStatus.FORBIDDEN);
+        }
+
+        comanda.setComandaEstado(EstadoComanda.LISTO);
+        comanda.setComandaFechaHoraListo(LocalDateTime.now());
+        comandaRepository.save(comanda);
+
+        Long visitaId = comanda.getVisita().getVisitaId();
+        Mesa mesa = mesaRepository.findByVisita_VisitaId(visitaId).orElse(null);
+
+        // PLATOS_LISTOS para cocina, BEBIDAS_LISTAS para barra
+        TipoNotificacion tipo = comanda.getComandaEstacion() == EstacionComanda.COCINA
+                ? TipoNotificacion.PLATOS_LISTOS
+                : TipoNotificacion.BEBIDAS_LISTAS;
+
+        notificacionRepository.save(Notificacion.builder()
+                .comanda(comanda)
+                .mesa(mesa)
+                .empleado(mesa != null ? mesa.getMesero() : null)
+                .notificacionTipo(tipo)
+                .notificacionEstado(EstadoNotificacion.ACTIVA)
+                .build());
+
+        int totalItems = comandaItemRepository.sumCantidadByComandaIdIn(Set.of(comandaId)).stream()
+                .findFirst()
+                .map(r -> ((Number) r[1]).intValue())
+                .orElse(0);
+        ComandaProduccionResumenResponse resumen = comandaProduccionMapper.toResumen(comanda, mesa, totalItems);
+
+        // Notifica al tablero de producción de la estación
+        wsPublisher.publicarEventoProduccion(comanda.getComandaEstacion(),
+                new ComandaProduccionEventoWsMessage(
+                        TipoEventoProduccion.ACTUALIZADA,
+                        comanda.getComandaEstacion().name(),
+                        comandaId,
+                        null,
+                        EstadoComanda.LISTO.name()));
+
+        // Notifica al cliente que el estado de su visita cambió
+        publicarVisitaActualizadaCliente(visitaId);
+
+        // Refresca el mapa de mesas con evento de notificación
+        mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+
+        return resumen;
+    }
+
+    /**
+     * Construye y publica el mensaje WebSocket dirigido al cliente con el
+     * estado completo de los ítems activos y el total acumulado de la visita.
+     * Centraliza el patrón usado por todas las transiciones que mutan
+     * comandas para mantener un único origen de verdad.
+     */
+    private void publicarVisitaActualizadaCliente(Long visitaId) {
+        List<ComandaItem> items = comandaRepository.findAllItemsActivosByVisita(visitaId);
+        List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(items);
+        BigDecimal total = items.stream()
+                .filter(ci -> ci.getComandaItemPrecio() != null)
+                .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        wsPublisher.publicarVisitaActualizada(visitaId,
+                VisitaActualizadaWsMessage.builder()
+                        .visitaId(visitaId)
+                        .items(itemsResponse)
+                        .total(total)
+                        .build());
     }
 
     private Map<Long, Mesa> cargarMesas(List<Comanda> comandas) {

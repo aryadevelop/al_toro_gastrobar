@@ -164,7 +164,7 @@ public class MesaAsignarService {
      * @param visita visita creada
      */
     private void procesarReserva(Reserva reserva, Visita visita) {
-        // 1. Buscar comandas PRE_RESERVA (puede haber más de una tras el split por estación)
+        // 1. Buscar comandas PRE_RESERVA
         List<Comanda> preordenes = comandaRepository.findByReserva_ReservaIdAndComandaEstado(
                 reserva.getReservaId(), EstadoComanda.PRE_RESERVA);
 

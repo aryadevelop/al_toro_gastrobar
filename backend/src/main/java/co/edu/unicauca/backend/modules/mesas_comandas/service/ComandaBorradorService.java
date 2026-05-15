@@ -162,8 +162,9 @@ public class ComandaBorradorService {
             comandaItemRepository.save(item);
         }
 
-        // Publicar actualización
+        // Publicar actualización de mapa y de la orden visible por el cliente
         publicarMesasActualizada(req.getVisitaId());
+        publicarOrdenClienteActualizada(req.getVisitaId());
 
         // Devolver el borrador completo tras la modificación
         return obtenerBorradorInterno(mesa);
@@ -229,8 +230,9 @@ public class ComandaBorradorService {
         // Guardar el item modificado
         comandaItemRepository.save(item);
 
-        // Publicar actualización
+        // Publicar actualización de mapa y de la orden visible por el cliente
         publicarMesasActualizada(visitaId);
+        publicarOrdenClienteActualizada(visitaId);
 
         // Devolver el borrador completo tras la modificación
         return obtenerBorradorInterno(mesa);
@@ -286,8 +288,9 @@ public class ComandaBorradorService {
             eliminarComandaSiVacia(comanda);
         }
 
-        // Publicar actualización
+        // Publicar actualización de mapa y de la orden visible por el cliente
         publicarMesasActualizada(visitaId);
+        publicarOrdenClienteActualizada(visitaId);
 
         //  Devolver el borrador completo tras la modificación
         return obtenerBorradorInterno(mesa);
@@ -407,7 +410,8 @@ public class ComandaBorradorService {
                         TipoEventoProduccion.CREADA,
                         comanda.getComandaEstacion().name(),
                         comanda.getComandaId(),
-                        resumen));
+                        resumen,
+                        null));
 
         // Publicar actualización del mapa y de la orden del cliente para reflejar el cambio.
         publicarMesasActualizada(visitaId);
@@ -434,6 +438,7 @@ public class ComandaBorradorService {
             comandaRepository.deleteAll(comandas);
         }
         publicarMesasActualizada(visitaId);
+        publicarOrdenClienteActualizada(visitaId);
     }
 
     /**

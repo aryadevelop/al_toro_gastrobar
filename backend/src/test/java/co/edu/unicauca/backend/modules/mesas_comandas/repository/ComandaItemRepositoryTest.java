@@ -2,7 +2,9 @@ package co.edu.unicauca.backend.modules.mesas_comandas.repository;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Receta;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
@@ -11,7 +13,9 @@ import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
+import co.edu.unicauca.backend.shared.enums.TipoInsumo;
 import co.edu.unicauca.backend.shared.enums.TipoProducto;
+import co.edu.unicauca.backend.shared.enums.UnidadMedida;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -267,6 +271,161 @@ class ComandaItemRepositoryTest {
                     java.util.Set.of(vacia.getComandaId()));
 
             assertThat(resultado).isEmpty();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumCantidadInsumoComprometida
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumCantidadInsumoComprometida")
+    class SumCantidadInsumoComprometida {
+
+        private Insumo insumo;
+        private Producto productoPreparacion;
+        private Producto productoVentaDirecta;
+
+        @BeforeEach
+        void setUpInsumoReceta() {
+            insumo = em.persistAndFlush(Insumo.builder()
+                    .insumoNombre("Carne" + System.nanoTime())
+                    .insumoUnidad(UnidadMedida.KG)
+                    .insumoEstado(EstadoGenerico.ACTIVO)
+                    .tipoInsumo(TipoInsumo.MATERIA_PRIMA)
+                    .insumoStockActual(new BigDecimal("10.000"))
+                    .build());
+
+            CategoriaCarta cat = em.persistAndFlush(CategoriaCarta.builder()
+                    .categoriaNombre("CatReceta" + System.nanoTime())
+                    .build());
+
+            productoPreparacion = em.persistAndFlush(Producto.builder()
+                    .categoriaCarta(cat)
+                    .productoNombre("Lomo" + System.nanoTime())
+                    .productoEstado(EstadoGenerico.ACTIVO)
+                    .productoPrecio(new BigDecimal("25000"))
+                    .productoTipo(TipoProducto.PREPARACION)
+                    .productoCategoria(CategoriaProducto.PLATO)
+                    .build());
+
+            productoVentaDirecta = em.persistAndFlush(Producto.builder()
+                    .categoriaCarta(cat)
+                    .productoNombre("Gaseosa" + System.nanoTime())
+                    .productoEstado(EstadoGenerico.ACTIVO)
+                    .productoPrecio(new BigDecimal("5000"))
+                    .productoTipo(TipoProducto.VENTA_DIRECTA)
+                    .productoCategoria(CategoriaProducto.BEBIDA)
+                    .build());
+
+            // Receta: 1 unidad de Lomo requiere 0.250 kg de Carne
+            em.persistAndFlush(Receta.builder()
+                    .insumoId(insumo.getInsumoId())
+                    .productoId(productoPreparacion.getProductoId())
+                    .insumo(insumo)
+                    .producto(productoPreparacion)
+                    .recetaCantidad(new BigDecimal("0.250"))
+                    .build());
+        }
+
+        @Test
+        @DisplayName("sin comandas → retorna cero")
+        void sinComandas_retornaCero() {
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("0");
+        }
+
+        @Test
+        @DisplayName("ítem en BORRADOR con cantidad 4 y recetaCantidad 0.250 → suma 1.000")
+        void itemEnBorrador_sumaCantidad() {
+            // comanda BORRADOR ya existe en setUp() como comandaBorrador
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPreparacion)
+                    .comandaItemCantidad(4)
+                    .comandaItemPrecio(productoPreparacion.getProductoPrecio())
+                    .build());
+
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("1.000");
+        }
+
+        @Test
+        @DisplayName("ítem en PENDIENTE → contribuye a la suma")
+        void itemEnPendiente_suma() {
+            Comanda comandaPendiente = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaPendiente)
+                    .producto(productoPreparacion)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(productoPreparacion.getProductoPrecio())
+                    .build());
+
+            // 2 × 0.250 = 0.500
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("0.500");
+        }
+
+        @Test
+        @DisplayName("ítem en COMPLETADO → se excluye de la suma")
+        void itemEnCompletado_seExcluye() {
+            Comanda comandaCompletada = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.COMPLETADO)
+                    .build());
+
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaCompletada)
+                    .producto(productoPreparacion)
+                    .comandaItemCantidad(3)
+                    .comandaItemPrecio(productoPreparacion.getProductoPrecio())
+                    .build());
+
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("0");
+        }
+
+        @Test
+        @DisplayName("ítem con comandaItemMenuGrupo no nulo → se excluye (menú especial)")
+        void itemConMenuGrupo_seExcluye() {
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoPreparacion)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(productoPreparacion.getProductoPrecio())
+                    .comandaItemMenuGrupo("uuid-menu-especial")
+                    .build());
+
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("0");
+        }
+
+        @Test
+        @DisplayName("producto VENTA_DIRECTA con el mismo insumo → se excluye")
+        void productoVentaDirecta_seExcluye() {
+            // Receta para el producto de VENTA_DIRECTA con el mismo insumo
+            em.persistAndFlush(Receta.builder()
+                    .insumoId(insumo.getInsumoId())
+                    .productoId(productoVentaDirecta.getProductoId())
+                    .insumo(insumo)
+                    .producto(productoVentaDirecta)
+                    .recetaCantidad(new BigDecimal("0.100"))
+                    .build());
+
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(comandaBorrador)
+                    .producto(productoVentaDirecta)
+                    .comandaItemCantidad(5)
+                    .comandaItemPrecio(productoVentaDirecta.getProductoPrecio())
+                    .build());
+
+            BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
+            assertThat(result).isEqualByComparingTo("0");
         }
     }
 }

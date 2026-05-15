@@ -120,7 +120,7 @@ class NotificacionWsPublisherTest {
         ArgumentCaptor<ComandaProduccionEventoWsMessage> captor =
                 ArgumentCaptor.forClass(ComandaProduccionEventoWsMessage.class);
         ComandaProduccionEventoWsMessage mensaje = new ComandaProduccionEventoWsMessage(
-                TipoEventoProduccion.COMPLETADA, "COCINA", 15L, null);
+                TipoEventoProduccion.COMPLETADA, "COCINA", 15L, null, null);
 
         publisher.publicarEventoProduccion(EstacionComanda.COCINA, mensaje);
 
@@ -134,7 +134,7 @@ class NotificacionWsPublisherTest {
     @DisplayName("publicarEventoProduccion BARRA: envía a /topic/produccion/barra")
     void publicarEventoProduccion_barra() {
         ComandaProduccionEventoWsMessage mensaje = new ComandaProduccionEventoWsMessage(
-                TipoEventoProduccion.CREADA, "BARRA", 20L, null);
+                TipoEventoProduccion.CREADA, "BARRA", 20L, null, null);
 
         publisher.publicarEventoProduccion(EstacionComanda.BARRA, mensaje);
 
