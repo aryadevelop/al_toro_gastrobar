@@ -54,4 +54,19 @@ public interface NotificacionRepository extends JpaRepository<Notificacion, Long
      */
     boolean existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
             Long visitaId, TipoNotificacion tipo, EstadoNotificacion estado);
+
+    /**
+     * Devuelve la primera notificación de un tipo y estado dados asociada a
+     * una comanda específica.
+     *
+     * <p>Usado para evitar duplicar notificaciones de cambio activas sobre la
+     * misma comanda en producción.
+     *
+     * @param comandaId identificador de la comanda
+     * @param tipo      tipo de notificación a filtrar
+     * @param estado    estado a filtrar
+     * @return primera notificación que coincida, o empty
+     */
+    Optional<Notificacion> findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+            Long comandaId, TipoNotificacion tipo, EstadoNotificacion estado);
 }
