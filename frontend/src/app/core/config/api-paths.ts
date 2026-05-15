@@ -22,6 +22,7 @@ export const API_PATHS = {
         canceladasDevueltas: `${API}/reservas/cliente/canceladas-devueltas`,
         detalle: (reservaId: string | number) => `${API}/reservas/${reservaId}/detalle`,
         meseroConsulta: `${API}/reservas/mesero/consulta`,
+        marcarInasistencia: (reservaId: string | number) => `${API}/reservas/${reservaId}/marcar-inasistencia`,
     },
     visitas: {
         historial: `${API}/visitas/cliente/historial`,
