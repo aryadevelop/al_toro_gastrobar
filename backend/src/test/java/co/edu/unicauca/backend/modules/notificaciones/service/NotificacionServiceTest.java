@@ -4,12 +4,14 @@ import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.EstacionResolver;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
@@ -62,6 +64,7 @@ class NotificacionServiceTest {
     @Mock MesaAsignarService mesaAsignarService;
     @Mock MesaWsPublisher mesaWsPublisher;
     @Mock EstacionResolver estacionResolver;
+    @Mock VisitaEstadoMapper visitaEstadoMapper;
 
     @InjectMocks NotificacionService notificacionService;
 
@@ -290,6 +293,7 @@ class NotificacionServiceTest {
             assertThat(mensajeCaptor.getValue().resumen()).isNull();
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -364,6 +368,7 @@ class NotificacionServiceTest {
             assertThat(mensajeCaptor.getValue().estacion()).isEqualTo("BARRA");
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -447,6 +452,7 @@ class NotificacionServiceTest {
 
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService, never()).evaluarYActualizarEstadoMesa(any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -496,6 +502,7 @@ class NotificacionServiceTest {
             verify(notificacionRepository).delete(n);
             verify(comandaRepository).delete(pendiente);
             verify(wsPublisher).publicarEventoProduccion(eq(EstacionComanda.COCINA), any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -544,6 +551,7 @@ class NotificacionServiceTest {
             assertThat(clon.getComandaItemCantidad()).isEqualTo(2);
             verify(notificacionRepository).delete(n);
             verify(comandaRepository).delete(pendiente);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -686,10 +694,11 @@ class NotificacionServiceTest {
             verify(comandaItemRepository).save(itemBorr);
             verify(notificacionRepository).delete(n);
             verify(comandaRepository).delete(pendiente);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
-        @DisplayName("comanda no PENDIENTE → solo marca la notificación ATENDIDA")
+        @DisplayName("comanda no PENDIENTE → solo marca la notificación ATENDIDA y publica al cliente")
         void comandaNoPendiente_soloMarcaAtendida() {
             Comanda comanda = Comanda.builder()
                     .comandaId(80L)
@@ -708,6 +717,7 @@ class NotificacionServiceTest {
             assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.EN_PREPARACION);
             verify(comandaRepository, never()).delete(any());
             verify(wsPublisher, never()).publicarEventoProduccion(any(), any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test

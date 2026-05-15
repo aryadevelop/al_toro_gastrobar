@@ -1,10 +1,12 @@
 package co.edu.unicauca.backend.modules.notificaciones.service;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
@@ -12,6 +14,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepositor
 import co.edu.unicauca.backend.modules.mesas_comandas.service.DescripcionNormalizer;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.EstacionResolver;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
@@ -34,6 +37,7 @@ import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -60,6 +64,7 @@ public class NotificacionService {
     private final MesaAsignarService mesaAsignarService;
     private final MesaWsPublisher mesaWsPublisher;
     private final EstacionResolver estacionResolver;
+    private final VisitaEstadoMapper visitaEstadoMapper;
 
     /**
      * Registra una solicitud de asistencia para la mesa de la visita indicada.
@@ -339,6 +344,9 @@ public class NotificacionService {
 
         // Re-evalúa si la mesa puede pasar a ATENDIDA
         mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
+
+        // Notifica al cliente que el estado visible de su comanda cambió a COMPLETADO
+        publicarVisitaActualizadaCliente(visitaId);
     }
 
     /**
@@ -399,6 +407,9 @@ public class NotificacionService {
 
         // Re-evalúa si la mesa puede pasar a ATENDIDA
         mesaAsignarService.evaluarYActualizarEstadoMesa(visitaId);
+
+        // Notifica al cliente que el estado visible de su comanda cambió a COMPLETADO
+        publicarVisitaActualizadaCliente(visitaId);
     }
 
     /**
@@ -499,9 +510,33 @@ public class NotificacionService {
         // Refresca el mapa de mesas de TODOS los meseros (eliminar ícono de cambio)
         mesaWsPublisher.publicarActualizacionMesa(visitaId, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
 
+        // Notifica al cliente que el estado de su orden cambió (comanda volvió a BORRADOR o fue fusionada)
+        publicarVisitaActualizadaCliente(visitaId);
+
         return AtenderCambioResponse.builder()
                 .comandaId(resultadoComandaId)
                 .build();
+    }
+
+    /**
+     * Construye y publica en {@code /topic/visita/{visitaId}/orden} el estado
+     * completo de los ítems activos y el total acumulado de la visita.
+     * Se invoca al final de cualquier transición que altere el estado visible
+     * de las comandas para el cliente.
+     */
+    private void publicarVisitaActualizadaCliente(Long visitaId) {
+        List<ComandaItem> items = comandaRepository.findAllItemsActivosByVisita(visitaId);
+        List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(items);
+        BigDecimal total = items.stream()
+                .filter(ci -> ci.getComandaItemPrecio() != null)
+                .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        wsPublisher.publicarVisitaActualizada(visitaId,
+                VisitaActualizadaWsMessage.builder()
+                        .visitaId(visitaId)
+                        .items(itemsResponse)
+                        .total(total)
+                        .build());
     }
 
     /**
