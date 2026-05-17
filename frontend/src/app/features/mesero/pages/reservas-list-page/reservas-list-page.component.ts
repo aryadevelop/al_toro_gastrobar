@@ -77,10 +77,18 @@ interface ZonaGroup {
             </div>
             <div class="reserva-card-actions">
               <button class="card-btn" (click)="verDetalle(r.id)">&#128065; Ver</button>
-              <button class="card-btn" (click)="onMarcarLlegada(r)">&#9881; Marcar llegada</button>
+              <button
+                class="card-btn"
+                [class.card-btn-disabled]="r.status === 'PENDING'"
+                [disabled]="r.status === 'PENDING'"
+                [attr.title]="r.status === 'PENDING' ? 'La reserva no ha sido confirmada por el administrador.' : null"
+                (click)="onMarcarLlegada(r)"
+              >
+                &#9881; Marcar llegada
+              </button>
               <button
                 class="card-btn card-btn-danger"
-                *ngIf="r.mostrarBotonInasistencia"
+                *ngIf="shouldShowInasistencia(r)"
                 (click)="onMarcarInasistencia(r)"
               >
                 &#9888; Marcar inasistencia
@@ -250,6 +258,12 @@ interface ZonaGroup {
         white-space: nowrap;
       }
       .card-btn:hover { background: var(--surface); }
+      .card-btn.card-btn-disabled,
+      .card-btn:disabled {
+        opacity: 0.6;
+        cursor: not-allowed;
+        background: #f4f1ed;
+      }
       .card-btn-danger {
         color: #8a2a2a;
         border-color: rgba(138, 42, 42, 0.35);
@@ -441,7 +455,7 @@ export class ReservasListPageComponent implements OnDestroy {
       next: (data) => {
         const reservas: ReservaCard[] = data.reservas.map((r: any) => ({
           ...r,
-          mostrarBotonInasistencia: r.mostrarBotonInasistencia ?? false,
+          mostrarBotonInasistencia: r.mostrarBotonInasistencia ?? undefined,
         }));
 
         this.zonaGroups = this.groupByZona(reservas, data.resumenZonas);
@@ -470,11 +484,28 @@ export class ReservasListPageComponent implements OnDestroy {
       this.showToast('La reserva no ha sido confirmada por el administrador. No es posible marcar llegada');
       return;
     }
-    this.asignacionReserva = reserva;
-    this.asignacionError = '';
-    this.asignarForm.reset({ mesaIdentificador: '' });
-    this.asignacionOpen = true;
-    this.cargarZonas();
+
+    this.reservationService.getDetail(reserva.id).subscribe({
+      next: (detail) => {
+        const reservationDate = detail.reservation.date;
+        const today = this.getTodayIsoDate();
+
+        if (reservationDate < today) {
+          this.showToast('No es posible marcar llegada para reservas que ya pasaron');
+          return;
+        }
+
+        if (reservationDate > today) {
+          this.showToast('No es posible marcar llegada para reservas futuras');
+          return;
+        }
+
+        this.openAsignacion(reserva);
+      },
+      error: () => {
+        this.showToast('No se pudo validar la fecha de la reserva', true);
+      },
+    });
   }
 
   cancelarAsignacion(): void {
@@ -570,6 +601,42 @@ export class ReservasListPageComponent implements OnDestroy {
     if (reserva.zoneId) return reserva.zoneId;
     if (this.zonas.length === 1) return this.zonas[0].id;
     return this.zonas.length > 0 ? this.zonas[0].id : null;
+  }
+
+  private shouldShowInasistencia(reserva: ReservaCard): boolean {
+    if (reserva.mostrarBotonInasistencia === true) {
+      return true;
+    }
+
+    if (reserva.status !== 'CONFIRMED') {
+      return false;
+    }
+
+    const date = reserva.date || this.getTodayIsoDate();
+    const time = reserva.time || '00:00';
+    const target = new Date(`${date}T${time}:00`);
+    if (Number.isNaN(target.getTime())) {
+      return false;
+    }
+
+    const minutesElapsed = (Date.now() - target.getTime()) / 60000;
+    return minutesElapsed > 30;
+  }
+
+  private openAsignacion(reserva: ReservaCard): void {
+    this.asignacionReserva = reserva;
+    this.asignacionError = '';
+    this.asignarForm.reset({ mesaIdentificador: '' });
+    this.asignacionOpen = true;
+    this.cargarZonas();
+  }
+
+  private getTodayIsoDate(): string {
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = String(now.getMonth() + 1).padStart(2, '0');
+    const day = String(now.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
   }
 
   private showToast(msg: string, danger = false): void {

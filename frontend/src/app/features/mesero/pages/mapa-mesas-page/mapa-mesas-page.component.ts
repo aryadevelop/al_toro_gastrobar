@@ -299,6 +299,18 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         transition: transform 0.2s ease, box-shadow 0.2s ease;
       }
 
+      .mesa-card.state-attended {
+        border-color: rgba(41, 98, 150, 0.55);
+      }
+
+      .mesa-card.state-prep {
+        border-color: rgba(46, 125, 50, 0.55);
+      }
+
+      .mesa-card.state-wait {
+        border-color: rgba(107, 114, 128, 0.55);
+      }
+
       .mesa-card.is-own {
         border-color: rgba(196, 30, 58, 0.5);
         box-shadow: 0 10px 22px rgba(196, 30, 58, 0.2);

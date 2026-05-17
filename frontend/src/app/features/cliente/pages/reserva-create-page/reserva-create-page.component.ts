@@ -110,6 +110,13 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
               </label>
             </section>
 
+            <p class="error-text" *ngIf="showMissingDateMessage()">
+              No hay fecha seleccionada
+            </p>
+            <p class="error-text" *ngIf="showMissingTimeMessage()">
+              No hay hora seleccionada
+            </p>
+
             <p class="error-text" *ngIf="showPastDateError()">
               La fecha y hora de la reserva no pueden ser en el pasado
             </p>
@@ -157,6 +164,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
             </section>
 
             <section class="form-section" *ngIf="showRomanticAddonOption()">
+              <p class="romantic-note">Zona romantica: puedes agregar petalos y velas si lo deseas.</p>
               <label class="addon-check">
                 <input type="checkbox" formControlName="romanticAddon" />
                 Agregar pétalos y velas (+$20.000)
@@ -536,6 +544,16 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         gap: 0.45rem;
         font-size: 0.84rem;
         font-weight: 600;
+      }
+
+      .romantic-note {
+        margin: 0;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        border-radius: 8px;
+        padding: 0.45rem 0.55rem;
+        background: rgba(111, 78, 55, 0.08);
+        color: #4d3323;
+        font-size: 0.82rem;
       }
 
       .preorder-head {
@@ -931,6 +949,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly showFloatingWarning = signal(false);
   readonly qtyLimitWarning = signal('');
   readonly editMode = signal(false);
+  readonly submitAttempted = signal(false);
   readonly availableDecorations = signal<DecorationOption[]>([]);
   readonly availableZones = signal<ZoneOption[]>([]);
   readonly showSummary = signal(false);
@@ -988,10 +1007,12 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.loadCatalog();
 
     this.reservaForm.controls.date.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.clearSubmitAttemptIfReady();
       this.updateAvailability();
     });
 
     this.reservaForm.controls.time.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
+      this.clearSubmitAttemptIfReady();
       this.updateAvailability();
     });
 
@@ -1038,11 +1059,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   showRomanticAddonOption(): boolean {
-    if (this.reservaForm.controls.decorationId.value) {
-      return false;
-    }
-
-    const selectedZone = this.getZoneById(this.reservaForm.controls.zoneId.value);
+    const selectedZone = this.getZoneById(this.getEffectiveZoneId());
     return this.isRomanticZone(selectedZone);
   }
 
@@ -1357,6 +1374,24 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return this.isDateTimeInPast(date, time);
   }
 
+  showMissingDateMessage(): boolean {
+    const date = this.reservaForm.controls.date.value;
+    if (date) {
+      return false;
+    }
+
+    return this.submitAttempted() || this.reservaForm.controls.date.touched || this.reservaForm.controls.time.touched;
+  }
+
+  showMissingTimeMessage(): boolean {
+    const time = this.reservaForm.controls.time.value;
+    if (time) {
+      return false;
+    }
+
+    return this.submitAttempted() || this.reservaForm.controls.date.touched || this.reservaForm.controls.time.touched;
+  }
+
   showOutOfHoursError(): boolean {
     const time = this.reservaForm.controls.time.value;
 
@@ -1377,6 +1412,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   onSubmit(): void {
+    this.submitAttempted.set(true);
     const { date, time } = this.reservaForm.getRawValue();
 
     if (!date || !time) {
@@ -1413,6 +1449,14 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     this.showSummary.set(true);
+  }
+
+  private clearSubmitAttemptIfReady(): void {
+    const date = this.reservaForm.controls.date.value;
+    const time = this.reservaForm.controls.time.value;
+    if (date && time && this.submitAttempted()) {
+      this.submitAttempted.set(false);
+    }
   }
 
   onCancelSummary(): void {

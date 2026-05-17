@@ -88,13 +88,14 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
         title="Cancelar reserva"
         [message]="cancelDialogMessage()"
         [confirmLabel]="cancelingReservation() ? 'Cancelando...' : 'Sí, cancelar'"
+        cancelLabel="No, volver"
         (confirm)="onConfirmCancelReservation()"
         (cancel)="onCancelDialog()"
       ></app-confirm-dialog>
 
       <!-- CA-08: Modal de detalle inline -->
-      <section class="overlay" *ngIf="showDetailModal()">
-        <article class="card detail-modal">
+      <section class="overlay" *ngIf="showDetailModal()" (click)="closeDetailModal()">
+        <article class="card detail-modal" (click)="$event.stopPropagation()">
           <div class="detail-modal-header">
             <h3>Detalle de la reserva</h3>
             <button type="button" class="btn-close" (click)="closeDetailModal()">✕</button>
@@ -469,7 +470,7 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
           return;
         }
 
-        this.flashMessage.set('Reserva cancelada correctamente.');
+        this.flashMessage.set('Tu reserva ha sido cancelada.');
         this.showFlash.set(true);
         setTimeout(() => this.showFlash.set(false), 3500);
         this.loadHistoryData();
@@ -550,15 +551,15 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
   }
 
   private getCancelDialogMessage(reservation: Reserva): string {
-    if (this.shouldShowRefundNote(reservation)) {
-      return 'Esta reserva especial requiere gestionar el reembolso del abono. ¿Deseas cancelar?';
+    if (reservation.type === 'SPECIAL') {
+      if (this.isBeforeRefundCutoff(reservation)) {
+        return 'Esta reserva especial requiere gestionar el reembolso del abono. ¿Deseas cancelar?';
+      }
+
+      return 'Debido a la política de cancelaciones, no se realizará reembolso del abono. ¿Deseas cancelar de todas formas?';
     }
 
     return '¿Deseas cancelar esta reserva?';
-  }
-
-  private shouldShowRefundNote(reservation: Reserva): boolean {
-    return reservation.type === 'SPECIAL' && this.isBeforeRefundCutoff(reservation);
   }
 
   private isBeforeRefundCutoff(reservation: Reserva): boolean {
