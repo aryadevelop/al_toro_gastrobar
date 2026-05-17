@@ -1,0 +1,134 @@
+<section class="page-grid">
+  <app-page-header
+    title="Detalle de Comanda"
+    [subtitle]="detalle ? 'Comanda #' + detalle.comandaId + ' — ' + detalle.mesaIdentificador : ''"
+  >
+    <button class="btn-secondary btn-sm" (click)="volver()">← Volver al tablero</button>
+  </app-page-header>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="detalle-loading">
+    <div class="spinner"></div>
+    <p>Cargando detalle...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error && !loading" class="card detalle-error">
+    <p>{{ error }}</p>
+    <button class="btn-primary btn-sm" (click)="volver()">Volver</button>
+  </div>
+
+  <!-- Detail content -->
+  <ng-container *ngIf="detalle && !loading">
+
+    <!-- Info card -->
+    <article class="card detalle-info">
+      <div class="info-grid">
+        <div class="info-item">
+          <span class="info-label">Mesa</span>
+          <span class="info-value-lg">🍽️ {{ detalle.mesaIdentificador }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Mesero</span>
+          <span class="info-value-lg">{{ detalle.meseroNombre }}</span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Estación</span>
+          <span class="info-value-lg estacion-badge" [class]="'estacion-' + detalle.estacion.toLowerCase()">
+            {{ detalle.estacion }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Estado</span>
+          <span class="info-value-lg estado-badge" [class]="'estado-' + detalle.comandaEstado.toLowerCase()">
+            {{ detalle.comandaEstado === 'PENDIENTE' ? 'Pendiente' :
+               detalle.comandaEstado === 'EN_PREPARACION' ? 'En preparación' : 'Lista' }}
+          </span>
+        </div>
+        <div class="info-item">
+          <span class="info-label">Creada</span>
+          <span class="info-value-lg">{{ detalle.createdAt | date:'medium' }}</span>
+        </div>
+        <div class="info-item" *ngIf="detalle.fechaHoraInicio">
+          <span class="info-label">Inicio preparación</span>
+          <span class="info-value-lg">{{ detalle.fechaHoraInicio | date:'medium' }}</span>
+        </div>
+        <div class="info-item" *ngIf="detalle.fechaHoraListo">
+          <span class="info-label">Marcada lista</span>
+          <span class="info-value-lg">{{ detalle.fechaHoraListo | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <p *ngIf="detalle.notas" class="detalle-notas">📝 {{ detalle.notas }}</p>
+    </article>
+
+    <!-- Items: Platos -->
+    <article *ngIf="detalle.platos && detalle.platos.length" class="card items-section">
+      <h3 class="section-title">🍖 Platos</h3>
+      <div class="items-list">
+        <div *ngFor="let item of detalle.platos" class="item-row">
+          <span class="item-qty">×{{ item.cantidad }}</span>
+          <div class="item-info">
+            <span class="item-name">{{ item.productoNombre }}</span>
+            <span *ngIf="item.descripcion" class="item-desc">{{ item.descripcion }}</span>
+            <div *ngIf="item.modificacionesMenu && item.modificacionesMenu.length" class="item-mods">
+              <span *ngFor="let mod of item.modificacionesMenu" class="mod-tag">{{ mod }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Items: Bebidas -->
+    <article *ngIf="detalle.bebidas && detalle.bebidas.length" class="card items-section">
+      <h3 class="section-title">🍹 Bebidas</h3>
+      <div class="items-list">
+        <div *ngFor="let item of detalle.bebidas" class="item-row">
+          <span class="item-qty">×{{ item.cantidad }}</span>
+          <div class="item-info">
+            <span class="item-name">{{ item.productoNombre }}</span>
+            <span *ngIf="item.descripcion" class="item-desc">{{ item.descripcion }}</span>
+            <div *ngIf="item.modificacionesMenu && item.modificacionesMenu.length" class="item-mods">
+              <span *ngFor="let mod of item.modificacionesMenu" class="mod-tag">{{ mod }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Items: Otros -->
+    <article *ngIf="detalle.otros && detalle.otros.length" class="card items-section">
+      <h3 class="section-title">📦 Otros</h3>
+      <div class="items-list">
+        <div *ngFor="let item of detalle.otros" class="item-row">
+          <span class="item-qty">×{{ item.cantidad }}</span>
+          <div class="item-info">
+            <span class="item-name">{{ item.productoNombre }}</span>
+            <span *ngIf="item.descripcion" class="item-desc">{{ item.descripcion }}</span>
+          </div>
+        </div>
+      </div>
+    </article>
+
+    <!-- Actions -->
+    <div class="detalle-actions" *ngIf="detalle.comandaEstado !== 'LISTO'">
+      <button
+        *ngIf="detalle.comandaEstado === 'PENDIENTE'"
+        class="btn-primary btn-lg"
+        (click)="iniciarPreparacion()"
+        [disabled]="actionLoading"
+      >
+        {{ actionLoading ? 'Procesando...' : '🔥 Iniciar preparación' }}
+      </button>
+      <button
+        *ngIf="detalle.comandaEstado === 'EN_PREPARACION'"
+        class="btn-success btn-lg"
+        (click)="marcarListo()"
+        [disabled]="actionLoading"
+      >
+        {{ actionLoading ? 'Procesando...' : '✅ Marcar como listo' }}
+      </button>
+    </div>
+
+  </ng-container>
+</section>
