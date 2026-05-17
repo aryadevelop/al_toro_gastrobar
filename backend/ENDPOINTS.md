@@ -49,6 +49,7 @@ Base URL: `http://localhost:8080/api`
 |--------|----------|--------|-------------|
 | GET | `/carta` | **Authenticated** | Menú agrupado por categorías (`CategoriaCarta`). Solo productos NO especiales, activos, ordenados por `orden`. |
 | GET | `/menu-especial` | **Authenticated** | Menús especiales con grupos de opciones de modificación. Para crear pre-órdenes con personalizaciones. |
+| GET | `/buscar?q=` | **Authenticated** | Búsqueda parcial case-insensitive de productos del catálogo. Excluye menús especiales y productos inactivos. |
 
 ---
 
@@ -61,6 +62,24 @@ Base URL: `http://localhost:8080/api`
 | GET | `/{mesaId}/items-produccion` | **MESERO / ADMIN** | Items de comandas en producción para la mesa (estados `PENDIENTE`, `EN_PREPARACION`, `LISTO`). Agrupados por comanda y estación (COCINA/BARRA). |
 | POST | `/` | **MESERO / ADMIN** | Asignar identificador a mesa. Requiere `mesaId` y `identificador`. Valida unicidad y reglas de asignación. Publica evento WebSocket. |
 | GET | `/zonas-disponibles` | **MESERO / ADMIN** | Lista zonas con mesas disponibles para asignar. Excluye mesas ya asignadas o con visita activa. |
+
+---
+
+## Comandas (`/api/comandas`)
+
+| Method | Endpoint | Acceso | Descripción |
+|--------|----------|--------|-------------|
+| GET | `/borrador?visitaId=` | **MESERO / ADMIN** | Carga el formulario de modificar comanda: ítems precargados desde pre-orden o estructura vacía para walk-in. Valida ownership de la mesa. |
+| POST | `/borrador/items` | **MESERO / ADMIN** | Agrega ítem al borrador (PLATO→COCINA, BEBIDA→BARRA). Soporta descripción opcional para modificación libre. Crea la comanda BORRADOR de la estación si no existe. Valida stock. |
+| PATCH | `/borrador/items/{itemId}` | **MESERO / ADMIN** | Modifica cantidad y/o descripción del ítem; valida stock y techo de 250 unidades. |
+| DELETE | `/borrador/items/{itemId}` | **MESERO / ADMIN** | Elimina ítem. Si es parte de un menú especial elimina el par cocina+barra del mismo grupo. Si es ítem base elimina también sus modificaciones libres. |
+| POST | `/borrador/{comandaId}/enviar` | **MESERO / ADMIN** | BORRADOR → PENDIENTE. Valida stock sin decrementarlo (el descuento ocurre al transicionar a EN_PREPARACION). Publica `comanda.nueva` en RabbitMQ (bridge impresión), WS `/topic/estacion/{estacion}` (dashboard producción), `/topic/mesas` y `/topic/visita/{visitaId}/orden`. |
+| DELETE | `/borrador?visitaId=` | **MESERO / ADMIN** | Elimina todas las comandas BORRADOR de la visita; dispara WS `/topic/mesas`. Idempotente. |
+| PATCH | `/borrador/{comandaId}/notas` | **MESERO / ADMIN** | Persiste las notas (cocina o barra) de una comanda BORRADOR en tiempo real. |
+| GET | `/produccion` | **PRODUCCION** (COCINERO / BARTENDER) | Tablero de comandas de la(s) estación(es) del usuario, en tres columnas (`pendientes`, `enPreparacion`, `listos`). Las comandas se enriquecen con mesa, mesero y total de ítems. Si el usuario tiene ambos roles, el tablero combina las dos estaciones. |
+| GET | `/produccion/{comandaId}` | **PRODUCCION** (COCINERO / BARTENDER) | Detalle de una comanda visible en producción con ítems agrupados por categoría (PLATO, BEBIDA, OTRO). Valida que la estación pertenezca al usuario (403) y que el estado sea `PENDIENTE`, `EN_PREPARACION` o `LISTO` (404 en otro caso). |
+| POST | `/produccion/{comandaId}/iniciar` | **PRODUCCION** (COCINERO / BARTENDER) | `PENDIENTE` → `EN_PREPARACION`. Descuenta el inventario consumido (VENTA_DIRECTA contra `Producto.stockActual`; PREPARACION contra `Insumo.stockActual` vía receta; menús especiales exentos) y registra `MovimientoInventario` de EGRESO. Si el descuento falla la transacción revierte. Registra `comandaFechaHoraInicio`. Publica WS `ACTUALIZADA` al tópico de producción y actualización al cliente. 409 si no está `PENDIENTE`, 403 si la estación no es del usuario. |
+| POST | `/produccion/{comandaId}/listo` | **PRODUCCION** (COCINERO / BARTENDER) | `EN_PREPARACION` → `LISTO`. Registra `comandaFechaHoraListo`, crea notificación `PLATOS_LISTOS` (cocina) o `BEBIDAS_LISTAS` (barra) para el mesero. Publica WS `ACTUALIZADA`, actualización al cliente y refresco del mapa de mesas. 409 si no está `EN_PREPARACION`, 403 si la estación no es del usuario. |
 
 ---
 
@@ -88,6 +107,7 @@ Base URL: `http://localhost:8080/api`
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
 | PATCH | `/{notificacionId}/atender` | **MESERO / ADMIN** | Marca solicitud de asistencia como atendida (`ACTIVA` → `ATENDIDA`). Publica evento WebSocket al cliente de la visita. |
+| POST | `/cambio` | **PRODUCCION** (COCINERO / BARTENDER) | Crea una notificación `CAMBIO` sobre una comanda `PENDIENTE` para que el mesero acuda a la mesa y acuerde la sustitución con el cliente. Body: `{ comandaId }`. Refresca el mapa de mesas vía WebSocket. 409 si la comanda no está `PENDIENTE` o ya tiene una notificación `CAMBIO` activa, 403 si la estación no es del usuario. |
 
 ---
 
@@ -153,6 +173,11 @@ Endpoints que publican eventos WebSocket:
 - `POST /api/visitas/{visitaId}/asistencia` → `/topic/mesas/asistencia`
 - `PATCH /api/notificaciones/{notificacionId}/atender` → `/topic/visita/{visitaId}/asistencia`
 - `POST /api/ventas` → `/topic/visita/{visitaId}/cuenta`
+- `POST /api/comandas/borrador/{comandaId}/enviar` → `/topic/estacion/{estacion}` (COCINA o BARRA) + `/topic/mesas` + `/topic/visita/{visitaId}/orden` + RabbitMQ `comanda.nueva`
+- `POST /api/comandas/borrador/items` → `/topic/mesas`
+- `PATCH /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
+- `DELETE /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
+- `DELETE /api/comandas/borrador?visitaId=` → `/topic/mesas`
 
 ### Business Rules
 - **Reservation hours**: 17:00–22:00 only

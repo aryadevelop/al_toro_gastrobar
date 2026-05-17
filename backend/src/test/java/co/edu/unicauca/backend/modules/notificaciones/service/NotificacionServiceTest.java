@@ -4,15 +4,21 @@ import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.EstacionResolver;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaAsignarService;
-import co.edu.unicauca.backend.modules.mesas_comandas.service.MesaWsPublisher;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
+import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaAtendidaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.AsistenciaSolicitadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
@@ -33,8 +39,10 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import org.springframework.security.core.Authentication;
 
 import java.util.Optional;
+import java.util.Set;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -52,8 +60,11 @@ class NotificacionServiceTest {
     @Mock NotificacionRepository notificacionRepository;
     @Mock NotificacionWsPublisher wsPublisher;
     @Mock ComandaRepository comandaRepository;
+    @Mock ComandaItemRepository comandaItemRepository;
     @Mock MesaAsignarService mesaAsignarService;
     @Mock MesaWsPublisher mesaWsPublisher;
+    @Mock EstacionResolver estacionResolver;
+    @Mock VisitaEstadoMapper visitaEstadoMapper;
 
     @InjectMocks NotificacionService notificacionService;
 
@@ -154,6 +165,18 @@ class NotificacionServiceTest {
 
             assertThatThrownBy(() -> notificacionService.solicitarAsistencia(VISITA_ID, "otro@test.com"))
                     .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("lanza BusinessException ACCESS_DENIED si la visita no tiene cliente")
+        void lanzaExcepcionSinCliente() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID).cliente(null).build();
+            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
+
+            assertThatThrownBy(() -> notificacionService.solicitarAsistencia(VISITA_ID, EMAIL))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
+                            .isEqualTo("AUTH-002"));
         }
 
         @Test
@@ -261,9 +284,16 @@ class NotificacionServiceTest {
 
             assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.COMPLETADO);
             assertThat(n.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
-            verify(wsPublisher).publicarComandaCompletada(80L, "COCINA");
+            ArgumentCaptor<ComandaProduccionEventoWsMessage> mensajeCaptor =
+                    ArgumentCaptor.forClass(ComandaProduccionEventoWsMessage.class);
+            verify(wsPublisher).publicarEventoProduccion(eq(EstacionComanda.COCINA), mensajeCaptor.capture());
+            assertThat(mensajeCaptor.getValue().tipo()).isEqualTo(TipoEventoProduccion.COMPLETADA);
+            assertThat(mensajeCaptor.getValue().comandaId()).isEqualTo(80L);
+            assertThat(mensajeCaptor.getValue().estacion()).isEqualTo("COCINA");
+            assertThat(mensajeCaptor.getValue().resumen()).isNull();
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -309,7 +339,7 @@ class NotificacionServiceTest {
 
             assertThatThrownBy(() -> notificacionService.servirPlatos(50L, "mesero@test.com"))
                     .isInstanceOf(BusinessException.class);
-            verify(wsPublisher, never()).publicarComandaCompletada(any(), any());
+            verify(wsPublisher, never()).publicarEventoProduccion(any(), any());
         }
     }
 
@@ -330,9 +360,15 @@ class NotificacionServiceTest {
             notificacionService.servirBebidas(50L, "mesero@test.com");
 
             assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.COMPLETADO);
-            verify(wsPublisher).publicarComandaCompletada(80L, "BARRA");
+            ArgumentCaptor<ComandaProduccionEventoWsMessage> mensajeCaptor =
+                    ArgumentCaptor.forClass(ComandaProduccionEventoWsMessage.class);
+            verify(wsPublisher).publicarEventoProduccion(eq(EstacionComanda.BARRA), mensajeCaptor.capture());
+            assertThat(mensajeCaptor.getValue().tipo()).isEqualTo(TipoEventoProduccion.COMPLETADA);
+            assertThat(mensajeCaptor.getValue().comandaId()).isEqualTo(80L);
+            assertThat(mensajeCaptor.getValue().estacion()).isEqualTo("BARRA");
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -383,11 +419,291 @@ class NotificacionServiceTest {
     class AtenderCambio {
 
         @Test
-        @DisplayName("happy path → notificación ATENDIDA, devuelve comandaId, NO evalúa estado de mesa")
-        void cambioActivo_atiendeYRetornaComandaId() {
+        @DisplayName("sin borrador: comanda PENDIENTE vuelve a BORRADOR y se publica ELIMINADA")
+        void sinBorrador_comandaVuelveABorrador() {
             Comanda comanda = Comanda.builder()
                     .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
                     .comandaEstado(EstadoComanda.PENDIENTE)
+                    .comandaFechaHoraInicio(java.time.LocalDateTime.now())
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, comanda);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.empty());
+
+            AtenderCambioResponse res = notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            assertThat(res.getComandaId()).isEqualTo(80L);
+            assertThat(n.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.BORRADOR);
+            assertThat(comanda.getComandaFechaHoraInicio()).isNull();
+            verify(comandaRepository).save(comanda);
+            verify(comandaRepository, never()).delete(any());
+
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage> captor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage.class);
+            verify(wsPublisher).publicarEventoProduccion(eq(EstacionComanda.COCINA), captor.capture());
+            assertThat(captor.getValue().tipo())
+                    .isEqualTo(co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion.ELIMINADA);
+            assertThat(captor.getValue().comandaId()).isEqualTo(80L);
+
+            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+            verify(mesaAsignarService, never()).evaluarYActualizarEstadoMesa(any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
+        }
+
+        @Test
+        @DisplayName("con borrador: fusión por (producto, desc normalizada) — match suma cantidades")
+        void conBorrador_fusionMatchSumaCantidades() {
+            Comanda pendiente = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Comanda borrador = Comanda.builder()
+                    .comandaId(81L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, pendiente);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.of(borrador));
+
+            co.edu.unicauca.backend.modules.inventario.entity.Producto p1 =
+                    co.edu.unicauca.backend.modules.inventario.entity.Producto.builder()
+                            .productoId(1L).productoNombre("Arroz").build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemPendiente =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(200L).comanda(pendiente).producto(p1)
+                            .comandaItemCantidad(2).comandaItemDescripcion("  Sin sal  ")
+                            .modificaciones(new java.util.ArrayList<>())
+                            .build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemBorrador =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(300L).comanda(borrador).producto(p1)
+                            .comandaItemCantidad(1).comandaItemDescripcion("sin sal")
+                            .modificaciones(new java.util.ArrayList<>())
+                            .build();
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(80L))
+                    .thenReturn(java.util.List.of(itemPendiente));
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(81L))
+                    .thenReturn(java.util.List.of(itemBorrador));
+
+            AtenderCambioResponse res = notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            assertThat(res.getComandaId()).isEqualTo(81L);
+            assertThat(itemBorrador.getComandaItemCantidad()).isEqualTo(3);
+            verify(comandaItemRepository).save(itemBorrador);
+            verify(notificacionRepository).delete(n);
+            verify(comandaRepository).delete(pendiente);
+            verify(wsPublisher).publicarEventoProduccion(eq(EstacionComanda.COCINA), any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
+        }
+
+        @Test
+        @DisplayName("con borrador: fusión sin match clona el ítem en el borrador")
+        void conBorrador_fusionSinMatchClona() {
+            Comanda pendiente = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Comanda borrador = Comanda.builder()
+                    .comandaId(81L)
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, pendiente);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.BARRA))
+                    .thenReturn(Optional.of(borrador));
+
+            co.edu.unicauca.backend.modules.inventario.entity.Producto p =
+                    co.edu.unicauca.backend.modules.inventario.entity.Producto.builder()
+                            .productoId(7L).productoNombre("Limonada").build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemPendiente =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(200L).comanda(pendiente).producto(p)
+                            .comandaItemCantidad(2).comandaItemPrecio(new java.math.BigDecimal("5000"))
+                            .modificaciones(new java.util.ArrayList<>())
+                            .build();
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(80L))
+                    .thenReturn(java.util.List.of(itemPendiente));
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(81L))
+                    .thenReturn(java.util.List.of());
+            when(comandaItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AtenderCambioResponse res = notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            assertThat(res.getComandaId()).isEqualTo(81L);
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem> clonCaptor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.class);
+            verify(comandaItemRepository).save(clonCaptor.capture());
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem clon = clonCaptor.getValue();
+            assertThat(clon.getComanda()).isSameAs(borrador);
+            assertThat(clon.getProducto().getProductoId()).isEqualTo(7L);
+            assertThat(clon.getComandaItemCantidad()).isEqualTo(2);
+            verify(notificacionRepository).delete(n);
+            verify(comandaRepository).delete(pendiente);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
+        }
+
+        @Test
+        @DisplayName("fusión: ítem sin match con modificaciones null se clona sin opciones")
+        void fusionSinMatchClonaModificacionesNull() {
+            Comanda pendiente = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Comanda borrador = Comanda.builder()
+                    .comandaId(81L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, pendiente);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.of(borrador));
+
+            co.edu.unicauca.backend.modules.inventario.entity.Producto p =
+                    co.edu.unicauca.backend.modules.inventario.entity.Producto.builder()
+                            .productoId(13L).productoNombre("Té").build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemPend =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(200L).comanda(pendiente).producto(p)
+                            .comandaItemCantidad(1)
+                            .modificaciones(null)
+                            .build();
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(80L))
+                    .thenReturn(java.util.List.of(itemPend));
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(81L))
+                    .thenReturn(java.util.List.of());
+            when(comandaItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem> captor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.class);
+            verify(comandaItemRepository).save(captor.capture());
+            assertThat(captor.getValue().getModificaciones()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("fusión: ítem con modificaciones de menú se clona con sus opciones")
+        void fusionSinMatchClonaModificaciones() {
+            Comanda pendiente = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Comanda borrador = Comanda.builder()
+                    .comandaId(81L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, pendiente);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.of(borrador));
+
+            co.edu.unicauca.backend.modules.inventario.entity.Producto p =
+                    co.edu.unicauca.backend.modules.inventario.entity.Producto.builder()
+                            .productoId(9L).productoNombre("Pasta").build();
+            co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion opcion =
+                    co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion.builder()
+                            .opcionId(5L).opcionNombre("Doble queso").build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion mod =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion.builder()
+                            .opcion(opcion).build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemPend =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(200L).comanda(pendiente).producto(p)
+                            .comandaItemCantidad(1)
+                            .comandaItemMenuGrupo("grupo-1")
+                            .modificaciones(new java.util.ArrayList<>(java.util.List.of(mod)))
+                            .build();
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(80L))
+                    .thenReturn(java.util.List.of(itemPend));
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(81L))
+                    .thenReturn(java.util.List.of());
+            when(comandaItemRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem> clonCaptor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.class);
+            verify(comandaItemRepository).save(clonCaptor.capture());
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem clon = clonCaptor.getValue();
+            assertThat(clon.getComandaItemMenuGrupo()).isEqualTo("grupo-1");
+            assertThat(clon.getModificaciones()).hasSize(1);
+            assertThat(clon.getModificaciones().get(0).getOpcion()).isSameAs(opcion);
+            assertThat(clon.getModificaciones().get(0).getComandaItem()).isSameAs(clon);
+        }
+
+        @Test
+        @DisplayName("fusión: ítems con descripción null se emparejan entre sí y se suman")
+        void fusionConDescripcionNullCoincide() {
+            Comanda pendiente = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            Comanda borrador = Comanda.builder()
+                    .comandaId(81L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.BORRADOR)
+                    .build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, pendiente);
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.of(borrador));
+
+            co.edu.unicauca.backend.modules.inventario.entity.Producto p =
+                    co.edu.unicauca.backend.modules.inventario.entity.Producto.builder()
+                            .productoId(1L).productoNombre("Arroz").build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemPend =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(200L).comanda(pendiente).producto(p)
+                            .comandaItemCantidad(2).comandaItemDescripcion(null)
+                            .modificaciones(null)
+                            .build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemBorr =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemId(300L).comanda(borrador).producto(p)
+                            .comandaItemCantidad(4).comandaItemDescripcion("   ")
+                            .modificaciones(new java.util.ArrayList<>())
+                            .build();
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(80L))
+                    .thenReturn(java.util.List.of(itemPend));
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(81L))
+                    .thenReturn(java.util.List.of(itemBorr));
+
+            notificacionService.atenderCambio(50L, "mesero@test.com");
+
+            assertThat(itemBorr.getComandaItemCantidad()).isEqualTo(6);
+            verify(comandaItemRepository).save(itemBorr);
+            verify(notificacionRepository).delete(n);
+            verify(comandaRepository).delete(pendiente);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
+        }
+
+        @Test
+        @DisplayName("comanda no PENDIENTE → solo marca la notificación ATENDIDA y publica al cliente")
+        void comandaNoPendiente_soloMarcaAtendida() {
+            Comanda comanda = Comanda.builder()
+                    .comandaId(80L)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.EN_PREPARACION)
                     .build();
             Notificacion n = notificacionConComanda(
                     TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, comanda);
@@ -398,10 +714,10 @@ class NotificacionServiceTest {
 
             assertThat(res.getComandaId()).isEqualTo(80L);
             assertThat(n.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
-            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.PENDIENTE);
-            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
-            verify(mesaAsignarService, never()).evaluarYActualizarEstadoMesa(any());
-            verify(wsPublisher, never()).publicarComandaCompletada(any(), any());
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.EN_PREPARACION);
+            verify(comandaRepository, never()).delete(any());
+            verify(wsPublisher, never()).publicarEventoProduccion(any(), any());
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
         }
 
         @Test
@@ -444,6 +760,156 @@ class NotificacionServiceTest {
 
             assertThatThrownBy(() -> notificacionService.atenderCambio(50L, "mesero@test.com"))
                     .isInstanceOf(BusinessException.class);
+        }
+    }
+
+    @Nested
+    @DisplayName("notificarCambio")
+    class NotificarCambio {
+
+        private static final Long COMANDA_ID = 20L;
+
+        private Authentication mockAuth() {
+            Authentication auth = org.mockito.Mockito.mock(Authentication.class);
+            when(auth.getName()).thenReturn("cocinero@test.com");
+            return auth;
+        }
+
+        private Comanda comandaPendienteCocina() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID).build();
+            return Comanda.builder()
+                    .comandaId(COMANDA_ID)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .visita(visita)
+                    .build();
+        }
+
+        @Test
+        @DisplayName("happy path: comanda PENDIENTE con estación match → crea notificación CAMBIO ACTIVA y publica mapa mesas")
+        void happyPathPendienteCocinaConEstacionMatch_creaNotificacionYPublicaMapaMesas() {
+            Authentication auth = mockAuth();
+            Comanda comanda = comandaPendienteCocina();
+            Mesa mesa = mesaConMesero();
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                    COMANDA_ID, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA))
+                    .thenReturn(Optional.empty());
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
+            Notificacion saved = Notificacion.builder()
+                    .notificacionId(99L)
+                    .notificacionTipo(TipoNotificacion.CAMBIO)
+                    .notificacionEstado(EstadoNotificacion.ACTIVA)
+                    .comanda(comanda)
+                    .mesa(mesa)
+                    .empleado(mesa.getMesero())
+                    .build();
+            when(notificacionRepository.save(any())).thenReturn(saved);
+
+            NotificarCambioResponse res = notificacionService.notificarCambio(COMANDA_ID, auth);
+
+            assertThat(res.getNotificacionId()).isEqualTo(99L);
+            assertThat(res.getEstado()).isEqualTo("ACTIVA");
+
+            ArgumentCaptor<Notificacion> captor = ArgumentCaptor.forClass(Notificacion.class);
+            verify(notificacionRepository).save(captor.capture());
+            assertThat(captor.getValue().getNotificacionTipo()).isEqualTo(TipoNotificacion.CAMBIO);
+            assertThat(captor.getValue().getNotificacionEstado()).isEqualTo(EstadoNotificacion.ACTIVA);
+            assertThat(captor.getValue().getComanda()).isSameAs(comanda);
+
+            verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
+        }
+
+        @Test
+        @DisplayName("comanda inexistente → ResourceNotFoundException")
+        void comandaInexistente_lanzaResourceNotFound() {
+            Authentication auth = mockAuth();
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(999L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.notificarCambio(999L, auth))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("comanda no PENDIENTE → BusinessException INVALID_STATE 409")
+        void comandaNoPendiente_lanzaInvalidState_409() {
+            Authentication auth = mockAuth();
+            Comanda comanda = Comanda.builder()
+                    .comandaId(COMANDA_ID)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.EN_PREPARACION)
+                    .visita(Visita.builder().visitaId(VISITA_ID).build())
+                    .build();
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> notificacionService.notificarCambio(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
+                            .isEqualTo("NEG-002"));
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("estación de la comanda no es accesible para el usuario → BusinessException ACCESS_DENIED 403")
+        void estacionAjena_lanzaAccessDenied_403() {
+            Authentication auth = mockAuth();
+            Comanda comanda = Comanda.builder()
+                    .comandaId(COMANDA_ID)
+                    .comandaEstacion(EstacionComanda.BARRA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .visita(Visita.builder().visitaId(VISITA_ID).build())
+                    .build();
+            // Usuario solo tiene acceso a COCINA, la comanda es de BARRA
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+
+            assertThatThrownBy(() -> notificacionService.notificarCambio(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
+                            .isEqualTo("AUTH-002"));
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("ya existe notificación CAMBIO ACTIVA → BusinessException INVALID_STATE 409")
+        void notificacionCambioActivaYaExiste_lanza_409() {
+            Authentication auth = mockAuth();
+            Comanda comanda = comandaPendienteCocina();
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                    COMANDA_ID, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA))
+                    .thenReturn(Optional.of(Notificacion.builder().notificacionId(77L).build()));
+
+            assertThatThrownBy(() -> notificacionService.notificarCambio(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
+                            .isEqualTo("NEG-002"));
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("visita sin mesa asignada → BusinessException BUSINESS_ERROR 409")
+        void visitaSinMesa_lanzaBusinessError_409() {
+            Authentication auth = mockAuth();
+            Comanda comanda = comandaPendienteCocina();
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                    COMANDA_ID, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA))
+                    .thenReturn(Optional.empty());
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.notificarCambio(COMANDA_ID, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
+                            .isEqualTo("NEG-001"));
+            verify(notificacionRepository, never()).save(any());
         }
     }
 }

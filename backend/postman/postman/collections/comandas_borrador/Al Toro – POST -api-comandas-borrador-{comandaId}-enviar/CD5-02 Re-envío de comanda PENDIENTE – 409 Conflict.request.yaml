@@ -1,0 +1,71 @@
+$kind: http-request
+name: CD5-02 Re-envío de comanda PENDIENTE – 409 Conflict
+description: |-
+  **Objetivo:** Verificar que reenviar una comanda ya transicionada devuelve NEG-002.
+  **Pre-condición:** beforeRequest crea una comanda BORRADOR, la envía (queda PENDIENTE) y guarda su id en `cd502ComandaId`.
+  **Resultado esperado:** 409 Conflict con `code = NEG-002`.
+url: "{{baseUrl}}/api/comandas/borrador/{{cd502ComandaId}}/enviar"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const unique = 'E5-CD5-02-' + Date.now();
+
+      // 1) Login MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err1, res1) => {
+        if (err1 || !res1 || res1.code !== 200) { console.warn('CD5-02: login falló', err1, res1 && res1.code); return; }
+        const token = res1.json().accessToken;
+        pm.environment.set('meseroToken', token);
+
+        // 2) POST ítem → crea BORRADOR COCINA
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador/items',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            visitaId: 14,
+            productoId: Number(pm.environment.get('productoTestPlatoId')),
+            cantidad: 1,
+            descripcion: unique
+          }) }
+        }, (err2, res2) => {
+          if (err2 || !res2 || res2.code !== 200) { console.warn('CD5-02: POST item falló', err2, res2 && res2.code); return; }
+          const comandaId = res2.json().data.comandaCocinaId;
+          if (!comandaId) { console.warn('CD5-02: comandaCocinaId vacío'); return; }
+          pm.environment.set('cd502ComandaId', comandaId);
+
+          // 3) ENVIAR primera vez → queda PENDIENTE
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/comandas/borrador/' + comandaId + '/enviar',
+            method: 'POST',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, (err3, res3) => {
+            if (err3 || !res3 || res3.code !== 200) {
+              console.warn('CD5-02: primer enviar falló', err3, res3 && res3.code, res3 && res3.text());
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 409', function () {
+        pm.response.to.have.status(409);
+      });
+
+      pm.test('Código de error es NEG-002', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 1010

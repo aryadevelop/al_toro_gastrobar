@@ -384,6 +384,33 @@ class AuthServiceTest {
             assertThat(response.getEmail()).isEqualTo("cliente1@altoro.com");
             assertThat(response.getNombre()).isEqualTo("Cliente Uno");
             assertThat(response.getRole()).isEqualTo("CLIENTE");
+            assertThat(response.getEstaciones()).isNull();
+        }
+
+        @Test
+        @DisplayName("Usuario COCINERO + BARTENDER → estaciones=[BARRA, COCINA]")
+        void usuarioConRolesDeProduccion_devuelveEstaciones() throws Exception {
+            Usuario user = usuario(33L, "produccion@altoro.com", "$2b$hash");
+            Empleado empleado = Empleado.builder()
+                    .usuarioId(33L)
+                    .usuario(user)
+                    .empleadoNombre("Mixto")
+                    .empleadoTelefono("3100000000")
+                    .empleadoFechaIngreso(java.time.LocalDate.now())
+                    .build();
+
+            when(usuarioRepository.findByUsuarioEmail("produccion@altoro.com")).thenReturn(Optional.of(user));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(33L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(
+                            usuarioRol(33L, RolNombre.COCINERO, RolEstado.ACTIVO),
+                            usuarioRol(33L, RolNombre.BARTENDER, RolEstado.ACTIVO)));
+            when(empleadoRepository.findByUsuario_UsuarioEmail("produccion@altoro.com"))
+                    .thenReturn(Optional.of(empleado));
+
+            co.edu.unicauca.backend.modules.auth.dto.response.AuthUserResponse response =
+                    authService.me("produccion@altoro.com");
+
+            assertThat(response.getEstaciones()).containsExactly("BARRA", "COCINA");
         }
 
         @Test

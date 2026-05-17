@@ -1,0 +1,48 @@
+$kind: http-request
+name: CD2-05 Producto de menú especial rechazado – 400 Bad Request
+description: |-
+  **Objetivo:** Verificar que productos con `menuEspecial=true` se rechazan con NEG-001 (deben cargarse vía pre-orden).
+  **Pre-condición:** `meseroToken` disponible. Producto 140 = HU05-Menu-Especial.
+  **Resultado esperado:** 400 Bad Request con `code = NEG-001`.
+url: "{{baseUrl}}/api/comandas/borrador/items"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "visitaId": 15,
+      "productoId": 144,
+      "cantidad": 1
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 400', function () {
+        pm.response.to.have.status(400);
+      });
+
+      pm.test('Código de error es NEG-001', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-001');
+      });
+    language: text/javascript
+order: 1040

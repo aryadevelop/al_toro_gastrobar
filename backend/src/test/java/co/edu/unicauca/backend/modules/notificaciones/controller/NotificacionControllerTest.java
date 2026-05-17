@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.notificaciones.controller;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.AtenderCambioResponse;
+import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificarCambioResponse;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionService;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
@@ -16,6 +17,7 @@ import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.core.userdetails.UserDetailsService;
@@ -30,6 +32,7 @@ import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doThrow;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
@@ -232,6 +235,79 @@ class NotificacionControllerTest {
 
             mockMvc.perform(patch("/api/notificaciones/50/atender-cambio"))
                     .andExpect(status().isConflict());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/notificaciones/cambio")
+    class NotificarCambio {
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("PRODUCCION notifica cambio sobre comanda PENDIENTE → 201 Created con notificacionId")
+        void notificarCambioOk() throws Exception {
+            NotificarCambioResponse response = NotificarCambioResponse.builder()
+                    .notificacionId(99L)
+                    .estado("ACTIVA")
+                    .build();
+            when(notificacionService.notificarCambio(eq(20L), any())).thenReturn(response);
+
+            mockMvc.perform(post("/api/notificaciones/cambio")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"comandaId\":20}"))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.notificacionId").value(99))
+                    .andExpect(jsonPath("$.data.estado").value("ACTIVA"));
+        }
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("body sin comandaId → 422 Unprocessable Entity (validación Bean)")
+        void sinComandaId_retorna422() throws Exception {
+            mockMvc.perform(post("/api/notificaciones/cambio")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{}"))
+                    .andExpect(status().isUnprocessableEntity());
+        }
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("comanda inexistente → 404 Not Found")
+        void comandaInexistente_retorna404() throws Exception {
+            doThrow(new ResourceNotFoundException("Comanda", 999L))
+                    .when(notificacionService).notificarCambio(eq(999L), any());
+
+            mockMvc.perform(post("/api/notificaciones/cambio")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"comandaId\":999}"))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("comanda no PENDIENTE o ya existe notificación CAMBIO activa → 409 Conflict")
+        void estadoInvalido_retorna409() throws Exception {
+            doThrow(new BusinessException(ErrorCode.INVALID_STATE, "Estado inválido.", HttpStatus.CONFLICT))
+                    .when(notificacionService).notificarCambio(eq(20L), any());
+
+            mockMvc.perform(post("/api/notificaciones/cambio")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"comandaId\":20}"))
+                    .andExpect(status().isConflict());
+        }
+
+        @Test
+        @WithMockUser(username = "cocinero@altoro.com", roles = "PRODUCCION")
+        @DisplayName("estación de la comanda no accesible para el usuario → 403 Forbidden")
+        void estacionAjena_retorna403() throws Exception {
+            doThrow(new BusinessException(ErrorCode.ACCESS_DENIED, "Acceso denegado.", HttpStatus.FORBIDDEN))
+                    .when(notificacionService).notificarCambio(eq(20L), any());
+
+            mockMvc.perform(post("/api/notificaciones/cambio")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content("{\"comandaId\":20}"))
+                    .andExpect(status().isForbidden());
         }
     }
 }

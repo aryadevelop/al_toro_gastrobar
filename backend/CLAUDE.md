@@ -9,6 +9,7 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 - `docs/coding-patterns.md` — Services, Mappers, DTOs, Tests, ApiResponse, WebSocket, Git Commits
 - `docs/postman-conventions.md` — Manual + Automated collections
 - `docs/testing.md` — JaCoCo y estrategia de cobertura
+- `docs/components.md` — Diagrama C4 Nivel 3: capas por módulo, componentes futuros e interacciones entre módulos
 - `ENDPOINTS.md` — Listado completo de endpoints
 
 ---
@@ -131,7 +132,9 @@ docker compose down -v && docker compose up --build
 Exchange: `altoro.topic` (durable, topic). Routing keys: `comanda.nueva`, `impresion.ticket`, `notificacion.email`, `notificacion.ws`.
 
 ### WebSocket — tópicos existentes
-`/topic/mesas`, `/topic/mesas/asistencia`, `/topic/visita/{id}/orden`, `/topic/visita/{id}/cuenta`, `/topic/visita/{id}/asistencia`, `/topic/reservas/cambios`, `/topic/comandas/completado`. **NO crear duplicados.** Detalle del patrón en `docs/coding-patterns.md`.
+`/topic/mesas`, `/topic/mesas/asistencia`, `/topic/visita/{id}/orden`, `/topic/visita/{id}/cuenta`, `/topic/visita/{id}/asistencia`, `/topic/reservas/cambios`, `/topic/produccion/{cocina|barra}`. **NO crear duplicados.** Detalle del patrón en `docs/coding-patterns.md`.
+
+El tópico `/topic/produccion/{cocina|barra}` transporta el contrato unificado `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen, nuevoEstado)` con `tipo ∈ {CREADA, ACTUALIZADA, ELIMINADA, COMPLETADA}`. Sustituye al legado `/topic/comandas/completado`. El campo `resumen` viaja solo en `CREADA`; `nuevoEstado` viaja solo en `ACTUALIZADA` (transiciones `PENDIENTE→EN_PREPARACION` y `EN_PREPARACION→LISTO`).
 
 ### ErrorCode rápido
 `ENT-001` (404 not found), `AUTH-001` (401), `AUTH-002` (403), `NEG-001` (400/409 regla violada), `NEG-002` (409 estado inválido), `VAL-001` (400 validación). Tabla completa en `docs/coding-patterns.md`.

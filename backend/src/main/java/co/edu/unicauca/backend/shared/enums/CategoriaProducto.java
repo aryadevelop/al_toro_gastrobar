@@ -1,7 +1,7 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Categoría de presentación de un {@link co.edu.unicauca.backend.modules.produccion.entity.Producto}
+ * Categoría de presentación de un {@link co.edu.unicauca.backend.modules.inventario.entity.Producto}
  * en la carta del restaurante.
  *
  * <ul>

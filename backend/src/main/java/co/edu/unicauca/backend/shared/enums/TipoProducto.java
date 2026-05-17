@@ -1,7 +1,7 @@
 package co.edu.unicauca.backend.shared.enums;
 
 /**
- * Clasificación de un {@link co.edu.unicauca.backend.modules.produccion.entity.Producto} según cómo se obtiene.
+ * Clasificación de un {@link co.edu.unicauca.backend.modules.inventario.entity.Producto} según cómo se obtiene.
  *
  * <ul>
  *   <li>{@code VENTA_DIRECTA} — producto comercializado tal como se recibe del proveedor; no requiere preparación.</li>

@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.inventario.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.shared.enums.TipoMovimiento;
 import jakarta.persistence.*;

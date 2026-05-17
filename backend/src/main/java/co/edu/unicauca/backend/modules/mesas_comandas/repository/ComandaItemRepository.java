@@ -6,6 +6,7 @@ import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
 import java.math.BigDecimal;
+import java.util.Collection;
 import java.util.List;
 
 /**
@@ -42,4 +43,129 @@ public interface ComandaItemRepository extends JpaRepository<ComandaItem, Long> 
     @Query("SELECT COALESCE(SUM(i.producto.productoPrecio * i.comandaItemCantidad), 0) " +
            "FROM ComandaItem i WHERE i.comanda.reserva.reservaId = :reservaId")
     BigDecimal sumTotalPreOrdenByReservaId(@Param("reservaId") Long reservaId);
+
+    /**
+     * Suma las cantidades comprometidas de un producto que aún no se descontaron de
+     * {@code stockActual}.
+     *
+     * <p>"Comprometido" = ítems en comandas en estado {@code BORRADOR} o
+     * {@code PENDIENTE} que NO sean parte de un menú especial. 
+     * 
+     * Se excluyen 
+     *   -  Items en estado: EN_PREPARACION, LISTO y COMPLETADO porque ya decrementaron {@code stockActual}
+     *      al transicionar PENDIENTE → EN_PREPARACION. 
+     *   -  Items con {@code comandaItemMenuGrupo IS NOT NULL}: los menús especiales nunca decrementan inventario
+     *
+     * <p>Fórmula de disponibilidad: {@code disponible = stockActual - comprometido + cantidadAnterior}.
+     *
+     * @param productoId producto a evaluar
+     * @return suma de cantidades; 0 si no hay ítems comprometidos
+     */
+    @Query("""
+        SELECT COALESCE(SUM(ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        WHERE ci.producto.productoId = :productoId
+        AND ci.comandaItemMenuGrupo IS NULL
+        AND ci.comanda.comandaEstado IN (
+            co.edu.unicauca.backend.shared.enums.EstadoComanda.BORRADOR,
+            co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE
+        )
+        """)
+    Long sumCantidadComprometidaByProducto(@Param("productoId") Long productoId);
+
+    /**
+     * Devuelve todos los items de una comanda ordenados alfabéticamente por nombre de producto.
+     */
+    @Query("""
+        SELECT ci FROM ComandaItem ci
+        JOIN FETCH ci.producto p
+        WHERE ci.comanda.comandaId = :comandaId
+        ORDER BY p.productoNombre ASC, ci.comandaItemDescripcion ASC NULLS FIRST
+        """)
+    List<ComandaItem> findByComanda_ComandaIdOrderByProductoNombreAsc(@Param("comandaId") Long comandaId);
+
+    /**
+     * Devuelve todos los ítems modificados ({@code descripcion != null}) de un producto
+     * en una comanda.
+     *
+     * @param comandaId  comanda BORRADOR
+     * @param productoId producto cuyo ítem base se está eliminando
+     */
+    List<ComandaItem> findByComanda_ComandaIdAndProducto_ProductoIdAndComandaItemDescripcionIsNotNull(
+            Long comandaId, Long productoId);
+
+    /**
+     * Devuelve todos los ítems de un producto dentro de una comanda. La capa
+     * de servicio aplica una comparación normalizada sobre {@code descripcion}
+     * para detectar coincidencias insensibles a mayúsculas y espacios.
+     *
+     * @param comandaId  identificador de la comanda
+     * @param productoId identificador del producto
+     * @return lista de ítems del producto en esa comanda; vacía si no hay
+     */
+    List<ComandaItem> findByComanda_ComandaIdAndProducto_ProductoId(Long comandaId, Long productoId);
+
+    /**
+     * Suma el total monetario acumulado de todos los ítems de la visita.
+     *
+     * <p>Los ítems con precio nulo (bebidas del menú especial) se ignoran y aportan
+     * cero al total.
+     *
+     * @param visitaId   identificador de la visita
+     * @return suma total; {@link BigDecimal#ZERO} si no hay ítems activos
+     */
+    @Query("""
+        SELECT COALESCE(SUM(ci.comandaItemPrecio * ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        WHERE ci.comanda.visita.visitaId = :visitaId
+        AND ci.comandaItemPrecio IS NOT NULL
+        """)
+    BigDecimal sumTotalActivosByVisita(@Param("visitaId") Long visitaId);
+
+    /**
+     * Calcula la cantidad total de ítems agrupada por comanda para el conjunto
+     * de identificadores indicado.
+     *
+     * <p>El resultado se entrega como tuplas {@code [comandaId, totalCantidad]}
+     * para permitir su transformación a {@link java.util.Map} en la capa de
+     * servicio sin necesidad de consultas adicionales por comanda.
+     *
+     * @param comandaIds identificadores de comandas a consultar
+     * @return lista de tuplas con la suma de cantidades por comanda; vacía
+     *         cuando ninguno de los identificadores tiene ítems asociados
+     */
+    @Query("""
+        SELECT ci.comanda.comandaId, COALESCE(SUM(ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        WHERE ci.comanda.comandaId IN :comandaIds
+        GROUP BY ci.comanda.comandaId
+        """)
+    List<Object[]> sumCantidadByComandaIdIn(@Param("comandaIds") Collection<Long> comandaIds);
+
+    /**
+     * Suma la cantidad de un insumo comprometida por todas las comandas en
+     * estado {@code BORRADOR} o {@code PENDIENTE} que utilicen ese insumo a
+     * través de un producto de tipo {@code PREPARACION}.
+     *
+     * <p>Excluye los ítems con {@code comandaItemMenuGrupo IS NOT NULL} (los
+     * menús especiales no decrementan inventario por contrato del módulo) y los
+     * ítems con productos {@code VENTA_DIRECTA} (que se controlan por
+     * {@code Producto.stockActual}).
+     *
+     * @param insumoId identificador del insumo
+     * @return suma de {@code recetaCantidad × comandaItemCantidad}; {@code 0}
+     *         si no hay comandas que comprometan el insumo
+     */
+    @Query("""
+        SELECT COALESCE(SUM(r.recetaCantidad * ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        JOIN Receta r ON r.productoId = ci.producto.productoId
+        WHERE r.insumoId = :insumoId
+          AND ci.comandaItemMenuGrupo IS NULL
+          AND ci.producto.productoTipo = co.edu.unicauca.backend.shared.enums.TipoProducto.PREPARACION
+          AND ci.comanda.comandaEstado IN (
+              co.edu.unicauca.backend.shared.enums.EstadoComanda.BORRADOR,
+              co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE)
+    """)
+    java.math.BigDecimal sumCantidadInsumoComprometida(@Param("insumoId") Long insumoId);
 }

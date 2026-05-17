@@ -1,0 +1,71 @@
+$kind: collection
+name: Al Toro – GET /api/comandas/produccion/{comandaId}
+description: |-
+  # GET /api/comandas/produccion/{comandaId}
+
+  Devuelve el detalle completo de una comanda visible en el tablero de producción.
+  Los ítems se entregan agrupados por categoría de producto (`platos`, `bebidas`, `otros`),
+  cada uno ordenado alfabéticamente por nombre.
+
+  **Control de acceso:**
+  - COCINERO/BARTENDER: acceso permitido sobre comandas de su estación.
+  - MESERO/CAJERO/CLIENTE/ADMIN: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Reglas de visibilidad
+
+  - Si la estación de la comanda no pertenece al usuario: 403 con código `AUTH-002`.
+  - Si la comanda no existe o se encuentra en un estado no visible
+    (`BORRADOR`, `PRE_RESERVA`, `COMPLETADO`): 404 con código `ENT-001`.
+
+  ## Variables de entorno requeridas
+  - `comandaIdCocinaVisible`: comanda de la estación COCINA en estado
+    `PENDIENTE`/`EN_PREPARACION`/`LISTO`.
+  - `comandaIdBarraVisible`: comanda de la estación BARRA en estado visible.
+  - `comandaIdCompletada`: comanda de la estación COCINA en estado `COMPLETADO`.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | AC-01 | COCINERO consulta detalle de comanda COCINA | 200 |
+  | AC-02 | BARTENDER consulta detalle de comanda BARRA | 200 |
+  | AC-03 | Sin token | 401 |
+  | AC-04 | MESERO intenta acceder | 403 |
+  | AC-05 | Detalle de comanda de otra estación | 403 |
+  | AC-06 | Comanda inexistente | 404 |
+  | AC-07 | Comanda en estado no visible | 404 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailCocinero',  tokenKey: 'cocineroToken'  },
+        { emailKey: 'emailBartender', tokenKey: 'bartenderToken' },
+        { emailKey: 'emailMesero',    tokenKey: 'meseroToken'    }
+      ];
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('produccion-detalle pre-request: login ' + emailKey + ' falló');
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript
+order: 2000

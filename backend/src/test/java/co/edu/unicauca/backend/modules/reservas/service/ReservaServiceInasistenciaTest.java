@@ -26,7 +26,6 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.security.core.Authentication;
-import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
@@ -45,7 +44,7 @@ import static org.mockito.Mockito.lenient;
 /**
  * Tests unitarios para {@link ReservaService#marcarInasistencia(Long, Authentication)}.
  *
- * <p>Cubre los criterios de aceptación HE-03-HU-02-CA-03 y CA-04:
+ * <p>Cubre:
  * <ul>
  *   <li>Solo CONFIRMADA puede marcarse como inasistencia.</li>
  *   <li>Deben haber transcurrido 30 minutos desde hora de llegada.</li>

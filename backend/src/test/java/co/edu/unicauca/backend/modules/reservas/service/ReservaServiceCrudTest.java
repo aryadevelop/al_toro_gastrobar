@@ -215,7 +215,7 @@ class ReservaServiceCrudTest {
                     .thenReturn(reservaResponseMock);
             // No pre-existing comanda
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(any(), any()))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
         }
 
         @Test
@@ -639,7 +639,7 @@ class ReservaServiceCrudTest {
             when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(RESERVA_ID))
                     .thenReturn(List.of());
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(any(), any()))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             ReservaDetalleResponse detalleMock = ReservaDetalleResponse.builder()
                     .reservaId(RESERVA_ID).build();
@@ -659,7 +659,7 @@ class ReservaServiceCrudTest {
             when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(RESERVA_ID))
                     .thenReturn(List.of());
             when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(any(), any()))
-                    .thenReturn(Optional.empty());
+                    .thenReturn(List.of());
 
             ReservaDetalleResponse detalleMock = ReservaDetalleResponse.builder()
                     .reservaId(RESERVA_ID).build();

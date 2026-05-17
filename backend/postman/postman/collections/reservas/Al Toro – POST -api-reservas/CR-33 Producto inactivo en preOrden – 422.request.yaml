@@ -20,7 +20,7 @@ body:
       "numeroPersonas": 2,
       "preOrden": [
         {
-          "productoId": {{idProductoInactivo}},
+          "productoId": 142,
           "cantidad": 1,
           "esMenuEspecial": false
         }

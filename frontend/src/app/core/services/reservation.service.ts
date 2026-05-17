@@ -7,6 +7,7 @@ import {
   BackendCancelarReservaResponse,
   BackendCrearReservaRequest,
   BackendDisponibilidadResponse,
+  BackendMarcarInasistenciaResponse,
   BackendModificarReservaResponse,
   BackendReservaDetalle,
   BackendListadoReservasResponse,
@@ -107,7 +108,8 @@ export class ReservationService {
             zoneName: item.zonaNombre,
             notes: undefined,
             preorderItems: [],
-          } as Reserva));
+            mostrarBotonInasistencia: item.mostrarBotonInasistencia ?? false,
+          } as Reserva & { mostrarBotonInasistencia: boolean }));
 
           const resumenZonas = (data.resumenZonas ?? []).map((z) => ({
             zonaId: z.zonaId ? String(z.zonaId) : undefined,
@@ -117,6 +119,19 @@ export class ReservationService {
 
           return { reservas, resumenZonas };
         })
+      );
+  }
+
+  marcarInasistencia(reservaId: string): Observable<{ reservaId: string; estado: string; zonaLiberada?: string; decoracionLiberada?: string }> {
+    return this.http
+      .patch<ApiEnvelope<BackendMarcarInasistenciaResponse>>(API_PATHS.reservas.marcarInasistencia(reservaId), {})
+      .pipe(
+        map((response) => ({
+          reservaId: String(response.data.reservaId),
+          estado: response.data.estado,
+          zonaLiberada: response.data.zonaLiberada,
+          decoracionLiberada: response.data.decoracionLiberada,
+        }))
       );
   }
 

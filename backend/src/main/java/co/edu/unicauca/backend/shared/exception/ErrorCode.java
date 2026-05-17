@@ -34,6 +34,7 @@ public enum ErrorCode {
     BUSINESS_ERROR        ("NEG-001", "Operación no permitida."),
     INVALID_STATE         ("NEG-002", "El recurso no se encuentra en un estado válido para esta operación."),
     CAPACITY_EXCEEDED     ("NEG-003", "Se ha superado la capacidad máxima permitida."),
+    INSUFFICIENT_STOCK    ("NEG-004", "Stock insuficiente para completar la operación."),
 
     // ── Validación ────────────────────────────────────────────────────────────
     VALIDATION_ERROR      ("VAL-001", "Los datos enviados contienen errores de validación."),

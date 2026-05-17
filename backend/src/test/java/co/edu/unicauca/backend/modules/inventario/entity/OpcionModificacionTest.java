@@ -107,10 +107,18 @@ class OpcionModificacionTest {
         OpcionModificacion entity2 = OpcionModificacion.builder()
                 .opcionNombre("Pollo")
                 .opcionEstado(EstadoGenerico.INACTIVO)
-                .tipoComponente(TipoComponenteMenu.PROTEINA)
+                .tipoComponente(TipoComponenteMenu.SALSA_PROTEINA_1)
                 .build();
 
         assertThat(entity1.hashCode()).isEqualTo(entity2.hashCode());
+    }
+
+    @Test
+    @DisplayName("Enum TipoComponenteMenu no incluye BEBIDA tras refactor de menu_bebida_disponible")
+    void tipoComponenteMenu_doesNotIncludeBebida() {
+        boolean hasBebida = java.util.Arrays.stream(TipoComponenteMenu.values())
+            .anyMatch(t -> t.name().equals("BEBIDA"));
+        assertThat(hasBebida).isFalse();
     }
 
     private void setPrivateField(Object target, String fieldName, Object value) throws Exception {

@@ -1,18 +1,21 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.OpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaMenuModificacionRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
-import co.edu.unicauca.backend.modules.produccion.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
@@ -22,7 +25,9 @@ import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 
+import java.math.BigDecimal;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Componente encargado de gestionar la pre-orden asociada a una reserva.
@@ -62,6 +67,9 @@ public class PreOrdenGestor {
     /** Repositorio de modificaciones de menú: persiste y elimina las selecciones asociadas a cada ítem. */
     private final ComandaMenuModificacionRepository comandaMenuModificacionRepository;
 
+    /** Repositorio de bebidas disponibles por menú: valida que la bebida elegida pertenezca al menú especial. */
+    private final MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
+
     // -----------------------------------------------------------------------
     // Validación de reglas de pre-orden
     // -----------------------------------------------------------------------
@@ -74,6 +82,9 @@ public class PreOrdenGestor {
      *       con {@code menu_especial=true} en la base de datos.</li>
      *   <li>Solo un ítem de menú especial por reserva.</li>
      *   <li>El menú especial requiere más de 10 comensales.</li>
+     *   <li>El ítem de menú especial debe incluir {@code bebidaProductoId} no nulo.</li>
+     *   <li>La bebida seleccionada debe estar disponible en {@code menu_bebida_disponible}
+     *       para el menú indicado.</li>
      * </ul>
      *
      * @param items          lista de ítems de la pre-orden
@@ -114,6 +125,25 @@ public class PreOrdenGestor {
                     "El menú especial solo está disponible para reservas de más de 10 personas.",
                     HttpStatus.UNPROCESSABLE_ENTITY);
         }
+
+        // Validar bebida obligatoria y disponible para ítems de menú especial
+        for (PreOrdenItemRequest item : items) {
+            if (Boolean.TRUE.equals(item.getEsMenuEspecial())) {
+                // La bebida es obligatoria cuando se elige un menú especial
+                if (item.getBebidaProductoId() == null) {
+                    throw new BusinessException(ErrorCode.INVALID_STATE,
+                            "El menú especial requiere seleccionar una bebida.",
+                            HttpStatus.UNPROCESSABLE_ENTITY);
+                }
+                // La bebida debe estar disponible en la tabla menu_bebida_disponible para este menú
+                if (!menuBebidaDisponibleRepository.existsByMenuIdAndBebidaId(
+                        item.getProductoId(), item.getBebidaProductoId())) {
+                    throw new BusinessException(ErrorCode.INVALID_STATE,
+                            "La bebida seleccionada no está disponible para este menú.",
+                            HttpStatus.UNPROCESSABLE_ENTITY);
+                }
+            }
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -121,26 +151,27 @@ public class PreOrdenGestor {
     // -----------------------------------------------------------------------
 
     /**
-     * Persiste la pre-orden como una {@link Comanda} en estado {@code PRE_RESERVA}, con
-     * sus {@link ComandaItem} y {@link ComandaMenuModificacion} correspondientes.
+     * Persiste la pre-orden creando hasta dos {@link Comanda} en estado {@code PRE_RESERVA}:
+     * una para la estación COCINA (platos y ítems de carta no-bebida) y otra para la
+     * estación BARRA (bebidas de carta y bebidas de menú especial).
+     *
+     * <p>Para ítems de menú especial, el plato se enruta a COCINA y la bebida elegida
+     * se enruta a BARRA con precio 0; ambos ítems comparten el mismo UUID de grupo
+     * ({@code comandaItemMenuGrupo}) para que el mapper pueda fusionarlos en la respuesta.
+     *
+     * <p>Para ítems de carta, el enrutamiento depende de la categoría del producto:
+     * {@code BEBIDA} → BARRA, cualquier otra categoría → COCINA.
      *
      * @param reserva reserva ya persistida a la que se asocia la pre-orden
      * @param items   lista de ítems a guardar
-     * @return lista de {@link ComandaItem} persistidos
      * @throws ResourceNotFoundException si un producto o una opción no existen
-     * @throws BusinessException si el producto no está activo o la opción no pertenece al menú
+     * @throws BusinessException         si el producto no está activo o la opción no pertenece al menú
      */
-    public List<ComandaItem> persistirPreOrden(Reserva reserva, List<PreOrdenItemRequest> items) {
-        // Crear la comanda en estado PRE_RESERVA vinculada a la reserva
-        Comanda preComanda = Comanda.builder()
-                .reserva(reserva)
-                .comandaEstado(EstadoComanda.PRE_RESERVA)
-                .build();
+    public void persistirPreOrden(Reserva reserva, List<PreOrdenItemRequest> items) {
+        // Comandas lazy: se crean solo cuando hay al menos un ítem para esa estación
+        Comanda cocina = null;
+        Comanda barra = null;
 
-        // Guardar la comanda para obtener su ID y poder asociar los ítems
-        Comanda comandaGuardada = comandaRepository.save(preComanda);
-
-        // Iterar sobre los ítems de la pre-orden para validarlos y persistirlos
         for (PreOrdenItemRequest item : items) {
             // Validar que el producto exista
             Producto producto = productoRepository.findById(item.getProductoId())
@@ -153,52 +184,106 @@ public class PreOrdenGestor {
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
 
-            // Crear el detalle de la comanda para este ítem
-            ComandaItem detalle = ComandaItem.builder()
-                    .comanda(comandaGuardada)
-                    .producto(producto)
-                    .comandaItemCantidad(item.getCantidad())
-                    .comandaItemPrecio(producto.getProductoPrecio())
-                    .comandaItemDescripcion(item.getDescripcion())
-                    .build();
+            if (Boolean.TRUE.equals(item.getEsMenuEspecial())) {
+                // UUID compartido que vincula el plato (COCINA) con su bebida (BARRA)
+                String grupo = UUID.randomUUID().toString();
 
-            // Guardar el detalle para obtener su ID y poder asociar las modificaciones
-            ComandaItem detalleGuardado = comandaItemRepository.save(detalle);
+                // Plato del menú → COCINA
+                if (cocina == null) cocina = crearComanda(reserva, EstacionComanda.COCINA);
+                ComandaItem itemCocina = ComandaItem.builder()
+                        .comanda(cocina)
+                        .producto(producto)
+                        .comandaItemCantidad(item.getCantidad())
+                        .comandaItemPrecio(producto.getProductoPrecio())
+                        .comandaItemDescripcion(item.getDescripcion())
+                        .comandaItemMenuGrupo(grupo)
+                        .build();
+                ComandaItem savedCocina = comandaItemRepository.save(itemCocina);
 
-            // Si el ítem es un menú especial, validar y persistir las opciones de modificación asociadas
-            if (Boolean.TRUE.equals(item.getEsMenuEspecial())
-                    && item.getOpcionesModificacion() != null
-                    && !item.getOpcionesModificacion().isEmpty()) {
-
-                // Validar cada opción de modificación
-                for (Long opcionId : item.getOpcionesModificacion()) {
-
-                    // Validar que la opción de modificación exista
-                    OpcionModificacion opcion = opcionModificacionRepository.findById(opcionId)
-                            .orElseThrow(() -> new ResourceNotFoundException("OpcionModificacion", opcionId));
-
-                    // Validar que la opción de modificación pertenezca al producto del menú especial
-                    if (!productoOpcionModificacionRepository.existsByProductoIdAndOpcionId( producto.getProductoId(), opcionId)) {
-                        throw new BusinessException(ErrorCode.INVALID_STATE,
-                                "La opción de modificación '" + opcion.getOpcionNombre() +
-                                "' no pertenece al menú seleccionado.",
-                                HttpStatus.UNPROCESSABLE_ENTITY);
+                // Persistir opciones de modificación
+                if (item.getOpcionesModificacion() != null && !item.getOpcionesModificacion().isEmpty()) {
+                    for (Long opcionId : item.getOpcionesModificacion()) {
+                        // Validar que la opción exista
+                        OpcionModificacion opcion = opcionModificacionRepository.findById(opcionId)
+                                .orElseThrow(() -> new ResourceNotFoundException("OpcionModificacion", opcionId));
+                        // Validar que la opción pertenezca al producto del menú especial
+                        if (!productoOpcionModificacionRepository.existsByProductoIdAndOpcionId(
+                                producto.getProductoId(), opcionId)) {
+                            throw new BusinessException(ErrorCode.INVALID_STATE,
+                                    "La opción de modificación '" + opcion.getOpcionNombre() +
+                                    "' no pertenece al menú seleccionado.",
+                                    HttpStatus.UNPROCESSABLE_ENTITY);
+                        }
+                        // Enlazar la modificación al ítem de cocina
+                        ComandaMenuModificacion mod = ComandaMenuModificacion.builder()
+                                .comandaItem(savedCocina)
+                                .opcion(opcion)
+                                .build();
+                        comandaMenuModificacionRepository.save(mod);
                     }
+                }
 
-                    // Crear el enlace entre el detalle de la comanda y la opción de modificación seleccionada
-                    ComandaMenuModificacion mod = ComandaMenuModificacion.builder()
-                            .comandaItem(detalleGuardado)
-                            .opcion(opcion)
-                            .build();
+                // Bebida del menú → BARRA con precio 0
+                Producto bebida = productoRepository.findById(item.getBebidaProductoId())
+                        .orElseThrow(() -> new ResourceNotFoundException("Producto", item.getBebidaProductoId()));
+                if (barra == null) barra = crearComanda(reserva, EstacionComanda.BARRA);
+                ComandaItem itemBarra = ComandaItem.builder()
+                        .comanda(barra)
+                        .producto(bebida)
+                        .comandaItemCantidad(item.getCantidad())
+                        .comandaItemPrecio(BigDecimal.ZERO)
+                        .comandaItemDescripcion(null)
+                        .comandaItemMenuGrupo(grupo)
+                        .build();
+                comandaItemRepository.save(itemBarra);
 
-                    // Guardar el enlace para persistir la selección de modificación
-                    comandaMenuModificacionRepository.save(mod);
+            } else {
+                // Ítem a la carta: enrutar por categoría del producto
+                EstacionComanda estacion = (producto.getProductoCategoria() == CategoriaProducto.BEBIDA)
+                        ? EstacionComanda.BARRA : EstacionComanda.COCINA;
+                if (estacion == EstacionComanda.COCINA) {
+                    if (cocina == null) cocina = crearComanda(reserva, EstacionComanda.COCINA);
+                    guardarItemCarta(cocina, producto, item);
+                } else {
+                    if (barra == null) barra = crearComanda(reserva, EstacionComanda.BARRA);
+                    guardarItemCarta(barra, producto, item);
                 }
             }
         }
+    }
 
-        // Devolver la lista de ítems de la pre-orden ya persistidos
-        return comandaItemRepository.findByComanda_ComandaId(comandaGuardada.getComandaId());
+    /**
+     * Crea y persiste una nueva {@link Comanda} en estado {@code PRE_RESERVA} para la estación indicada.
+     *
+     * @param reserva  reserva a la que se asocia la comanda
+     * @param estacion estación de producción destino
+     * @return comanda persistida con ID asignado
+     */
+    private Comanda crearComanda(Reserva reserva, EstacionComanda estacion) {
+        Comanda c = Comanda.builder()
+                .reserva(reserva)
+                .comandaEstado(EstadoComanda.PRE_RESERVA)
+                .comandaEstacion(estacion)
+                .build();
+        return comandaRepository.save(c);
+    }
+
+    /**
+     * Persiste un {@link ComandaItem} de carta (sin grupo de menú especial) en la comanda indicada.
+     *
+     * @param comanda  comanda destino
+     * @param producto producto del catálogo
+     * @param item     datos del ítem enviados por el cliente
+     */
+    private void guardarItemCarta(Comanda comanda, Producto producto, PreOrdenItemRequest item) {
+        ComandaItem ci = ComandaItem.builder()
+                .comanda(comanda)
+                .producto(producto)
+                .comandaItemCantidad(item.getCantidad())
+                .comandaItemPrecio(producto.getProductoPrecio())
+                .comandaItemDescripcion(item.getDescripcion())
+                .build();
+        comandaItemRepository.save(ci);
     }
 
     // -----------------------------------------------------------------------
@@ -214,20 +299,20 @@ public class PreOrdenGestor {
      * @param reservaId identificador de la reserva cuya pre-orden se va a eliminar
      */
     public void eliminarPreOrdenExistente(Long reservaId) {
-        // Buscar la comanda PRE_RESERVA de esta reserva; si no existe, no hay nada que eliminar
-        comandaRepository
-                .findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA)
-                .ifPresent(comanda -> {
-                    List<ComandaItem> items =
-                            comandaItemRepository.findByComanda_ComandaId(comanda.getComandaId());
-                    // Borrar modificaciones de menú especial antes que los ítems (FK constraint)
-                    items.forEach(item ->
-                            comandaMenuModificacionRepository
-                                    .deleteByComandaItem_ComandaItemId(item.getComandaItemId()));
-                    // Borrar los ítems antes que la comanda (FK constraint)
-                    comandaItemRepository.deleteAll(items);
-                    // Eliminar la comanda vacía
-                    comandaRepository.delete(comanda);
-                });
+        // Buscar todas las comandas PRE_RESERVA (puede haber más de una tras el split por estación)
+        List<Comanda> comandas = comandaRepository
+                .findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA);
+        for (Comanda comanda : comandas) {
+            List<ComandaItem> items =
+                    comandaItemRepository.findByComanda_ComandaId(comanda.getComandaId());
+            // Borrar modificaciones de menú especial antes que los ítems
+            items.forEach(item ->
+                    comandaMenuModificacionRepository
+                            .deleteByComandaItem_ComandaItemId(item.getComandaItemId()));
+            // Borrar los ítems antes que la comanda
+            comandaItemRepository.deleteAll(items);
+            // Eliminar la comanda vacía
+            comandaRepository.delete(comanda);
+        }
     }
 }

@@ -1,0 +1,50 @@
+$kind: http-request
+name: CD3-03 MESERO modifica cantidad y descripción – 200 OK
+description: |-
+  **Objetivo:** Verificar que se actualizan ambos campos en una sola operación.
+  **Pre-condición:** `meseroToken` y `itemHamburguesaExtraQuesoId` disponibles.
+  **Resultado esperado:** 200 OK; existe ítem Hamburguesa con `descripcion = "extra queso doble"` y `cantidad = 2`.
+url: "{{baseUrl}}/api/comandas/borrador/items/{{itemHamburguesaExtraQuesoId}}"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cantidad": 2,
+      "descripcion": "extra queso doble"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Cantidad y descripción actualizadas', function () {
+        const platos = pm.response.json().data.platos;
+        const item = platos.find(p => p.productoNombre === 'Hamburguesa Al Toro' && p.descripcion === 'extra queso doble');
+        pm.expect(item).to.not.be.undefined;
+        pm.expect(item.cantidad).to.equal(2);
+      });
+    language: text/javascript
+order: 1020

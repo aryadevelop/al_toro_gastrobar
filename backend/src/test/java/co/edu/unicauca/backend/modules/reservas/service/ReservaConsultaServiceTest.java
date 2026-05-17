@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
@@ -7,7 +8,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepo
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ListadoReservasResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
@@ -324,7 +324,7 @@ class ReservaConsultaServiceTest {
 
         when(reservaRepository.findById(reservaId)).thenReturn(Optional.of(reserva));
         when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(reservaId, EstadoComanda.PRE_RESERVA))
-                .thenReturn(Optional.of(comanda));
+                .thenReturn(List.of(comanda));
         when(comandaItemRepository.findByComanda_ComandaId(1000L))
                 .thenReturn(List.of(item1, item2));
         when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reservaId))
@@ -352,6 +352,38 @@ class ReservaConsultaServiceTest {
 
         assertThat(response.getAbonos()).isNotEmpty();
         assertThat(response.getTotalAbonado()).isEqualTo(new BigDecimal("50000"));
+    }
+
+    @Test
+    @DisplayName("listarReservasDelDia con fecha pasada lanza BusinessException BAD_REQUEST")
+    void listarReservasDelDia_fechaPasada_lanzaBusinessException() {
+        LocalDate ayer = LocalDate.now().minusDays(1);
+
+        assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(ayer, null))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("No se pueden consultar reservas para fechas pasadas")
+                .extracting("status")
+                .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    @Test
+    @DisplayName("listarReservasDelDia agrupa reservas sin zona bajo 'Sin asignar' con zonaId null")
+    void listarReservasDelDia_reservaSinZona_seAgrupaSinAsignar() {
+        LocalDate hoy = LocalDate.now();
+        Cliente c1 = cliente(30L, "Sin Zona", "3000000000");
+
+        Reserva sinZona = reserva(700L, hoy.atTime(19, 0), 2, EstadoReserva.PENDIENTE,
+                TipoReserva.BASICA, c1, null, null);
+
+        when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
+                .thenReturn(List.of(sinZona));
+
+        ListadoReservasResponse response = reservaConsultaService.listarReservasDelDia(null, null);
+
+        assertThat(response.getResumenZonas()).hasSize(1);
+        assertThat(response.getResumenZonas().get(0).getZonaNombre()).isEqualTo("Sin asignar");
+        assertThat(response.getResumenZonas().get(0).getZonaId()).isNull();
+        assertThat(response.getResumenZonas().get(0).getCantidadReservas()).isEqualTo(1);
     }
 
     @Test

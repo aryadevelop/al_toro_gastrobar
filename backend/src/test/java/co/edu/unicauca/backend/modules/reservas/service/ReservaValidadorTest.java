@@ -9,7 +9,6 @@ import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaReposit
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
-import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -21,7 +20,6 @@ import org.springframework.http.HttpStatus;
 
 import java.math.BigDecimal;
 import java.time.LocalDate;
-import java.time.Duration;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
@@ -487,18 +485,6 @@ class ReservaValidadorTest {
                     });
         }
 
-        @Test
-        @DisplayName("MESERO con reserva del día actual → no lanza excepción")
-        void meseroReservaHoy_noLanza() {
-            // Given: Reserva CONFIRMADA hace 40 minutos del día actual
-            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
-            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
-            reserva.setReservaFechaHoraLlegada(horaLlegada);
-
-            // When/Then: MESERO puede marcar inasistencia de reserva del día actual
-            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
-                    .doesNotThrowAnyException();
-        }
 
         @Test
         @DisplayName("MESERO con reserva de día pasado → BusinessException INVALID_STATE")

@@ -1,0 +1,49 @@
+$kind: http-request
+name: CD3-01 MESERO modifica cantidad – 200 OK
+description: |-
+  **Objetivo:** Verificar que se actualiza la cantidad del ítem base Picanha a 3 (idempotente).
+  **Pre-condición:** `meseroToken` y `itemPicanhaBaseId` disponibles (resueltos en collection beforeRequest).
+  **Resultado esperado:** 200 OK; el ítem Picanha base aparece con `cantidad=3` en `platos[]`.
+url: "{{baseUrl}}/api/comandas/borrador/items/{{itemPicanhaBaseId}}"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cantidad": 3
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La cantidad del ítem Picanha base es 3', function () {
+        const platos = pm.response.json().data.platos;
+        const item = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+        pm.expect(item).to.not.be.undefined;
+        pm.expect(item.cantidad).to.equal(3);
+      });
+    language: text/javascript
+order: 1000

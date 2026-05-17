@@ -1,9 +1,12 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AsignarMesaRequest;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.MesaAsignadaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ZonaDisponibleMesaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
@@ -14,6 +17,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
@@ -37,7 +41,6 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -50,6 +53,7 @@ import java.util.stream.Collectors;
 @RequiredArgsConstructor
 public class MesaAsignarService {
 
+    private final VisitaEstadoMapper visitaEstadoMapper;
     private final MesaValidador mesaValidador;
     private final MesaRepository mesaRepository;
     private final VisitaRepository visitaRepository;
@@ -120,7 +124,6 @@ public class MesaAsignarService {
         visita = visitaRepository.save(visita);
 
         // 7. Crear Mesa (estado ESPERA)
-        // NOTA: visitaId se asigna automáticamente por @MapsId - NO establecer manualmente
         Mesa mesa = Mesa.builder()
                 .visita(visita)
                 .zona(zona)
@@ -161,16 +164,16 @@ public class MesaAsignarService {
      * @param visita visita creada
      */
     private void procesarReserva(Reserva reserva, Visita visita) {
-        // 1. Buscar comanda PRE_RESERVA
-        Optional<Comanda> comandaOpt = comandaRepository.findByReserva_ReservaIdAndComandaEstado(
+        // 1. Buscar comandas PRE_RESERVA
+        List<Comanda> preordenes = comandaRepository.findByReserva_ReservaIdAndComandaEstado(
                 reserva.getReservaId(), EstadoComanda.PRE_RESERVA);
 
-        // 2. Si existe, cambiar a BORRADOR y vincular a visita
-        comandaOpt.ifPresent(comanda -> {
+        // 2. Cambiar cada comanda a BORRADOR y vincular a visita
+        for (Comanda comanda : preordenes) {
             comanda.setComandaEstado(EstadoComanda.BORRADOR);
             comanda.setVisita(visita);
-            comandaRepository.save(comanda);
-        });
+        }
+        comandaRepository.saveAll(preordenes);
 
         // 3. Cambiar estado de reserva a ATENDIDA
         reserva.setReservaEstado(EstadoReserva.ATENDIDA);
@@ -196,14 +199,20 @@ public class MesaAsignarService {
                 visita.getVisitaId(),
                 MesaWsPublisher.TipoEventoMesa.CREAR);
 
-        // 2. SOLO SI HAY CLIENTE: Publicar estado visita
+        // 2. SOLO SI HAY CLIENTE: Publicar estado visita con ítems BORRADOR si existen
         if (visita.getCliente() != null) {
+            List<ComandaItem> itemsActivos = comandaRepository.findAllItemsActivosByVisita(visita.getVisitaId());
+            List<ItemVisitaResponse> itemsResponse = visitaEstadoMapper.toItemsVisitaResponse(itemsActivos);
+            BigDecimal total = itemsActivos.stream()
+                    .filter(ci -> ci.getComandaItemPrecio() != null)
+                    .map(ci -> ci.getComandaItemPrecio().multiply(BigDecimal.valueOf(ci.getComandaItemCantidad())))
+                    .reduce(BigDecimal.ZERO, BigDecimal::add);
             notificacionWsPublisher.publicarVisitaActualizada(
                     visita.getVisitaId(),
                     VisitaActualizadaWsMessage.builder()
                             .visitaId(visita.getVisitaId())
-                            .items(List.of())  // Lista vacía - aún no hay items de comanda
-                            .total(BigDecimal.ZERO)  // Total 0 - aún no hay consumo
+                            .items(itemsResponse)
+                            .total(total)
                             .build());
         }
 

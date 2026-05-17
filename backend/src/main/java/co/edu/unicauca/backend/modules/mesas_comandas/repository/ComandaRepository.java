@@ -2,11 +2,15 @@ package co.edu.unicauca.backend.modules.mesas_comandas.repository;
 
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -29,13 +33,16 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
     List<Comanda> findByVisita_VisitaId(Long visitaId);
 
     /**
-     * Devuelve la comanda PRE_RESERVA de una reserva, si existe.
+     * Devuelve las comandas en el estado indicado asociadas a una reserva.
+     *
+     * <p>Retorna lista para soportar el split por estación (COCINA + BARRA), donde
+     * una reserva con menú especial puede tener más de una comanda PRE_RESERVA.
      *
      * @param reservaId identificador de la reserva
      * @param estado    estado a filtrar (típicamente {@code PRE_RESERVA})
-     * @return comanda en ese estado asociada a la reserva; vacía si no existe
+     * @return lista de comandas en ese estado asociadas a la reserva; vacía si no existe ninguna
      */
-    Optional<Comanda> findByReserva_ReservaIdAndComandaEstado(Long reservaId, EstadoComanda estado);
+    List<Comanda> findByReserva_ReservaIdAndComandaEstado(Long reservaId, EstadoComanda estado);
 
     /**
      * Obtiene todos los items de comandas en producción de una visita.
@@ -55,6 +62,23 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
     List<ComandaItem> findItemsEnProduccionByVisita(@Param("visitaId") Long visitaId);
 
     /**
+     * Obtiene todos los ítems activos de una visita, incluyendo borradores y producción.
+     * Estados: BORRADOR, PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO.
+     *
+     * @param visitaId ID de la visita
+     * @return lista de ComandaItem con producto y comanda cargados, ordenados por categoría y nombre
+     */
+    @Query("""
+        SELECT ci FROM ComandaItem ci
+        JOIN FETCH ci.comanda c
+        JOIN FETCH ci.producto p
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstado IN ('BORRADOR', 'PENDIENTE', 'EN_PREPARACION', 'LISTO', 'COMPLETADO')
+        ORDER BY p.productoCategoria, p.productoNombre
+        """)
+    List<ComandaItem> findAllItemsActivosByVisita(@Param("visitaId") Long visitaId);
+
+    /**
      * Verifica si existe al menos una comanda de la visita en alguno de los estados indicados.
      *
      * <p>Se utiliza para determinar si quedan comandas en producción
@@ -67,4 +91,68 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * @return {@code true} si existe al menos una comanda en alguno de los estados dados
      */
     boolean existsByVisita_VisitaIdAndComandaEstadoIn(Long visitaId, List<EstadoComanda> estados);
+
+    /**
+     * Localiza la comanda BORRADOR de una visita para una estación específica.
+     *
+     * <p>Puede haber a lo sumo una BORRADOR por estación.
+     *
+     * @param visitaId identificador de la visita
+     * @param estado estado a buscar (típicamente {@code BORRADOR})
+     * @param estacion estación destino (COCINA o BARRA)
+     * @return Optional con la comanda; vacío si no existe
+     */
+    Optional<Comanda> findByVisita_VisitaIdAndComandaEstadoAndComandaEstacion(
+            Long visitaId, EstadoComanda estado, EstacionComanda estacion);
+
+    /**
+     * Devuelve todas las comandas de una visita en un estado específico.
+     * Hasta dos por visita en BORRADOR (una por estación).
+     */
+    List<Comanda> findByVisita_VisitaIdAndComandaEstado(Long visitaId, EstadoComanda estado);
+
+    /**
+     * Recupera las comandas de una estación cuyo estado pertenece al conjunto
+     * indicado.
+     *
+     * <p>El ordenamiento se delega al servicio, que aplica comparadores
+     * diferenciados por estado con respaldo en {@code createdAt} cuando los
+     * timestamps de transición no están presentes.
+     *
+     * @param estacion estación destino ({@code COCINA} o {@code BARRA})
+     * @param estados  estados de comanda a incluir
+     * @return comandas que satisfacen el filtro con la visita hidratada;
+     *         lista vacía cuando no existen coincidencias
+     */
+    @Query("""
+        SELECT c FROM Comanda c
+        JOIN FETCH c.visita v
+        WHERE c.comandaEstacion = :estacion
+        AND c.comandaEstado IN :estados
+        """)
+    List<Comanda> findByEstacionAndEstadoIn(@Param("estacion") EstacionComanda estacion,
+                                            @Param("estados") Collection<EstadoComanda> estados);
+
+    /**
+     * Localiza la comanda en estado {@code BORRADOR} asociada a una visita y a
+     * una estación, adquiriendo un bloqueo pesimista de escritura sobre la
+     * fila resultante.
+     *
+     * <p>El bloqueo evita condiciones de carrera cuando dos transacciones
+     * intentan fusionar simultáneamente contenido sobre el mismo borrador.
+     *
+     * @param visitaId identificador de la visita
+     * @param estacion estación destino
+     * @return {@link Optional} con la comanda en {@code BORRADOR} bloqueada;
+     *         vacío cuando no existe ningún borrador para esa combinación
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("""
+        SELECT c FROM Comanda c
+        WHERE c.visita.visitaId = :visitaId
+        AND c.comandaEstacion = :estacion
+        AND c.comandaEstado = co.edu.unicauca.backend.shared.enums.EstadoComanda.BORRADOR
+        """)
+    Optional<Comanda> findBorradorActivoByVisitaYEstacion(@Param("visitaId") Long visitaId,
+                                                          @Param("estacion") EstacionComanda estacion);
 }

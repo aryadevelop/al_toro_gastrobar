@@ -1,18 +1,17 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.EstadoVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.VisitaEstadoMapper;
-import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
@@ -45,7 +44,6 @@ class VisitaEstadoServiceTest {
     @Mock VisitaRepository visitaRepository;
     @Mock MesaRepository mesaRepository;
     @Mock ComandaRepository comandaRepository;
-    @Mock ComandaItemRepository comandaItemRepository;
     @Mock NotificacionRepository notificacionRepository;
 
     VisitaEstadoMapper visitaEstadoMapper;
@@ -56,7 +54,7 @@ class VisitaEstadoServiceTest {
 
     @BeforeEach
     void setUp() {
-        visitaEstadoMapper = spy(new VisitaEstadoMapper(comandaItemRepository));
+        visitaEstadoMapper = new VisitaEstadoMapper();
         visitaEstadoService = new VisitaEstadoService(
                 visitaRepository,
                 mesaRepository,
@@ -108,8 +106,7 @@ class VisitaEstadoServiceTest {
 
             when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
-            when(comandaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(List.of(c1));
-            when(comandaItemRepository.findByComanda_ComandaId(1L)).thenReturn(List.of(i1));
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(i1));
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
                     VISITA_ID, TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA))
                     .thenReturn(Optional.empty());
@@ -135,8 +132,7 @@ class VisitaEstadoServiceTest {
 
             when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(comandaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(List.of(c1));
-            when(comandaItemRepository.findByComanda_ComandaId(2L)).thenReturn(List.of(i1));
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(i1));
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
                     VISITA_ID, TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA))
                     .thenReturn(Optional.empty());
@@ -158,7 +154,7 @@ class VisitaEstadoServiceTest {
 
             when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(comandaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(List.of());
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
                     VISITA_ID, TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA))
                     .thenReturn(Optional.of(notif));
@@ -185,7 +181,7 @@ class VisitaEstadoServiceTest {
 
             when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(comandaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(List.of());
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
                     VISITA_ID, TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA))
                     .thenReturn(Optional.empty());

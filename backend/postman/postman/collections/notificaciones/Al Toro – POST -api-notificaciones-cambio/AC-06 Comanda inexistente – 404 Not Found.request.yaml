@@ -1,0 +1,26 @@
+$kind: http-request
+name: AC-06 Comanda inexistente – 404 Not Found
+description: |-
+  **Objetivo:** Notificar sobre un identificador de comanda inexistente retorna 404.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "comandaId": 999999
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 404', function () { pm.response.to.have.status(404); });
+      pm.test('Código ENT-001', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 5060

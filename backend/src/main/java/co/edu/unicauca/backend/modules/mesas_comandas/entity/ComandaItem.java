@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.entity;
 
-import co.edu.unicauca.backend.modules.produccion.entity.Producto;
 import jakarta.persistence.*;
 import jakarta.validation.constraints.*;
 import lombok.*;
@@ -9,6 +8,8 @@ import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.List;
+
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 
 /**
  * Línea de producto dentro de una {@link Comanda}.
@@ -81,6 +82,10 @@ public class ComandaItem {
     @Size(max = 500, message = "La descripción no debe exceder 500 caracteres")
     @Column(name = "comanda_item_descripcion", length = 500)
     private String comandaItemDescripcion;
+
+    /** UUID que agrupa los ítems COCINA+BARRA de un mismo menú especial. NULL para ítems de carta. */
+    @Column(name = "comanda_item_menu_grupo", length = 36)
+    private String comandaItemMenuGrupo;
 
     /** Modificaciones de menú especial seleccionadas para este ítem; vacía si no aplica. */
     @OneToMany(mappedBy = "comandaItem", cascade = CascadeType.ALL, fetch = FetchType.LAZY, orphanRemoval = true)

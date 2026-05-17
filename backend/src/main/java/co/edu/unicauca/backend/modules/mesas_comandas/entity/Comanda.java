@@ -88,7 +88,7 @@ public class Comanda extends AuditableEntity {
      * {@code null} en estado {@code PRE_RESERVA}; se define al convertir la pre-comanda.
      */
     @Enumerated(EnumType.STRING)
-    @Column(name = "comanda_estacion", length = 20)
+    @Column(name = "comanda_estacion", length = 20, nullable = false)
     private EstacionComanda comandaEstacion;
 
     /**

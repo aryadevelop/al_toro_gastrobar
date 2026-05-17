@@ -1,0 +1,33 @@
+$kind: http-request
+name: 90-09 Tablero produccion – BARTENDER
+description: Carga el tablero de comandas pendientes/en preparación/listas del bartender
+url: "{{baseUrl}}/api/comandas/produccion"
+method: GET
+headers:
+  Authorization: Bearer {{tmpBartenderToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'bartender1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpBartenderToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpBartenderToken');
+    language: text/javascript
+order: 8020
