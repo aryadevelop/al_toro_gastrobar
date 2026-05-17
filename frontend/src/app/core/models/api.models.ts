@@ -417,3 +417,50 @@ export interface BackendVentaAgrupadaMesResponse {
   total: number;
   cantidad: number;
 }
+
+/* ── Producción (cocina / barra) ── */
+
+export interface BackendComandaProduccionResumen {
+  comandaId: number;
+  estacion: string;
+  comandaEstado: string;
+  mesaIdentificador: string;
+  meseroNombre: string;
+  totalItems: number;
+  createdAt: string;
+  fechaHoraInicio?: string;
+  fechaHoraListo?: string;
+  notas?: string;
+}
+
+export interface BackendTableroProduccion {
+  estaciones: string[];
+  pendientes: BackendComandaProduccionResumen[];
+  enPreparacion: BackendComandaProduccionResumen[];
+  listos: BackendComandaProduccionResumen[];
+}
+
+export interface BackendItemDetalle {
+  comandaItemId: number;
+  productoId: number;
+  productoNombre: string;
+  categoriaProducto: string;
+  cantidad: number;
+  descripcion?: string;
+  modificacionesMenu?: string[];
+}
+
+export interface BackendComandaProduccionDetalle {
+  comandaId: number;
+  estacion: string;
+  comandaEstado: string;
+  mesaIdentificador: string;
+  meseroNombre: string;
+  createdAt: string;
+  fechaHoraInicio?: string;
+  fechaHoraListo?: string;
+  notas?: string;
+  platos: BackendItemDetalle[];
+  bebidas: BackendItemDetalle[];
+  otros: BackendItemDetalle[];
+}

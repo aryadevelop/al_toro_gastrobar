@@ -1,0 +1,315 @@
+<section class="page-grid board-wrapper">
+  <app-page-header title="Tablero de Producción"
+    [subtitle]="tablero ? 'Estaciones: ' + tablero.estaciones.join(', ') : 'Cargando...'">
+    <button class="btn-secondary btn-sm" (click)="cargarTablero()" [disabled]="loading">
+      ⟳ Actualizar
+    </button>
+  </app-page-header>
+
+  <!-- Loading -->
+  <div *ngIf="loading" class="board-loading">
+    <div class="spinner"></div>
+    <p>Cargando tablero...</p>
+  </div>
+
+  <!-- Error -->
+  <div *ngIf="error && !loading" class="board-error card">
+    <p>{{ error }}</p>
+    <button class="btn-primary btn-sm" (click)="cargarTablero()">Reintentar</button>
+  </div>
+
+  <!-- Board -->
+  <div *ngIf="tablero && !loading" class="board-columns">
+
+    <!-- ═══ PENDIENTES ═══ -->
+    <div class="board-column column-pendiente">
+      <div class="column-header pendiente-header">
+        <!-- [CAMBIADO] Ícono de columna eliminado: el color dorado del header ya identifica el estado -->
+        <h2>Pendientes</h2>
+        <span class="column-badge">{{ tablero.pendientes.length }}</span>
+      </div>
+
+      <div class="column-body">
+        <div *ngFor="let comanda of tablero.pendientes; trackBy: trackByComandaId" class="comanda-card card">
+          <div class="comanda-card__header">
+            <!-- [CAMBIADO] Eliminado 🍽️ redundante; el label de mesa ya identifica el dato -->
+            <span class="comanda-mesa">{{ comanda.mesaIdentificador }}</span>
+            <span class="comanda-estacion-badge" [class]="'estacion-' + comanda.estacion.toLowerCase()">
+              {{ comanda.estacion }}
+            </span>
+          </div>
+
+          <div class="comanda-card__body">
+            <div class="comanda-info-row">
+              <span class="info-label">Mesero:</span>
+              <span class="info-value">{{ comanda.meseroNombre }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Creada:</span>
+              <span class="info-value">{{ comanda.createdAt | date:'shortTime' }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Ítems:</span>
+              <span class="info-value">{{ comanda.totalItems }}</span>
+            </div>
+            <div class="comanda-tiempo">{{ tiempoTranscurrido(comanda.createdAt) }}</div>
+            <!-- [CAMBIADO] Eliminado 📝 en notas; el estilo itálico ya las diferencia -->
+            <p *ngIf="comanda.notas" class="comanda-notas">{{ comanda.notas }}</p>
+          </div>
+
+          <div class="comanda-card__actions">
+            <button class="btn-primary btn-sm btn-block" (click)="iniciarPreparacion(comanda)"
+              [disabled]="actionLoading[comanda.comandaId]">
+              {{ actionLoading[comanda.comandaId] ? 'Procesando...' : 'Iniciar preparación' }}
+            </button>
+            <div class="actions-secondary">
+              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+            </div>
+            <!-- [CAMBIADO] Eliminado 🔔 en el botón; el texto describe la acción -->
+            <button class="btn-notify btn-sm btn-block" (click)="notificarCambio(comanda)">
+              Notificar cambio
+            </button>
+          </div>
+        </div>
+
+        <div *ngIf="tablero.pendientes.length === 0" class="column-empty">
+          <!-- [CAMBIADO] Ícono de columna vacía eliminado; el mensaje es suficiente -->
+          <p>No hay comandas pendientes</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ EN PREPARACIÓN ═══ -->
+    <div class="board-column column-preparacion">
+      <div class="column-header preparacion-header">
+        <!-- [CAMBIADO] Ícono de columna eliminado: el color rojo-marrón ya identifica el estado -->
+        <h2>En preparación</h2>
+        <span class="column-badge">{{ tablero.enPreparacion.length }}</span>
+      </div>
+
+      <div class="column-body">
+        <div *ngFor="let comanda of tablero.enPreparacion; trackBy: trackByComandaId" class="comanda-card card">
+          <div class="comanda-card__header">
+            <!-- [CAMBIADO] Eliminado 🍽️ redundante -->
+            <span class="comanda-mesa">{{ comanda.mesaIdentificador }}</span>
+            <span class="comanda-estacion-badge" [class]="'estacion-' + comanda.estacion.toLowerCase()">
+              {{ comanda.estacion }}
+            </span>
+          </div>
+
+          <div class="comanda-card__body">
+            <div class="comanda-info-row">
+              <span class="info-label">Mesero:</span>
+              <span class="info-value">{{ comanda.meseroNombre }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Creada:</span>
+              <span class="info-value">{{ comanda.createdAt | date:'shortTime' }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Inicio:</span>
+              <span class="info-value">{{ comanda.fechaHoraInicio | date:'shortTime' }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Ítems:</span>
+              <span class="info-value">{{ comanda.totalItems }}</span>
+            </div>
+            <div class="comanda-tiempo prep-time">{{ tiempoTranscurrido(comanda.fechaHoraInicio) }}</div>
+            <!-- [CAMBIADO] Eliminado 📝 en notas -->
+            <p *ngIf="comanda.notas" class="comanda-notas">{{ comanda.notas }}</p>
+          </div>
+
+          <div class="comanda-card__actions">
+            <button class="btn-success btn-sm btn-block" (click)="marcarListo(comanda)"
+              [disabled]="actionLoading[comanda.comandaId]">
+              {{ actionLoading[comanda.comandaId] ? 'Procesando...' : 'Marcar como listo' }}
+            </button>
+            <div class="actions-secondary">
+              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="tablero.enPreparacion.length === 0" class="column-empty">
+          <!-- [CAMBIADO] Ícono de columna vacía eliminado -->
+          <p>No hay comandas en preparación</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- ═══ LISTAS (CA-04) ═══ -->
+    <div class="board-column column-listo">
+      <div class="column-header listo-header">
+        <!-- [CAMBIADO] Ícono de columna eliminado: el color verde ya identifica el estado -->
+        <h2>Listas</h2>
+        <span class="column-badge">{{ tablero.listos.length }}</span>
+      </div>
+
+      <div class="column-body">
+        <div *ngFor="let comanda of tablero.listos; trackBy: trackByComandaId" class="comanda-card card">
+          <div class="comanda-card__header">
+            <!-- [CAMBIADO] Eliminado 🍽️ redundante -->
+            <span class="comanda-mesa">{{ comanda.mesaIdentificador }}</span>
+            <span class="comanda-estacion-badge" [class]="'estacion-' + comanda.estacion.toLowerCase()">
+              {{ comanda.estacion }}
+            </span>
+          </div>
+
+          <div class="comanda-card__body">
+            <div class="comanda-info-row">
+              <span class="info-label">Mesero:</span>
+              <span class="info-value">{{ comanda.meseroNombre }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Creada:</span>
+              <span class="info-value">{{ comanda.createdAt | date:'shortTime' }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Lista:</span>
+              <span class="info-value">{{ comanda.fechaHoraListo | date:'shortTime' }}</span>
+            </div>
+            <div class="comanda-info-row">
+              <span class="info-label">Ítems:</span>
+              <span class="info-value">{{ comanda.totalItems }}</span>
+            </div>
+            <div class="comanda-tiempo listo-time">{{ tiempoTranscurrido(comanda.fechaHoraListo) }}</div>
+            <!-- [CAMBIADO] Eliminado 📝 en notas -->
+            <p *ngIf="comanda.notas" class="comanda-notas">{{ comanda.notas }}</p>
+          </div>
+
+          <div class="comanda-card__actions">
+            <div class="actions-secondary">
+              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+            </div>
+          </div>
+        </div>
+
+        <div *ngIf="tablero.listos.length === 0" class="column-empty">
+          <!-- [CAMBIADO] Ícono de columna vacía eliminado -->
+          <p>No hay comandas listas</p>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</section>
+
+<!-- ═══════════════════════════════════════════════════
+     CA-06: Panel lateral de detalle de comanda
+     ═══════════════════════════════════════════════════ -->
+<div class="detalle-overlay" *ngIf="detalleVisible" (click)="onBackdropClick($event)">
+  <aside class="detalle-panel card">
+    <div class="detalle-panel__header">
+      <h2 *ngIf="detalleData">Comanda #{{ detalleData.comandaId }}</h2>
+      <h2 *ngIf="!detalleData">Detalle de comanda</h2>
+      <button class="btn-cerrar" (click)="cerrarDetalle()" aria-label="Cerrar">✕</button>
+    </div>
+
+    <div *ngIf="detalleCargando" class="detalle-panel__loading">
+      <div class="spinner"></div>
+      <p>Cargando detalle...</p>
+    </div>
+
+    <div *ngIf="!detalleCargando && !detalleData" class="detalle-panel__error">
+      <p>No se pudo cargar el detalle.</p>
+    </div>
+
+    <div *ngIf="detalleData && !detalleCargando" class="detalle-panel__body">
+
+      <div class="detalle-info-grid">
+        <div class="detalle-info-item">
+          <span class="detalle-label">Número de mesa</span>
+          <!-- [CAMBIADO] Eliminado 🍽️ redundante en el detalle -->
+          <span class="detalle-value">{{ detalleData.mesaIdentificador }}</span>
+        </div>
+        <div class="detalle-info-item">
+          <span class="detalle-label">Nombre del mesero</span>
+          <span class="detalle-value">{{ detalleData.meseroNombre }}</span>
+        </div>
+        <div class="detalle-info-item">
+          <span class="detalle-label">Hora de creación</span>
+          <span class="detalle-value">{{ detalleData.createdAt | date:'medium' }}</span>
+        </div>
+        <div class="detalle-info-item">
+          <span class="detalle-label">Estación</span>
+          <span class="detalle-value estacion-tag" [class]="'estacion-' + detalleData.estacion.toLowerCase()">
+            {{ detalleData.estacion }}
+          </span>
+        </div>
+        <div class="detalle-info-item">
+          <span class="detalle-label">Estado actual</span>
+          <span class="detalle-value estado-tag" [class]="'estado-' + detalleData.comandaEstado.toLowerCase()">
+            {{ estadoLegible(detalleData.comandaEstado) }}
+          </span>
+        </div>
+        <div class="detalle-info-item" *ngIf="detalleData.fechaHoraInicio">
+          <span class="detalle-label">Inicio preparación</span>
+          <span class="detalle-value">{{ detalleData.fechaHoraInicio | date:'medium' }}</span>
+        </div>
+        <div class="detalle-info-item" *ngIf="detalleData.fechaHoraListo">
+          <span class="detalle-label">Marcada lista</span>
+          <span class="detalle-value">{{ detalleData.fechaHoraListo | date:'medium' }}</span>
+        </div>
+      </div>
+
+      <div *ngIf="detalleData.notas" class="detalle-notas-box">
+        <span class="detalle-label">Notas de la comanda</span>
+        <!-- [CAMBIADO] Eliminado 📝 redundante; el estilo del bloque ya lo diferencia -->
+        <p class="detalle-notas-text">{{ detalleData.notas }}</p>
+      </div>
+
+      <!-- [CAMBIADO] Eliminados emojis 🍖 🍹 📦 de los títulos de sección; el texto ya describe el contenido -->
+      <div class="detalle-items-section" *ngIf="detalleData.platos && detalleData.platos.length">
+        <h3 class="section-title">Platos (Cocina)</h3>
+        <div class="detalle-items-list">
+          <div *ngFor="let item of detalleData.platos" class="detalle-item-row">
+            <span class="detalle-item-qty">×{{ item.cantidad }}</span>
+            <div class="detalle-item-info">
+              <span class="detalle-item-name">{{ item.productoNombre }}</span>
+              <span *ngIf="item.descripcion" class="detalle-item-desc">{{ item.descripcion }}</span>
+              <div *ngIf="item.modificacionesMenu && item.modificacionesMenu.length" class="detalle-item-mods">
+                <span *ngFor="let mod of item.modificacionesMenu" class="mod-tag">{{ mod }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detalle-items-section" *ngIf="detalleData.bebidas && detalleData.bebidas.length">
+        <h3 class="section-title">Bebidas (Barra)</h3>
+        <div class="detalle-items-list">
+          <div *ngFor="let item of detalleData.bebidas" class="detalle-item-row">
+            <span class="detalle-item-qty">×{{ item.cantidad }}</span>
+            <div class="detalle-item-info">
+              <span class="detalle-item-name">{{ item.productoNombre }}</span>
+              <span *ngIf="item.descripcion" class="detalle-item-desc">{{ item.descripcion }}</span>
+              <div *ngIf="item.modificacionesMenu && item.modificacionesMenu.length" class="detalle-item-mods">
+                <span *ngFor="let mod of item.modificacionesMenu" class="mod-tag">{{ mod }}</span>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="detalle-items-section" *ngIf="detalleData.otros && detalleData.otros.length">
+        <h3 class="section-title">Otros</h3>
+        <div class="detalle-items-list">
+          <div *ngFor="let item of detalleData.otros" class="detalle-item-row">
+            <span class="detalle-item-qty">×{{ item.cantidad }}</span>
+            <div class="detalle-item-info">
+              <span class="detalle-item-name">{{ item.productoNombre }}</span>
+              <span *ngIf="item.descripcion" class="detalle-item-desc">{{ item.descripcion }}</span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="detalle-panel__footer">
+      <button class="btn-secondary btn-block" (click)="cerrarDetalle()">Cerrar</button>
+    </div>
+  </aside>
+</div>

@@ -1,0 +1,217 @@
+/* ═══════════════════════════════════════════════════
+   Comanda Detalle Page
+   ═══════════════════════════════════════════════════ */
+
+.detalle-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(111, 78, 55, 0.18);
+  border-top-color: var(--secondary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to { transform: rotate(360deg); }
+}
+
+.detalle-error {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--danger);
+}
+
+/* ── Info card ───────────────────────────────────── */
+.detalle-info {
+  padding: 1rem 1.2rem;
+}
+
+.info-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.85rem;
+}
+
+.info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.info-label {
+  font-size: 0.78rem;
+  color: var(--muted);
+  opacity: 0.7;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.info-value-lg {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.estacion-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 0.8rem;
+}
+
+.estacion-cocina {
+  background: rgba(184, 92, 56, 0.15);
+  color: #8b3a1e;
+}
+
+.estacion-barra {
+  background: rgba(56, 107, 184, 0.15);
+  color: #1e4f8b;
+}
+
+.estado-badge {
+  padding: 0.2rem 0.6rem;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 0.8rem;
+}
+
+.estado-pendiente { background: rgba(212, 167, 106, 0.2); color: #8b5e3c; }
+.estado-en_preparacion { background: rgba(184, 92, 56, 0.15); color: #a04422; }
+.estado-listo { background: rgba(90, 125, 58, 0.15); color: #486a2d; }
+
+.detalle-notas {
+  margin: 0.75rem 0 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted);
+  padding: 0.45rem 0.7rem;
+  background: rgba(111, 78, 55, 0.06);
+  border-radius: 8px;
+}
+
+/* ── Items Section ──────────────────────────────── */
+.items-section {
+  padding: 1rem 1.2rem;
+}
+
+.items-section .section-title {
+  margin-bottom: 0.7rem;
+}
+
+.items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.7rem;
+  padding: 0.5rem 0.65rem;
+  border-radius: 8px;
+  background: rgba(111, 78, 55, 0.04);
+  border: 1px solid rgba(111, 78, 55, 0.08);
+}
+
+.item-qty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 34px;
+  height: 34px;
+  border-radius: 8px;
+  background: var(--secondary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.85rem;
+}
+
+.item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.item-name {
+  font-weight: 600;
+  font-size: 0.9rem;
+}
+
+.item-desc {
+  font-size: 0.8rem;
+  color: var(--muted);
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.item-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin-top: 0.15rem;
+}
+
+.mod-tag {
+  font-size: 0.72rem;
+  padding: 0.15rem 0.45rem;
+  border-radius: 999px;
+  background: rgba(111, 78, 55, 0.1);
+  color: var(--secondary);
+  font-weight: 500;
+}
+
+/* ── Action Bar ─────────────────────────────────── */
+.detalle-actions {
+  display: flex;
+  gap: 0.75rem;
+  padding: 0.5rem 0;
+}
+
+.btn-lg {
+  padding: 0.75rem 1.5rem;
+  font-size: 0.95rem;
+}
+
+.btn-sm {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.btn-success {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: linear-gradient(135deg, #5a7d3a 0%, #486a2d 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(90, 125, 58, 0.3);
+}
+
+.btn-success:hover { filter: brightness(1.06); }
+.btn-success:disabled,
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ── Responsive ─────────────────────────────────── */
+@media (max-width: 640px) {
+  .info-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .detalle-actions {
+    flex-direction: column;
+  }
+}

@@ -64,11 +64,18 @@ export const API_PATHS = {
         enviar: (comandaId: string | number) => `${API}/comandas/borrador/${comandaId}/enviar`,
         notas: (comandaId: string | number) => `${API}/comandas/borrador/${comandaId}/notas`,
     },
+    comandasProduccion: {
+        tablero: `${API}/comandas/produccion`,
+        detalle: (comandaId: string | number) => `${API}/comandas/produccion/${comandaId}`,
+        iniciar: (comandaId: string | number) => `${API}/comandas/produccion/${comandaId}/iniciar`,
+        listo: (comandaId: string | number) => `${API}/comandas/produccion/${comandaId}/listo`,
+    },
     notificaciones: {
         atender: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/atender`,
         servirPlatos: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/servir-platos`,
         servirBebidas: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/servir-bebidas`,
         atenderCambio: (notificacionId: string | number) => `${API}/notificaciones/${notificacionId}/atender-cambio`,
+        cambio: `${API}/notificaciones/cambio`,
     },
     ventas: {
         detalle: (visitaId: string | number) => `${API}/ventas/${visitaId}/detalle`,
