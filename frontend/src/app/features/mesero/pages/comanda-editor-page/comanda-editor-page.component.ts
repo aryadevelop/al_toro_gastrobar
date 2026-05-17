@@ -1197,12 +1197,18 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       return '';
     }
 
-    if (typeof httpError.error === 'string' && httpError.error.trim()) {
-      return httpError.error.trim();
+    const backendError = httpError.error;
+    if (typeof backendError === 'string' && backendError.trim()) {
+      return backendError.trim();
     }
 
-    if (typeof httpError.error?.message === 'string' && httpError.error.message.trim()) {
-      return httpError.error.message.trim();
+    if (
+      backendError &&
+      typeof backendError === 'object' &&
+      typeof backendError.message === 'string' &&
+      backendError.message.trim()
+    ) {
+      return backendError.message.trim();
     }
 
     return '';

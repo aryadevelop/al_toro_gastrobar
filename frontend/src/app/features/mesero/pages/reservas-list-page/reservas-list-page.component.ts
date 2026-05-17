@@ -603,7 +603,7 @@ export class ReservasListPageComponent implements OnDestroy {
     return this.zonas.length > 0 ? this.zonas[0].id : null;
   }
 
-  private shouldShowInasistencia(reserva: ReservaCard): boolean {
+  shouldShowInasistencia(reserva: ReservaCard): boolean {
     if (reserva.mostrarBotonInasistencia === true) {
       return true;
     }
