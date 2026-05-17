@@ -64,6 +64,9 @@ interface DraftItem {
               </button>
             </li>
           </ul>
+          <p class="suggestions-empty" *ngIf="searchTerm() && !filteredSuggestions().length">
+            No hay resultados para la busqueda.
+          </p>
         </section>
 
         <section class="totals-grid">
@@ -238,10 +241,38 @@ interface DraftItem {
 
         <footer class="action-row">
           <button class="btn-outline" type="button" (click)="onSaveDraftAndClose()">Cerrar</button>
-          <button class="btn-primary" type="button" [disabled]="!canSendToProduction()" (click)="onSendToProduction()">
-            Enviar a producción
+          <button
+            class="btn-outline"
+            type="button"
+            [disabled]="!canSaveDraft()"
+            [attr.title]="!canSaveDraft() ? 'Agrega al menos un producto para guardar.' : null"
+            (click)="onSaveDraftOnly()"
+          >
+            Guardar como espera
+          </button>
+          <button
+            class="btn-primary"
+            type="button"
+            [disabled]="!canSendToKitchen()"
+            [attr.title]="!canSendToKitchen() ? 'Agrega al menos un plato para enviar a cocina.' : null"
+            (click)="onSendToKitchen()"
+          >
+            Enviar a cocina
+          </button>
+          <button
+            class="btn-primary"
+            type="button"
+            [disabled]="!canSendToBar()"
+            [attr.title]="!canSendToBar() ? 'Agrega al menos una bebida para enviar a barra.' : null"
+            (click)="onSendToBar()"
+          >
+            Enviar a barra
           </button>
         </footer>
+
+        <p class="action-hint" *ngIf="!canSaveDraft()">
+          Agrega productos a la comanda para habilitar las acciones.
+        </p>
 
         <p class="save-note" *ngIf="saved()">Comanda guardada con éxito.</p>
       </article>
@@ -430,6 +461,12 @@ interface DraftItem {
         cursor: pointer;
       }
 
+      .suggestions-empty {
+        margin: 0;
+        font-size: 0.78rem;
+        color: #6b7280;
+      }
+
       .totals-grid {
         margin-top: 0.8rem;
         display: grid;
@@ -568,6 +605,12 @@ interface DraftItem {
         margin: 0;
         color: #2e7d32;
         font-size: 0.85rem;
+      }
+
+      .action-hint {
+        margin: 0.35rem 0 0;
+        font-size: 0.78rem;
+        color: #6b7280;
       }
 
       .integration-note {
@@ -725,7 +768,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
           this.actionTone.set('success');
           this.actionMessage.set('Producto agregado al borrador.');
         },
-        error: () => this.handleActionError('No pudimos agregar el producto al borrador.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos agregar el producto al borrador.'),
       });
   }
 
@@ -751,7 +794,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (draft) => this.applyDraft(draft),
-        error: () => this.handleActionError('No pudimos actualizar la descripción del item.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos actualizar la descripción del item.'),
       });
   }
 
@@ -801,7 +844,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
           this.applyDraft(draft);
           this.setModificationDraft(parentId, '');
         },
-        error: () => this.handleActionError('No pudimos guardar la modificación.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos guardar la modificación.'),
       });
   }
 
@@ -850,49 +893,78 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
     return this.totalBackend();
   }
 
-  canSendToProduction(): boolean {
-    return Boolean(
-      (this.comandaCocinaId() && this.draftPlatos().length) ||
-        (this.comandaBarraId() && this.draftBebidas().length)
-    );
+  canSendToKitchen(): boolean {
+    return Boolean(this.comandaCocinaId() && this.draftPlatos().length);
   }
 
-  onSendToProduction(): void {
-    if (!this.canSendToProduction()) {
-      return;
-    }
+  canSendToBar(): boolean {
+    return Boolean(this.comandaBarraId() && this.draftBebidas().length);
+  }
 
-    const requests = [] as Array<ReturnType<ComandaService['enviarAProduccion']>>;
+  canSaveDraft(): boolean {
+    return this.draftItems().length > 0;
+  }
+
+  onSendToKitchen(): void {
     const cocinaId = this.comandaCocinaId();
-    const barraId = this.comandaBarraId();
-
-    if (cocinaId && this.draftPlatos().length) {
-      requests.push(this.comandaService.enviarAProduccion(cocinaId));
-    }
-    if (barraId && this.draftBebidas().length) {
-      requests.push(this.comandaService.enviarAProduccion(barraId));
-    }
-    if (!requests.length) {
+    if (!cocinaId || !this.draftPlatos().length) {
       return;
     }
 
-    forkJoin(requests)
+    this.comandaService
+      .enviarAProduccion(cocinaId)
       .pipe(takeUntil(this.destroy$))
       .subscribe({
-        next: (responses) => {
-          const last = responses[responses.length - 1];
-          if (last) {
-            this.applyDraft(last);
-          }
+        next: (draft) => {
+          this.applyDraft(draft);
           const visitaId = this.mesaId();
           if (visitaId) {
             this.fetchItemsProduccion(visitaId);
           }
-          this.saved.set(false);
           this.actionTone.set('success');
-          this.actionMessage.set('Comanda enviada a producción.');
+          this.actionMessage.set('Comanda enviada a cocina.');
         },
-        error: () => this.handleActionError('No pudimos enviar la comanda a producción.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos enviar la comanda a cocina.'),
+      });
+  }
+
+  onSendToBar(): void {
+    const barraId = this.comandaBarraId();
+    if (!barraId || !this.draftBebidas().length) {
+      return;
+    }
+
+    this.comandaService
+      .enviarAProduccion(barraId)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: (draft) => {
+          this.applyDraft(draft);
+          const visitaId = this.mesaId();
+          if (visitaId) {
+            this.fetchItemsProduccion(visitaId);
+          }
+          this.actionTone.set('success');
+          this.actionMessage.set('Comanda enviada a barra.');
+        },
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos enviar la comanda a barra.'),
+      });
+  }
+
+  onSaveDraftOnly(): void {
+    if (!this.canSaveDraft()) {
+      return;
+    }
+
+    this.persistNotes()
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {
+          this.saved.set(true);
+          this.actionTone.set('success');
+          this.actionMessage.set('Comanda guardada como espera.');
+        },
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos guardar la comanda.'),
       });
   }
 
@@ -944,6 +1016,11 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
 
   private updateQuantityWithValidation(item: DraftItem, requested: number): void {
     const parsed = Number.isFinite(requested) ? Math.trunc(requested) : item.quantity;
+    if (parsed <= 0) {
+      this.requestDelete(item.id);
+      return;
+    }
+
     const bounded = Math.min(250, Math.max(1, parsed));
 
     this.comandaService
@@ -951,7 +1028,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       .pipe(takeUntil(this.destroy$))
       .subscribe({
         next: (draft) => this.applyDraft(draft),
-        error: () => this.handleActionError('No pudimos actualizar la cantidad del item.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos actualizar la cantidad del item.'),
       });
   }
 
@@ -1112,6 +1189,23 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   private handleActionError(message: string): void {
     this.actionTone.set('error');
     this.actionMessage.set(message);
+  }
+
+  private extractErrorMessage(error: unknown): string {
+    const httpError = error as { error?: { message?: string } | string } | null | undefined;
+    if (!httpError) {
+      return '';
+    }
+
+    if (typeof httpError.error === 'string' && httpError.error.trim()) {
+      return httpError.error.trim();
+    }
+
+    if (typeof httpError.error?.message === 'string' && httpError.error.message.trim()) {
+      return httpError.error.message.trim();
+    }
+
+    return '';
   }
 
   private isReloadNavigation(): boolean {

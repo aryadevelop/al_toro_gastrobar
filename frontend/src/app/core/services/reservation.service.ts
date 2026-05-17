@@ -98,7 +98,7 @@ export class ReservationService {
             guestName: item.clienteNombre ?? 'Cliente',
             phone: item.clienteTelefono,
             guests: item.numeroPersonas ?? 0,
-            date: '',
+            date: fecha ?? '',
             time: (item.horaLlegada ?? '00:00').slice(0, 5),
             status: this.toReservationStatus(item.estado ?? ''),
             type: undefined,
