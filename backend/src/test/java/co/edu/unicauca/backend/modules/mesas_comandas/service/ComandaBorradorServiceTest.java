@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AgregarItemRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.ModificarItemRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.NotasRequest;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.AdvertenciaPreordenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.BorradorComandaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
@@ -81,7 +82,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(eq(mesa), anyList(), any())).thenReturn(esperado);
+            when(borradorMapper.toBorradorResponse(eq(mesa), anyList(), any(), any())).thenReturn(esperado);
 
             BorradorComandaResponse resultado = service.obtenerBorrador(1L, auth);
 
@@ -100,11 +101,11 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(new BigDecimal("45.00"));
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.obtenerBorrador(1L, auth);
 
-            verify(borradorMapper).toBorradorResponse(eq(mesa), eq(List.of(borrador)), eq(new BigDecimal("45.00")));
+            verify(borradorMapper).toBorradorResponse(eq(mesa), eq(List.of(borrador)), eq(new BigDecimal("45.00")), anyList());
         }
     }
 
@@ -164,7 +165,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -194,7 +195,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -224,7 +225,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -257,7 +258,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(nuevaComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -288,7 +289,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(nuevaComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -317,7 +318,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -346,7 +347,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borradorComanda));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.agregarItem(req, auth);
 
@@ -422,7 +423,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.modificarItem(20L, req, auth);
 
@@ -446,7 +447,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.modificarItem(20L, req, auth);
 
@@ -470,7 +471,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.modificarItem(20L, req, auth);
 
@@ -519,7 +520,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.modificarItem(20L, req, auth);
 
@@ -589,7 +590,7 @@ class ComandaBorradorServiceTest {
                     .thenReturn(List.of(itemBarra))    // lectura en eliminarParMenu
                     .thenReturn(List.of());             // lectura en eliminarComandaSiVacia
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(20L, auth);
 
@@ -620,7 +621,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(20L, auth);
 
@@ -645,7 +646,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(21L, auth);
 
@@ -670,7 +671,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(20L, auth);
 
@@ -693,7 +694,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(21L, auth);
 
@@ -720,7 +721,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.eliminarItem(20L, auth);
 
@@ -776,7 +777,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.actualizarNotas(10L, req, auth);
 
@@ -800,7 +801,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of(borrador));
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
 
             service.actualizarNotas(10L, req, auth);
 
@@ -900,7 +901,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
             when(comandaRepository.findAllItemsActivosByVisita(1L)).thenReturn(List.of());
             when(visitaEstadoMapper.toItemsVisitaResponse(anyList())).thenReturn(List.of());
 
@@ -1009,7 +1010,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(1L, EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(1L)).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
             // Proporcionar ítems activos con precio para ejercitar las lambdas de stream
             when(comandaRepository.findAllItemsActivosByVisita(1L))
                     .thenReturn(List.of(itBorrador, itPendiente));
@@ -1033,7 +1034,7 @@ class ComandaBorradorServiceTest {
             when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(mesa.getVisitaId(), EstadoComanda.BORRADOR))
                     .thenReturn(List.of());
             when(comandaItemRepository.sumTotalActivosByVisita(mesa.getVisitaId())).thenReturn(BigDecimal.ZERO);
-            when(borradorMapper.toBorradorResponse(any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
+            when(borradorMapper.toBorradorResponse(any(), any(), any(), any())).thenReturn(mock(BorradorComandaResponse.class));
             when(comandaRepository.findAllItemsActivosByVisita(mesa.getVisitaId())).thenReturn(List.of());
             when(visitaEstadoMapper.toItemsVisitaResponse(anyList())).thenReturn(List.of());
         }
@@ -1192,5 +1193,166 @@ class ComandaBorradorServiceTest {
         Authentication auth = mock(Authentication.class);
         lenient().when(auth.getName()).thenReturn("mesero@altoro.com");
         return auth;
+    }
+
+    // ═══════════════════════════════════════════════════════════════════════════
+    // AdvertenciasPreorden — calcularAdvertencias via obtenerBorrador
+    // ═══════════════════════════════════════════════════════════════════════════
+    @Nested
+    @DisplayName("calcularAdvertencias")
+    class AdvertenciasPreorden {
+
+        private static final Long VISITA_ID  = 1L;
+        private static final Long COMANDA_ID = 10L;
+
+        private Mesa mesa;
+        private Comanda borrador;
+        private Authentication auth;
+
+        @org.junit.jupiter.api.BeforeEach
+        void setUp() {
+            mesa     = crearMesa(VISITA_ID, EstadoMesa.EN_PREPARACION);
+            borrador = comanda(COMANDA_ID, EstadoComanda.BORRADOR, EstacionComanda.COCINA, mesa.getVisita());
+            auth     = crearAuth();
+
+            lenient().when(mesaValidador.validarOwnership(VISITA_ID, auth)).thenReturn(mesa);
+            lenient().when(comandaRepository.findByVisita_VisitaIdAndComandaEstado(VISITA_ID, EstadoComanda.BORRADOR))
+                    .thenReturn(List.of(borrador));
+            lenient().when(comandaItemRepository.sumTotalActivosByVisita(VISITA_ID)).thenReturn(BigDecimal.ZERO);
+            lenient().when(borradorMapper.toBorradorResponse(any(), any(), any(), any()))
+                    .thenReturn(mock(BorradorComandaResponse.class));
+        }
+
+        @Test
+        @DisplayName("sin ítems en borrador → advertencias vacías")
+        void sinItems_advertenciasVacias() {
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of());
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("item sin control de stock (evaluarDisponibilidad null) → no genera advertencia")
+        void itemSinControlStock_noGeneraAdvertencia() {
+            Producto prod = producto(1L, CategoriaProducto.PLATO, false);
+            ComandaItem ci = item(100L, borrador, prod, 3, null, null);
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ci));
+            when(validador.evaluarDisponibilidad(prod, 3)).thenReturn(null);
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("item con stock suficiente (disponible >= cantidad) → no genera advertencia")
+        void itemStockSuficiente_noGeneraAdvertencia() {
+            Producto prod = producto(1L, CategoriaProducto.PLATO, false);
+            ComandaItem ci = item(100L, borrador, prod, 3, null, null);
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ci));
+            when(validador.evaluarDisponibilidad(prod, 3)).thenReturn(5); // 5 >= 3
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("item con stock negativo → advertencia con cantidadDisponible=0")
+        void itemStockNegativo_generaAdvertenciaConDisponibleCero() {
+            Producto prod = producto(2L, CategoriaProducto.PLATO, false);
+            ComandaItem ci = item(101L, borrador, prod, 5, null, null);
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ci));
+            when(validador.evaluarDisponibilidad(prod, 5)).thenReturn(-3);
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).hasSize(1);
+            AdvertenciaPreordenResponse adv = captor.getValue().get(0);
+            assertThat(adv.getProductoId()).isEqualTo(2L);
+            assertThat(adv.getCantidadEnComanda()).isEqualTo(5);
+            assertThat(adv.getCantidadDisponible()).isEqualTo(0);
+        }
+
+        @Test
+        @DisplayName("item con stock parcial (positivo pero < cantidad) → advertencia con cantidadDisponible=disponible")
+        void itemStockParcial_generaAdvertenciaConDisponibleReal() {
+            Producto prod = producto(3L, CategoriaProducto.PLATO, false);
+            ComandaItem ci = item(102L, borrador, prod, 5, null, null);
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ci));
+            when(validador.evaluarDisponibilidad(prod, 5)).thenReturn(2); // 2 < 5
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).hasSize(1);
+            assertThat(captor.getValue().get(0).getCantidadDisponible()).isEqualTo(2);
+        }
+
+        @Test
+        @DisplayName("item con menuGrupo → se omite, no llama evaluarDisponibilidad")
+        void itemConMenuGrupo_seOmite() {
+            Producto prod = producto(4L, CategoriaProducto.PLATO, false);
+            ComandaItem ci = item(103L, borrador, prod, 5, null, "MENU-ABC");
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ci));
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            verify(validador, never()).evaluarDisponibilidad(any(), anyInt());
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).isEmpty();
+        }
+
+        @Test
+        @DisplayName("varios ítems — solo los con stock insuficiente generan advertencia")
+        void variosItems_soloInsuficientesGeneranAdvertencia() {
+            Producto suficiente = producto(10L, CategoriaProducto.PLATO, false);
+            Producto insuficiente = producto(11L, CategoriaProducto.BEBIDA, false);
+            ComandaItem ciOk  = item(200L, borrador, suficiente,   3, null, null);
+            ComandaItem ciFail = item(201L, borrador, insuficiente, 4, null, null);
+
+            when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(COMANDA_ID))
+                    .thenReturn(List.of(ciOk, ciFail));
+            when(validador.evaluarDisponibilidad(suficiente, 3)).thenReturn(10);
+            when(validador.evaluarDisponibilidad(insuficiente, 4)).thenReturn(1); // 1 < 4
+
+            service.obtenerBorrador(VISITA_ID, auth);
+
+            @SuppressWarnings("unchecked")
+            ArgumentCaptor<List<AdvertenciaPreordenResponse>> captor = ArgumentCaptor.forClass(List.class);
+            verify(borradorMapper).toBorradorResponse(any(), any(), any(), captor.capture());
+            assertThat(captor.getValue()).hasSize(1);
+            assertThat(captor.getValue().get(0).getProductoId()).isEqualTo(11L);
+            assertThat(captor.getValue().get(0).getCantidadDisponible()).isEqualTo(1);
+        }
     }
 }

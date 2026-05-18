@@ -48,4 +48,7 @@ public class BorradorComandaResponse {
     
     /** {@code true} cuando {@code bebidas} no está vacío; habilita el envío a barra. */
     private final Boolean puedeEnviarBarra;
+
+    /**Ítems del borrador cuya cantidad supera el stock disponible. */
+    private final List<AdvertenciaPreordenResponse> advertenciasPreorden;
 }

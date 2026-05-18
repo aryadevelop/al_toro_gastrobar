@@ -154,6 +154,54 @@ public class ComandaBorradorValidador {
     }
 
     /**
+     * Calcula las unidades disponibles para un ítem del borrador sin lanzar excepción.
+     *
+     * <p>Devuelve {@code null} si el producto no tiene control de stock:
+     * {@link TipoProducto#VENTA_DIRECTA} con {@code stockActual} nulo, o
+     * {@link TipoProducto#PREPARACION} sin receta registrada.
+     * Un valor negativo indica que el stock ya está comprometido en exceso.
+     *
+     * @param producto          producto del ítem
+     * @param cantidadEnComanda cantidad actual del ítem en el borrador (se descuenta
+     *                          del comprometido total para no contar el propio ítem dos veces)
+     * @return unidades disponibles, o {@code null} si no aplica control de stock
+     */
+    public Integer evaluarDisponibilidad(Producto producto, int cantidadEnComanda) {
+        if (producto.getProductoTipo() == TipoProducto.PREPARACION) {
+            return evaluarDisponibilidadPreparacion(producto, cantidadEnComanda);
+        }
+        return evaluarDisponibilidadVentaDirecta(producto, cantidadEnComanda);
+    }
+
+    private Integer evaluarDisponibilidadVentaDirecta(Producto producto, int cantidadEnComanda) {
+        if (producto.getStockActual() == null) {
+            return null;
+        }
+        long comprometido = comandaItemRepository.sumCantidadComprometidaByProducto(producto.getProductoId());
+        return (int) (producto.getStockActual().longValue() - (comprometido - cantidadEnComanda));
+    }
+
+    private Integer evaluarDisponibilidadPreparacion(Producto producto, int cantidadEnComanda) {
+        List<Receta> recetas = recetaRepository.findByProductoIdFetchInsumo(producto.getProductoId());
+        if (recetas.isEmpty()) {
+            return null;
+        }
+        BigDecimal cantBD = BigDecimal.valueOf(cantidadEnComanda);
+        int min = Integer.MAX_VALUE;
+        for (Receta r : recetas) {
+            BigDecimal comprometido = comandaItemRepository
+                    .sumCantidadInsumoComprometida(r.getInsumo().getInsumoId());
+            BigDecimal disponibleInsumo = r.getInsumo().getInsumoStockActual()
+                    .subtract(comprometido.subtract(r.getRecetaCantidad().multiply(cantBD)));
+            int unidades = disponibleInsumo
+                    .divide(r.getRecetaCantidad(), 0, java.math.RoundingMode.FLOOR)
+                    .intValue();
+            min = Math.min(min, unidades);
+        }
+        return min;
+    }
+
+    /**
      * Verifica que la comanda tenga al menos un ítem antes de enviarse a producción.
      *
      * @param items ítems persistidos de la comanda

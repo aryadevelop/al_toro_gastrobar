@@ -54,5 +54,9 @@ scripts:
         pm.expect(data.puedeEnviarCocina).to.equal(false);
         pm.expect(data.puedeEnviarBarra).to.equal(false);
       });
+
+      pm.test('advertenciasPreorden está vacío cuando no hay ítems', function () {
+        pm.expect(pm.response.json().data.advertenciasPreorden).to.be.an('array').that.is.empty;
+      });
     language: text/javascript
 order: 1010

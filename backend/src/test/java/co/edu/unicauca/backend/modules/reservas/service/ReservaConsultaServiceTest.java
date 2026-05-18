@@ -178,7 +178,7 @@ class ReservaConsultaServiceTest {
     @DisplayName("listarReservasDelDia con fecha específica retorna listado de la fecha especificada")
     void listarReservasDelDia_conFecha_retornaListadoDeLaFechaEspecificada() {
         // Arrange
-        LocalDate fecha = LocalDate.of(2026, 5, 15);
+        LocalDate fecha = LocalDate.now().plusDays(1);
         Zona zonaTerraza = zona(1L, "TERRAZA");
         Cliente c1 = cliente(10L, "Carlos Ruiz", "3009876543");
 

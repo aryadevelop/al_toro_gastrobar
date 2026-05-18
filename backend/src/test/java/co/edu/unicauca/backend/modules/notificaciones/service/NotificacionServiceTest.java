@@ -29,6 +29,7 @@ import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -41,6 +42,10 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.security.core.Authentication;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import java.math.BigDecimal;
+import java.util.List;
 import java.util.Optional;
 import java.util.Set;
 
@@ -65,11 +70,28 @@ class NotificacionServiceTest {
     @Mock MesaWsPublisher mesaWsPublisher;
     @Mock EstacionResolver estacionResolver;
     @Mock VisitaEstadoMapper visitaEstadoMapper;
+    @Mock co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository empleadoRepository;
 
     @InjectMocks NotificacionService notificacionService;
 
     private static final Long VISITA_ID = 10L;
     private static final String EMAIL = "cliente@test.com";
+    private static final String EMAIL_ACTOR = "mesero@test.com";
+    private static final Long   ACTOR_ID    = 7L;
+
+    private Empleado actorEmpleado() {
+        return Empleado.builder().usuarioId(ACTOR_ID).build();
+    }
+
+    /**
+     * Stub por defecto para que los tests existentes (que no verifican el actor)
+     * no fallen al invocar {@code resolverActor} con el email genérico del mesero.
+     */
+    @BeforeEach
+    void stubEmpleadoPorDefecto() {
+        when(empleadoRepository.findByUsuario_UsuarioEmail("mesero@test.com"))
+                .thenReturn(Optional.of(Empleado.builder().usuarioId(5L).build()));
+    }
 
     private Visita visitaConCliente() {
         Usuario usuario = new Usuario();
@@ -193,6 +215,15 @@ class NotificacionServiceTest {
             assertThatThrownBy(() -> notificacionService.solicitarAsistencia(VISITA_ID, EMAIL))
                     .isInstanceOf(BusinessException.class);
         }
+
+        @Test
+        @DisplayName("lanza ResourceNotFoundException si la visita no existe")
+        void lanzaNotFoundSiVisitaNoExiste() {
+            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.solicitarAsistencia(VISITA_ID, EMAIL))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
     }
 
     @Nested
@@ -264,6 +295,7 @@ class NotificacionServiceTest {
             verify(mesaWsPublisher).publicarActualizacionMesa(
                     VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
         }
+
     }
 
     @Nested
@@ -294,6 +326,30 @@ class NotificacionServiceTest {
             verify(mesaWsPublisher).publicarActualizacionMesa(VISITA_ID, MesaWsPublisher.TipoEventoMesa.NOTIFICACION);
             verify(mesaAsignarService).evaluarYActualizarEstadoMesa(VISITA_ID);
             verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), any(VisitaActualizadaWsMessage.class));
+        }
+
+        @Test
+        @DisplayName("publicarVisitaActualizadaCliente incluye total de items preciados")
+        void servirPlatos_itemsConPrecio_calcularTotalEnWs() {
+            Comanda comanda = comandaListo(EstacionComanda.COCINA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comanda);
+            Producto prod = Producto.builder().productoId(1L).productoNombre("Plato").build();
+            ComandaItem ci = ComandaItem.builder()
+                    .producto(prod).comandaItemCantidad(2)
+                    .comandaItemPrecio(new BigDecimal("15000")).build();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.save(any())).thenReturn(comanda);
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(ci));
+
+            notificacionService.servirPlatos(50L, "mesero@test.com");
+
+            ArgumentCaptor<VisitaActualizadaWsMessage> captor =
+                    ArgumentCaptor.forClass(VisitaActualizadaWsMessage.class);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), captor.capture());
+            assertThat(captor.getValue().getTotal()).isEqualByComparingTo(new BigDecimal("30000"));
         }
 
         @Test
@@ -910,6 +966,179 @@ class NotificacionServiceTest {
                     .satisfies(ex -> assertThat(((BusinessException) ex).getCode())
                             .isEqualTo("NEG-001"));
             verify(notificacionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("atenderAsistencia — actor registrado")
+    class AtenderAsistenciaActor {
+
+        @Test
+        @DisplayName("happy path → empleado fijado al actor autenticado")
+        void actorRegistradoAlAtender() {
+            Mesa mesa = mesaConMesero();
+            Notificacion notif = Notificacion.builder()
+                    .notificacionId(50L)
+                    .notificacionEstado(EstadoNotificacion.ACTIVA)
+                    .notificacionTipo(TipoNotificacion.ATENCION)
+                    .mesa(mesa).build();
+            Empleado actor = actorEmpleado();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(notif));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.of(actor));
+            when(notificacionRepository.save(any())).thenReturn(notif);
+
+            notificacionService.atenderAsistencia(50L, EMAIL_ACTOR);
+
+            assertThat(notif.getEmpleado()).isEqualTo(actor);
+            assertThat(notif.getNotificacionEstado()).isEqualTo(EstadoNotificacion.ATENDIDA);
+        }
+
+        @Test
+        @DisplayName("email sin Empleado → ResourceNotFoundException")
+        void emailSinEmpleado_lanza404() {
+            Mesa mesa = mesaConMesero();
+            Notificacion notif = Notificacion.builder()
+                    .notificacionId(50L)
+                    .notificacionEstado(EstadoNotificacion.ACTIVA)
+                    .notificacionTipo(TipoNotificacion.ATENCION)
+                    .mesa(mesa).build();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(notif));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.atenderAsistencia(50L, EMAIL_ACTOR))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notificacionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("servirPlatos — actor registrado")
+    class ServirPlatosActor {
+
+        @Test
+        @DisplayName("happy path → empleado fijado al actor autenticado")
+        void actorRegistradoAlServir() {
+            Comanda comanda = comandaListo(EstacionComanda.COCINA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comanda);
+            Empleado actor = actorEmpleado();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.of(actor));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.save(any())).thenReturn(comanda);
+
+            notificacionService.servirPlatos(50L, EMAIL_ACTOR);
+
+            assertThat(n.getEmpleado()).isEqualTo(actor);
+        }
+
+        @Test
+        @DisplayName("email sin Empleado → ResourceNotFoundException")
+        void emailSinEmpleado_lanza404() {
+            Comanda comanda = comandaListo(EstacionComanda.COCINA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA, comanda);
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.servirPlatos(50L, EMAIL_ACTOR))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notificacionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("servirBebidas — actor registrado")
+    class ServirBebidasActor {
+
+        @Test
+        @DisplayName("happy path → empleado fijado al actor autenticado")
+        void actorRegistradoAlServir() {
+            Comanda comanda = comandaListo(EstacionComanda.BARRA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA, comanda);
+            Empleado actor = actorEmpleado();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.of(actor));
+            when(notificacionRepository.save(any())).thenReturn(n);
+            when(comandaRepository.save(any())).thenReturn(comanda);
+
+            notificacionService.servirBebidas(50L, EMAIL_ACTOR);
+
+            assertThat(n.getEmpleado()).isEqualTo(actor);
+        }
+
+        @Test
+        @DisplayName("email sin Empleado → ResourceNotFoundException")
+        void emailSinEmpleado_lanza404() {
+            Comanda comanda = comandaListo(EstacionComanda.BARRA);
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA, comanda);
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.servirBebidas(50L, EMAIL_ACTOR))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notificacionRepository, never()).save(any());
+        }
+    }
+
+    @Nested
+    @DisplayName("atenderCambio — actor registrado")
+    class AtenderCambioActor {
+
+        @Test
+        @DisplayName("devolucion: empleado fijado al actor autenticado")
+        void devolucion_actorRegistrado() {
+            Comanda comanda = Comanda.builder()
+                    .comandaId(80L).comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .comandaFechaHoraInicio(java.time.LocalDateTime.now()).build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, comanda);
+            Empleado actor = actorEmpleado();
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.of(actor));
+            when(comandaRepository.findBorradorActivoByVisitaYEstacion(VISITA_ID, EstacionComanda.COCINA))
+                    .thenReturn(Optional.empty());
+            when(notificacionRepository.save(any())).thenReturn(n);
+
+            notificacionService.atenderCambio(50L, EMAIL_ACTOR);
+
+            assertThat(n.getEmpleado()).isEqualTo(actor);
+        }
+
+        @Test
+        @DisplayName("email sin Empleado → ResourceNotFoundException")
+        void emailSinEmpleado_lanza404() {
+            Comanda comanda = Comanda.builder()
+                    .comandaId(80L).comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE).build();
+            Notificacion n = notificacionConComanda(
+                    TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA, comanda);
+
+            when(notificacionRepository.findById(50L)).thenReturn(Optional.of(n));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_ACTOR))
+                    .thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> notificacionService.atenderCambio(50L, EMAIL_ACTOR))
+                    .isInstanceOf(ResourceNotFoundException.class);
+            verify(notificacionRepository, never()).save(any());
+            verify(comandaRepository, never()).save(any());
         }
     }
 }

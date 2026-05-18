@@ -75,5 +75,11 @@ scripts:
         pm.expect(data.puedeEnviarCocina).to.equal(true);
         pm.expect(data.puedeEnviarBarra).to.equal(true);
       });
+
+      pm.test('advertenciasPreorden está presente y es un array', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('advertenciasPreorden');
+        pm.expect(data.advertenciasPreorden).to.be.an('array');
+      });
     language: text/javascript
 order: 1000

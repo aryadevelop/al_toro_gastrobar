@@ -23,8 +23,7 @@ import java.time.LocalDateTime;
            @Index(name = "idx_notificacion_mesa_id", columnList = "mesa_id"),
            @Index(name = "idx_notificacion_empleado_id", columnList = "empleado_id"),
            @Index(name = "idx_notificacion_estado", columnList = "notificacion_estado"),
-           @Index(name = "idx_notificacion_fecha_hora", columnList = "notificacion_fecha_hora"),
-           @Index(name = "idx_notificacion_activas", columnList = "empleado_id, notificacion_fecha_hora")
+           @Index(name = "idx_notificacion_fecha_hora", columnList = "notificacion_fecha_hora")
        })
 @Getter
 @Setter
@@ -46,10 +45,9 @@ public class Notificacion {
                 foreignKey = @ForeignKey(name = "fk_notificacion_mesa"))
     private Mesa mesa;
 
-    /** Empleado destinatario de la notificación. */
-    @NotNull(message = "El empleado es obligatorio")
+    /** Empleado que atiende la notificación; {@code null} mientras la notificación está {@code ACTIVA}. */
     @ManyToOne(fetch = FetchType.LAZY)
-    @JoinColumn(name = "empleado_id", nullable = false,
+    @JoinColumn(name = "empleado_id", nullable = true,
                 foreignKey = @ForeignKey(name = "fk_notificacion_empleado"))
     private Empleado empleado;
 

@@ -24,6 +24,8 @@ import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEv
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
@@ -65,6 +67,7 @@ public class NotificacionService {
     private final MesaWsPublisher mesaWsPublisher;
     private final EstacionResolver estacionResolver;
     private final VisitaEstadoMapper visitaEstadoMapper;
+    private final EmpleadoRepository empleadoRepository;
 
     /**
      * Registra una solicitud de asistencia para la mesa de la visita indicada.
@@ -119,7 +122,6 @@ public class NotificacionService {
         // Persiste la notificación de asistencia
         Notificacion notificacion = Notificacion.builder()
                 .mesa(mesa)
-                .empleado(mesa.getMesero())
                 .notificacionTipo(TipoNotificacion.ATENCION)
                 .notificacionEstado(EstadoNotificacion.ACTIVA)
                 .build();
@@ -165,7 +167,11 @@ public class NotificacionService {
                     "Esta solicitud de asistencia ya fue atendida.",
                     HttpStatus.CONFLICT);
         }
-        
+
+        // Registra al empleado autenticado como actor de la atención
+        Empleado actor = resolverActor(emailEmpleado);
+        notificacion.setEmpleado(actor);
+
         notificacion.setNotificacionEstado(EstadoNotificacion.ATENDIDA);
         notificacionRepository.save(notificacion);
 
@@ -241,7 +247,6 @@ public class NotificacionService {
         Notificacion notificacion = notificacionRepository.save(Notificacion.builder()
                 .comanda(comanda)
                 .mesa(mesa)
-                .empleado(mesa.getMesero())
                 .notificacionTipo(TipoNotificacion.CAMBIO)
                 .notificacionEstado(EstadoNotificacion.ACTIVA)
                 .build());
@@ -316,6 +321,10 @@ public class NotificacionService {
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
 
+        // Registra al empleado autenticado como actor de la atención
+        Empleado actor = resolverActor(emailEmpleado);
+        notificacion.setEmpleado(actor);
+
         // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
 
@@ -378,6 +387,10 @@ public class NotificacionService {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
+
+        // Registra al empleado autenticado como actor de la atención
+        Empleado actor = resolverActor(emailEmpleado);
+        notificacion.setEmpleado(actor);
 
         // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
@@ -459,6 +472,10 @@ public class NotificacionService {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "La notificación ya fue atendida.", HttpStatus.CONFLICT);
         }
+
+        // Registra al empleado autenticado como actor de la atención (aplica a ambas ramas: devolución y fusión)
+        Empleado actor = resolverActor(emailEmpleado);
+        notificacion.setEmpleado(actor);
 
         // Obtener la comanda asociada o lanzar excepción si no existe
         Comanda comanda = obtenerComandaObligatoria(notificacion);
@@ -588,6 +605,18 @@ public class NotificacionService {
     private String claveFusion(ComandaItem item) {
         return item.getProducto().getProductoId() + "|"
                 + DescripcionNormalizer.normalizar(item.getComandaItemDescripcion());
+    }
+
+    /**
+     * Resuelve el {@link Empleado} correspondiente al email autenticado.
+     *
+     * @param email correo del empleado autenticado
+     * @return entidad Empleado
+     * @throws ResourceNotFoundException si el email no corresponde a ningún empleado
+     */
+    private Empleado resolverActor(String email) {
+        return empleadoRepository.findByUsuario_UsuarioEmail(email)
+                .orElseThrow(() -> new ResourceNotFoundException("Empleado", email));
     }
 
     /**

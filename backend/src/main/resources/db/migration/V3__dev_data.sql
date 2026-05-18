@@ -396,10 +396,10 @@ INSERT INTO Notificacion (mesa_id, empleado_id, notificacion_estado, notificacio
 (5,  5,  'ATENDIDA', 'PLATOS_LISTOS',  NOW() - INTERVAL '10 days 6 hours'),
 (5,  9,  'ATENDIDA', 'BEBIDAS_LISTAS', NOW() - INTERVAL '10 days 7 hours'),
 -- Activas (mesas en curso)
-(10, 7,  'ACTIVA',   'PLATOS_LISTOS',  NOW() - INTERVAL '5 minutes'),
-(10, 9,  'ACTIVA',   'BEBIDAS_LISTAS', NOW() - INTERVAL '18 minutes'),
-(11, 6,  'ACTIVA',   'CAMBIO',         NOW() - INTERVAL '7 minutes'),
-(12, 6,  'ACTIVA',   'ATENCION',       NOW() - INTERVAL '2 minutes');
+(10, NULL, 'ACTIVA',   'PLATOS_LISTOS',  NOW() - INTERVAL '5 minutes'),
+(10, NULL, 'ACTIVA',   'BEBIDAS_LISTAS', NOW() - INTERVAL '18 minutes'),
+(11, NULL, 'ACTIVA',   'CAMBIO',         NOW() - INTERVAL '7 minutes'),
+(12, NULL, 'ACTIVA',   'ATENCION',       NOW() - INTERVAL '2 minutes');
 
 -- =====================================================
 -- Seed para tests automatizados HE-03-HU-06 (gestionar notificaciones)
@@ -414,11 +414,11 @@ INSERT INTO Notificacion (mesa_id, empleado_id, notificacion_estado, notificacio
 --   comanda 16  = visita 11 BARRA (EN_PREPARACION)
 -- =====================================================
 INSERT INTO Notificacion (mesa_id, empleado_id, comanda_id, notificacion_estado, notificacion_tipo) VALUES
-(10, 4, 13, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 11 → seedNotificacionPlatosListosId
-(11, 5, 15, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 12 → seedNotificacionPlatosListosId2
-(10, 4, 14, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 13 → seedNotificacionBebidasListasId
-(11, 5, 16, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 14 → seedNotificacionBebidasListasId2
-(11, 6, 15, 'ACTIVA', 'CAMBIO');          -- ID 15 → seedNotificacionCambioId
+(10, NULL, 13, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 11 → seedNotificacionPlatosListosId
+(11, NULL, 15, 'ACTIVA', 'PLATOS_LISTOS'),   -- ID 12 → seedNotificacionPlatosListosId2
+(10, NULL, 14, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 13 → seedNotificacionBebidasListasId
+(11, NULL, 16, 'ACTIVA', 'BEBIDAS_LISTAS'),  -- ID 14 → seedNotificacionBebidasListasId2
+(11, NULL, 15, 'ACTIVA', 'CAMBIO');          -- ID 15 → seedNotificacionCambioId
 
 -- =====================================================
 -- 13b. Comandas dedicadas a las pruebas Postman de
@@ -603,26 +603,6 @@ INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_lleg
 SELECT u.usuario_id, NULL, NULL, NOW() - INTERVAL '2 hours', 3, 'Test marcar inasistencia', 'CONFIRMADA', 'BASICA', NOW() - INTERVAL '1 day'
 FROM Usuario u WHERE u.usuario_email = 'andres.morales@gmail.com';
 
--- =====================================================
--- 14. Seed Modificar Comand — soporte para colección Postman
---
---     IDs deterministas (BD limpia, orden secuencial):
---       Producto:      143 = HU05-Stock-Bajo
---                      144 = HU05-Menu-Especial
---       Visita:        13  = activa con borrador completo (mesa ESPERA)
---                      14  = activa, borrador COCINA vacío + borrador BARRA con 1 ítem
---                      15  = activa sin borradores
---       Comanda:       26  = BORRADOR COCINA visita 13 (5 ítems)
---                      27  = BORRADOR BARRA  visita 13 (1 ítem par menú)
---                      28  = PENDIENTE COCINA visita 13 (1 ítem)
---                      29  = BORRADOR COCINA visita 14 (sin ítems)
---                      30  = BORRADOR BARRA  visita 14 (1 ítem)
---       Comanda_Item:  43-50 (ver detalle abajo)
---
---     Tras CD5-01 (enviar a producción) el borrador 26 pasa a PENDIENTE;
---     re-ejecutar `flyway clean && flyway migrate` para restaurar.
--- =====================================================
-
 -- Producto VENTA_DIRECTA con stock bajo (CD2-19, CD2-20, CD3-13)
 -- ID esperado: 143
 -- Stock alto para permitir re-runs aditivos de CD2-01/CD2-02 sin agotar stock.
@@ -665,30 +645,30 @@ INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero
 (15, 1, 5, 'HU05-T3', 2, 'ATENDIDA', 'Seed HU-05: visita aditiva (CD2-01/CD2-02)'),
 (16, 1, 5, 'HU05-T4', 2, 'ATENDIDA', 'Seed HU-05: visita read-only para CD1-02');
 
--- Comandas 26-30 para el seed HU-05
+-- Comandas para el seed HU-05
 INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado) VALUES
-(13, 'COCINA', NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 26
-(13, 'BARRA',  NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 27
-(13, 'COCINA', NOW() - INTERVAL '60 minutes', 'Notas en comanda PENDIENTE seed HU-05', 'PENDIENTE'),  -- 28
-(14, 'COCINA', NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR'),   -- 29 (vacía)
-(14, 'BARRA',  NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR');   -- 30
+(13, 'COCINA', NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 31
+(13, 'BARRA',  NOW() - INTERVAL '30 minutes', NULL,                                    'BORRADOR'),   -- 32
+(13, 'COCINA', NOW() - INTERVAL '60 minutes', 'Notas en comanda PENDIENTE seed HU-05', 'PENDIENTE'),  -- 33
+(14, 'COCINA', NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR'),   -- 34 (vacía)
+(14, 'BARRA',  NOW() - INTERVAL '20 minutes', NULL,                                    'BORRADOR');   -- 35
 
 -- Comanda_Item 43-50 (ver mapping en sección 14)
 INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
 SELECT v.comanda_id, p.producto_id, v.cantidad, v.precio, v.descripcion, v.grupo
 FROM (VALUES
-    -- Comanda 26 BORRADOR COCINA
-    (26::bigint, 'Picanha',                   2::int, 42000::numeric(12,2), NULL::varchar, NULL::varchar),  -- 43: base sin modificados
-    (26,         'Hamburguesa Al Toro',       1,      25000,                NULL,          NULL),           -- 44: base con modificados (cascada)
-    (26,         'Hamburguesa Al Toro',       1,      25000,                'sin tomate',  NULL),           -- 45: modificado 1
-    (26,         'Hamburguesa Al Toro',       1,      25000,                'extra queso', NULL),           -- 46: modificado 2
-    (26,         'Menú 8b - Pechuga y Cerdo', 1,      35000,                NULL,          'HU05-MENU-1'),  -- 47: par menú COCINA
-    -- Comanda 27 BORRADOR BARRA
-    (27,         'Jugo de Fresa',             1,          0,                NULL,          'HU05-MENU-1'),  -- 48: par menú BARRA
-    -- Comanda 28 PENDIENTE COCINA
-    (28,         'Picanha',                   1,      42000,                NULL,          NULL),           -- 49: en PENDIENTE
-    -- Comanda 30 BORRADOR BARRA visita 14
-    (30,         'Coca-Cola',                 1,       6000,                NULL,          NULL)            -- 50: bebida única (último ítem)
+    -- Comanda 31 BORRADOR COCINA
+    (31::bigint, 'Picanha',                   2::int, 42000::numeric(12,2), NULL::varchar, NULL::varchar),
+    (31,         'Hamburguesa Al Toro',       1,      25000,                NULL,          NULL),
+    (31,         'Hamburguesa Al Toro',       1,      25000,                'sin tomate',  NULL), 
+    (31,         'Hamburguesa Al Toro',       1,      25000,                'extra queso', NULL), 
+    (31,         'Menú 8b - Pechuga y Cerdo', 1,      35000,                NULL,          'HU05-MENU-1'),  
+    -- Comanda 32 BORRADOR BARRA
+    (32,         'Jugo de Fresa',             1,          0,                NULL,          'HU05-MENU-1'),  
+    -- Comanda 33 PENDIENTE COCINA
+    (33,         'Picanha',                   1,      42000,                NULL,          NULL),           
+    -- Comanda 35 BORRADOR BARRA visita 14
+    (35,         'Coca-Cola',                 1,       6000,                NULL,          NULL)            
 ) AS v(comanda_id, nombre, cantidad, precio, descripcion, grupo)
 JOIN Producto p ON p.producto_nombre = v.nombre;
 
@@ -696,4 +676,35 @@ JOIN Producto p ON p.producto_nombre = v.nombre;
 -- (PENDIENTE COCINA) con borrador adyacente (comanda 26). El ID 16 se obtiene tras las 15
 -- notificaciones previas (sección 13).
 INSERT INTO Notificacion (mesa_id, empleado_id, comanda_id, notificacion_estado, notificacion_tipo) VALUES
-(13, 5, 28, 'ACTIVA', 'CAMBIO');          -- ID 16 → seedNotificacionCambioConBorradorId
+(13, NULL, 28, 'ACTIVA', 'CAMBIO');          -- ID 16 → seedNotificacionCambioConBorradorId
+
+-- =====================================================
+-- PA-HE-04: Seed para test advertencias de stock (CD1-08)
+-- Producto sin stock para provocar advertencia en borrador
+-- =====================================================
+-- ID esperado: 145
+INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual)
+VALUES (1, 'PA-HE-04-Sin-Stock', 'ACTIVO', 10000, 'VENTA_DIRECTA', 'PLATO', 0);
+
+-- Visita 17 (read-only para CD1-08, no mutar en otros tests)
+INSERT INTO Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin)
+VALUES (12, NULL, NOW() - INTERVAL '10 minutes', NULL);
+
+-- Mesa 17 (mesero dueño = mesero_id=5 = mesero2@altoro.com = emailMesero)
+INSERT INTO Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado, mesa_notas)
+VALUES (17, 1, 5, 'PA-HE-04-T1', 2, 'ATENDIDA', 'Seed PA-HE-04: visita con advertencia de stock');
+
+-- Comanda 36 — BORRADOR COCINA para visita 17
+INSERT INTO Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado)
+VALUES (17, 'COCINA', NOW() - INTERVAL '5 minutes', NULL, 'BORRADOR');
+
+-- Ítem: 1 unidad de PA-HE-04-Sin-Stock (stock=0 → disponible=0 < 1 → genera advertencia)
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+SELECT c.comanda_id, p.producto_id, 1, p.producto_precio, NULL, NULL
+FROM Comanda c
+JOIN Visita v ON c.visita_id = v.visita_id
+JOIN Mesa m ON m.visita_id = v.visita_id
+JOIN Producto p ON p.producto_nombre = 'PA-HE-04-Sin-Stock'
+WHERE m.mesa_identificador = 'PA-HE-04-T1'
+  AND c.comanda_estacion = 'COCINA'
+  AND c.comanda_estado = 'BORRADOR';

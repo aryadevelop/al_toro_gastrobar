@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.mesas_comandas.service;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AgregarItemRequest;
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.AdvertenciaPreordenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.ModificarItemRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.NotasRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.BorradorComandaResponse;
@@ -39,6 +40,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 
@@ -447,15 +449,49 @@ public class ComandaBorradorService {
      * para que cada operación pueda devolver el estado fresco al final.
      */
     private BorradorComandaResponse obtenerBorradorInterno(Mesa mesa) {
-        // Cargar las comandas BORRADOR de la visita (cocina y barra)
         List<Comanda> comandas = comandaRepository
                 .findByVisita_VisitaIdAndComandaEstado(mesa.getVisitaId(), EstadoComanda.BORRADOR);
-
-        // El total acumulado abarca todas las comandas de la visita
         BigDecimal totalAcumulado = comandaItemRepository.sumTotalActivosByVisita(mesa.getVisitaId());
 
-        // Mapear el DTO de respuesta con toda la información.
-        return borradorMapper.toBorradorResponse(mesa, comandas, totalAcumulado);
+        List<ComandaItem> todosLosItems = new ArrayList<>();
+        for (Comanda c : comandas) {
+            List<ComandaItem> items = comandaItemRepository
+                    .findByComanda_ComandaIdOrderByProductoNombreAsc(c.getComandaId());
+            if (items != null) todosLosItems.addAll(items);
+        }
+        List<AdvertenciaPreordenResponse> advertencias = calcularAdvertencias(todosLosItems);
+
+        return borradorMapper.toBorradorResponse(mesa, comandas, totalAcumulado, advertencias);
+    }
+
+    /**
+     * Evalúa el stock de cada ítem del borrador y produce una advertencia
+     * para los que superan las unidades disponibles.
+     *
+     * <p>Los ítems de menú especial ({@code comandaItemMenuGrupo} no nulo) se omiten
+     * porque no consumen inventario directo.
+     *
+     * @param items todos los ítems de los borradores de la visita
+     * @return lista (nunca nula) de advertencias; vacía si todos caben en stock
+     */
+    private List<AdvertenciaPreordenResponse> calcularAdvertencias(List<ComandaItem> items) {
+        List<AdvertenciaPreordenResponse> advertencias = new ArrayList<>();
+        for (ComandaItem item : items) {
+            if (item.getComandaItemMenuGrupo() != null) {
+                continue;
+            }
+            Integer disponible = validador.evaluarDisponibilidad(
+                    item.getProducto(), item.getComandaItemCantidad());
+            if (disponible != null && disponible < item.getComandaItemCantidad()) {
+                advertencias.add(AdvertenciaPreordenResponse.builder()
+                        .productoId(item.getProducto().getProductoId())
+                        .productoNombre(item.getProducto().getProductoNombre())
+                        .cantidadEnComanda(item.getComandaItemCantidad())
+                        .cantidadDisponible(Math.max(disponible, 0))
+                        .build());
+            }
+        }
+        return advertencias;
     }
 
     /**

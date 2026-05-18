@@ -58,7 +58,7 @@ class ComandaBorradorMapperTest {
             BigDecimal totalAcumulado = BigDecimal.valueOf(50);
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(), totalAcumulado);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(), totalAcumulado, List.of());
 
             // Assert
             assertThat(resp.getVisitaId()).isEqualTo(10L);
@@ -82,7 +82,7 @@ class ComandaBorradorMapperTest {
             Mesa mesa = mesa(1L, "T-02");
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(), null);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(), null, List.of());
 
             // Assert
             assertThat(resp.getTotal()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -101,7 +101,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert
             assertThat(resp.getComandaCocinaId()).isEqualTo(100L);
@@ -127,7 +127,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(bebida));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(barra), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(barra), BigDecimal.ZERO, List.of());
 
             // Assert
             assertThat(resp.getComandaCocinaId()).isNull();
@@ -162,7 +162,7 @@ class ComandaBorradorMapperTest {
 
             // Act
             BorradorComandaResponse resp = mapper.toBorradorResponse(
-                    mesa, List.of(cocina, barra), BigDecimal.valueOf(100_000));
+                    mesa, List.of(cocina, barra), BigDecimal.valueOf(100_000), List.of());
 
             // Assert — subtotal = 50000 + 24000 = 74000
             assertThat(resp.getSubTotal()).isEqualByComparingTo(BigDecimal.valueOf(74_000));
@@ -186,7 +186,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(bebidaMenu));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(barra), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(barra), BigDecimal.ZERO, List.of());
 
             // Assert — subtotal = 0 porque precio es null
             assertThat(resp.getSubTotal()).isEqualByComparingTo(BigDecimal.ZERO);
@@ -213,7 +213,7 @@ class ComandaBorradorMapperTest {
 
             // Act
             BorradorComandaResponse resp = mapper.toBorradorResponse(
-                    mesa, List.of(cocina, barra), BigDecimal.ZERO);
+                    mesa, List.of(cocina, barra), BigDecimal.ZERO, List.of());
 
             // Assert — el plato de cocina debe tener la bebida embebida
             assertThat(resp.getPlatos()).hasSize(1);
@@ -238,7 +238,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert — sin contraparte en barra, bebida debe ser null
             assertThat(resp.getPlatos()).hasSize(1);
@@ -261,7 +261,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert
             ItemBorradorResponse platoResp = resp.getPlatos().get(0);
@@ -284,7 +284,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert
             assertThat(resp.getPlatos().get(0).getModificacionesMenu()).isEmpty();
@@ -304,7 +304,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert — mapearModificacionesMenu rama null
             assertThat(resp.getPlatos().get(0).getModificacionesMenu()).isEmpty();
@@ -323,7 +323,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(plato));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert
             assertThat(resp.getPlatos().get(0).getDescripcion()).isEqualTo("Sin sal");
@@ -345,7 +345,7 @@ class ComandaBorradorMapperTest {
                     .thenReturn(List.of(itemA, itemZ));
 
             // Act
-            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO);
+            BorradorComandaResponse resp = mapper.toBorradorResponse(mesa, List.of(cocina), BigDecimal.ZERO, List.of());
 
             // Assert — mapper re-ordena con POR_NOMBRE (case-insensitive), debe respetar A antes de Z
             assertThat(resp.getPlatos()).extracting(ItemBorradorResponse::getProductoNombre)
@@ -372,7 +372,7 @@ class ComandaBorradorMapperTest {
 
             // Act
             BorradorComandaResponse resp = mapper.toBorradorResponse(
-                    mesa, List.of(cocina, barra), BigDecimal.ZERO);
+                    mesa, List.of(cocina, barra), BigDecimal.ZERO, List.of());
 
             // Assert — menuGrupo null → bebida null aunque haya contraparte
             assertThat(resp.getPlatos().get(0).getBebida()).isNull();
@@ -399,7 +399,7 @@ class ComandaBorradorMapperTest {
 
             // Act
             BorradorComandaResponse resp = mapper.toBorradorResponse(
-                    mesa, List.of(cocina, barra), BigDecimal.ZERO);
+                    mesa, List.of(cocina, barra), BigDecimal.ZERO, List.of());
 
             // Assert — grupos no coinciden → bebida null
             assertThat(resp.getPlatos().get(0).getBebida()).isNull();
