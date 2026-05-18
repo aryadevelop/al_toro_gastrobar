@@ -5,9 +5,13 @@ import co.edu.unicauca.backend.modules.auth.repository.UsuarioRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
 import co.edu.unicauca.backend.modules.usuarios.dto.request.CrearEmpleadoRequest;
 import co.edu.unicauca.backend.modules.usuarios.dto.response.EmpleadoResponse;
+import co.edu.unicauca.backend.modules.usuarios.dto.response.EmpleadoListadoResponse;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
 import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
+import co.edu.unicauca.backend.shared.enums.RolEstado;
+import co.edu.unicauca.backend.shared.enums.RolNombre;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import org.junit.jupiter.api.BeforeEach;
 import org.springframework.mail.SimpleMailMessage;
@@ -71,7 +75,6 @@ class EmpleadoServiceTest {
         void creaEmpleadoYAsignaRoles() {
             when(usuarioRepository.findByUsuarioEmail(anyString())).thenReturn(Optional.empty());
             when(empleadoRepository.existsByEmpleadoTelefono(anyString())).thenReturn(false);
-            when(clienteRepository.findByUsuario_UsuarioEmail(anyString())).thenReturn(Optional.empty());
             when(passwordEncoder.encode(anyString())).thenReturn("hashed-password");
             when(usuarioRepository.save(Mockito.<Usuario>any())).thenAnswer(invocation -> {
                 Usuario usuario = Objects.requireNonNull(invocation.getArgument(0, Usuario.class));
@@ -123,5 +126,121 @@ class EmpleadoServiceTest {
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Las contraseñas no coinciden");
         }
+    }
+
+    @Test
+    void listarEmpleados_filtraPorRolYNombreYEstado() {
+        Usuario usuario = Usuario.builder()
+                .usuarioId(1L)
+                .usuarioEmail("ana@altoro.com")
+                .build();
+
+        when(empleadoRepository.findAll()).thenReturn(List.of(
+                Empleado.builder()
+                        .usuarioId(1L)
+                        .usuario(usuario)
+                        .empleadoNombre("Ana Rivera")
+                        .empleadoTelefono("3001234567")
+                        .empleadoDireccion("Calle 15")
+                        .empleadoFechaIngreso(LocalDate.now())
+                        .build()
+        ));
+
+        when(usuarioRolRepository.findByUsuarioIdIn(List.of(1L))).thenReturn(List.of(
+                UsuarioRol.builder()
+                        .usuarioId(1L)
+                        .rolNombre(RolNombre.MESERO)
+                        .rolEstado(RolEstado.ACTIVO)
+                        .build()
+        ));
+
+        List<EmpleadoListadoResponse> result = empleadoService.listarEmpleados("mesero", "activo", "Ana");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getNombre()).isEqualTo("Ana Rivera");
+        assertThat(result.get(0).getRoles()).containsExactly("MESERO");
+        assertThat(result.get(0).getEstado()).isEqualTo("Activo");
+    }
+
+    @Test
+    void listarEmpleados_filtraPorEstadoInactivo() {
+        Usuario activoUsuario = Usuario.builder()
+                .usuarioId(1L)
+                .usuarioEmail("activo@altoro.com")
+                .build();
+        Usuario inactivoUsuario = Usuario.builder()
+                .usuarioId(2L)
+                .usuarioEmail("inactivo@altoro.com")
+                .build();
+
+        when(empleadoRepository.findAll()).thenReturn(List.of(
+                Empleado.builder()
+                        .usuarioId(1L)
+                        .usuario(activoUsuario)
+                        .empleadoNombre("Activo Empleado")
+                        .empleadoTelefono("3001111111")
+                        .empleadoDireccion("Avenida 1")
+                        .empleadoFechaIngreso(LocalDate.now())
+                        .build(),
+                Empleado.builder()
+                        .usuarioId(2L)
+                        .usuario(inactivoUsuario)
+                        .empleadoNombre("Inactivo Empleado")
+                        .empleadoTelefono("3002222222")
+                        .empleadoDireccion("Avenida 2")
+                        .empleadoFechaIngreso(LocalDate.now())
+                        .build()
+        ));
+
+        when(usuarioRolRepository.findByUsuarioIdIn(List.of(1L, 2L))).thenReturn(List.of(
+                UsuarioRol.builder()
+                        .usuarioId(1L)
+                        .rolNombre(RolNombre.MESERO)
+                        .rolEstado(RolEstado.ACTIVO)
+                        .build(),
+                UsuarioRol.builder()
+                        .usuarioId(2L)
+                        .rolNombre(RolNombre.CAJERO)
+                        .rolEstado(RolEstado.INACTIVO)
+                        .build()
+        ));
+
+        List<EmpleadoListadoResponse> result = empleadoService.listarEmpleados(null, "inactivo", null);
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getNombre()).isEqualTo("Inactivo Empleado");
+        assertThat(result.get(0).getEstado()).isEqualTo("Inactivo");
+    }
+
+    @Test
+    void listarEmpleados_buscaPorNombreParcial() {
+        Usuario usuario = Usuario.builder()
+                .usuarioId(3L)
+                .usuarioEmail("carlos@altoro.com")
+                .build();
+
+        when(empleadoRepository.findAll()).thenReturn(List.of(
+                Empleado.builder()
+                        .usuarioId(3L)
+                        .usuario(usuario)
+                        .empleadoNombre("Carlos Pérez")
+                        .empleadoTelefono("3003333333")
+                        .empleadoDireccion("Calle 33")
+                        .empleadoFechaIngreso(LocalDate.now())
+                        .build()
+        ));
+
+        when(usuarioRolRepository.findByUsuarioIdIn(List.of(3L))).thenReturn(List.of(
+                UsuarioRol.builder()
+                        .usuarioId(3L)
+                        .rolNombre(RolNombre.CAJERO)
+                        .rolEstado(RolEstado.ACTIVO)
+                        .build()
+        ));
+
+        List<EmpleadoListadoResponse> result = empleadoService.listarEmpleados(null, null, "car");
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).getNombre()).isEqualTo("Carlos Pérez");
     }
 }

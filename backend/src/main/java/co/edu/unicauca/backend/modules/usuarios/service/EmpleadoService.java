@@ -7,6 +7,7 @@ import co.edu.unicauca.backend.modules.usuarios.dto.request.CrearEmpleadoRequest
 import co.edu.unicauca.backend.modules.usuarios.dto.response.EmpleadoResponse;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol;
+import co.edu.unicauca.backend.modules.usuarios.dto.response.EmpleadoListadoResponse;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
 import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.RolEstado;
@@ -24,6 +25,7 @@ import org.springframework.stereotype.Service;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Objects;
 import java.util.Optional;
 import java.util.Set;
@@ -118,6 +120,98 @@ public class EmpleadoService {
                 .fechaIngreso(empleado.getEmpleadoFechaIngreso())
                 .roles(roles.stream().map(Enum::name).collect(Collectors.toList()))
                 .warning(warning)
+                .build();
+    }
+
+    public List<EmpleadoListadoResponse> listarEmpleados(String rol, String estado, String nombre) {
+        List<Empleado> empleados = empleadoRepository.findAll();
+        if (empleados.isEmpty()) {
+            return List.of();
+        }
+
+        List<Long> usuarioIds = empleados.stream()
+                .map(Empleado::getUsuarioId)
+                .collect(Collectors.toList());
+
+        Map<Long, List<UsuarioRol>> rolesPorUsuario = usuarioRolRepository.findByUsuarioIdIn(usuarioIds).stream()
+                .collect(Collectors.groupingBy(UsuarioRol::getUsuarioId));
+
+        RolNombre rolNombre = parsearRolFiltro(rol);
+        RolEstado rolEstado = parsearEstadoFiltro(estado);
+        String nombreBusqueda = getNombreBusqueda(nombre);
+
+        return empleados.stream()
+                .filter(empleado -> aplicarFiltros(empleado, rolesPorUsuario.getOrDefault(empleado.getUsuarioId(), List.of()), rolNombre, rolEstado, nombreBusqueda))
+                .map(empleado -> mapToEmpleadoListado(empleado, rolesPorUsuario.getOrDefault(empleado.getUsuarioId(), List.of())))
+                .collect(Collectors.toList());
+    }
+
+    private boolean aplicarFiltros(Empleado empleado, List<UsuarioRol> roles, RolNombre rolNombre,
+                                   RolEstado rolEstado, String nombreBusqueda) {
+        if (rolNombre != null && roles.stream().noneMatch(rol -> rol.getRolNombre() == rolNombre)) {
+            return false;
+        }
+
+        if (rolEstado != null) {
+            boolean tieneRolesActivos = roles.stream().anyMatch(rol -> rol.getRolEstado() == RolEstado.ACTIVO);
+            if (rolEstado == RolEstado.ACTIVO && !tieneRolesActivos) {
+                return false;
+            }
+            if (rolEstado == RolEstado.INACTIVO && tieneRolesActivos) {
+                return false;
+            }
+        }
+
+        if (nombreBusqueda != null && !empleado.getEmpleadoNombre().toLowerCase(Locale.ENGLISH).contains(nombreBusqueda)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    private String getNombreBusqueda(String nombre) {
+        return nombre == null || nombre.isBlank() ? null : nombre.trim().toLowerCase(Locale.ENGLISH);
+    }
+
+    private RolNombre parsearRolFiltro(String rol) {
+        if (rol == null || rol.isBlank()) {
+            return null;
+        }
+        try {
+            return RolNombre.valueOf(rol.trim().toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Rol inválido: " + rol, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private RolEstado parsearEstadoFiltro(String estado) {
+        if (estado == null || estado.isBlank()) {
+            return null;
+        }
+        try {
+            return RolEstado.valueOf(estado.trim().toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Estado inválido: " + estado, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private EmpleadoListadoResponse mapToEmpleadoListado(Empleado empleado, List<UsuarioRol> roles) {
+        boolean activo = roles.stream().anyMatch(rol -> rol.getRolEstado() == RolEstado.ACTIVO);
+        List<String> nombresRoles = roles.stream()
+                .map(rol -> rol.getRolNombre().name())
+                .collect(Collectors.toList());
+
+        return EmpleadoListadoResponse.builder()
+                .empleadoId(empleado.getUsuarioId())
+                .nombre(empleado.getEmpleadoNombre())
+                .correoElectronico(empleado.getUsuario().getUsuarioEmail())
+                .telefono(empleado.getEmpleadoTelefono())
+                .direccion(empleado.getEmpleadoDireccion())
+                .fechaIngreso(empleado.getEmpleadoFechaIngreso())
+                .roles(nombresRoles)
+                .estado(activo ? RolEstado.ACTIVO.getDescripcion() : RolEstado.INACTIVO.getDescripcion())
                 .build();
     }
 
