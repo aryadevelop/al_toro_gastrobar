@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, OnDestroy, OnInit, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -120,6 +120,9 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
             <p class="error-text" *ngIf="showPastDateError()">
               La fecha y hora de la reserva no pueden ser en el pasado
             </p>
+            <p class="error-text" *ngIf="showSameDayCutoffError()">
+              Ya no es posible realizar o modificar reservas para hoy (después de las 4:00 p.m.)
+            </p>
             <p class="error-text" *ngIf="showOutOfHoursError()">
               Nuestro horario de reserva es de 5:00 p.m. a 10:00 p.m. Por favor seleccione una hora válida
             </p>
@@ -163,7 +166,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
               </div>
             </section>
 
-            <section class="form-section" *ngIf="showRomanticAddonOption()">
+            <section class="form-section" *ngIf="romanticAddonAvailable()">
               <p class="romantic-note">Zona romantica: puedes agregar petalos y velas si lo deseas.</p>
               <label class="addon-check">
                 <input type="checkbox" formControlName="romanticAddon" />
@@ -174,7 +177,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
             <section class="form-section">
               <div class="preorder-head">
                 <span class="section-label">Pre-ordenar</span>
-                <strong class="preorder-total">Total aproximado: {{ preorderTotal() | currency:'COP':'symbol':'1.0-0' }}</strong>
+                <strong class="preorder-total">Total aproximado: {{ grandTotal() | currency:'COP':'symbol':'1.0-0' }}</strong>
               </div>
 
               <div class="preorder-tabs">
@@ -393,7 +396,6 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
             <p *ngIf="selectedDecorationName()"><strong>Decoración:</strong> {{ selectedDecorationName() }}</p>
             <p *ngIf="selectedZoneName()"><strong>Zona:</strong> {{ selectedZoneName() }}</p>
             <p><strong>Pre-orden:</strong> {{ preorderSummaryText() }}</p>
-            <p><strong>Total pre-orden aproximado:</strong> {{ preorderTotal() | currency:'COP':'symbol':'1.0-0' }}</p>
             <p><strong>Extras:</strong> {{ summaryExtrasText() }}</p>
 
             <ul class="summary-costs">
@@ -401,17 +403,17 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
                 <span>Reserva base</span>
                 <strong>Sin costo</strong>
               </li>
-              <li *ngIf="reservaForm.controls.romanticAddon.value">
+              <li *ngIf="romanticAddonChecked()">
                 <span>{{ romanticAddonLabel }}</span>
                 <strong>{{ romanticAddonCost | currency:'COP':'symbol':'1.0-0' }}</strong>
               </li>
-              <li *ngIf="selectedSpecialMenu() as menu">
-                <span>{{ menu.name }}</span>
-                <strong>{{ menu.pricePerPerson | currency:'COP':'symbol':'1.0-0' }}</strong>
+              <li *ngIf="preorderTotal() > 0">
+                <span>Pre-orden ({{ activePreorderTab() === 'especial' ? 'Menú especial' : 'A la carta' }})</span>
+                <strong>{{ preorderTotal() | currency:'COP':'symbol':'1.0-0' }}</strong>
               </li>
               <li class="summary-total">
-                <span>Total extras</span>
-                <strong>{{ totalExtraCost() | currency:'COP':'symbol':'1.0-0' }}</strong>
+                <span>Total de la reserva</span>
+                <strong>{{ grandTotal() | currency:'COP':'symbol':'1.0-0' }}</strong>
               </li>
             </ul>
 
@@ -958,6 +960,8 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly isCartaListExpanded = signal(false);
   readonly expandedSpecialMenuId = signal<string | null>(null);
   readonly expandedCartaItems = signal<Record<string, boolean>>({});
+  readonly romanticAddonAvailable = signal(false);
+  readonly romanticAddonChecked = signal(false);
 
   readonly romanticAddonCost = ROMANTIC_ADDON_COST;
   readonly romanticAddonLabel = ROMANTIC_ADDON_LABEL;
@@ -998,7 +1002,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     public readonly authService: AuthService,
     private readonly activatedRoute: ActivatedRoute,
     private readonly router: Router
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.editingReservationId = this.activatedRoute.snapshot.paramMap.get('id') ?? '';
@@ -1019,12 +1023,16 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.reservaForm.controls.decorationId.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
       this.updateAvailableZones();
       this.syncZoneControlState();
-      this.syncRomanticAddonState();
+      this.evaluateRomanticAddonAvailability();
     });
 
-    this.reservaForm.controls.zoneId.valueChanges.pipe(takeUntil(this.destroy$)).subscribe(() => {
-      this.syncRomanticAddonState();
+    this.reservaForm.controls.zoneId.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((val) => {
+      this.evaluateRomanticAddonAvailability(val);
     });
+
+    this.reservaForm.controls.romanticAddon.valueChanges
+      .pipe(takeUntil(this.destroy$))
+      .subscribe((value) => this.romanticAddonChecked.set(value));
 
     this.reservaForm.controls.guests.valueChanges.pipe(takeUntil(this.destroy$)).subscribe((value) => {
       if (value > 10 && this.previousGuests <= 10) {
@@ -1058,9 +1066,45 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
   }
 
-  showRomanticAddonOption(): boolean {
-    const selectedZone = this.getZoneById(this.getEffectiveZoneId());
-    return this.isRomanticZone(selectedZone);
+  evaluateRomanticAddonAvailability(newZoneId?: string): void {
+    const fixedZoneId = this.selectedDecoration()?.fixedZoneId;
+    const currentZoneId = typeof newZoneId === 'string' ? newZoneId : this.reservaForm.controls.zoneId.value;
+    const effectiveZoneId = fixedZoneId || currentZoneId;
+
+    let isRomantic = false;
+
+    // 1. Validar por la zona seleccionada
+    if (effectiveZoneId) {
+      const selectedZone = this.availableZones().find((z) => String(z.id) === String(effectiveZoneId));
+      if (selectedZone) {
+        const nameLower = (selectedZone.name || '').toLowerCase();
+        const normName = this.normalizeText(selectedZone.name || '');
+        if (
+          nameLower.includes('rom') || 
+          normName.includes('rom') || 
+          nameLower.includes('vela') ||
+          String(selectedZone.id) === ROMANTIC_ZONE_ID
+        ) {
+          isRomantic = true;
+        }
+      }
+    }
+
+    // 2. Validar por la decoración seleccionada (por si el usuario elige la decoración de velas)
+    const currentDecoId = this.reservaForm.controls.decorationId.value;
+    if (currentDecoId && !isRomantic) {
+      const selectedDeco = this.availableDecorations().find((d) => String(d.id) === String(currentDecoId));
+      if (selectedDeco) {
+        const nameLower = (selectedDeco.name || '').toLowerCase();
+        const normName = this.normalizeText(selectedDeco.name || '');
+        if (nameLower.includes('rom') || normName.includes('rom') || nameLower.includes('vela')) {
+          isRomantic = true;
+        }
+      }
+    }
+
+    this.romanticAddonAvailable.set(isRomantic);
+    this.syncRomanticAddonState();
   }
 
   showSpecialMenuOption(): boolean {
@@ -1348,13 +1392,15 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   hasExtraServices(): boolean {
-    return this.reservaForm.controls.romanticAddon.value || (this.activePreorderTab() === 'especial' && !!this.selectedSpecialMenu());
+    return this.romanticAddonChecked() ||
+      (this.activePreorderTab() === 'especial' && !!this.selectedSpecialMenu());
   }
 
-  totalExtraCost(): number {
-    const romanticCost = this.reservaForm.controls.romanticAddon.value ? this.romanticAddonCost : 0;
-    const specialCost = this.activePreorderTab() === 'especial' ? this.specialMenuSubtotal() : 0;
-    return romanticCost + specialCost;
+
+  grandTotal(): number {
+    const preorder = this.preorderTotal();
+    const romantic = this.romanticAddonChecked() ? this.romanticAddonCost : 0;
+    return preorder + romantic;
   }
 
   changeGuests(delta: number): void {
@@ -1372,6 +1418,26 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     return this.isDateTimeInPast(date, time);
+  }
+
+  showSameDayCutoffError(): boolean {
+    const dateStr = this.reservaForm.controls.date.value;
+    if (!dateStr) {
+      return false;
+    }
+
+    const selectedDate = new Date(`${dateStr}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (selectedDate.getTime() === today.getTime()) {
+      const now = new Date();
+      if (now.getHours() >= 16) {
+        return true;
+      }
+    }
+
+    return false;
   }
 
   showMissingDateMessage(): boolean {
@@ -1425,6 +1491,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     if (this.isDateTimeInPast(date, time)) {
       this.reservaForm.controls.date.markAsTouched();
       this.reservaForm.controls.time.markAsTouched();
+      return;
+    }
+
+    if (this.showSameDayCutoffError()) {
+      this.reservaForm.controls.date.markAsTouched();
       return;
     }
 
@@ -1552,7 +1623,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
     const preorderItems = this.buildPreorderItems();
 
-    if (formValue.romanticAddon) {
+    if (this.romanticAddonChecked()) {
       preorderItems.push({
         productId: ROMANTIC_ADDON_ID,
         productName: ROMANTIC_ADDON_LABEL,
@@ -1633,8 +1704,8 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       const selectedMenu = this.selectedSpecialMenu();
       const selectedOptionNames = selectedMenu
         ? selectedMenu.customizationOptions
-            .filter((option) => this.specialMenuCustomizationSelection.includes(option.optionId))
-            .map((option) => option.optionName)
+          .filter((option) => this.specialMenuCustomizationSelection.includes(option.optionId))
+          .map((option) => option.optionName)
         : [];
 
       if (selectedOptionNames.length > 0) {
@@ -1642,7 +1713,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       }
     }
 
-    if (this.reservaForm.controls.romanticAddon.value) {
+    if (this.romanticAddonChecked()) {
       notes.push(`${this.romanticAddonLabel} (+$20.000)`);
     }
 
@@ -1660,7 +1731,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       this.availableZones.set([]);
       this.reservaForm.controls.decorationId.setValue('');
       this.reservaForm.controls.zoneId.setValue('');
-      this.syncRomanticAddonState();
+      this.evaluateRomanticAddonAvailability(); // ← resetea el signal Y limpia el valor
       return;
     }
 
@@ -1669,7 +1740,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       this.availableZones.set([]);
       this.reservaForm.controls.decorationId.setValue('');
       this.reservaForm.controls.zoneId.setValue('');
-      this.syncRomanticAddonState();
+      this.evaluateRomanticAddonAvailability();
       return;
     }
 
@@ -1707,7 +1778,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
         }
 
         this.syncZoneControlState();
-        this.syncRomanticAddonState();
+        this.evaluateRomanticAddonAvailability();
       },
       error: () => {
         this.availableDecorations.set([]);
@@ -1727,7 +1798,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   private syncRomanticAddonState(): void {
-    if (!this.showRomanticAddonOption() && this.reservaForm.controls.romanticAddon.value) {
+    if (!this.romanticAddonAvailable() && this.reservaForm.controls.romanticAddon.value) {
       this.reservaForm.controls.romanticAddon.setValue(false);
     }
   }
@@ -1965,14 +2036,14 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     const message = customMessage?.trim()
       ? customMessage
       : [
-          'Hola, quiero confirmar una reserva especial en Al Toro Gastrobar.',
-          `Fecha: ${formValue.date}`,
-          `Hora: ${formValue.time}`,
-          `Número de personas: ${formValue.guests}`,
-          `Extras: ${this.summaryExtrasText()}`,
-          `Pre-orden aproximada: ${this.formatCurrency(this.preorderTotal())}`,
-          WHATSAPP_NOTE,
-        ].join('\n');
+        'Hola, quiero confirmar una reserva especial en Al Toro Gastrobar.',
+        `Fecha: ${formValue.date}`,
+        `Hora: ${formValue.time}`,
+        `Número de personas: ${formValue.guests}`,
+        `Extras: ${this.summaryExtrasText()}`,
+        `Total aproximado: ${this.formatCurrency(this.grandTotal())}`,
+        WHATSAPP_NOTE,
+      ].join('\n');
 
     const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
     window.location.href = url;
@@ -1991,8 +2062,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return this.getZoneById(fixedZoneId);
   }
 
-  private getZoneById(zoneId: string): ZoneOption | undefined {
-    return this.availableZones().find((item) => item.id === zoneId);
+  private getZoneById(zoneId: string | number | null | undefined): ZoneOption | undefined {
+    if (zoneId == null || zoneId === '') {
+      return undefined;
+    }
+    return this.availableZones().find((item) => String(item.id) === String(zoneId));
   }
 
   private isRomanticZone(zone?: ZoneOption): boolean {
@@ -2000,12 +2074,16 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       return false;
     }
 
-    if (zone.id === ROMANTIC_ZONE_ID) {
+    if (String(zone.id) === ROMANTIC_ZONE_ID) {
       return true;
     }
 
+    const nameLower = (zone.name || '').toLowerCase();
     const normalizedName = this.normalizeText(zone.name);
-    return normalizedName.includes('zona romantica') || normalizedName.includes('romantica');
+
+    return nameLower.includes('rom') ||
+      normalizedName.includes('rom') ||
+      normalizedName.includes('zona romantica');
   }
 
   private normalizeText(value: string): string {

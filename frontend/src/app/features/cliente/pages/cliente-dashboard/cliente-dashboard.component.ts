@@ -72,7 +72,10 @@ interface ActiveVisitCacheEntry {
 
           <div class="reservation-actions">
             <button type="button" class="btn-secondary" (click)="onViewDetail(reservation.id)">Ver detalle</button>
-            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
+            <button type="button" class="btn-secondary" 
+                    *ngIf="reservation.status === 'PENDING' || reservation.status === 'CONFIRMED'" 
+                    [class.disabled]="!canModifyReservation(reservation)" 
+                    (click)="onModifyReservation(reservation)">
               Modificar
             </button>
             <button
@@ -718,12 +721,17 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
   // ── Reservation action methods ──
 
   onModifyReservation(reservation: Reserva): void {
+    const resDate = new Date(`${reservation.date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (resDate.getTime() === today.getTime() && new Date().getHours() >= 16) {
+      alert('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+      return;
+    }
+
     if (!this.canModifyReservation(reservation)) {
-      if (this.isModificationCutoffReached(reservation)) {
-        this.flashMessage.set(this.getModificationCutoffMessage(reservation));
-        this.showFlash.set(true);
-        setTimeout(() => this.showFlash.set(false), 3500);
-      }
+      alert(this.getModificationCutoffMessage(reservation));
       return;
     }
 
@@ -883,7 +891,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
     });
   }
 
-  private isFutureReservation(reserva: Reserva): boolean {
+  isFutureReservation(reserva: Reserva): boolean {
     return this.toDateTime(reserva).getTime() > Date.now();
   }
 
@@ -893,11 +901,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
   }
 
   getModificationCutoffMessage(reserva: Reserva): string {
-    if (reserva.type === 'SPECIAL') {
-      return 'Esta reserva especial solo se puede modificar hasta las 11:00 p.m. del día anterior.';
-    }
-
-    return 'Esta reserva básica solo se puede modificar hasta la 1:00 p.m. del mismo día.';
+    return 'Ya no es posible modificar esta reserva. Solo puedes cancelarla.';
   }
 
   private toDateTime(reserva: Reserva): Date {
@@ -922,7 +926,7 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
       return dayStart;
     }
 
-    dayStart.setHours(13, 0, 0, 0);
+    dayStart.setHours(16, 0, 0, 0);
     return dayStart;
   }
 
