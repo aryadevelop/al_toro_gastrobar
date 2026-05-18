@@ -23,4 +23,12 @@ public interface EmpleadoRepository extends JpaRepository<Empleado, Long> {
      * @return empleado asociado al correo indicado, o vacío si no existe
      */
     Optional<Empleado> findByUsuario_UsuarioEmail(String email);
+
+    /**
+     * Verifica si existe un empleado registrado con el teléfono indicado.
+     *
+     * @param telefono teléfono a verificar
+     * @return {@code true} si el teléfono ya está registrado; {@code false} en caso contrario
+     */
+    boolean existsByEmpleadoTelefono(String telefono);
 }

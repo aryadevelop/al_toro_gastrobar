@@ -1,0 +1,56 @@
+$kind: http-request
+name: HE-08-HU-01-CA-02 validar campos obligatorios vacíos – 422 Unprocessable Entity
+description: |-
+  **Criterio:** CA-02 — Validar campos obligatorios vacíos.
+  **Objetivo:** Verificar que el sistema rechaza la creación cuando faltan campos obligatorios.
+url: "{{baseUrl}}/api/empleados"
+method: POST
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "",
+      "correoElectronico": "",
+      "telefono": "",
+      "roles": [],
+      "fechaIngreso": null,
+      "password": "",
+      "passwordConfirmacion": ""
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.test('Success es false', function () {
+        pm.expect(pm.response.json().success).to.equal(false);
+      });
+      pm.test('El código es VAL-001', function () {
+        pm.expect(pm.response.json().code).to.equal('VAL-001');
+      });
+    language: text/javascript
+order: 18100

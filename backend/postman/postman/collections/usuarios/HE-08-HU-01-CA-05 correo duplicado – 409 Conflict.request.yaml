@@ -1,0 +1,58 @@
+$kind: http-request
+name: HE-08-HU-01-CA-05 correo duplicado – 409 Conflict
+description: |-
+  **Criterio:** CA-05 — Validar correo electrónico duplicado.
+  **Objetivo:** Verificar que el sistema rechaza crear un empleado con un correo ya registrado en otra cuenta de usuario.
+url: "{{baseUrl}}/api/empleados"
+method: POST
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Pedro López",
+      "correoElectronico": "admin@altoro.com",
+      "telefono": "3009876543",
+      "direccion": "Carrera 10",
+      "documento": "987654321",
+      "roles": ["CAJERO"],
+      "fechaIngreso": "2026-05-18",
+      "password": "Password1!",
+      "passwordConfirmacion": "Password1!"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('Success es false', function () {
+        pm.expect(pm.response.json().success).to.equal(false);
+      });
+      pm.test('El código es ENT-002', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-002');
+      });
+    language: text/javascript
+order: 18200
