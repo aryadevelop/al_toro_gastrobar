@@ -211,9 +211,7 @@ public class ReservaController {
         List<ReservaDetalleResponse> response = reservaService.obtenerReservasFuturas(emailCliente);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
-
-    // TODO: obtener todas las reservas futuras
-
+    
     /**
      * Retorna las reservas canceladas o devueltas del cliente, ordenadas de la más reciente
      * a la más antigua.

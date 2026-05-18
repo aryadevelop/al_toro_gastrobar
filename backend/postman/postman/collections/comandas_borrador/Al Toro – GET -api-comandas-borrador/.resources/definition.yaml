@@ -24,6 +24,7 @@ description: |-
   - platos[], bebidas[] (cada ítem: itemId, productoId, productoNombre, cantidad, precioUnitario, descripcion, menuGrupo, modificable)
   - subTotal, total, notasCocina, notasBarra
   - puedeEnviarCocina, puedeEnviarBarra
+  - advertenciasPreorden[] (PA-HE-04): ítems cuya cantidad supera el stock disponible (productoId, productoNombre, cantidadEnComanda, cantidadDisponible)
 
   ## Independencia de datos
 
@@ -32,6 +33,7 @@ description: |-
     - `13` borrador completo (cocina con 5 ítems + barra con 1 ítem par menú).
     - `14` borrador BARRA con 1 ítem, COCINA vacío.
     - `15` sin borradores → estructura vacía.
+    - `17` con borrador COCINA (1 ítem PA-HE-04-Sin-Stock, stock=0) → CD1-08.
   - **Mesero dueño:** `mesero2@altoro.com` = `emailMesero`.
 
   | ID | Escenario | HTTP |
@@ -43,6 +45,7 @@ description: |-
   | CD1-05 | CLIENTE intenta acceder — 403 Forbidden | 403 |
   | CD1-06 | visitaId inexistente — 404 Not Found | 404 |
   | CD1-07 | Parámetro visitaId ausente — 400 Bad Request | 400 |
+  | CD1-08 | GET borrador con stock insuficiente retorna advertencias — 200 OK | 200 |
 
 scripts:
   - type: http:beforeRequest

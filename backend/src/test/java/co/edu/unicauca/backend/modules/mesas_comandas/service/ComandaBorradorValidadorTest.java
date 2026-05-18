@@ -394,4 +394,117 @@ class ComandaBorradorValidadorTest {
                 .recetaCantidad(recetaCantidad)
                 .build();
     }
+
+    // -------------------------------------------------------------------------
+    // evaluarDisponibilidad
+    // -------------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("evaluarDisponibilidad")
+    class EvaluarDisponibilidad {
+
+        @Test
+        @DisplayName("VENTA_DIRECTA stockActual null → devuelve null (sin control de stock)")
+        void ventaDirecta_stockNull_devuelveNull() {
+            Producto p = productoSinStock(CategoriaProducto.PLATO);
+            assertThat(validador.evaluarDisponibilidad(p, 3)).isNull();
+            verifyNoInteractions(comandaItemRepository);
+        }
+
+        @Test
+        @DisplayName("VENTA_DIRECTA stock suficiente → devuelve disponible positivo")
+        void ventaDirecta_stockSuficiente_devuelvePositivo() {
+            Producto p = productoConStock(1L, CategoriaProducto.PLATO, 10);
+            when(comandaItemRepository.sumCantidadComprometidaByProducto(1L)).thenReturn(3L);
+            assertThat(validador.evaluarDisponibilidad(p, 2)).isEqualTo(9);
+        }
+
+        @Test
+        @DisplayName("VENTA_DIRECTA cantidad == disponible exacto → devuelve disponible = 0 después de comprometer")
+        void ventaDirecta_cantidadExacta_devuelveCero() {
+            Producto p = productoConStock(1L, CategoriaProducto.PLATO, 5);
+            when(comandaItemRepository.sumCantidadComprometidaByProducto(1L)).thenReturn(5L);
+            assertThat(validador.evaluarDisponibilidad(p, 5)).isEqualTo(5);
+        }
+
+        @Test
+        @DisplayName("VENTA_DIRECTA stock insuficiente → devuelve negativo")
+        void ventaDirecta_stockInsuficiente_devuelveNegativo() {
+            Producto p = productoConStock(2L, CategoriaProducto.PLATO, 3);
+            when(comandaItemRepository.sumCantidadComprometidaByProducto(2L)).thenReturn(10L);
+            assertThat(validador.evaluarDisponibilidad(p, 1)).isEqualTo(-6);
+        }
+
+        @Test
+        @DisplayName("PREPARACION sin receta → devuelve null (sin control de stock)")
+        void preparacion_sinReceta_devuelveNull() {
+            Producto p = Producto.builder()
+                    .productoId(3L).productoCategoria(CategoriaProducto.PLATO)
+                    .productoTipo(TipoProducto.PREPARACION).build();
+            when(recetaRepository.findByProductoIdFetchInsumo(3L)).thenReturn(Collections.emptyList());
+            assertThat(validador.evaluarDisponibilidad(p, 2)).isNull();
+        }
+
+        @Test
+        @DisplayName("PREPARACION un insumo suficiente → devuelve unidades disponibles del producto")
+        void preparacion_unInsumo_suficiente() {
+            Insumo insumo = Insumo.builder().insumoId(10L).insumoNombre("Carne")
+                    .insumoStockActual(BigDecimal.valueOf(20)).build();
+            Receta receta = Receta.builder()
+                    .recetaCantidad(BigDecimal.valueOf(2))
+                    .insumo(insumo).build();
+            Producto p = Producto.builder()
+                    .productoId(4L).productoCategoria(CategoriaProducto.PLATO)
+                    .productoTipo(TipoProducto.PREPARACION).build();
+
+            when(recetaRepository.findByProductoIdFetchInsumo(4L)).thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(10L))
+                    .thenReturn(BigDecimal.valueOf(4));
+
+            assertThat(validador.evaluarDisponibilidad(p, 1)).isEqualTo(9);
+        }
+
+        @Test
+        @DisplayName("PREPARACION varios insumos → devuelve el mínimo (insumo limitante)")
+        void preparacion_variosInsumos_devuelveMinimo() {
+            Insumo insumoA = Insumo.builder().insumoId(11L).insumoNombre("Arroz")
+                    .insumoStockActual(BigDecimal.valueOf(30)).build();
+            Insumo insumoB = Insumo.builder().insumoId(12L).insumoNombre("Pollo")
+                    .insumoStockActual(BigDecimal.valueOf(10)).build();
+            Receta recetaA = Receta.builder()
+                    .recetaCantidad(BigDecimal.valueOf(1)).insumo(insumoA).build();
+            Receta recetaB = Receta.builder()
+                    .recetaCantidad(BigDecimal.valueOf(3)).insumo(insumoB).build();
+            Producto p = Producto.builder()
+                    .productoId(5L).productoCategoria(CategoriaProducto.PLATO)
+                    .productoTipo(TipoProducto.PREPARACION).build();
+
+            when(recetaRepository.findByProductoIdFetchInsumo(5L))
+                    .thenReturn(List.of(recetaA, recetaB));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(11L))
+                    .thenReturn(BigDecimal.ZERO);
+            when(comandaItemRepository.sumCantidadInsumoComprometida(12L))
+                    .thenReturn(BigDecimal.valueOf(6));
+
+            assertThat(validador.evaluarDisponibilidad(p, 2)).isEqualTo(3);
+        }
+
+        @Test
+        @DisplayName("PREPARACION stock negativo del insumo → devuelve entero negativo")
+        void preparacion_insumoInsuficiente_devuelveNegativo() {
+            Insumo insumo = Insumo.builder().insumoId(13L).insumoNombre("Sal")
+                    .insumoStockActual(BigDecimal.valueOf(2)).build();
+            Receta receta = Receta.builder()
+                    .recetaCantidad(BigDecimal.valueOf(1)).insumo(insumo).build();
+            Producto p = Producto.builder()
+                    .productoId(6L).productoCategoria(CategoriaProducto.PLATO)
+                    .productoTipo(TipoProducto.PREPARACION).build();
+
+            when(recetaRepository.findByProductoIdFetchInsumo(6L)).thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(13L))
+                    .thenReturn(BigDecimal.valueOf(10));
+
+            assertThat(validador.evaluarDisponibilidad(p, 1)).isEqualTo(-7);
+        }
+    }
 }

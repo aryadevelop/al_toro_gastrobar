@@ -305,7 +305,6 @@ public class ComandaProduccionService {
         notificacionRepository.save(Notificacion.builder()
                 .comanda(comanda)
                 .mesa(mesa)
-                .empleado(mesa != null ? mesa.getMesero() : null)
                 .notificacionTipo(tipo)
                 .notificacionEstado(EstadoNotificacion.ACTIVA)
                 .build());

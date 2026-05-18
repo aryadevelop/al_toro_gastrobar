@@ -14,7 +14,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMa
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
-import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
 import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
@@ -33,15 +32,15 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 
+import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -49,7 +48,6 @@ import java.util.Set;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anySet;
 import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
@@ -394,6 +392,45 @@ class ComandaProduccionServiceTest {
         }
 
         @Test
+        @DisplayName("Empleado no encontrado: lanza ResourceNotFoundException")
+        void empleadoNoEncontrado_lanzaResourceNotFound() {
+            Comanda comanda = comandaPendienteCocina();
+
+            when(auth.getName()).thenReturn(ACTOR_EMAIL);
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Happy path con items: sumCantidadByComandaIdIn retorna resultado, lambda map ejecutada")
+        void happyPath_conItems_mapLambdaEjecutada() {
+            Comanda comanda = comandaPendienteCocina();
+            Empleado empleado = Empleado.builder().build();
+            Producto prod = Producto.builder().productoId(1L).productoNombre("P").build();
+            ComandaItem ci = ComandaItem.builder()
+                    .producto(prod).comandaItemCantidad(3)
+                    .comandaItemPrecio(new BigDecimal("10000")).build();
+
+            when(auth.getName()).thenReturn(ACTOR_EMAIL);
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
+            List<Object[]> sumRows = new ArrayList<>();
+            sumRows.add(new Object[]{COMANDA_ID, 5L});
+            when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(sumRows);
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(ci));
+
+            service.iniciarPreparacion(COMANDA_ID, auth);
+
+            assertThat(comanda.getComandaEstado()).isEqualTo(EstadoComanda.EN_PREPARACION);
+        }
+
+        @Test
         @DisplayName("Descuento falla: excepción propagada, save y WS no invocados")
         void descuentoFalla_noTransicionaNiPublica() {
             Comanda comanda = comandaPendienteCocina();
@@ -559,6 +596,70 @@ class ComandaProduccionServiceTest {
 
             assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
                     .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("marcarListo con items preciados: map lambda ejecutada + total en WS cliente")
+        void marcarListo_conItemsPreciados_mapLambdaYTotalWs() {
+            Comanda comanda = comandaEnPreparacion(EstacionComanda.COCINA);
+            Mesa mesa = mesa(VISITA_ID, "T-01", "Mesero1");
+            Producto prod = Producto.builder().productoId(1L).productoNombre("P").build();
+            ComandaItem ci = ComandaItem.builder()
+                    .producto(prod).comandaItemCantidad(2)
+                    .comandaItemPrecio(new BigDecimal("20000")).build();
+
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
+            List<Object[]> sumRows = new ArrayList<>();
+            sumRows.add(new Object[]{COMANDA_ID, 3L});
+            when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(sumRows);
+            when(notificacionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(ci));
+
+            service.marcarListo(COMANDA_ID, auth);
+
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage> captor =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage.class);
+            verify(wsPublisher).publicarVisitaActualizada(eq(VISITA_ID), captor.capture());
+            assertThat(captor.getValue().getTotal()).isEqualByComparingTo(new BigDecimal("40000"));
+        }
+
+        @Test
+        @DisplayName("marcarListo cocina → crea notificación PLATOS_LISTOS con empleado null")
+        void marcarListo_creaNotificacionConEmpleadoNull() {
+            // Given
+            Long comandaId = 20L;
+            Long visitaId  = 10L;
+            Comanda comanda = Comanda.builder()
+                    .comandaId(comandaId)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.EN_PREPARACION)
+                    .visita(Visita.builder().visitaId(visitaId).build())
+                    .build();
+            Mesa mesa = Mesa.builder()
+                    .visitaId(visitaId).mesaIdentificador("T-01")
+                    .mesero(Empleado.builder().usuarioId(4L).build())
+                    .build();
+
+            when(estacionResolver.resolverEstaciones(auth))
+                    .thenReturn(java.util.Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findById(comandaId)).thenReturn(java.util.Optional.of(comanda));
+            when(mesaRepository.findByVisita_VisitaId(visitaId)).thenReturn(java.util.Optional.of(mesa));
+            when(comandaItemRepository.sumCantidadByComandaIdIn(any())).thenReturn(java.util.List.of());
+            when(comandaRepository.findAllItemsActivosByVisita(visitaId)).thenReturn(java.util.List.of());
+            when(visitaEstadoMapper.toItemsVisitaResponse(any())).thenReturn(java.util.List.of());
+            when(notificacionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            // When
+            service.marcarListo(comandaId, auth);
+
+            // Then
+            org.mockito.ArgumentCaptor<co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion> cap =
+                    org.mockito.ArgumentCaptor.forClass(co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion.class);
+            verify(notificacionRepository).save(cap.capture());
+            assertThat(cap.getValue().getEmpleado()).isNull();
+            assertThat(cap.getValue().getNotificacionTipo()).isEqualTo(TipoNotificacion.PLATOS_LISTOS);
         }
     }
 }

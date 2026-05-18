@@ -123,6 +123,20 @@ class NotificacionTest {
     }
 
     @Test
+    @DisplayName("equals() con misma referencia → retorna true")
+    void equals_mismaReferencia_retornaTrue() {
+        Notificacion notif = Notificacion.builder().notificacionId(1L).build();
+        assertThat(notif.equals(notif)).isTrue();
+    }
+
+    @Test
+    @DisplayName("equals() con tipo incompatible → retorna false")
+    void equals_tipoIncompatible_retornaFalse() {
+        Notificacion notif = Notificacion.builder().notificacionId(1L).build();
+        assertThat(notif.equals("texto")).isFalse();
+    }
+
+    @Test
     @DisplayName("hashCode() es consistente")
     void hashCode_esConsistente() {
         Notificacion notificacion = Notificacion.builder().notificacionId(1L).build();
@@ -131,6 +145,25 @@ class NotificacionTest {
         int hashCode2 = notificacion.hashCode();
 
         assertThat(hashCode1).isEqualTo(hashCode2);
+    }
+
+    @Test
+    @DisplayName("builder sin empleado → empleado es null (notificación ACTIVA)")
+    void builder_sinEmpleado_empleadoEsNull() {
+        Notificacion n = Notificacion.builder()
+                .notificacionEstado(EstadoNotificacion.ACTIVA)
+                .notificacionTipo(TipoNotificacion.PLATOS_LISTOS)
+                .build();
+        assertThat(n.getEmpleado()).isNull();
+    }
+
+    @Test
+    @DisplayName("setEmpleado → actualiza el campo correctamente")
+    void setEmpleado_actualizaCampo() {
+        Empleado e = Empleado.builder().usuarioId(9L).build();
+        Notificacion n = new Notificacion();
+        n.setEmpleado(e);
+        assertThat(n.getEmpleado()).isEqualTo(e);
     }
 
     // Helper method para setear campos privados usando reflection

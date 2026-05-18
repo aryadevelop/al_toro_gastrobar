@@ -9,6 +9,7 @@ import java.util.stream.Stream;
 
 import org.springframework.stereotype.Component;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.AdvertenciaPreordenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.BorradorComandaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemBebidaMenuResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemBorradorResponse;
@@ -42,18 +43,21 @@ public class ComandaBorradorMapper {
                                  String.CASE_INSENSITIVE_ORDER);
 
     /**
-     * Construye la respuesta completa de {@code GET /api/comandas/borrador}.
+     * Construye la respuesta completa para obtener borrador.
      *
-     * @param mesa             mesa dueña del borrador
-     * @param comandasBorrador comandas BORRADOR de la visita
-     * @param totalAcumulado   suma de {@code precio * cantidad} de todos los ítems
-     *                         de la visita en estados distintos de COMPLETADO,
-     *                         calculada por el servicio
+     * @param mesa                 mesa dueña del borrador
+     * @param comandasBorrador     comandas BORRADOR de la visita
+     * @param totalAcumulado       suma de {@code precio * cantidad} de todos los ítems
+     *                             de la visita en estados distintos de COMPLETADO,
+     *                             calculada por el servicio
+     * @param advertenciasPreorden ítems cuya cantidad supera el stock disponible;
+     *                             lista vacía cuando todos caben en stock
      * @return DTO listo para el frontend; nunca {@code null}
      */
     public BorradorComandaResponse toBorradorResponse(Mesa mesa,
                                                      List<Comanda> comandasBorrador,
-                                                     BigDecimal totalAcumulado) {
+                                                     BigDecimal totalAcumulado,
+                                                     List<AdvertenciaPreordenResponse> advertenciasPreorden) {
 
         Comanda cocina = comandasBorrador.stream()
                 .filter(c -> c.getComandaEstacion() == EstacionComanda.COCINA)
@@ -90,6 +94,7 @@ public class ComandaBorradorMapper {
                 .notasBarra(barra   != null ? barra.getComandaNotas()  : null)
                 .puedeEnviarCocina(!platos.isEmpty())
                 .puedeEnviarBarra(!bebidas.isEmpty())
+                .advertenciasPreorden(advertenciasPreorden != null ? advertenciasPreorden : List.of())
                 .build();
     }
 

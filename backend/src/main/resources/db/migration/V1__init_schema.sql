@@ -243,7 +243,7 @@ COMMENT ON TABLE Mesa IS 'Información de mesa por visita - asignación de meser
 CREATE TABLE Notificacion (
     notificacion_id BIGSERIAL PRIMARY KEY,
     mesa_id BIGINT NOT NULL,
-    empleado_id BIGINT NOT NULL,
+    empleado_id BIGINT NULL,
     comanda_id BIGINT NULL,
     notificacion_estado VARCHAR(20) NOT NULL,
     notificacion_tipo VARCHAR(20) NOT NULL,
@@ -603,7 +603,6 @@ CREATE INDEX idx_notificacion_mesa_id ON Notificacion(mesa_id);
 CREATE INDEX idx_notificacion_empleado_id ON Notificacion(empleado_id);
 CREATE INDEX idx_notificacion_estado ON Notificacion(notificacion_estado);
 CREATE INDEX idx_notificacion_fecha_hora ON Notificacion(notificacion_fecha_hora DESC);
-CREATE INDEX idx_notificacion_activas ON Notificacion(empleado_id, notificacion_fecha_hora DESC) WHERE notificacion_estado = 'ACTIVA';
 CREATE INDEX idx_notificacion_comanda_id ON Notificacion(comanda_id);
 
 CREATE INDEX idx_venta_cajero_id ON Venta(cajero_id);
