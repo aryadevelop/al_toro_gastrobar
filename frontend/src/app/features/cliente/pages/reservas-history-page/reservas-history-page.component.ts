@@ -42,11 +42,17 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
           <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
           <p><strong>Estado:</strong> {{ getReservationStatusLabel(reservation.status) }}</p>
 
+          <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
+            {{ getModificationCutoffMessage(reservation) }}
+          </p>
+
           <div class="visit-actions">
             <button type="button" class="btn-secondary" (click)="onViewFutureDetail(reservation.id)">Ver detalle</button>
-            <button type="button" class="btn-secondary" *ngIf="canModifyReservation(reservation)" (click)="onModifyReservation(reservation)">
-              Modificar
-            </button>
+            <button type="button" class="btn-secondary" 
+        *ngIf="reservation.status === 'PENDING' || reservation.status === 'CONFIRMED'" 
+        (click)="onModifyReservation(reservation)">
+  Modificar
+</button>
             <button
               type="button"
               class="btn-danger"
@@ -354,7 +360,7 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
     private readonly clientePointsService: ClientePointsService,
     private readonly router: Router,
     private readonly viewportScroller: ViewportScroller
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.loadHistoryData();
@@ -432,15 +438,12 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
 
   onModifyReservation(reservation: Reserva): void {
     if (!this.canModifyReservation(reservation)) {
-      this.flashMessage.set(this.getModificationCutoffMessage(reservation));
-      this.showFlash.set(true);
-      setTimeout(() => this.showFlash.set(false), 3500);
+      alert(this.getModificationCutoffMessage(reservation));
       return;
     }
 
     void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
   }
-
   onCancelReservation(reservation: Reserva): void {
     if (!this.canCancelReservation(reservation)) {
       return;
@@ -585,17 +588,17 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
     });
   }
 
-  private isModificationCutoffReached(reserva: Reserva): boolean {
+  isFutureReservation(reserva: Reserva): boolean {
+    return this.toDateTime(reserva).getTime() > Date.now();
+  }
+
+  isModificationCutoffReached(reserva: Reserva): boolean {
     const cutoff = this.getModificationCutoffDate(reserva);
     return Date.now() >= cutoff.getTime();
   }
 
-  private getModificationCutoffMessage(reserva: Reserva): string {
-    if (reserva.type === 'SPECIAL') {
-      return 'Esta reserva especial solo se puede modificar hasta las 11:00 p.m. del día anterior.';
-    }
-
-    return 'Esta reserva básica solo se puede modificar hasta la 1:00 p.m. del mismo día.';
+  getModificationCutoffMessage(reserva: Reserva): string {
+    return 'Ya no es posible modificar esta reserva. Solo puedes cancelarla.';
   }
 
   private getModificationCutoffDate(reserva: Reserva): Date {
@@ -607,7 +610,7 @@ export class ReservasHistoryPageComponent implements OnInit, AfterViewInit {
       return dayStart;
     }
 
-    dayStart.setHours(13, 0, 0, 0);
+    dayStart.setHours(16, 0, 0, 0);
     return dayStart;
   }
 

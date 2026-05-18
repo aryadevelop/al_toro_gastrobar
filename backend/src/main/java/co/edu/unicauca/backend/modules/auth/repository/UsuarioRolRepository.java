@@ -28,6 +28,22 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UsuarioR
     List<UsuarioRol> findByUsuarioIdAndRolEstado(Long usuarioId, RolEstado rolEstado);
 
     /**
+     * Devuelve todos los roles asignados a un conjunto de usuarios.
+     *
+     * @param usuarioIds identificadores de usuario
+     * @return lista de roles correspondientes a los usuarios indicados
+     */
+    List<UsuarioRol> findByUsuarioIdIn(List<Long> usuarioIds);
+
+    /**
+     * Devuelve todos los roles de un usuario.
+     *
+     * @param usuarioId identificador del usuario
+     * @return lista de roles del usuario; vacía si no tiene ninguno
+     */
+    List<UsuarioRol> findByUsuarioId(Long usuarioId);
+
+    /**
      * Verifica si un usuario tiene un rol específico con el estado indicado.
      *
      * @param usuarioId  identificador del usuario
