@@ -2,6 +2,8 @@ package co.edu.unicauca.backend.modules.usuarios.service;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRepository;
+import co.edu.unicauca.backend.modules.auth.entity.Sesion;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
 import co.edu.unicauca.backend.modules.usuarios.dto.request.CrearEmpleadoRequest;
 import co.edu.unicauca.backend.modules.usuarios.dto.response.EmpleadoResponse;
@@ -40,6 +42,7 @@ public class EmpleadoService {
     private final EmpleadoRepository empleadoRepository;
     private final ClienteRepository clienteRepository;
     private final UsuarioRolRepository usuarioRolRepository;
+    private final SesionRepository sesionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
 
@@ -144,6 +147,39 @@ public class EmpleadoService {
                 .filter(empleado -> aplicarFiltros(empleado, rolesPorUsuario.getOrDefault(empleado.getUsuarioId(), List.of()), rolNombre, rolEstado, nombreBusqueda))
                 .map(empleado -> mapToEmpleadoListado(empleado, rolesPorUsuario.getOrDefault(empleado.getUsuarioId(), List.of())))
                 .collect(Collectors.toList());
+    }
+
+    public String cambiarEstadoEmpleado(Long empleadoId, String estado) {
+        Empleado empleado = empleadoRepository.findById(empleadoId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND,
+                        "Empleado no encontrado", HttpStatus.NOT_FOUND));
+
+        List<UsuarioRol> roles = usuarioRolRepository.findByUsuarioId(empleadoId);
+        if (roles.isEmpty()) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Este empleado no tiene roles asociados", HttpStatus.BAD_REQUEST);
+        }
+
+        RolEstado nuevoEstado = parsearEstadoFiltro(estado);
+        boolean yaEstaEnEstado = roles.stream().allMatch(rol -> rol.getRolEstado() == nuevoEstado);
+        if (yaEstaEnEstado) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "El empleado ya se encuentra " + nuevoEstado.getDescripcion().toLowerCase(Locale.ENGLISH),
+                    HttpStatus.BAD_REQUEST);
+        }
+
+        int updatedRoles = usuarioRolRepository.updateRolEstadoByUsuarioId(empleadoId, nuevoEstado);
+        if (updatedRoles == 0) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "No se pudo actualizar el estado de los roles del empleado", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        if (nuevoEstado == RolEstado.INACTIVO) {
+            sesionRepository.deactivateActiveSessionsByUsuarioId(empleadoId);
+            return "Empleado deshabilitado correctamente";
+        }
+
+        return "Empleado habilitado correctamente";
     }
 
     private boolean aplicarFiltros(Empleado empleado, List<UsuarioRol> roles, RolNombre rolNombre,

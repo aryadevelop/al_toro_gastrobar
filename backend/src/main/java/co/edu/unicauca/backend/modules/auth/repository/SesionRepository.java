@@ -2,6 +2,8 @@ package co.edu.unicauca.backend.modules.auth.repository;
 
 import co.edu.unicauca.backend.modules.auth.entity.Sesion;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 import java.util.Optional;
@@ -24,6 +26,16 @@ public interface SesionRepository extends JpaRepository<Sesion, Long> {
      * @return lista de sesiones activas del usuario; vacía si no tiene ninguna
      */
     List<Sesion> findByUsuarioUsuarioIdAndSesionActivaTrue(Long usuarioId);
+
+    /**
+     * Desactiva todas las sesiones activas de un usuario.
+     *
+     * @param usuarioId identificador del usuario
+     * @return número de filas actualizadas
+     */
+    @Modifying
+    @Query("UPDATE Sesion s SET s.sesionActiva = false WHERE s.usuario.usuarioId = :usuarioId AND s.sesionActiva = true")
+    int deactivateActiveSessionsByUsuarioId(Long usuarioId);
 
     /**
      * Busca una sesión activa por su access token.
