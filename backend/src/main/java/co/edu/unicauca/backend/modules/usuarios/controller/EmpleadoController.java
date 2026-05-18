@@ -13,6 +13,8 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -47,5 +49,15 @@ public class EmpleadoController {
             @RequestParam(required = false) String nombre) {
         List<EmpleadoListadoResponse> response = empleadoService.listarEmpleados(rol, estado, nombre);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @PatchMapping("/{empleadoId}/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cambiar el estado de un empleado entre activo e inactivo")
+    public ResponseEntity<ApiResponse<String>> cambiarEstadoEmpleado(
+            @PathVariable Long empleadoId,
+            @RequestParam String estado) {
+        String mensaje = empleadoService.cambiarEstadoEmpleado(empleadoId, estado);
+        return ResponseEntity.ok(ApiResponse.ok(mensaje));
     }
 }

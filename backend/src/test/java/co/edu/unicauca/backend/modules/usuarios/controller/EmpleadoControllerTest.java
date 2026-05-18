@@ -27,6 +27,7 @@ import java.util.List;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -133,5 +134,17 @@ class EmpleadoControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.success").value(true))
                 .andExpect(jsonPath("$.data[0].correoElectronico").value("carlos@altoro.com"));
+    }
+
+    @Test
+    void cambiarEstadoEmpleado_retornaMensajeExito() throws Exception {
+        when(empleadoService.cambiarEstadoEmpleado(10L, "INACTIVO"))
+                .thenReturn("Empleado deshabilitado correctamente");
+
+        mockMvc.perform(patch("/api/empleados/10/estado")
+                        .param("estado", "INACTIVO"))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.success").value(true))
+                .andExpect(jsonPath("$.data").value("Empleado deshabilitado correctamente"));
     }
 }

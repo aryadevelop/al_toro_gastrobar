@@ -4,6 +4,8 @@ import co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol;
 import co.edu.unicauca.backend.shared.enums.RolEstado;
 import co.edu.unicauca.backend.shared.enums.RolNombre;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
+import org.springframework.data.jpa.repository.Query;
 
 import java.util.List;
 
@@ -52,4 +54,15 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UsuarioR
      * @return {@code true} si el usuario tiene el rol con el estado indicado; {@code false} en caso contrario
      */
     boolean existsByUsuarioIdAndRolNombreAndRolEstado(Long usuarioId, RolNombre rolNombre, RolEstado rolEstado);
+
+    /**
+     * Actualiza el estado de todos los roles de un usuario.
+     *
+     * @param usuarioId identificador del usuario
+     * @param rolEstado nuevo estado de rol
+     * @return número de filas actualizadas
+     */
+    @Modifying
+    @Query("UPDATE UsuarioRol ur SET ur.rolEstado = :rolEstado WHERE ur.usuarioId = :usuarioId")
+    int updateRolEstadoByUsuarioId(Long usuarioId, RolEstado rolEstado);
 }

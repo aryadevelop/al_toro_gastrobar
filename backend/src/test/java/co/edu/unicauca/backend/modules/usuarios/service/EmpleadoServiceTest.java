@@ -1,6 +1,8 @@
 package co.edu.unicauca.backend.modules.usuarios.service;
 
+import co.edu.unicauca.backend.modules.auth.entity.Sesion;
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
 import co.edu.unicauca.backend.modules.usuarios.dto.request.CrearEmpleadoRequest;
@@ -28,6 +30,7 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -35,6 +38,7 @@ import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 @ExtendWith(MockitoExtension.class)
@@ -44,6 +48,7 @@ class EmpleadoServiceTest {
     @Mock private EmpleadoRepository empleadoRepository;
     @Mock private ClienteRepository clienteRepository;
     @Mock private UsuarioRolRepository usuarioRolRepository;
+    @Mock private SesionRepository sesionRepository;
     @Mock private PasswordEncoder passwordEncoder;
     @Mock private JavaMailSender mailSender;
 
@@ -242,5 +247,46 @@ class EmpleadoServiceTest {
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).getNombre()).isEqualTo("Carlos Pérez");
+    }
+
+    @Test
+    void cambiarEstadoEmpleado_desactivaYcierraSesiones() {
+        Usuario usuario = Usuario.builder()
+                .usuarioId(5L)
+                .usuarioEmail("juan@altoro.com")
+                .build();
+        Empleado empleado = Empleado.builder()
+                .usuarioId(5L)
+                .usuario(usuario)
+                .empleadoNombre("Juan Pérez")
+                .empleadoTelefono("3005555555")
+                .empleadoDireccion("Calle 55")
+                .empleadoFechaIngreso(LocalDate.now())
+                .build();
+
+        Sesion sesion = Sesion.builder()
+                .sesionId(1L)
+                .usuario(usuario)
+                .sesionToken("token")
+                .sesionRefreshToken("refresh")
+                .sesionActiva(true)
+                .sesionFechaCreacion(LocalDateTime.now())
+                .build();
+
+        when(empleadoRepository.findById(5L)).thenReturn(Optional.of(empleado));
+        when(usuarioRolRepository.findByUsuarioId(5L)).thenReturn(List.of(
+                UsuarioRol.builder()
+                        .usuarioId(5L)
+                        .rolNombre(RolNombre.CAJERO)
+                        .rolEstado(RolEstado.ACTIVO)
+                        .build()
+        ));
+        when(usuarioRolRepository.updateRolEstadoByUsuarioId(5L, RolEstado.INACTIVO)).thenReturn(1);
+        when(sesionRepository.deactivateActiveSessionsByUsuarioId(5L)).thenReturn(1);
+
+        String mensaje = empleadoService.cambiarEstadoEmpleado(5L, "INACTIVO");
+
+        assertThat(mensaje).isEqualTo("Empleado deshabilitado correctamente");
+        verify(sesionRepository).deactivateActiveSessionsByUsuarioId(5L);
     }
 }
