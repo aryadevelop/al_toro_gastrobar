@@ -440,6 +440,17 @@ export interface BackendEmpleadoResponse {
   warning?: string | null;
 }
 
+export interface BackendEmpleadoListadoResponse {
+  empleadoId: number;
+  nombre: string;
+  correoElectronico: string;
+  telefono: string;
+  direccion?: string | null;
+  fechaIngreso: string;
+  roles: string[];
+  estado: string;
+}
+
 /* ── Producción (cocina / barra) ── */
 
 export interface BackendComandaProduccionResumen {
