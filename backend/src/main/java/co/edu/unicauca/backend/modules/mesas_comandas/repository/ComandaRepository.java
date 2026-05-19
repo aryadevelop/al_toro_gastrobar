@@ -134,6 +134,35 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
                                             @Param("estados") Collection<EstadoComanda> estados);
 
     /**
+     * Recupera las comandas de una estación cuyo estado pertenece al conjunto
+     * indicado y que NO tienen ninguna notificación de tipo {@code CAMBIO} en
+     * estado {@code ACTIVA}.
+     *
+     * <p>Las comandas con notificación {@code CAMBIO ACTIVA} ya fueron retiradas
+     * del tablero vía WebSocket; esta consulta evita que reaparezcan al reconectar
+     * la pantalla de producción.
+     *
+     * @param estacion estación destino ({@code COCINA} o {@code BARRA})
+     * @param estados  estados de comanda a incluir
+     * @return comandas que satisfacen el filtro con la visita hidratada
+     */
+    @Query("""
+        SELECT c FROM Comanda c
+        JOIN FETCH c.visita
+        WHERE c.comandaEstacion = :estacion
+        AND c.comandaEstado IN :estados
+        AND NOT EXISTS (
+            SELECT n FROM Notificacion n
+            WHERE n.comanda = c
+            AND n.notificacionTipo = co.edu.unicauca.backend.shared.enums.TipoNotificacion.CAMBIO
+            AND n.notificacionEstado = co.edu.unicauca.backend.shared.enums.EstadoNotificacion.ACTIVA
+        )
+        """)
+    List<Comanda> findByEstacionAndEstadoInSinCambioActivo(
+            @Param("estacion") EstacionComanda estacion,
+            @Param("estados") Collection<EstadoComanda> estados);
+
+    /**
      * Localiza la comanda en estado {@code BORRADOR} asociada a una visita y a
      * una estación, adquiriendo un bloqueo pesimista de escritura sobre la
      * fila resultante.
@@ -155,4 +184,45 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
         """)
     Optional<Comanda> findBorradorActivoByVisitaYEstacion(@Param("visitaId") Long visitaId,
                                                           @Param("estacion") EstacionComanda estacion);
+
+    /**
+     * Devuelve las comandas en estado {@code PENDIENTE} que contienen al menos un
+     * ítem del producto indicado. Identifica comandas afectadas por un egreso
+     * manual de un producto de venta directa.
+     *
+     * @param productoId identificador del producto
+     * @return comandas afectadas con la visita hidratada
+     */
+    @Query("""
+        SELECT DISTINCT c FROM Comanda c
+        JOIN FETCH c.visita
+        WHERE c.comandaEstado = co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE
+        AND c.comandaId IN (
+            SELECT ci.comanda.comandaId FROM ComandaItem ci
+            WHERE ci.producto.productoId = :productoId
+            AND ci.comandaItemMenuGrupo IS NULL
+        )
+        """)
+    List<Comanda> findPendientesByProductoId(@Param("productoId") Long productoId);
+
+    /**
+     * Devuelve las comandas en estado {@code PENDIENTE} que contienen al menos un
+     * ítem de cualquiera de los productos indicados. Identifica comandas afectadas
+     * por un egreso manual de un insumo (cuyos productos de preparación se
+     * determinaron previamente por receta).
+     *
+     * @param productoIds identificadores de producto
+     * @return comandas afectadas con la visita hidratada
+     */
+    @Query("""
+        SELECT DISTINCT c FROM Comanda c
+        JOIN FETCH c.visita
+        WHERE c.comandaEstado = co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE
+        AND c.comandaId IN (
+            SELECT ci.comanda.comandaId FROM ComandaItem ci
+            WHERE ci.producto.productoId IN :productoIds
+            AND ci.comandaItemMenuGrupo IS NULL
+        )
+        """)
+    List<Comanda> findPendientesByProductoIds(@Param("productoIds") List<Long> productoIds);
 }

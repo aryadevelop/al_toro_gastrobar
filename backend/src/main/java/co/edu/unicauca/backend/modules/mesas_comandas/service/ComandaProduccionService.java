@@ -95,7 +95,7 @@ public class ComandaProduccionService {
         // Acumula las comandas de todas las estaciones del usuario en una sola lista
         List<Comanda> comandas = new ArrayList<>();
         for (EstacionComanda estacion : estaciones) {
-            comandas.addAll(comandaRepository.findByEstacionAndEstadoIn(estacion, ESTADOS_VISIBLES));
+            comandas.addAll(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(estacion, ESTADOS_VISIBLES));
         }
 
         // Pre-carga en lote la mesa y los totales de ítems 
