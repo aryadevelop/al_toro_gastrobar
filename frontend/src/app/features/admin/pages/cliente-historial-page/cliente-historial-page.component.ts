@@ -138,6 +138,9 @@ type GroupMode = 'none' | 'anio' | 'mes';
               </div>
               <div class="sale-total">
                 <strong>{{ venta.total | currency:'COP':'symbol':'1.0-0' }}</strong>
+                <button class="btn-secondary" type="button" (click)="goToVentaDetalle(venta.visitaId)">
+                  Ver detalle
+                </button>
               </div>
             </article>
 
@@ -300,6 +303,9 @@ type GroupMode = 'none' | 'anio' | 'mes';
 
       .sale-total {
         font-size: 0.9rem;
+        display: grid;
+        justify-items: end;
+        gap: 0.4rem;
       }
 
       .badge {
@@ -513,6 +519,10 @@ export class ClienteHistorialPageComponent implements OnInit {
 
   formatMonth(value: number): string {
     return value < 10 ? `0${value}` : String(value);
+  }
+
+  goToVentaDetalle(visitaId: string): void {
+    this.router.navigate(['/app/admin/ventas', visitaId]);
   }
 
   private loadHistorial(clienteId: string): void {
