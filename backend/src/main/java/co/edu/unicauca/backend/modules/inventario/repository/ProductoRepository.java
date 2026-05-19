@@ -61,4 +61,23 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
            "ORDER BY p.productoNombre ASC")
     List<Producto> buscarPorNombreSinMenu(@Param("nombre") String nombre,
                                           @Param("estado") EstadoGenerico estado);
+
+    /**
+     * Búsqueda parcial case-insensitive por nombre para el formulario de ajuste
+     * manual de inventario. A diferencia de {@code buscarPorNombreSinMenu},
+     * incluye productos con {@code stockActual = 0} o {@code null}, ya que un
+     * egreso manual puede necesitar ajustar un producto sin stock. Excluye menús
+     * especiales.
+     *
+     * @param nombre fragmento de nombre a buscar
+     * @param estado estado a exigir (típicamente {@code ACTIVO})
+     * @return productos coincidentes ordenados por nombre asc
+     */
+    @Query("SELECT p FROM Producto p " +
+           "WHERE p.productoEstado = :estado " +
+           "AND (p.menuEspecial IS NULL OR p.menuEspecial = false) " +
+           "AND LOWER(p.productoNombre) LIKE LOWER(CONCAT('%', :nombre, '%')) " +
+           "ORDER BY p.productoNombre ASC")
+    List<Producto> buscarParaAjuste(@Param("nombre") String nombre,
+                                    @Param("estado") EstadoGenerico estado);
 }

@@ -3,6 +3,14 @@ package co.edu.unicauca.backend.modules.mesas_comandas.repository;
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
+import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
+import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.shared.enums.EstadoMesa;
+import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
+import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
@@ -46,6 +54,7 @@ class ComandaRepositoryTest {
 
     @Autowired TestEntityManager em;
     @Autowired ComandaRepository repo;
+    @Autowired NotificacionRepository notificacionRepository;
 
     private Visita visita;
     private Producto producto;
@@ -324,6 +333,144 @@ class ComandaRepositoryTest {
                     visita.getVisitaId(), EstacionComanda.BARRA);
 
             assertThat(resultado).isEmpty();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // findPendientesByProductoId / findPendientesByProductoIds
+    // findByEstacionAndEstadoInSinCambioActivo
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("Queries de ajuste de inventario")
+    class QueriesAjusteInventario {
+
+        private Comanda comandaConItem(EstadoComanda estado, Producto prod, boolean conMenuGrupo) {
+            Comanda c = em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(estado)
+                    .build());
+            ComandaItem.ComandaItemBuilder item = ComandaItem.builder()
+                    .comanda(c)
+                    .producto(prod)
+                    .comandaItemCantidad(1)
+                    .comandaItemPrecio(prod.getProductoPrecio());
+            if (conMenuGrupo) {
+                item.comandaItemMenuGrupo("grupo-test");
+            }
+            em.persistAndFlush(item.build());
+            return c;
+        }
+
+        @Test
+        @DisplayName("findPendientesByProductoId devuelve comanda PENDIENTE con el producto")
+        void pendienteConProducto_aparece() {
+            comandaConItem(EstadoComanda.PENDIENTE, producto, false);
+
+            List<Comanda> result = repo.findPendientesByProductoId(producto.getProductoId());
+
+            assertThat(result).hasSize(1);
+        }
+
+        @Test
+        @DisplayName("findPendientesByProductoId excluye comanda EN_PREPARACION")
+        void enPreparacion_excluido() {
+            comandaConItem(EstadoComanda.EN_PREPARACION, producto, false);
+
+            List<Comanda> result = repo.findPendientesByProductoId(producto.getProductoId());
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("findPendientesByProductoId excluye ítem con menuGrupo no nulo")
+        void itemConMenuGrupo_excluido() {
+            comandaConItem(EstadoComanda.PENDIENTE, producto, true);
+
+            List<Comanda> result = repo.findPendientesByProductoId(producto.getProductoId());
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("findPendientesByProductoIds devuelve ambas comandas con los productos dados")
+        void variosProductoIds_devuelveAmbas() {
+            CategoriaCarta cat = em.persistAndFlush(CategoriaCarta.builder()
+                    .categoriaNombre("Cat2-" + System.nanoTime()).build());
+            Producto p2 = em.persistAndFlush(Producto.builder()
+                    .categoriaCarta(cat)
+                    .productoNombre("Producto B")
+                    .productoEstado(EstadoGenerico.ACTIVO)
+                    .productoPrecio(new BigDecimal("12000"))
+                    .productoTipo(TipoProducto.VENTA_DIRECTA)
+                    .productoCategoria(CategoriaProducto.PLATO)
+                    .build());
+
+            comandaConItem(EstadoComanda.PENDIENTE, producto, false);
+            comandaConItem(EstadoComanda.PENDIENTE, p2, false);
+
+            List<Comanda> result = repo.findPendientesByProductoIds(
+                    List.of(producto.getProductoId(), p2.getProductoId()));
+
+            assertThat(result).hasSize(2);
+        }
+
+        @Test
+        @DisplayName("findByEstacionAndEstadoInSinCambioActivo excluye comanda con CAMBIO ACTIVA")
+        void conCambioActivo_excluido() {
+            Comanda c = em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            Zona zona = em.persistAndFlush(Zona.builder()
+                    .zonaNombre("Zona Test")
+                    .zonaCapacidadPersonas(10)
+                    .build());
+            Usuario u = em.persistAndFlush(Usuario.builder()
+                    .usuarioEmail("mesero" + System.nanoTime() + "@test.com")
+                    .usuarioPassword("pass")
+                    .build());
+            Empleado mesero = em.persistAndFlush(Empleado.builder()
+                    .usuario(u)
+                    .empleadoNombre("Mesero Test")
+                    .empleadoFechaIngreso(java.time.LocalDate.now())
+                    .empleadoTelefono("3001234567")
+                    .build());
+            Mesa mesa = em.persistAndFlush(Mesa.builder()
+                    .visita(visita)
+                    .zona(zona)
+                    .mesero(mesero)
+                    .mesaIdentificador("M-1")
+                    .mesaNumeroPersonas(2)
+                    .mesaEstado(EstadoMesa.EN_PREPARACION)
+                    .build());
+            em.persistAndFlush(Notificacion.builder()
+                    .comanda(c)
+                    .mesa(mesa)
+                    .notificacionTipo(TipoNotificacion.CAMBIO)
+                    .notificacionEstado(EstadoNotificacion.ACTIVA)
+                    .build());
+
+            List<Comanda> result = repo.findByEstacionAndEstadoInSinCambioActivo(
+                    EstacionComanda.COCINA, Set.of(EstadoComanda.PENDIENTE, EstadoComanda.EN_PREPARACION));
+
+            assertThat(result).isEmpty();
+        }
+
+        @Test
+        @DisplayName("findByEstacionAndEstadoInSinCambioActivo incluye comanda sin CAMBIO ACTIVA")
+        void sinCambioActivo_incluido() {
+            em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            List<Comanda> result = repo.findByEstacionAndEstadoInSinCambioActivo(
+                    EstacionComanda.COCINA, Set.of(EstadoComanda.PENDIENTE, EstadoComanda.EN_PREPARACION));
+
+            assertThat(result).hasSize(1);
         }
     }
 }
