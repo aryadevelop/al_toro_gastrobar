@@ -37,7 +37,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 
-import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -130,7 +129,7 @@ class ComandaProduccionServiceTest {
             Comanda e1 = comanda(3L, 13L, EstacionComanda.COCINA, EstadoComanda.EN_PREPARACION, t.plusMinutes(2), null, t);
             Comanda l1 = comanda(4L, 14L, EstacionComanda.COCINA, EstadoComanda.LISTO, t.plusMinutes(3), t.plusMinutes(20), t);
 
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.COCINA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.COCINA), anySet()))
                     .thenReturn(List.of(p2, p1, e1, l1));
 
             when(mesaRepository.findByVisita_VisitaIdIn(any())).thenReturn(List.of(
@@ -165,7 +164,7 @@ class ComandaProduccionServiceTest {
         void sinComandas() {
             when(estacionResolver.resolverEstaciones(auth))
                     .thenReturn(Set.of(EstacionComanda.BARRA));
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.BARRA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.BARRA), anySet()))
                     .thenReturn(List.of());
 
             TableroProduccionResponse r = service.obtenerTableroProduccion(auth);
@@ -186,9 +185,9 @@ class ComandaProduccionServiceTest {
             Comanda cocina = comanda(1L, 11L, EstacionComanda.COCINA, EstadoComanda.PENDIENTE, t, null, t);
             Comanda barra = comanda(2L, 12L, EstacionComanda.BARRA, EstadoComanda.PENDIENTE, t.plusMinutes(1), null, t);
 
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.COCINA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.COCINA), anySet()))
                     .thenReturn(List.of(cocina));
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.BARRA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.BARRA), anySet()))
                     .thenReturn(List.of(barra));
             when(mesaRepository.findByVisita_VisitaIdIn(any())).thenReturn(List.of(
                     mesa(11L, "T-01", "Ana"),
