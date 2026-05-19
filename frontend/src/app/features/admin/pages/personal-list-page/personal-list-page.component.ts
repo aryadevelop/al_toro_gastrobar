@@ -9,12 +9,13 @@ import {
   PersonalAdminService,
   RolEmpleadoFiltro,
 } from '../../../../core/services/personal-admin.service';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 
 @Component({
   selector: 'app-personal-list-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, RouterLink, PageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, RouterLink, PageHeaderComponent, ConfirmDialogComponent],
   template: `
     <section class="page-grid">
       <app-page-header title="Personal" subtitle="Consulta y gestión del personal del sistema"></app-page-header>
@@ -60,6 +61,10 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         <p>{{ errorMessage() }}</p>
       </article>
 
+      <article class="card state-card" *ngIf="successMessage() && !loading()">
+        <p class="success-message">{{ successMessage() }}</p>
+      </article>
+
       <article class="card state-card" *ngIf="showFirstTimeEmptyState() && !loading() && !errorMessage()">
         <p>No hay empleados registrados. Comienza creando el primer empleado</p>
         <a class="btn-primary" routerLink="/app/admin/personal/new">Nuevo empleado</a>
@@ -80,6 +85,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
                 <th>Teléfono</th>
                 <th>Estado</th>
                 <th>Fecha de ingreso</th>
+                <th>Acciones</th>
               </tr>
             </thead>
             <tbody>
@@ -94,11 +100,31 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
                   </span>
                 </td>
                 <td>{{ formatDate(empleado.fechaIngreso) }}</td>
+                <td>
+                  <button
+                    class="btn-secondary action-btn"
+                    type="button"
+                    [disabled]="changingState()"
+                    (click)="onRequestEstadoChange(empleado)"
+                  >
+                    {{ isEstadoActivo(empleado.estado) ? 'Cambiar estado' : 'Activar' }}
+                  </button>
+                </td>
               </tr>
             </tbody>
           </table>
         </div>
       </article>
+
+      <app-confirm-dialog
+        [open]="showEstadoConfirmDialog()"
+        title="Confirmar cambio de estado"
+        [message]="estadoConfirmMessage()"
+        cancelLabel="Cancelar"
+        [confirmLabel]="changingState() ? 'Procesando...' : 'Confirmar'"
+        (cancel)="cancelEstadoChange()"
+        (confirm)="confirmEstadoChange()"
+      ></app-confirm-dialog>
     </section>
   `,
   styles: [
@@ -170,13 +196,28 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         border-color: rgba(17, 122, 59, 0.45);
         color: #137333;
       }
+
+      .action-btn {
+        padding: 0.35rem 0.55rem;
+        font-size: 0.76rem;
+      }
+
+      .success-message {
+        color: #137333;
+      }
     `,
   ]
 })
 export class PersonalListPageComponent implements OnInit {
   readonly loading = signal(true);
   readonly errorMessage = signal('');
+  readonly successMessage = signal('');
   readonly empleados = signal<EmpleadoListado[]>([]);
+  readonly showEstadoConfirmDialog = signal(false);
+  readonly changingState = signal(false);
+  readonly estadoConfirmMessage = signal('');
+
+  private empleadoPendingEstadoChange: EmpleadoListado | null = null;
 
   readonly filtersForm = this.formBuilder.nonNullable.group({
     rol: ['' as RolEmpleadoFiltro | ''],
@@ -194,6 +235,7 @@ export class PersonalListPageComponent implements OnInit {
   }
 
   applyFilters(): void {
+    this.successMessage.set('');
     this.loadEmpleados();
   }
 
@@ -203,7 +245,65 @@ export class PersonalListPageComponent implements OnInit {
       estado: '',
       nombre: '',
     });
+    this.successMessage.set('');
     this.loadEmpleados();
+  }
+
+  onRequestEstadoChange(empleado: EmpleadoListado): void {
+    const isActive = this.isEstadoActivo(empleado.estado);
+    this.empleadoPendingEstadoChange = empleado;
+
+    this.estadoConfirmMessage.set(
+      isActive
+        ? `¿Estás seguro de deshabilitar a ${empleado.nombre}? No podrá acceder al sistema`
+        : `¿Estás seguro de activar a ${empleado.nombre}? Recuperará el acceso al sistema con sus permisos anteriores`
+    );
+    this.showEstadoConfirmDialog.set(true);
+  }
+
+  cancelEstadoChange(): void {
+    if (this.changingState()) {
+      return;
+    }
+
+    this.showEstadoConfirmDialog.set(false);
+    this.empleadoPendingEstadoChange = null;
+    this.estadoConfirmMessage.set('');
+  }
+
+  confirmEstadoChange(): void {
+    const empleado = this.empleadoPendingEstadoChange;
+    if (!empleado || this.changingState()) {
+      return;
+    }
+
+    this.changingState.set(true);
+    this.errorMessage.set('');
+    this.successMessage.set('');
+
+    const nextEstado: EstadoEmpleadoFiltro = this.isEstadoActivo(empleado.estado) ? 'INACTIVO' : 'ACTIVO';
+
+    this.personalAdminService.cambiarEstadoEmpleado(empleado.empleadoId, nextEstado).subscribe({
+      next: (message) => {
+        this.changingState.set(false);
+        this.showEstadoConfirmDialog.set(false);
+        this.empleadoPendingEstadoChange = null;
+        this.estadoConfirmMessage.set('');
+
+        this.successMessage.set(message || (nextEstado === 'INACTIVO' ? 'Empleado deshabilitado correctamente' : 'Empleado habilitado correctamente'));
+        this.loadEmpleados();
+      },
+      error: (error: HttpErrorResponse) => {
+        const backendMessage =
+          (typeof error.error?.message === 'string' && error.error.message.trim().length > 0
+            ? error.error.message
+            : '') ||
+          (typeof error.error === 'string' && error.error.trim().length > 0 ? error.error : '');
+
+        this.changingState.set(false);
+        this.errorMessage.set(backendMessage || 'No fue posible cambiar el estado del empleado.');
+      },
+    });
   }
 
   showFirstTimeEmptyState(): boolean {

@@ -51,6 +51,14 @@ export interface EmpleadoListadoFiltros {
 export class PersonalAdminService {
   private readonly http = inject(HttpClient);
 
+  cambiarEstadoEmpleado(empleadoId: string, estado: EstadoEmpleadoFiltro): Observable<string> {
+    const params = new HttpParams().set('estado', estado);
+
+    return this.http
+      .patch<ApiEnvelope<string>>(API_PATHS.empleados.cambiarEstado(empleadoId), {}, { params })
+      .pipe(map((response) => response.data || response.message || 'Estado actualizado correctamente.'));
+  }
+
   listarEmpleados(filtros: EmpleadoListadoFiltros = {}): Observable<EmpleadoListado[]> {
     let params = new HttpParams();
 
