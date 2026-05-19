@@ -50,6 +50,11 @@ export const API_PATHS = {
         ventasAgrupadasMes: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/agrupadas/mes`,
         enviarRecordatorio: (clienteId: string | number) => `${API}/clientes/${clienteId}/ventas/recordatorio`,
     },
+    empleados: {
+        crear: `${API}/empleados`,
+        listar: `${API}/empleados`,
+        cambiarEstado: (empleadoId: string | number) => `${API}/empleados/${empleadoId}/estado`,
+    },
     mesas: {
         mapa: `${API}/mesas`,
         asignar: `${API}/mesas`,

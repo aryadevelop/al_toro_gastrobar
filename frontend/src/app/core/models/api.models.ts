@@ -418,6 +418,28 @@ export interface BackendVentaAgrupadaMesResponse {
   cantidad: number;
 }
 
+export interface BackendCrearEmpleadoRequest {
+  nombre: string;
+  correoElectronico: string;
+  telefono: string;
+  direccion?: string;
+  roles: string[];
+  fechaIngreso: string;
+  password: string;
+  passwordConfirmacion: string;
+}
+
+export interface BackendEmpleadoResponse {
+  empleadoId: number;
+  nombre: string;
+  correoElectronico: string;
+  telefono: string;
+  direccion?: string | null;
+  fechaIngreso: string;
+  roles: string[];
+  warning?: string | null;
+}
+
 /* ── Producción (cocina / barra) ── */
 
 export interface BackendComandaProduccionResumen {
