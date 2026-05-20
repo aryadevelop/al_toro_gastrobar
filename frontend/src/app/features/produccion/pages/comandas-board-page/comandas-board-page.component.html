@@ -6,6 +6,11 @@
     </button>
   </app-page-header>
 
+  <!-- Toast de retroalimentación -->
+  <div *ngIf="toastMessage" class="board-toast" [class.board-toast--error]="toastTone === 'error'">
+    {{ toastMessage }}
+  </div>
+
   <!-- Loading -->
   <div *ngIf="loading" class="board-loading">
     <div class="spinner"></div>

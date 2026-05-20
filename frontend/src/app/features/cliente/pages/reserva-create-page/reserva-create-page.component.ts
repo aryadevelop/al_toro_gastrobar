@@ -59,13 +59,40 @@ const MAX_QTY_PER_ITEM = 250;
 const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
 const DEFAULT_OPTION_IMAGE = 'https://picsum.photos/seed/altoro-option/360/220';
+// TESTING MODE — horas originales de producción:
+// const RESERVATION_HOURS = [
+//   { value: '17:00', label: '5:00 p.m.' },
+//   { value: '18:00', label: '6:00 p.m.' },
+//   { value: '19:00', label: '7:00 p.m.' },
+//   { value: '20:00', label: '8:00 p.m.' },
+//   { value: '21:00', label: '9:00 p.m.' },
+//   { value: '22:00', label: '10:00 p.m.' },
+// ] as const;
 const RESERVATION_HOURS = [
+  { value: '00:00', label: '12:00 a.m.' },
+  { value: '01:00', label: '1:00 a.m.' },
+  { value: '02:00', label: '2:00 a.m.' },
+  { value: '03:00', label: '3:00 a.m.' },
+  { value: '04:00', label: '4:00 a.m.' },
+  { value: '05:00', label: '5:00 a.m.' },
+  { value: '06:00', label: '6:00 a.m.' },
+  { value: '07:00', label: '7:00 a.m.' },
+  { value: '08:00', label: '8:00 a.m.' },
+  { value: '09:00', label: '9:00 a.m.' },
+  { value: '10:00', label: '10:00 a.m.' },
+  { value: '11:00', label: '11:00 a.m.' },
+  { value: '12:00', label: '12:00 p.m.' },
+  { value: '13:00', label: '1:00 p.m.' },
+  { value: '14:00', label: '2:00 p.m.' },
+  { value: '15:00', label: '3:00 p.m.' },
+  { value: '16:00', label: '4:00 p.m.' },
   { value: '17:00', label: '5:00 p.m.' },
   { value: '18:00', label: '6:00 p.m.' },
   { value: '19:00', label: '7:00 p.m.' },
   { value: '20:00', label: '8:00 p.m.' },
   { value: '21:00', label: '9:00 p.m.' },
   { value: '22:00', label: '10:00 p.m.' },
+  { value: '23:00', label: '11:00 p.m.' },
 ] as const;
 
 const DECORATION_OPTIONS: DecorationOption[] = [];
@@ -1421,22 +1448,18 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   }
 
   showSameDayCutoffError(): boolean {
-    const dateStr = this.reservaForm.controls.date.value;
-    if (!dateStr) {
-      return false;
-    }
-
-    const selectedDate = new Date(`${dateStr}T00:00:00`);
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-
-    if (selectedDate.getTime() === today.getTime()) {
-      const now = new Date();
-      if (now.getHours() >= 16) {
-        return true;
-      }
-    }
-
+    // TESTING MODE: restricción de cutoff del mismo día deshabilitada.
+    // Para restaurar en producción, descomentar el bloque de abajo:
+    //
+    // const dateStr = this.reservaForm.controls.date.value;
+    // if (!dateStr) { return false; }
+    // const selectedDate = new Date(`${dateStr}T00:00:00`);
+    // const today = new Date();
+    // today.setHours(0, 0, 0, 0);
+    // if (selectedDate.getTime() === today.getTime()) {
+    //   const now = new Date();
+    //   if (now.getHours() >= 16) { return true; }
+    // }
     return false;
   }
 
@@ -1879,12 +1902,15 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     return true;
   }
 
-  private isWithinReservationHours(time: string): boolean {
-    const [hours, minutes] = time.split(':').map(Number);
-    const totalMinutes = hours * 60 + minutes;
-    const start = 17 * 60;
-    const end = 22 * 60;
-    return totalMinutes >= start && totalMinutes <= end;
+  private isWithinReservationHours(_time: string): boolean {
+    // TESTING MODE: sin restricción de horario.
+    // Para restaurar en producción, reemplazar con:
+    // const [hours, minutes] = _time.split(':').map(Number);
+    // const totalMinutes = hours * 60 + minutes;
+    // const start = 17 * 60;
+    // const end = 22 * 60;
+    // return totalMinutes >= start && totalMinutes <= end;
+    return true;
   }
 
   private isDateTimeInPast(date: string, time: string): boolean {

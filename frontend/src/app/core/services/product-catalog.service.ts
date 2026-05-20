@@ -2,7 +2,7 @@ import { HttpClient } from '@angular/common/http';
 import { inject, Injectable } from '@angular/core';
 import { map, Observable } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
-import { ApiEnvelope, BackendCategoriaCarta, BackendMenuEspecial } from '../models/api.models';
+import { ApiEnvelope, BackendCategoriaCarta, BackendMenuEspecial, BackendProductoBusqueda } from '../models/api.models';
 
 export interface CartaCatalogItem {
   productId: string;
@@ -45,6 +45,27 @@ export class ProductCatalogService {
               }))
             )
             .sort((a, b) => a.productName.localeCompare(b.productName, 'es'))
+        )
+      );
+  }
+
+  /**
+   * Busca productos por nombre parcial usando el endpoint /api/productos/buscar.
+   * Accesible para cualquier usuario autenticado (incluye MESERO).
+   */
+  buscarProductos(query: string): Observable<CartaCatalogItem[]> {
+    const params = { q: query };
+    return this.http
+      .get<ApiEnvelope<BackendProductoBusqueda[]>>(API_PATHS.productos.buscar, { params })
+      .pipe(
+        map((response) =>
+          response.data.map((product) => ({
+            productId: String(product.productoId),
+            productName: product.productoNombre,
+            category: product.productoCategoria === 'BEBIDA' ? 'Bebidas' : 'Platos' as 'Platos' | 'Bebidas',
+            description: '',
+            unitPrice: Number(product.productoPrecio),
+          }))
         )
       );
   }
