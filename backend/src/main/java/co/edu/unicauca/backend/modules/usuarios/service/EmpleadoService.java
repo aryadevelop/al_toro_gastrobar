@@ -2,7 +2,6 @@ package co.edu.unicauca.backend.modules.usuarios.service;
 
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRepository;
-import co.edu.unicauca.backend.modules.auth.entity.Sesion;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
 import co.edu.unicauca.backend.modules.usuarios.dto.request.CrearEmpleadoRequest;

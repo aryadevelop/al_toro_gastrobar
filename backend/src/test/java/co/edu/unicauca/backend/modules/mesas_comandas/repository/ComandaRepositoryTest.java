@@ -473,4 +473,33 @@ class ComandaRepositoryTest {
             assertThat(result).hasSize(1);
         }
     }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // findByIdForUpdate
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("findByIdForUpdate")
+    class FindByIdForUpdateTests {
+
+        @Test
+        @DisplayName("devuelve comanda para id existente")
+        void devuelveComanda() {
+            Comanda c = em.persistAndFlush(Comanda.builder()
+                    .visita(visita)
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            Optional<Comanda> resultado = repo.findByIdForUpdate(c.getComandaId());
+
+            assertThat(resultado).isPresent();
+            assertThat(resultado.get().getComandaId()).isEqualTo(c.getComandaId());
+        }
+
+        @Test
+        @DisplayName("devuelve vacío para id inexistente")
+        void idInexistente() {
+            assertThat(repo.findByIdForUpdate(Long.MAX_VALUE)).isEmpty();
+        }
+    }
 }

@@ -168,4 +168,50 @@ public interface ComandaItemRepository extends JpaRepository<ComandaItem, Long> 
               co.edu.unicauca.backend.shared.enums.EstadoComanda.PENDIENTE)
     """)
     java.math.BigDecimal sumCantidadInsumoComprometida(@Param("insumoId") Long insumoId);
+
+    /**
+     * Calcula la cantidad comprometida de un producto específico agrupada por comanda.
+     *
+     * <p>Útil para aplicar la lógica FIFO de notificación: permite determinar cuántas
+     * unidades de un producto necesita cada comanda PENDIENTE y compararlas con el
+     * stock disponible tras un egreso manual.
+     *
+     * @param comandaIds  identificadores de las comandas a evaluar
+     * @param productoId  producto cuya demanda se suma
+     * @return tuplas {@code [comandaId, totalCantidad]} (Long, Long)
+     */
+    @Query("""
+        SELECT ci.comanda.comandaId, SUM(ci.comandaItemCantidad)
+        FROM ComandaItem ci
+        WHERE ci.comanda.comandaId IN :comandaIds
+        AND ci.producto.productoId = :productoId
+        AND ci.comandaItemMenuGrupo IS NULL
+        GROUP BY ci.comanda.comandaId
+        """)
+    List<Object[]> sumCantidadProductoByComandaIds(
+            @Param("comandaIds") List<Long> comandaIds,
+            @Param("productoId") Long productoId);
+
+    /**
+     * Calcula la demanda de un insumo agrupada por comanda, multiplicando
+     * {@code recetaCantidad × comandaItemCantidad}.
+     *
+     * <p>Permite el filtro FIFO para insumos: determina cuánto de un insumo necesita
+     * cada comanda PENDIENTE y compara con el stock disponible.
+     *
+     * @param comandaIds identificadores de las comandas a evaluar
+     * @param insumoId   insumo cuya demanda se calcula
+     * @return tuplas {@code [comandaId, demandaTotal]} (Long, BigDecimal)
+     */
+    @Query("""
+        SELECT ci.comanda.comandaId, COALESCE(SUM(r.recetaCantidad * ci.comandaItemCantidad), 0)
+        FROM ComandaItem ci
+        JOIN Receta r ON r.productoId = ci.producto.productoId AND r.insumoId = :insumoId
+        WHERE ci.comanda.comandaId IN :comandaIds
+        AND ci.comandaItemMenuGrupo IS NULL
+        GROUP BY ci.comanda.comandaId
+        """)
+    List<Object[]> sumDemandaInsumoByComandaIds(
+            @Param("comandaIds") List<Long> comandaIds,
+            @Param("insumoId") Long insumoId);
 }

@@ -202,6 +202,7 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
             WHERE ci.producto.productoId = :productoId
             AND ci.comandaItemMenuGrupo IS NULL
         )
+        ORDER BY c.createdAt ASC
         """)
     List<Comanda> findPendientesByProductoId(@Param("productoId") Long productoId);
 
@@ -212,7 +213,7 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * determinaron previamente por receta).
      *
      * @param productoIds identificadores de producto
-     * @return comandas afectadas con la visita hidratada
+     * @return comandas afectadas con la visita hidratada, ordenadas por createdAt ASC (FIFO)
      */
     @Query("""
         SELECT DISTINCT c FROM Comanda c
@@ -223,6 +224,19 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
             WHERE ci.producto.productoId IN :productoIds
             AND ci.comandaItemMenuGrupo IS NULL
         )
+        ORDER BY c.createdAt ASC
         """)
     List<Comanda> findPendientesByProductoIds(@Param("productoIds") List<Long> productoIds);
+
+    /**
+     * Adquiere un bloqueo de escritura pesimista sobre la fila de la comanda indicada.
+     * Usar antes de chequeos de estado o de creación de notificaciones para serializar
+     * acceso concurrente a la misma comanda.
+     *
+     * @param id identificador de la comanda
+     * @return comanda bloqueada, o {@link Optional#empty()} si no existe
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT c FROM Comanda c WHERE c.comandaId = :id")
+    Optional<Comanda> findByIdForUpdate(@Param("id") Long id);
 }

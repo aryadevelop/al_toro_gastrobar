@@ -12,6 +12,7 @@ import co.edu.unicauca.backend.modules.inventario.repository.MovimientoInventari
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.RecetaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
@@ -39,7 +40,9 @@ import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 /**
  * Servicio de negocio para el ajuste manual de inventario.
@@ -59,6 +62,7 @@ public class MovimientoInventarioService {
     private final RecetaRepository recetaRepository;
     private final MovimientoInventarioRepository movimientoRepository;
     private final ComandaRepository comandaRepository;
+    private final ComandaItemRepository comandaItemRepository;
     private final MesaRepository mesaRepository;
     private final NotificacionRepository notificacionRepository;
     private final EmpleadoRepository empleadoRepository;
@@ -68,7 +72,7 @@ public class MovimientoInventarioService {
     private final InventarioWsPublisher inventarioWsPublisher;
 
     /**
-     * Busca productos e insumos activos cuyo nombre coincida parcialmente con el
+     * Busca productos de venta directa o insumos activos cuyo nombre coincida parcialmente con el
      * texto indicado, para poblar el buscador del formulario de ajuste manual.
      *
      * @param q fragmento de nombre a buscar
@@ -78,9 +82,9 @@ public class MovimientoInventarioService {
     public List<ItemAjusteInventarioResponse> buscarItemsAjuste(String q) {
         List<ItemAjusteInventarioResponse> resultado = new ArrayList<>();
 
-        productoRepository.buscarParaAjuste(q, EstadoGenerico.ACTIVO)
+        productoRepository.buscarParaAjuste(q, EstadoGenerico.ACTIVO.name())
                 .forEach(p -> resultado.add(mapper.toItemAjusteResponse(p)));
-        insumoRepository.buscarPorNombreActivo(q, EstadoGenerico.ACTIVO)
+        insumoRepository.buscarPorNombreActivo(q, EstadoGenerico.ACTIVO.name())
                 .forEach(i -> resultado.add(mapper.toItemAjusteResponse(i)));
 
         // Orden alfabético unificado sobre productos e insumos
@@ -136,20 +140,22 @@ public class MovimientoInventarioService {
 
         // Ajusta stock e identifica comandas afectadas según tipo de ítem
         if (tieneProducto) {
-            Producto producto = productoRepository.findById(request.getProductoId())
+            // Lock pesimista para serializar egresos concurrentes del mismo producto
+            Producto producto = productoRepository.findByIdForUpdate(request.getProductoId())
                     .orElseThrow(() -> new ResourceNotFoundException("Producto", request.getProductoId()));
             nuevoStock = ajustarStockProducto(producto, request.getCantidad(), request.getTipo());
             notificadas = request.getTipo() == TipoMovimiento.EGRESO
-                    ? notificarComandasAfectadasPorProducto(producto.getProductoId())
+                    ? notificarComandasAfectadasPorProducto(producto.getProductoId(), nuevoStock)
                     : 0;
             movimiento.producto(producto);
             publicarStockActualizado(producto.getProductoId(), null, nuevoStock);
         } else {
-            Insumo insumo = insumoRepository.findById(request.getInsumoId())
+            // Lock pesimista para serializar egresos concurrentes del mismo insumo
+            Insumo insumo = insumoRepository.findByIdForUpdate(request.getInsumoId())
                     .orElseThrow(() -> new ResourceNotFoundException("Insumo", request.getInsumoId()));
             nuevoStock = ajustarStockInsumo(insumo, request.getCantidad(), request.getTipo());
             notificadas = request.getTipo() == TipoMovimiento.EGRESO
-                    ? notificarComandasAfectadasPorInsumo(insumo.getInsumoId())
+                    ? notificarComandasAfectadasPorInsumo(insumo.getInsumoId(), nuevoStock)
                     : 0;
             movimiento.insumo(insumo);
             publicarStockActualizado(null, insumo.getInsumoId(), nuevoStock);
@@ -165,7 +171,11 @@ public class MovimientoInventarioService {
     }
 
     private BigDecimal ajustarStockProducto(Producto producto, BigDecimal cantidad, TipoMovimiento tipo) {
-        BigDecimal actual = producto.getStockActual() != null ? producto.getStockActual() : BigDecimal.ZERO;
+        BigDecimal actual = producto.getStockActual();
+        if (actual == null) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "No se puede modificar el stock de una preparación. Modifica los insumos", HttpStatus.CONFLICT);
+        }
         if (tipo == TipoMovimiento.EGRESO && actual.compareTo(cantidad) < 0) {
             throw new BusinessException(ErrorCode.BUSINESS_ERROR,
                     "Stock insuficiente. Stock actual: " + actual + " UNIDAD.", HttpStatus.CONFLICT);
@@ -189,17 +199,67 @@ public class MovimientoInventarioService {
         return nuevo;
     }
 
-    private int notificarComandasAfectadasPorProducto(Long productoId) {
-        return contarNotificadas(comandaRepository.findPendientesByProductoId(productoId));
+    private int notificarComandasAfectadasPorProducto(Long productoId, BigDecimal nuevoStock) {
+        List<Comanda> ordenadas = comandaRepository.findPendientesByProductoId(productoId);
+        if (ordenadas.isEmpty()) {
+            return 0;
+        }
+        List<Long> ids = ordenadas.stream().map(Comanda::getComandaId).toList();
+        Map<Long, BigDecimal> demanda = toDemandaProductoMap(
+                comandaItemRepository.sumCantidadProductoByComandaIds(ids, productoId));
+        return contarNotificadas(filtrarFifo(ordenadas, demanda, nuevoStock));
     }
 
-    private int notificarComandasAfectadasPorInsumo(Long insumoId) {
+    private int notificarComandasAfectadasPorInsumo(Long insumoId, BigDecimal nuevoStock) {
         // Productos de preparación cuya receta usa este insumo
         List<Long> productoIds = recetaRepository.findProductoIdsByInsumoId(insumoId);
         if (productoIds.isEmpty()) {
             return 0;
         }
-        return contarNotificadas(comandaRepository.findPendientesByProductoIds(productoIds));
+        List<Comanda> ordenadas = comandaRepository.findPendientesByProductoIds(productoIds);
+        if (ordenadas.isEmpty()) {
+            return 0;
+        }
+        List<Long> ids = ordenadas.stream().map(Comanda::getComandaId).toList();
+        Map<Long, BigDecimal> demanda = toDemandaInsumoMap(
+                comandaItemRepository.sumDemandaInsumoByComandaIds(ids, insumoId));
+        return contarNotificadas(filtrarFifo(ordenadas, demanda, nuevoStock));
+    }
+
+    /**
+     * Filtra las comandas que no pueden ser cubiertas con el stock disponible tras el egreso,
+     * respetando el orden FIFO ({@code createdAt ASC}). Las comandas más antiguas tienen prioridad.
+     */
+    private List<Comanda> filtrarFifo(List<Comanda> ordenadas, Map<Long, BigDecimal> demanda,
+                                      BigDecimal stockRestante) {
+        List<Comanda> afectadas = new ArrayList<>();
+        BigDecimal disponible = stockRestante;
+        for (Comanda comanda : ordenadas) {
+            BigDecimal necesario = demanda.getOrDefault(comanda.getComandaId(), BigDecimal.ZERO);
+            if (disponible.compareTo(necesario) >= 0) {
+                // Esta comanda queda cubierta; reducir el disponible para las siguientes
+                disponible = disponible.subtract(necesario);
+            } else {
+                afectadas.add(comanda);
+            }
+        }
+        return afectadas;
+    }
+
+    private Map<Long, BigDecimal> toDemandaProductoMap(List<Object[]> rows) {
+        Map<Long, BigDecimal> map = new HashMap<>();
+        for (Object[] row : rows) {
+            map.put(((Number) row[0]).longValue(), BigDecimal.valueOf(((Number) row[1]).longValue()));
+        }
+        return map;
+    }
+
+    private Map<Long, BigDecimal> toDemandaInsumoMap(List<Object[]> rows) {
+        Map<Long, BigDecimal> map = new HashMap<>();
+        for (Object[] row : rows) {
+            map.put(((Number) row[0]).longValue(), (BigDecimal) row[1]);
+        }
+        return map;
     }
 
     private int contarNotificadas(List<Comanda> comandas) {
@@ -219,6 +279,9 @@ public class MovimientoInventarioService {
      * @return {@code true} si se creó una notificación nueva
      */
     private boolean crearNotificacionCambioSiNoExiste(Comanda comanda) {
+        // Lock pesimista sobre la comanda para serializar check-create concurrentes
+        comandaRepository.findByIdForUpdate(comanda.getComandaId());
+
         // No se puede crear una segunda notificación de cambio mientras haya una ACTIVA
         boolean existe = notificacionRepository
                 .findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(

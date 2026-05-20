@@ -16,6 +16,7 @@ import co.edu.unicauca.backend.shared.enums.TipoMovimiento;
 import co.edu.unicauca.backend.shared.enums.TipoProducto;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
@@ -85,7 +86,11 @@ public class InventarioDescuentoService {
         }
     }
 
-    private void descontarVentaDirecta(Producto producto, int cantidad, Empleado actor) {
+    private void descontarVentaDirecta(Producto productoRef, int cantidad, Empleado actor) {
+        // Adquirir lock pesimista sobre la fila para serializar egresos concurrentes
+        Producto producto = productoRepository.findByIdForUpdate(productoRef.getProductoId())
+                .orElseThrow(() -> new ResourceNotFoundException("Producto", productoRef.getProductoId()));
+
         // Cuando el catálogo no gestiona stock para el producto el descuento se omite silenciosamente
         if (producto.getStockActual() == null) {
             return;
@@ -119,10 +124,10 @@ public class InventarioDescuentoService {
         List<Receta> recetas = recetaRepository.findByProductoIdFetchInsumo(producto.getProductoId());
         BigDecimal cantidadDecimal = BigDecimal.valueOf(cantidad);
 
-        // Para cada insumo de la receta
         for (Receta receta : recetas) {
-
-            Insumo insumo = receta.getInsumo();
+            // Adquirir lock pesimista sobre la fila del insumo para serializar descuentos concurrentes
+            Insumo insumo = insumoRepository.findByIdForUpdate(receta.getInsumoId())
+                    .orElseThrow(() -> new ResourceNotFoundException("Insumo", receta.getInsumoId()));
 
             // Calcular el stock requerido multiplicando la cantidad de insumo por la cantidad del producto
             BigDecimal requerido = receta.getRecetaCantidad().multiply(cantidadDecimal);

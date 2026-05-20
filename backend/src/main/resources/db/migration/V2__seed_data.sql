@@ -386,8 +386,8 @@ INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, produ
 (26, 'Corona',          'ACTIVO', 10000, 'VENTA_DIRECTA', 'BEBIDA', 24),
 (26, 'Coronita',        'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 36),
 (26, 'Stella Artois',   'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 18),
-(26, 'Águila Light',    'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
-(26, 'Águila Original', 'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
+(26, 'Aguila Light',    'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
+(26, 'Aguila Original', 'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
 (26, 'Club Colombia',   'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 30),
 (26, 'Smirnoff',        'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 20);
 

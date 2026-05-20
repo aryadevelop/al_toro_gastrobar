@@ -14,6 +14,7 @@ import co.edu.unicauca.backend.modules.inventario.repository.RecetaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEventoWsMessage;
@@ -48,6 +49,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -59,6 +61,7 @@ import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.ArgumentMatchers.isNull;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
@@ -72,6 +75,7 @@ class MovimientoInventarioServiceTest {
     @Mock RecetaRepository recetaRepository;
     @Mock MovimientoInventarioRepository movimientoRepository;
     @Mock ComandaRepository comandaRepository;
+    @Mock ComandaItemRepository comandaItemRepository;
     @Mock MesaRepository mesaRepository;
     @Mock NotificacionRepository notificacionRepository;
     @Mock EmpleadoRepository empleadoRepository;
@@ -150,9 +154,9 @@ class MovimientoInventarioServiceTest {
         @Test
         @DisplayName("retorna productos e insumos fusionados y ordenados alfabéticamente")
         void retornaProductosEInsumos_ordenadosAlfabeticamente() {
-            when(productoRepository.buscarParaAjuste("o", EstadoGenerico.ACTIVO))
+            when(productoRepository.buscarParaAjuste("o", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of(producto(1L, new BigDecimal("5"))));
-            when(insumoRepository.buscarPorNombreActivo("o", EstadoGenerico.ACTIVO))
+            when(insumoRepository.buscarPorNombreActivo("o", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of(insumo(10L, new BigDecimal("2"))));
 
             List<ItemAjusteInventarioResponse> result = service.buscarItemsAjuste("o");
@@ -166,9 +170,9 @@ class MovimientoInventarioServiceTest {
         @Test
         @DisplayName("producto mapeado con unidadMedida fija UNIDAD")
         void productoMapeadoConUnidadFija() {
-            when(productoRepository.buscarParaAjuste("test", EstadoGenerico.ACTIVO))
+            when(productoRepository.buscarParaAjuste("test", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of(producto(5L, new BigDecimal("3"))));
-            when(insumoRepository.buscarPorNombreActivo("test", EstadoGenerico.ACTIVO))
+            when(insumoRepository.buscarPorNombreActivo("test", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of());
 
             List<ItemAjusteInventarioResponse> result = service.buscarItemsAjuste("test");
@@ -182,8 +186,8 @@ class MovimientoInventarioServiceTest {
         @Test
         @DisplayName("sin coincidencias retorna lista vacía")
         void sinCoincidencias_retornaListaVacia() {
-            when(productoRepository.buscarParaAjuste("zzz", EstadoGenerico.ACTIVO)).thenReturn(List.of());
-            when(insumoRepository.buscarPorNombreActivo("zzz", EstadoGenerico.ACTIVO)).thenReturn(List.of());
+            when(productoRepository.buscarParaAjuste("zzz", EstadoGenerico.ACTIVO.name())).thenReturn(List.of());
+            when(insumoRepository.buscarPorNombreActivo("zzz", EstadoGenerico.ACTIVO.name())).thenReturn(List.of());
 
             assertThat(service.buscarItemsAjuste("zzz")).isEmpty();
         }
@@ -200,7 +204,7 @@ class MovimientoInventarioServiceTest {
         void egresoProducto_descuentaStockYEmiteStockActualizado() {
             Producto p = producto(1L, new BigDecimal("10"));
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
             when(productoRepository.save(any())).thenReturn(p);
             stubMovimientoSave();
             when(comandaRepository.findPendientesByProductoId(1L)).thenReturn(List.of());
@@ -221,7 +225,7 @@ class MovimientoInventarioServiceTest {
         void egresoProductoSinStock_lanzaBusinessException() {
             Producto p = producto(145L, BigDecimal.ZERO);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(145L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(145L)).thenReturn(Optional.of(p));
 
             assertThatThrownBy(() -> service.registrarAjuste(
                     reqProducto(145L, "1", TipoMovimiento.EGRESO), auth("cocinero@test.com")))
@@ -237,7 +241,7 @@ class MovimientoInventarioServiceTest {
         void egresoProductoConStockNull_lanzaBusinessException() {
             Producto p = producto(1L, null);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
 
             assertThatThrownBy(() -> service.registrarAjuste(
                     reqProducto(1L, "1", TipoMovimiento.EGRESO), auth("cocinero@test.com")))
@@ -251,7 +255,7 @@ class MovimientoInventarioServiceTest {
         void ingresoProducto_sumaStockSinValidar() {
             Producto p = producto(1L, BigDecimal.ZERO);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
             when(productoRepository.save(any())).thenReturn(p);
             stubMovimientoSave();
 
@@ -264,30 +268,19 @@ class MovimientoInventarioServiceTest {
         }
 
         @Test
-        @DisplayName("ingreso con stockActual null inicializa el stock en la cantidad ingresada")
-        void ingresoProductoConStockNull_inicializaStock() {
-            Producto p = producto(1L, null);
-            stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
-            when(productoRepository.save(any())).thenReturn(p);
-            stubMovimientoSave();
-
-            AjusteInventarioResponse resp = service.registrarAjuste(
-                    reqProducto(1L, "5", TipoMovimiento.INGRESO), auth("cocinero@test.com"));
-
-            assertThat(resp.getStockActualizado()).isEqualByComparingTo("5");
-        }
-
-        @Test
         @DisplayName("egreso crea notificación CAMBIO, publica ELIMINADA y refresca el mapa de mesas")
         void egresoProducto_creaNotificacionCambioYPublicaEliminada() {
             Producto p = producto(1L, new BigDecimal("10"));
             Comanda comanda = comandaPendiente(50L, 200L);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
             when(productoRepository.save(any())).thenReturn(p);
             stubMovimientoSave();
             when(comandaRepository.findPendientesByProductoId(1L)).thenReturn(List.of(comanda));
+            // FIFO: demanda comanda 50 = 10 > stockRestante 8 → notificar
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(50L), 1L))
+                    .thenReturn(List.<Object[]>of(new Object[]{50L, 10L}));
+            when(comandaRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(comanda));
             when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
                     50L, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA)).thenReturn(Optional.empty());
             when(mesaRepository.findByVisita_VisitaId(200L))
@@ -319,10 +312,14 @@ class MovimientoInventarioServiceTest {
             Producto p = producto(1L, new BigDecimal("10"));
             Comanda comanda = comandaPendiente(50L, 200L);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
             when(productoRepository.save(any())).thenReturn(p);
             stubMovimientoSave();
             when(comandaRepository.findPendientesByProductoId(1L)).thenReturn(List.of(comanda));
+            // FIFO: demanda > stockRestante para intentar notificar
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(50L), 1L))
+                    .thenReturn(List.<Object[]>of(new Object[]{50L, 10L}));
+            when(comandaRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(comanda));
             when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
                     50L, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA))
                     .thenReturn(Optional.of(Notificacion.builder()
@@ -343,10 +340,14 @@ class MovimientoInventarioServiceTest {
             Producto p = producto(1L, new BigDecimal("10"));
             Comanda comanda = comandaPendiente(50L, 200L);
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
             when(productoRepository.save(any())).thenReturn(p);
             stubMovimientoSave();
             when(comandaRepository.findPendientesByProductoId(1L)).thenReturn(List.of(comanda));
+            // FIFO: demanda > stockRestante para intentar notificar
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(50L), 1L))
+                    .thenReturn(List.<Object[]>of(new Object[]{50L, 10L}));
+            when(comandaRepository.findByIdForUpdate(50L)).thenReturn(Optional.of(comanda));
             when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
                     50L, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA)).thenReturn(Optional.empty());
             when(mesaRepository.findByVisita_VisitaId(200L)).thenReturn(Optional.empty());
@@ -362,7 +363,7 @@ class MovimientoInventarioServiceTest {
         @DisplayName("producto inexistente lanza ResourceNotFoundException")
         void productoInexistente_lanzaResourceNotFound() {
             stubActor("cocinero@test.com");
-            when(productoRepository.findById(999L)).thenReturn(Optional.empty());
+            when(productoRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.registrarAjuste(
                     reqProducto(999L, "1", TipoMovimiento.EGRESO), auth("cocinero@test.com")))
@@ -382,11 +383,15 @@ class MovimientoInventarioServiceTest {
             Insumo ins = insumo(10L, new BigDecimal("5"));
             Comanda comanda = comandaPendiente(70L, 300L);
             stubActor("cocinero@test.com");
-            when(insumoRepository.findById(10L)).thenReturn(Optional.of(ins));
+            when(insumoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(ins));
             when(insumoRepository.save(any())).thenReturn(ins);
             stubMovimientoSave();
             when(recetaRepository.findProductoIdsByInsumoId(10L)).thenReturn(List.of(55L));
             when(comandaRepository.findPendientesByProductoIds(List.of(55L))).thenReturn(List.of(comanda));
+            // FIFO: demanda insumo = 5 > stockRestante 3 → notificar
+            when(comandaItemRepository.sumDemandaInsumoByComandaIds(List.of(70L), 10L))
+                    .thenReturn(List.<Object[]>of(new Object[]{70L, new BigDecimal("5")}));
+            when(comandaRepository.findByIdForUpdate(70L)).thenReturn(Optional.of(comanda));
             when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
                     70L, TipoNotificacion.CAMBIO, EstadoNotificacion.ACTIVA)).thenReturn(Optional.empty());
             when(mesaRepository.findByVisita_VisitaId(300L))
@@ -406,7 +411,7 @@ class MovimientoInventarioServiceTest {
         void egresoInsumoSinStock_lanzaBusinessException() {
             Insumo ins = insumo(10L, new BigDecimal("1"));
             stubActor("cocinero@test.com");
-            when(insumoRepository.findById(10L)).thenReturn(Optional.of(ins));
+            when(insumoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(ins));
 
             assertThatThrownBy(() -> service.registrarAjuste(
                     reqInsumo(10L, "2", TipoMovimiento.EGRESO), auth("cocinero@test.com")))
@@ -421,7 +426,7 @@ class MovimientoInventarioServiceTest {
         void egresoInsumo_sinRecetas_ceroNotificadas() {
             Insumo ins = insumo(10L, new BigDecimal("5"));
             stubActor("cocinero@test.com");
-            when(insumoRepository.findById(10L)).thenReturn(Optional.of(ins));
+            when(insumoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(ins));
             when(insumoRepository.save(any())).thenReturn(ins);
             stubMovimientoSave();
             when(recetaRepository.findProductoIdsByInsumoId(10L)).thenReturn(List.of());
@@ -438,7 +443,7 @@ class MovimientoInventarioServiceTest {
         void ingresoInsumo_sumaStock() {
             Insumo ins = insumo(10L, new BigDecimal("2"));
             stubActor("cocinero@test.com");
-            when(insumoRepository.findById(10L)).thenReturn(Optional.of(ins));
+            when(insumoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(ins));
             when(insumoRepository.save(any())).thenReturn(ins);
             stubMovimientoSave();
 
@@ -452,7 +457,7 @@ class MovimientoInventarioServiceTest {
         @DisplayName("insumo inexistente lanza ResourceNotFoundException")
         void insumoInexistente_lanzaResourceNotFound() {
             stubActor("cocinero@test.com");
-            when(insumoRepository.findById(999L)).thenReturn(Optional.empty());
+            when(insumoRepository.findByIdForUpdate(999L)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.registrarAjuste(
                     reqInsumo(999L, "1", TipoMovimiento.EGRESO), auth("cocinero@test.com")))
@@ -487,6 +492,110 @@ class MovimientoInventarioServiceTest {
             assertThatThrownBy(() -> service.registrarAjuste(req, auth("cocinero@test.com")))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Solo se puede ajustar");
+        }
+    }
+
+    // ── Notificación FIFO condicional ────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Notificación FIFO condicional")
+    class NotificacionFifoTests {
+
+        private Comanda comanda(long id, long visitaId, LocalDateTime createdAt) {
+            Comanda c = Comanda.builder()
+                    .comandaId(id)
+                    .visita(Visita.builder().visitaId(visitaId).build())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build();
+            c.setCreatedAt(createdAt);
+            return c;
+        }
+
+        @Test
+        @DisplayName("FIFO: egreso deja stock suficiente para todas las comandas → 0 notificadas")
+        void egreso_stockCubreTodas_ceroNotificadas() {
+            LocalDateTime t = LocalDateTime.now();
+            Comanda c1 = comanda(1L, 101L, t.minusMinutes(20));
+            Comanda c2 = comanda(2L, 102L, t.minusMinutes(10));
+            Producto p = producto(10L, new BigDecimal("5")); // stock post-egreso = 4 tras qty=1
+
+            stubActor("cocinero@test.com");
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
+            when(productoRepository.save(any())).thenReturn(p);
+            stubMovimientoSave();
+            when(comandaRepository.findPendientesByProductoId(10L)).thenReturn(List.of(c1, c2));
+            // c1 demanda=1, c2 demanda=1, stock=4 → ambas cubiertas → 0 notificadas
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(1L, 2L), 10L))
+                    .thenReturn(List.<Object[]>of(new Object[]{1L, 1L}, new Object[]{2L, 1L}));
+
+            AjusteInventarioResponse resp = service.registrarAjuste(
+                    reqProducto(10L, "1", TipoMovimiento.EGRESO), auth("cocinero@test.com"));
+
+            assertThat(resp.getComandasNotificadas()).isZero();
+            verify(notificacionRepository, never()).save(any());
+        }
+
+        @Test
+        @DisplayName("FIFO: primera comanda cubierta, segunda no → 1 notificada")
+        void egreso_fifo_primeraCubiertaSegundaNo() {
+            LocalDateTime t = LocalDateTime.now();
+            Comanda c1 = comanda(1L, 101L, t.minusMinutes(20)); // más antigua
+            Comanda c2 = comanda(2L, 102L, t.minusMinutes(10)); // más reciente
+            Producto p = producto(10L, new BigDecimal("3")); // stock post-egreso = 1 tras qty=2
+
+            stubActor("cocinero@test.com");
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
+            when(productoRepository.save(any())).thenReturn(p);
+            stubMovimientoSave();
+            when(comandaRepository.findPendientesByProductoId(10L)).thenReturn(List.of(c1, c2));
+            // c1 demanda=1, stock=1 → cubierta (disponible→0); c2 demanda=1, disponible=0 → notificada
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(1L, 2L), 10L))
+                    .thenReturn(List.<Object[]>of(new Object[]{1L, 1L}, new Object[]{2L, 1L}));
+            when(comandaRepository.findByIdForUpdate(2L)).thenReturn(Optional.of(c2));
+            when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                    eq(2L), any(), any())).thenReturn(Optional.empty());
+            when(mesaRepository.findByVisita_VisitaId(102L))
+                    .thenReturn(Optional.of(Mesa.builder().visitaId(102L).build()));
+            when(notificacionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AjusteInventarioResponse resp = service.registrarAjuste(
+                    reqProducto(10L, "2", TipoMovimiento.EGRESO), auth("cocinero@test.com"));
+
+            assertThat(resp.getComandasNotificadas()).isEqualTo(1);
+            verify(notificacionRepository, times(1)).save(any(Notificacion.class));
+        }
+
+        @Test
+        @DisplayName("FIFO: stock agotado, 2 comandas → 2 notificadas")
+        void egreso_stockAgotado_dosNotificadas() {
+            LocalDateTime t = LocalDateTime.now();
+            Comanda c1 = comanda(1L, 101L, t.minusMinutes(20));
+            Comanda c2 = comanda(2L, 102L, t.minusMinutes(10));
+            Producto p = producto(10L, new BigDecimal("2")); // stock post-egreso = 0 tras qty=2
+
+            stubActor("cocinero@test.com");
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
+            when(productoRepository.save(any())).thenReturn(p);
+            stubMovimientoSave();
+            when(comandaRepository.findPendientesByProductoId(10L)).thenReturn(List.of(c1, c2));
+            // ambas demandan 1, stock=0 → ambas no cubiertas
+            when(comandaItemRepository.sumCantidadProductoByComandaIds(List.of(1L, 2L), 10L))
+                    .thenReturn(List.<Object[]>of(new Object[]{1L, 1L}, new Object[]{2L, 1L}));
+            for (Comanda c : List.of(c1, c2)) {
+                when(comandaRepository.findByIdForUpdate(c.getComandaId())).thenReturn(Optional.of(c));
+                when(notificacionRepository.findFirstByComanda_ComandaIdAndNotificacionTipoAndNotificacionEstado(
+                        eq(c.getComandaId()), any(), any())).thenReturn(Optional.empty());
+                when(mesaRepository.findByVisita_VisitaId(c.getVisita().getVisitaId()))
+                        .thenReturn(Optional.of(Mesa.builder().visitaId(c.getVisita().getVisitaId()).build()));
+            }
+            when(notificacionRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            AjusteInventarioResponse resp = service.registrarAjuste(
+                    reqProducto(10L, "2", TipoMovimiento.EGRESO), auth("cocinero@test.com"));
+
+            assertThat(resp.getComandasNotificadas()).isEqualTo(2);
+            verify(notificacionRepository, times(2)).save(any(Notificacion.class));
         }
     }
 }

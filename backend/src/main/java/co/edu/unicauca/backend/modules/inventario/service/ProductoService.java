@@ -120,7 +120,7 @@ public class ProductoService {
         if (q == null || q.isBlank()) {
             return List.of();
         }
-        return productoRepository.buscarPorNombreSinMenu(q.trim(), EstadoGenerico.ACTIVO)
+        return productoRepository.buscarPorNombreSinMenu(q.trim(), EstadoGenerico.ACTIVO.name())
                 .stream()
                 .map(productoMapper::toBusquedaResponse)
                 .collect(Collectors.toList());

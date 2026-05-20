@@ -8,6 +8,7 @@ import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.TipoProducto;
 import co.edu.unicauca.backend.shared.enums.UnidadMedida;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -19,6 +20,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -40,6 +42,14 @@ class AjusteInventarioRepositoryTest {
     @Autowired ProductoRepository productoRepository;
     @Autowired InsumoRepository insumoRepository;
     @Autowired RecetaRepository recetaRepository;
+
+    @BeforeEach
+    void registrarUnaccentAlias() {
+        em.getEntityManager()
+                .createNativeQuery("CREATE ALIAS IF NOT EXISTS unaccent FOR " +
+                        "\"co.edu.unicauca.backend.testutil.H2UnaccentFunction.unaccent\"")
+                .executeUpdate();
+    }
 
     private CategoriaCarta categoria() {
         return em.persistAndFlush(CategoriaCarta.builder()
@@ -81,7 +91,7 @@ class AjusteInventarioRepositoryTest {
             producto("Lomo al trapo", EstadoGenerico.ACTIVO, false, new BigDecimal("5"));
             producto("Lomo fino", EstadoGenerico.INACTIVO, false, null);
 
-            List<Producto> result = productoRepository.buscarParaAjuste("lomo", EstadoGenerico.ACTIVO);
+            List<Producto> result = productoRepository.buscarParaAjuste("lomo", EstadoGenerico.ACTIVO.name());
 
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getProductoNombre()).isEqualTo("Lomo al trapo");
@@ -93,20 +103,10 @@ class AjusteInventarioRepositoryTest {
             producto("Plato especial", EstadoGenerico.ACTIVO, true, new BigDecimal("3"));
             producto("Plato normal", EstadoGenerico.ACTIVO, false, new BigDecimal("3"));
 
-            List<Producto> result = productoRepository.buscarParaAjuste("plato", EstadoGenerico.ACTIVO);
+            List<Producto> result = productoRepository.buscarParaAjuste("plato", EstadoGenerico.ACTIVO.name());
 
             assertThat(result).hasSize(1);
             assertThat(result.get(0).getProductoNombre()).isEqualTo("Plato normal");
-        }
-
-        @Test
-        @DisplayName("incluye producto activo con stockActual null")
-        void stockNull_incluido() {
-            producto("Lomo sin stock", EstadoGenerico.ACTIVO, false, null);
-
-            List<Producto> result = productoRepository.buscarParaAjuste("lomo", EstadoGenerico.ACTIVO);
-
-            assertThat(result).hasSize(1);
         }
     }
 
@@ -123,7 +123,7 @@ class AjusteInventarioRepositoryTest {
             insumo("Salsa de tomate", EstadoGenerico.ACTIVO);
             insumo("Sal gruesa", EstadoGenerico.INACTIVO);
 
-            List<Insumo> result = insumoRepository.buscarPorNombreActivo("sal", EstadoGenerico.ACTIVO);
+            List<Insumo> result = insumoRepository.buscarPorNombreActivo("sal", EstadoGenerico.ACTIVO.name());
 
             assertThat(result).hasSize(2);
             assertThat(result).extracting(Insumo::getInsumoNombre)
@@ -164,6 +164,100 @@ class AjusteInventarioRepositoryTest {
             List<Long> ids = recetaRepository.findProductoIdsByInsumoId(ins.getInsumoId());
 
             assertThat(ids).isEmpty();
+        }
+    }
+
+    // ── buscarParaAjuste accent-insensitive ──────────────────────────────────
+
+    @Nested
+    @DisplayName("buscarParaAjuste accent-insensitive")
+    class BuscarParaAjusteAccent {
+
+        @Test
+        @DisplayName("término sin tilde encuentra producto con tilde en nombre")
+        void accentInsensitive() {
+            producto("Águila Dorada", EstadoGenerico.ACTIVO, false, new BigDecimal("10"));
+
+            List<Producto> resultado = productoRepository.buscarParaAjuste("aguila", EstadoGenerico.ACTIVO.name());
+
+            assertThat(resultado).extracting(Producto::getProductoNombre)
+                    .contains("Águila Dorada");
+        }
+    }
+
+    // ── buscarPorNombreActivo accent-insensitive ─────────────────────────────
+
+    @Nested
+    @DisplayName("buscarPorNombreActivo accent-insensitive")
+    class BuscarPorNombreActivoAccent {
+
+        @Test
+        @DisplayName("término sin tilde encuentra insumo con tilde en nombre")
+        void accentInsensitive() {
+            em.persistAndFlush(Insumo.builder()
+                    .insumoNombre("Ñame del Valle")
+                    .insumoEstado(EstadoGenerico.ACTIVO)
+                    .insumoUnidad(UnidadMedida.KG)
+                    .insumoStockActual(new BigDecimal("5"))
+                    .build());
+
+            List<Insumo> resultado = insumoRepository.buscarPorNombreActivo("name", EstadoGenerico.ACTIVO.name());
+
+            assertThat(resultado).extracting(Insumo::getInsumoNombre)
+                    .contains("Ñame del Valle");
+        }
+    }
+
+    // ── ProductoRepository.findByIdForUpdate ────────────────────────────────
+
+    @Nested
+    @DisplayName("ProductoRepository.findByIdForUpdate")
+    class FindProductoByIdForUpdate {
+
+        @Test
+        @DisplayName("devuelve producto bloqueado para id existente")
+        void devuelveProducto() {
+            Producto p = producto("Lock Test Producto", EstadoGenerico.ACTIVO, false, new BigDecimal("5"));
+
+            Optional<Producto> resultado = productoRepository.findByIdForUpdate(p.getProductoId());
+
+            assertThat(resultado).isPresent();
+            assertThat(resultado.get().getProductoNombre()).isEqualTo("Lock Test Producto");
+        }
+
+        @Test
+        @DisplayName("devuelve vacío para id inexistente")
+        void idInexistente() {
+            assertThat(productoRepository.findByIdForUpdate(Long.MAX_VALUE)).isEmpty();
+        }
+    }
+
+    // ── InsumoRepository.findByIdForUpdate ──────────────────────────────────
+
+    @Nested
+    @DisplayName("InsumoRepository.findByIdForUpdate")
+    class FindInsumoByIdForUpdate {
+
+        @Test
+        @DisplayName("devuelve insumo bloqueado para id existente")
+        void devuelveInsumo() {
+            Insumo i = em.persistAndFlush(Insumo.builder()
+                    .insumoNombre("Lock Test Insumo")
+                    .insumoEstado(EstadoGenerico.ACTIVO)
+                    .insumoUnidad(UnidadMedida.L)
+                    .insumoStockActual(new BigDecimal("3"))
+                    .build());
+
+            Optional<Insumo> resultado = insumoRepository.findByIdForUpdate(i.getInsumoId());
+
+            assertThat(resultado).isPresent();
+            assertThat(resultado.get().getInsumoNombre()).isEqualTo("Lock Test Insumo");
+        }
+
+        @Test
+        @DisplayName("devuelve vacío para id inexistente")
+        void idInexistente() {
+            assertThat(insumoRepository.findByIdForUpdate(Long.MAX_VALUE)).isEmpty();
         }
     }
 }

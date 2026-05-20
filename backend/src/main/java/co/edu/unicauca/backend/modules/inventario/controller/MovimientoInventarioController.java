@@ -29,7 +29,7 @@ import lombok.RequiredArgsConstructor;
  *
  * <p>Provee el buscador de productos e insumos para el formulario de ajuste y el
  * registro de movimientos de ingreso o egreso. Accesible para los roles
- * {@code COCINERO}, {@code BARTENDER} y {@code ADMIN}.
+ * {@code PRODUCCION} y {@code ADMIN}.
  *
  * @see MovimientoInventarioService
  */
@@ -42,13 +42,13 @@ public class MovimientoInventarioController {
     private final MovimientoInventarioService movimientoService;
 
     /**
-     * Busca productos e insumos activos por nombre para el formulario de ajuste.
+     * Busca productos "venta_directa" e insumos activos por nombre para el formulario de ajuste.
      *
      * @param q fragmento de nombre a buscar
      * @return lista unificada de productos e insumos, ordenada alfabéticamente
      */
     @GetMapping("/buscar")
-    @PreAuthorize("hasAnyRole('COCINERO', 'BARTENDER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('PRODUCCION', 'ADMIN')")
     @Operation(summary = "Buscar productos e insumos para ajuste de inventario")
     public ResponseEntity<ApiResponse<List<ItemAjusteInventarioResponse>>> buscarItemsAjuste(
             @Parameter(description = "Fragmento de nombre a buscar")
@@ -64,7 +64,7 @@ public class MovimientoInventarioController {
      * @return identificador del movimiento, stock resultante y comandas notificadas
      */
     @PostMapping("/movimientos")
-    @PreAuthorize("hasAnyRole('COCINERO', 'BARTENDER', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('PRODUCCION', 'ADMIN')")
     @Operation(summary = "Registrar ajuste manual de inventario")
     public ResponseEntity<ApiResponse<AjusteInventarioResponse>> registrarAjuste(
             @Valid @RequestBody AjusteInventarioRequest request,

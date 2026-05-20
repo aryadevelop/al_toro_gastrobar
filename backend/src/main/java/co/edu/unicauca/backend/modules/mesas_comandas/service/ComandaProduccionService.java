@@ -206,7 +206,8 @@ public class ComandaProduccionService {
         // Resuelve estaciones antes de cargar la comanda para evitar revelar su existencia
         Set<EstacionComanda> estaciones = estacionResolver.resolverEstaciones(auth);
 
-        Comanda comanda = comandaRepository.findById(comandaId)
+        // Lock pesimista para serializar transiciones concurrentes sobre la misma comanda (RC-5)
+        Comanda comanda = comandaRepository.findByIdForUpdate(comandaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda", comandaId));
 
         // Sólo comandas en PENDIENTE pueden transicionar a EN_PREPARACION
@@ -275,7 +276,8 @@ public class ComandaProduccionService {
     public ComandaProduccionResumenResponse marcarListo(Long comandaId, Authentication auth) {
         Set<EstacionComanda> estaciones = estacionResolver.resolverEstaciones(auth);
 
-        Comanda comanda = comandaRepository.findById(comandaId)
+        // Lock pesimista para serializar transiciones concurrentes sobre la misma comanda (RC-6)
+        Comanda comanda = comandaRepository.findByIdForUpdate(comandaId)
                 .orElseThrow(() -> new ResourceNotFoundException("Comanda", comandaId));
 
         // Sólo comandas en EN_PREPARACION pueden transicionar a LISTO
