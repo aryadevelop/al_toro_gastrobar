@@ -5,6 +5,7 @@ import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
   BackendClienteBusquedaResponse,
+  BackendClienteListadoResponse,
   BackendClienteResumenResponse,
   BackendClienteVentasResponse,
   BackendClienteVentasResumenResponse,
@@ -82,9 +83,89 @@ export interface ClienteHistorialResult {
   message?: string;
 }
 
+export type EstadoClienteFiltro = 'ACTIVO' | 'INACTIVO';
+
+export interface ClienteListadoFiltros {
+  minVisitas?: number | null;
+  maxVisitas?: number | null;
+  desdeRegistro?: string | null;
+  hastaRegistro?: string | null;
+  estado?: EstadoClienteFiltro | '';
+  nombre?: string;
+  correo?: string;
+  cumpleanosHoy?: boolean;
+  reservasUltimosMeses?: number | null;
+}
+
+export interface ClienteListado {
+  clienteId: string;
+  nombre: string;
+  correoElectronico: string;
+  telefono: string;
+  totalVisitas: number;
+  totalGastado: number;
+  puntosAcumulados: number;
+  estado: string;
+  clienteFrecuente: boolean;
+}
+
+export interface ClienteListadoResult {
+  results: ClienteListado[];
+  message?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ClienteVentasAdminService {
   private readonly http = inject(HttpClient);
+
+  listarClientes(filtros: ClienteListadoFiltros = {}): Observable<ClienteListadoResult> {
+    let params = new HttpParams();
+
+    if (typeof filtros.minVisitas === 'number' && filtros.minVisitas >= 0) {
+      params = params.set('minVisitas', String(filtros.minVisitas));
+    }
+
+    if (typeof filtros.maxVisitas === 'number' && filtros.maxVisitas >= 0) {
+      params = params.set('maxVisitas', String(filtros.maxVisitas));
+    }
+
+    if (filtros.desdeRegistro) {
+      params = params.set('desdeRegistro', filtros.desdeRegistro);
+    }
+
+    if (filtros.hastaRegistro) {
+      params = params.set('hastaRegistro', filtros.hastaRegistro);
+    }
+
+    if (filtros.estado) {
+      params = params.set('estado', filtros.estado);
+    }
+
+    if (filtros.nombre && filtros.nombre.trim().length > 0) {
+      params = params.set('nombre', filtros.nombre.trim());
+    }
+
+    if (filtros.correo && filtros.correo.trim().length > 0) {
+      params = params.set('correo', filtros.correo.trim());
+    }
+
+    if (filtros.cumpleanosHoy) {
+      params = params.set('cumpleanosHoy', 'true');
+    }
+
+    if (typeof filtros.reservasUltimosMeses === 'number' && filtros.reservasUltimosMeses > 0) {
+      params = params.set('reservasUltimosMeses', String(filtros.reservasUltimosMeses));
+    }
+
+    return this.http
+      .get<ApiEnvelope<BackendClienteListadoResponse[]>>(API_PATHS.clientesAdmin.listar, { params })
+      .pipe(
+        map((response) => ({
+          results: (response.data ?? []).map((item) => this.toClienteListado(item)),
+          message: response.message,
+        }))
+      );
+  }
 
   buscarClientes(mode: ClienteSearchMode, value: string): Observable<ClienteSearchResult> {
     const endpoint = this.resolveSearchEndpoint(mode);
@@ -98,6 +179,20 @@ export class ClienteVentasAdminService {
           message: response.message,
         }))
       );
+  }
+
+  private toClienteListado(item: BackendClienteListadoResponse): ClienteListado {
+    return {
+      clienteId: String(item.clienteId),
+      nombre: item.nombre,
+      correoElectronico: item.correoElectronico,
+      telefono: item.telefono,
+      totalVisitas: item.totalVisitas ?? 0,
+      totalGastado: item.totalGastado ?? 0,
+      puntosAcumulados: item.puntosAcumulados ?? 0,
+      estado: item.estado,
+      clienteFrecuente: Boolean(item.clienteFrecuente),
+    };
   }
 
   obtenerHistorial(clienteId: string): Observable<ClienteHistorialResult> {

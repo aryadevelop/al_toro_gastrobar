@@ -41,6 +41,7 @@ export const API_PATHS = {
         changePassword: `${API}/clientes/me/cambiar-contraseña`,
     },
     clientesAdmin: {
+        listar: `${API}/clientes`,
         buscarNombre: `${API}/clientes/buscar/nombre`,
         buscarCorreo: `${API}/clientes/buscar/correo`,
         buscarTelefono: `${API}/clientes/buscar/telefono`,
