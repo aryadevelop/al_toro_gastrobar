@@ -7,13 +7,20 @@ import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteRes
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteVentasResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteVentasResumenResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.VentaAgrupadaAnioResponse;
+import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteListadoResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.VentaAgrupadaMesResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.VentaDetalleResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.repository.ClienteAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.clientes.repository.VentaAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.clientes.repository.VentaAgrupadaAnioView;
 import co.edu.unicauca.backend.modules.reportes.clientes.repository.VentaAgrupadaMesView;
+import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
+import co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol;
+import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
+import co.edu.unicauca.backend.shared.enums.RolEstado;
+import co.edu.unicauca.backend.shared.enums.RolNombre;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
@@ -30,6 +37,8 @@ import java.time.format.DateTimeFormatter;
 import java.util.Collections;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 @Service
@@ -42,6 +51,8 @@ public class ClienteVentasAdminService {
 
     private final ClienteAdminRepository clienteRepository;
     private final VentaAdminRepository ventaRepository;
+    private final ReservaRepository reservaRepository;
+    private final UsuarioRolRepository usuarioRolRepository;
     private final ClienteRecordatorioService recordatorioService;
 
     @Transactional(readOnly = true)
@@ -137,6 +148,120 @@ public class ClienteVentasAdminService {
                 .stream()
                 .map(this::mapearBusqueda)
                 .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ClienteListadoResponse> listarClientes(Integer minVisitas,
+                                                       Integer maxVisitas,
+                                                       LocalDate desdeRegistro,
+                                                       LocalDate hastaRegistro,
+                                                       String estado,
+                                                       String nombre,
+                                                       String correo,
+                                                       Boolean cumpleanosHoy,
+                                                       Integer reservasUltimosMeses) {
+        List<Cliente> clientes = clienteRepository.findAll();
+        if (clientes.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Cliente> clientesFiltrados = clientes.stream()
+                .filter(cliente -> nombre == null || nombre.isBlank() || cliente.getClienteNombre().toLowerCase(Locale.ENGLISH)
+                        .contains(nombre.trim().toLowerCase(Locale.ENGLISH)))
+                .filter(cliente -> correo == null || correo.isBlank() || cliente.getUsuario().getUsuarioEmail().toLowerCase(Locale.ENGLISH)
+                        .contains(correo.trim().toLowerCase(Locale.ENGLISH)))
+                .filter(cliente -> desdeRegistro == null || !cliente.getCreatedAt().toLocalDate().isBefore(desdeRegistro))
+                .filter(cliente -> hastaRegistro == null || !cliente.getCreatedAt().toLocalDate().isAfter(hastaRegistro))
+                .filter(cliente -> cumpleanosHoy == null || !cumpleanosHoy || cumpleanosHoy(cliente))
+                .collect(Collectors.toList());
+
+        if (clientesFiltrados.isEmpty()) {
+            return Collections.emptyList();
+        }
+
+        List<Long> clienteIds = clientesFiltrados.stream()
+                .map(Cliente::getUsuarioId)
+                .collect(Collectors.toList());
+
+        if (reservasUltimosMeses != null && reservasUltimosMeses > 0) {
+            LocalDateTime fechaLimiteReserva = LocalDateTime.now().minusMonths(reservasUltimosMeses);
+            Set<Long> clientesConReservaReciente = reservaRepository
+                    .findByCliente_UsuarioIdInAndReservaFechaCreacionAfter(clienteIds, fechaLimiteReserva)
+                    .stream()
+                    .map(reserva -> reserva.getCliente().getUsuarioId())
+                    .collect(Collectors.toSet());
+            clientesFiltrados = clientesFiltrados.stream()
+                    .filter(cliente -> !clientesConReservaReciente.contains(cliente.getUsuarioId()))
+                    .collect(Collectors.toList());
+
+            if (clientesFiltrados.isEmpty()) {
+                return Collections.emptyList();
+            }
+
+            clienteIds = clientesFiltrados.stream()
+                    .map(Cliente::getUsuarioId)
+                    .collect(Collectors.toList());
+        }
+
+        List<UsuarioRol> roles = usuarioRolRepository.findByUsuarioIdIn(clienteIds);
+        Map<Long, RolEstado> estadoPorCliente = roles.stream()
+                .filter(rol -> rol.getRolNombre() == RolNombre.CLIENTE)
+                .collect(Collectors.toMap(UsuarioRol::getUsuarioId,
+                        UsuarioRol::getRolEstado,
+                        (first, second) -> first));
+
+        List<Venta> ventas = clienteIds.isEmpty() ? Collections.emptyList() : ventaRepository.findByVisita_Cliente_UsuarioIdIn(clienteIds);
+        Map<Long, List<Venta>> ventasPorCliente = ventas.stream()
+                .collect(Collectors.groupingBy(v -> v.getVisita().getCliente().getUsuarioId()));
+
+        RolEstado estadoFiltro = parsearEstadoFiltro(estado);
+
+        return clientesFiltrados.stream()
+                .map(cliente -> {
+                    Long clienteId = cliente.getUsuarioId();
+                    List<Venta> clienteVentas = ventasPorCliente.getOrDefault(clienteId, Collections.emptyList());
+                    long totalVisitas = clienteVentas.size();
+                    BigDecimal totalGastado = clienteVentas.stream()
+                            .map(Venta::getVentaTotal)
+                            .reduce(BigDecimal.ZERO, BigDecimal::add);
+                    RolEstado rolEstado = estadoPorCliente.getOrDefault(clienteId, RolEstado.INACTIVO);
+                    return ClienteListadoResponse.builder()
+                            .clienteId(clienteId)
+                            .nombre(cliente.getClienteNombre())
+                            .correoElectronico(cliente.getUsuario().getUsuarioEmail())
+                            .telefono(cliente.getClienteTelefono())
+                            .totalVisitas(totalVisitas)
+                            .totalGastado(totalGastado)
+                            .puntosAcumulados(cliente.getClientePuntosAcumulados())
+                            .estado(rolEstado == null ? RolEstado.INACTIVO.getDescripcion() : rolEstado.getDescripcion())
+                            .clienteFrecuente(totalVisitas > 10)
+                            .build();
+                })
+                .filter(dto -> minVisitas == null || dto.getTotalVisitas() >= minVisitas)
+                .filter(dto -> maxVisitas == null || dto.getTotalVisitas() <= maxVisitas)
+                .filter(dto -> estadoFiltro == null || dto.getEstado().equalsIgnoreCase(estadoFiltro.getDescripcion()))
+                .collect(Collectors.toList());
+    }
+
+    private RolEstado parsearEstadoFiltro(String estado) {
+        if (estado == null || estado.isBlank()) {
+            return null;
+        }
+        try {
+            return RolEstado.valueOf(estado.trim().toUpperCase(Locale.ENGLISH));
+        } catch (IllegalArgumentException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Estado inválido: " + estado, HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private boolean cumpleanosHoy(Cliente cliente) {
+        if (cliente.getClienteFechaNacimiento() == null) {
+            return false;
+        }
+        LocalDate hoy = LocalDate.now();
+        return hoy.getMonthValue() == cliente.getClienteFechaNacimiento().getMonthValue()
+                && hoy.getDayOfMonth() == cliente.getClienteFechaNacimiento().getDayOfMonth();
     }
 
     @Transactional

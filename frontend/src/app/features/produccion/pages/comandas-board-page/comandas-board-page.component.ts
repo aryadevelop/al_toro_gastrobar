@@ -23,6 +23,11 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
   actionLoading: Record<number, boolean> = {};
   error = '';
 
+  /** Mensaje de retroalimentación temporal (toast inline) */
+  toastMessage = '';
+  toastTone: 'success' | 'error' = 'success';
+  private toastTimer: ReturnType<typeof setTimeout> | null = null;
+
   // ── Modal de detalle ──
   detalleVisible = false;
   detalleCargando = false;
@@ -69,8 +74,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
       if (!this.estacionesSuscritas.has(estacion)) {
         this.estacionesSuscritas.add(estacion);
         const topic = `/topic/produccion/${estacion}`;
-        const sub = this.wsService.subscribe<any>(topic).subscribe((msg) => {
-          console.log(`[WS Producción] Evento en ${estacion}:`, msg);
+        const sub = this.wsService.subscribe<any>(topic).subscribe(() => {
           // Recarga silenciosa para mantener los datos actualizados
           this.produccionService.obtenerTablero().subscribe((data) => {
             this.tablero = data;
@@ -145,13 +149,22 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     this.produccionService.notificarCambio(comanda.comandaId).subscribe({
       next: () => {
         this.actionLoading[comanda.comandaId] = false;
-        alert(`Notificación de cambio enviada para la comanda de la mesa ${comanda.mesaIdentificador}`);
+        this.mostrarToast(`Notificación de cambio enviada para la comanda de la mesa "${comanda.mesaIdentificador}"`, 'success');
       },
       error: () => {
         this.actionLoading[comanda.comandaId] = false;
-        alert('Error al enviar la notificación de cambio.');
+        this.mostrarToast('Error al enviar la notificación de cambio.', 'error');
       },
     });
+  }
+
+  private mostrarToast(mensaje: string, tono: 'success' | 'error'): void {
+    if (this.toastTimer) clearTimeout(this.toastTimer);
+    this.toastMessage = mensaje;
+    this.toastTone = tono;
+    this.toastTimer = setTimeout(() => {
+      this.toastMessage = '';
+    }, 4000);
   }
 
   tiempoTranscurrido(fecha: string | undefined): string {

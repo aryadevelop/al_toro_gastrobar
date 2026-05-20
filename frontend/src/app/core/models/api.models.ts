@@ -368,6 +368,18 @@ export interface BackendClienteBusquedaResponse {
   telefono: string;
 }
 
+export interface BackendClienteListadoResponse {
+  clienteId: number;
+  nombre: string;
+  correoElectronico: string;
+  telefono: string;
+  totalVisitas: number;
+  totalGastado: number;
+  puntosAcumulados: number;
+  estado: string;
+  clienteFrecuente: boolean;
+}
+
 export interface BackendClienteResumenResponse {
   clienteId: number;
   nombre: string;
@@ -496,4 +508,11 @@ export interface BackendComandaProduccionDetalle {
   platos: BackendItemDetalle[];
   bebidas: BackendItemDetalle[];
   otros: BackendItemDetalle[];
+}
+
+export interface BackendProductoBusqueda {
+  productoId: number;
+  productoNombre: string;
+  productoPrecio: number;
+  productoCategoria: string;
 }

@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.reportes.clientes.controller;
 
 
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteBusquedaResponse;
+import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteListadoResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteVentasResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.ClienteVentasResumenResponse;
 import co.edu.unicauca.backend.modules.reportes.clientes.dto.response.VentaAgrupadaAnioResponse;
@@ -20,6 +21,8 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 @RestController
@@ -109,5 +112,59 @@ public class ClienteVentasAdminController {
             return ResponseEntity.ok(ApiResponse.ok("No se encontraron clientes", results));
         }
         return ResponseEntity.ok(ApiResponse.ok(results));
+    }
+
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Listar clientes con filtros administrativos")
+    public ResponseEntity<ApiResponse<List<ClienteListadoResponse>>> listarClientes(
+            @RequestParam(value = "minVisitas", required = false) Integer minVisitas,
+            @RequestParam(value = "maxVisitas", required = false) Integer maxVisitas,
+            @RequestParam(value = "desdeRegistro", required = false) String desdeRegistro,
+            @RequestParam(value = "hastaRegistro", required = false) String hastaRegistro,
+            @RequestParam(value = "estado", required = false) String estado,
+            @RequestParam(value = "nombre", required = false) String nombre,
+            @RequestParam(value = "correo", required = false) String correo,
+            @RequestParam(value = "cumpleanosHoy", required = false) Boolean cumpleanosHoy,
+            @RequestParam(value = "reservasUltimosMeses", required = false) Integer reservasUltimosMeses) {
+        LocalDate desde = parseRegistroDate(desdeRegistro, "desdeRegistro");
+        LocalDate hasta = parseRegistroDate(hastaRegistro, "hastaRegistro");
+        validateRegistroDateRange(desde, hasta);
+        List<ClienteListadoResponse> results = ventasService.listarClientes(
+                minVisitas, maxVisitas, desde, hasta, estado, nombre, correo, cumpleanosHoy, reservasUltimosMeses);
+        if (results.isEmpty()) {
+            return ResponseEntity.ok(ApiResponse.ok("No se encontraron clientes", results));
+        }
+        return ResponseEntity.ok(ApiResponse.ok(results));
+    }
+
+    private LocalDate parseRegistroDate(String dateValue, String fieldName) {
+        if (dateValue == null) {
+            return null;
+        }
+        try {
+            return LocalDate.parse(dateValue);
+        } catch (DateTimeParseException ex) {
+            throw new co.edu.unicauca.backend.shared.exception.BusinessException(
+                    co.edu.unicauca.backend.shared.exception.ErrorCode.VALIDATION_ERROR,
+                    "Fecha inválida para '" + fieldName + "'. Use el formato YYYY-MM-DD.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private void validateRegistroDateRange(LocalDate desde, LocalDate hasta) {
+        LocalDate hoy = LocalDate.now();
+        if (hasta != null && hasta.isAfter(hoy)) {
+            throw new co.edu.unicauca.backend.shared.exception.BusinessException(
+                    co.edu.unicauca.backend.shared.exception.ErrorCode.VALIDATION_ERROR,
+                    "La fecha 'hastaRegistro' no puede ser mayor al día de hoy.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new co.edu.unicauca.backend.shared.exception.BusinessException(
+                    co.edu.unicauca.backend.shared.exception.ErrorCode.VALIDATION_ERROR,
+                    "La fecha 'desdeRegistro' no puede ser mayor a 'hastaRegistro'.",
+                    org.springframework.http.HttpStatus.BAD_REQUEST);
+        }
     }
 }

@@ -33,6 +33,7 @@ export const API_PATHS = {
     productos: {
         carta: `${API}/productos/carta`,
         menuEspecial: `${API}/productos/menu-especial`,
+        buscar: `${API}/productos/buscar`,
     },
     clientes: {
         misPuntos: `${API}/clientes/me/puntos`,
@@ -41,6 +42,7 @@ export const API_PATHS = {
         changePassword: `${API}/clientes/me/cambiar-contraseña`,
     },
     clientesAdmin: {
+        listar: `${API}/clientes`,
         buscarNombre: `${API}/clientes/buscar/nombre`,
         buscarCorreo: `${API}/clientes/buscar/correo`,
         buscarTelefono: `${API}/clientes/buscar/telefono`,
