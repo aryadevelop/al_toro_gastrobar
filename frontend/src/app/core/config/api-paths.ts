@@ -33,6 +33,7 @@ export const API_PATHS = {
     productos: {
         carta: `${API}/productos/carta`,
         menuEspecial: `${API}/productos/menu-especial`,
+        buscar: `${API}/productos/buscar`,
     },
     clientes: {
         misPuntos: `${API}/clientes/me/puntos`,

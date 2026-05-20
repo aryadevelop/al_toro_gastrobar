@@ -509,3 +509,10 @@ export interface BackendComandaProduccionDetalle {
   bebidas: BackendItemDetalle[];
   otros: BackendItemDetalle[];
 }
+
+export interface BackendProductoBusqueda {
+  productoId: number;
+  productoNombre: string;
+  productoPrecio: number;
+  productoCategoria: string;
+}

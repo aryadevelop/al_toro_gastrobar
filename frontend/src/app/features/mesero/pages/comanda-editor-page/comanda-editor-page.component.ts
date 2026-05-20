@@ -3,7 +3,7 @@ import { Component, OnDestroy, OnInit, inject, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule } from '@angular/forms';
 import { ActivatedRoute, Router } from '@angular/router';
 import { forkJoin, of, Subject } from 'rxjs';
-import { takeUntil } from 'rxjs/operators';
+import { takeUntil, debounceTime, distinctUntilChanged, switchMap, catchError } from 'rxjs/operators';
 import { ComandaDraftData, ComandaDraftItem, ComandaService } from '../../../../core/services/comanda.service';
 import { ProductCatalogService, CartaCatalogItem } from '../../../../core/services/product-catalog.service';
 import { MesaItemComanda, MesaMapService } from '../../../../core/services/mesa-map.service';
@@ -660,6 +660,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   private readonly comandaService = inject(ComandaService);
   private readonly productCatalogService = inject(ProductCatalogService);
   private readonly destroy$ = new Subject<void>();
+  private readonly searchSubject = new Subject<string>();
   private readonly defaultStock = 250;
 
   readonly saved = signal(false);
@@ -701,7 +702,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
       this.actionMessage.set(navMessage.trim());
     }
 
-    this.loadCatalog();
+    this.setupSearch();
 
     const comandaId = this.route.snapshot.queryParamMap.get('comandaId');
     if (comandaId) {
@@ -739,16 +740,14 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
   onSearchInput(rawValue: string): void {
     this.searchTerm.set(rawValue);
     const term = rawValue.trim().toLowerCase();
+    
     if (!term) {
       this.filteredSuggestions.set([]);
+      this.searchSubject.next('');
       return;
     }
-
-    this.filteredSuggestions.set(
-      this.catalog()
-        .filter((item) => item.productName.toLowerCase().includes(term))
-        .slice(0, 12)
-    );
+    
+    this.searchSubject.next(term);
   }
 
   onSelectSuggestion(item: CartaCatalogItem): void {
@@ -1050,21 +1049,22 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
     return [...items].sort((a, b) => a.name.localeCompare(b.name, 'es'));
   }
 
-  private loadCatalog(): void {
-    this.loadingCatalog.set(true);
-    this.productCatalogService
-      .listCartaItems()
-      .pipe(takeUntil(this.destroy$))
-      .subscribe({
-        next: (items) => {
-          this.catalog.set(items.sort((a, b) => a.productName.localeCompare(b.productName, 'es')));
-          this.loadingCatalog.set(false);
-        },
-        error: () => {
-          this.catalog.set([]);
-          this.loadingCatalog.set(false);
-        },
-      });
+  private setupSearch(): void {
+    this.searchSubject.pipe(
+      debounceTime(300),
+      distinctUntilChanged(),
+      switchMap((term) => {
+        if (!term) {
+          return of([]);
+        }
+        return this.productCatalogService.buscarProductos(term).pipe(
+          catchError(() => of([]))
+        );
+      }),
+      takeUntil(this.destroy$)
+    ).subscribe((items) => {
+      this.filteredSuggestions.set(items.slice(0, 12));
+    });
   }
 
   private fetchMesaDetalle(mesaId: string): void {
@@ -1216,7 +1216,9 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
 
   private isReloadNavigation(): boolean {
     const navEntry = performance.getEntriesByType('navigation')[0] as PerformanceNavigationTiming | undefined;
-    return navEntry?.type === 'reload';
+    const isBrowserReload = navEntry?.type === 'reload';
+    const isInitialNavigation = !this.router.navigated || this.router.getCurrentNavigation()?.id === 1;
+    return isBrowserReload && isInitialNavigation;
   }
 
 }
