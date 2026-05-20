@@ -136,6 +136,9 @@ Exchange: `altoro.topic` (durable, topic). Routing keys: `comanda.nueva`, `impre
 
 El tópico `/topic/produccion/{cocina|barra}` transporta el contrato unificado `ComandaProduccionEventoWsMessage(tipo, estacion, comandaId, resumen, nuevoEstado)` con `tipo ∈ {CREADA, ACTUALIZADA, ELIMINADA, COMPLETADA}`. Sustituye al legado `/topic/comandas/completado`. El campo `resumen` viaja solo en `CREADA`; `nuevoEstado` viaja solo en `ACTUALIZADA` (transiciones `PENDIENTE→EN_PREPARACION` y `EN_PREPARACION→LISTO`).
 
+El tópico `/topic/inventario` (broadcast) transporta `StockActualizadoWsMessage(productoId, insumoId, stockActual)` cuando un ajuste manual de inventario modifica el stock de un producto o insumo. Exactamente uno
+de `productoId`/`insumoId` viaja con valor; cualquier pantalla que muestre stock se suscribe a este tópico para refrescarse en tiempo real.
+
 ### ErrorCode rápido
 `ENT-001` (404 not found), `AUTH-001` (401), `AUTH-002` (403), `NEG-001` (400/409 regla violada), `NEG-002` (409 estado inválido), `VAL-001` (400 validación). Tabla completa en `docs/coding-patterns.md`.
 

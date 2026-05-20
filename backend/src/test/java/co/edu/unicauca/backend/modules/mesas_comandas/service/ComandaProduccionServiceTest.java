@@ -37,7 +37,6 @@ import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 
-import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.ArrayList;
@@ -130,7 +129,7 @@ class ComandaProduccionServiceTest {
             Comanda e1 = comanda(3L, 13L, EstacionComanda.COCINA, EstadoComanda.EN_PREPARACION, t.plusMinutes(2), null, t);
             Comanda l1 = comanda(4L, 14L, EstacionComanda.COCINA, EstadoComanda.LISTO, t.plusMinutes(3), t.plusMinutes(20), t);
 
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.COCINA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.COCINA), anySet()))
                     .thenReturn(List.of(p2, p1, e1, l1));
 
             when(mesaRepository.findByVisita_VisitaIdIn(any())).thenReturn(List.of(
@@ -165,7 +164,7 @@ class ComandaProduccionServiceTest {
         void sinComandas() {
             when(estacionResolver.resolverEstaciones(auth))
                     .thenReturn(Set.of(EstacionComanda.BARRA));
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.BARRA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.BARRA), anySet()))
                     .thenReturn(List.of());
 
             TableroProduccionResponse r = service.obtenerTableroProduccion(auth);
@@ -186,9 +185,9 @@ class ComandaProduccionServiceTest {
             Comanda cocina = comanda(1L, 11L, EstacionComanda.COCINA, EstadoComanda.PENDIENTE, t, null, t);
             Comanda barra = comanda(2L, 12L, EstacionComanda.BARRA, EstadoComanda.PENDIENTE, t.plusMinutes(1), null, t);
 
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.COCINA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.COCINA), anySet()))
                     .thenReturn(List.of(cocina));
-            when(comandaRepository.findByEstacionAndEstadoIn(eq(EstacionComanda.BARRA), anySet()))
+            when(comandaRepository.findByEstacionAndEstadoInSinCambioActivo(eq(EstacionComanda.BARRA), anySet()))
                     .thenReturn(List.of(barra));
             when(mesaRepository.findByVisita_VisitaIdIn(any())).thenReturn(List.of(
                     mesa(11L, "T-01", "Ana"),
@@ -328,7 +327,7 @@ class ComandaProduccionServiceTest {
 
             when(auth.getName()).thenReturn(ACTOR_EMAIL);
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
             when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
@@ -349,7 +348,7 @@ class ComandaProduccionServiceTest {
         @DisplayName("Comanda inexistente: lanza ResourceNotFoundException")
         void comandaInexistente_lanzaResourceNotFoundException() {
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.empty());
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
                     .isInstanceOf(ResourceNotFoundException.class);
@@ -363,7 +362,7 @@ class ComandaProduccionServiceTest {
                     LocalDateTime.of(2026, 5, 14, 19, 0));
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
 
             assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
                     .isInstanceOf(BusinessException.class)
@@ -380,7 +379,7 @@ class ComandaProduccionServiceTest {
             Comanda comanda = comandaPendienteCocina();
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
 
             assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
                     .isInstanceOf(BusinessException.class)
@@ -398,7 +397,7 @@ class ComandaProduccionServiceTest {
 
             when(auth.getName()).thenReturn(ACTOR_EMAIL);
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.iniciarPreparacion(COMANDA_ID, auth))
@@ -417,7 +416,7 @@ class ComandaProduccionServiceTest {
 
             when(auth.getName()).thenReturn(ACTOR_EMAIL);
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
             List<Object[]> sumRows = new ArrayList<>();
@@ -438,7 +437,7 @@ class ComandaProduccionServiceTest {
 
             when(auth.getName()).thenReturn(ACTOR_EMAIL);
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(empleadoRepository.findByUsuario_UsuarioEmail(ACTOR_EMAIL)).thenReturn(Optional.of(empleado));
             doThrow(new BusinessException(
                     co.edu.unicauca.backend.shared.exception.ErrorCode.INSUFFICIENT_STOCK,
@@ -480,7 +479,7 @@ class ComandaProduccionServiceTest {
             Mesa mesa = mesa(VISITA_ID, "T-01", "Mesero1");
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
             when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
             mockHelperVisita();
@@ -521,7 +520,7 @@ class ComandaProduccionServiceTest {
             Mesa mesa = mesa(VISITA_ID, "T-02", "Mesero2");
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
             when(comandaItemRepository.sumCantidadByComandaIdIn(Set.of(COMANDA_ID))).thenReturn(List.of());
             mockHelperVisita();
@@ -554,7 +553,7 @@ class ComandaProduccionServiceTest {
                     LocalDateTime.of(2026, 5, 15, 19, 0));
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
 
             assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
                     .isInstanceOf(BusinessException.class)
@@ -574,7 +573,7 @@ class ComandaProduccionServiceTest {
             Comanda comanda = comandaEnPreparacion(EstacionComanda.COCINA);
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.BARRA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
 
             assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
                     .isInstanceOf(BusinessException.class)
@@ -592,7 +591,7 @@ class ComandaProduccionServiceTest {
         @DisplayName("Comanda inexistente: lanza ResourceNotFoundException")
         void comandaInexistente_lanzaResourceNotFound() {
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.empty());
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.empty());
 
             assertThatThrownBy(() -> service.marcarListo(COMANDA_ID, auth))
                     .isInstanceOf(ResourceNotFoundException.class);
@@ -609,7 +608,7 @@ class ComandaProduccionServiceTest {
                     .comandaItemPrecio(new BigDecimal("20000")).build();
 
             when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(COMANDA_ID)).thenReturn(Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(COMANDA_ID)).thenReturn(Optional.of(comanda));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
             List<Object[]> sumRows = new ArrayList<>();
             sumRows.add(new Object[]{COMANDA_ID, 3L});
@@ -644,7 +643,7 @@ class ComandaProduccionServiceTest {
 
             when(estacionResolver.resolverEstaciones(auth))
                     .thenReturn(java.util.Set.of(EstacionComanda.COCINA));
-            when(comandaRepository.findById(comandaId)).thenReturn(java.util.Optional.of(comanda));
+            when(comandaRepository.findByIdForUpdate(comandaId)).thenReturn(java.util.Optional.of(comanda));
             when(mesaRepository.findByVisita_VisitaId(visitaId)).thenReturn(java.util.Optional.of(mesa));
             when(comandaItemRepository.sumCantidadByComandaIdIn(any())).thenReturn(java.util.List.of());
             when(comandaRepository.findAllItemsActivosByVisita(visitaId)).thenReturn(java.util.List.of());
@@ -660,6 +659,79 @@ class ComandaProduccionServiceTest {
             verify(notificacionRepository).save(cap.capture());
             assertThat(cap.getValue().getEmpleado()).isNull();
             assertThat(cap.getValue().getNotificacionTipo()).isEqualTo(TipoNotificacion.PLATOS_LISTOS);
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("iniciarPreparacion — RC-5 pessimistic lock")
+    class IniciarPreparacionLockTests {
+
+        @Test
+        @DisplayName("usa findByIdForUpdate, no findById")
+        void usaFindByIdForUpdate() {
+            Comanda c = comanda(10L, 20L, EstacionComanda.COCINA, EstadoComanda.PENDIENTE,
+                    null, null, LocalDateTime.now());
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(c));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(any()))
+                    .thenReturn(Optional.of(Empleado.builder().build()));
+            when(auth.getName()).thenReturn("cocinero@test.com");
+            when(comandaItemRepository.sumCantidadByComandaIdIn(any())).thenReturn(List.of());
+            when(mesaRepository.findByVisita_VisitaId(any())).thenReturn(Optional.empty());
+
+            service.iniciarPreparacion(10L, auth);
+
+            verify(comandaRepository).findByIdForUpdate(10L);
+            verify(comandaRepository, never()).findById(10L);
+        }
+
+        @Test
+        @DisplayName("segundo intento concurrente ya en EN_PREPARACION → INVALID_STATE")
+        void segundoIntentoLanzaInvalidState() {
+            Comanda enPreparacion = comanda(10L, 20L, EstacionComanda.COCINA,
+                    EstadoComanda.EN_PREPARACION, LocalDateTime.now(), null, LocalDateTime.now());
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(enPreparacion));
+
+            assertThatThrownBy(() -> service.iniciarPreparacion(10L, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("PENDIENTE");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("marcarListo — RC-6 pessimistic lock")
+    class MarcarListoLockTests {
+
+        @Test
+        @DisplayName("usa findByIdForUpdate, no findById")
+        void usaFindByIdForUpdate() {
+            Comanda c = comanda(11L, 21L, EstacionComanda.COCINA, EstadoComanda.EN_PREPARACION,
+                    LocalDateTime.now(), null, LocalDateTime.now());
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(c));
+            when(mesaRepository.findByVisita_VisitaId(any())).thenReturn(Optional.empty());
+            when(comandaItemRepository.sumCantidadByComandaIdIn(any())).thenReturn(List.of());
+
+            service.marcarListo(11L, auth);
+
+            verify(comandaRepository).findByIdForUpdate(11L);
+            verify(comandaRepository, never()).findById(11L);
+        }
+
+        @Test
+        @DisplayName("segundo intento concurrente ya en LISTO → INVALID_STATE")
+        void segundoIntentoLanzaInvalidState() {
+            Comanda listo = comanda(11L, 21L, EstacionComanda.COCINA, EstadoComanda.LISTO,
+                    LocalDateTime.now(), LocalDateTime.now(), LocalDateTime.now());
+            when(estacionResolver.resolverEstaciones(auth)).thenReturn(Set.of(EstacionComanda.COCINA));
+            when(comandaRepository.findByIdForUpdate(11L)).thenReturn(Optional.of(listo));
+
+            assertThatThrownBy(() -> service.marcarListo(11L, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("EN_PREPARACION");
         }
     }
 }

@@ -52,6 +52,14 @@ Base URL: `http://localhost:8080/api`
 | GET | `/buscar?q=` | **Authenticated** | Búsqueda parcial case-insensitive de productos del catálogo. Excluye menús especiales y productos inactivos. |
 
 ---
+## Inventario (`/api/inventario`)
+
+| Method | Endpoint | Acceso | Descripción |
+|--------|----------|--------|-------------|
+| GET | `/buscar?q=` | **COCINERO / BARTENDER / ADMIN** | Búsqueda parcial case-insensitive de productos e insumos activos. Lista unificada ordenada alfabéticamente; incluye productos con stock 0. |
+| POST | `/movimientos` | **COCINERO / BARTENDER / ADMIN** | Registra un ajuste manual (INGRESO o EGRESO) de un producto o insumo. En EGRESO valida stock, descuenta, crea notificación CAMBIO en comandas PENDIENTE afectadas y emite WS ELIMINADA. Difunde el evento de stock a /topic/inventario. |
+
+---
 
 ## Mesas (`/api/mesas`)
 
@@ -143,9 +151,13 @@ Base URL: `http://localhost:8080/api`
 - **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
 - **Visitas**: activa (cualquier cliente con param)
 - **Notificaciones**: atender
+- **Inventario**: buscar, movimientos
 
 ### Public (sin autenticación)
 - **Auth**: login, register, refresh
+
+### PRODUCCION
+- **Inventario**: buscar, movimientos
 
 ---
 

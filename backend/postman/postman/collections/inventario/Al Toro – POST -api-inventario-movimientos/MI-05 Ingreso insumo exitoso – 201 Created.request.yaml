@@ -1,0 +1,55 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-05 (HE-04-HU-04-CA-05)
+  **Objetivo:** Un COCINERO registra un ingreso de insumo (sin validación de stock).
+  **Pre-condición:** insumo `7` activo.
+  **Resultado esperado:** HTTP 201; `comandasNotificadas` es 0 en INGRESO.
+  **Atómica:** el afterResponse ejecuta un EGRESO compensatorio de la misma cantidad.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "insumoId": 7,
+      "cantidad": 0.500,
+      "tipo": "INGRESO",
+      "proveedor": "Proveedor Test",
+      "numeroFactura": "FAC-0001",
+      "observaciones": "Test ingreso manual MI-05"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – ingreso registrado', () => pm.response.to.have.status(201));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('data.movimientoId es número', () => pm.expect(body.data.movimientoId).to.be.a('number'));
+      pm.test('comandasNotificadas es 0 en INGRESO', () => {
+        pm.expect(body.data.comandasNotificadas).to.eql(0);
+      });
+
+      // Compensación: EGRESO inverso para mantener el stock invariante (prueba atómica)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/inventario/movimientos',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('cocineroToken')
+        },
+        body: { mode: 'raw', raw: JSON.stringify({
+          insumoId: 7,
+          cantidad: 0.500,
+          tipo: 'EGRESO',
+          observaciones: 'Reversa MI-05'
+        }) }
+      }, (err, res) => {
+        pm.test('Reversa MI-05 restauró el stock (201)', () => {
+          pm.expect(!err && res && res.code === 201).to.be.true;
+        });
+      });
+    language: text/javascript
+order: 3000

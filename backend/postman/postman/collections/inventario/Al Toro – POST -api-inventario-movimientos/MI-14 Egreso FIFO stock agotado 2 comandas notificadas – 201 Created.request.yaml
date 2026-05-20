@@ -1,0 +1,50 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-14 (HE-04-HU-04-CA-06 FIFO)
+  **Objetivo:** Egreso del producto MI-FIFO-Total (ID 148, stock=2) con cantidad=2.
+  **Lógica FIFO:** stockRestante=0. Comanda 39 (antigua, demanda=1): 0<1 → notificada.
+    Comanda 40 (reciente, demanda=1): 0<1 → notificada. Total: 2 notificadas.
+  **Pre-condición:** Producto 148 con stock=2. Comandas 39 y 40 PENDIENTE con 1 ítem c/u,
+    sin notificaciones CAMBIO previas (comandas exclusivas, no compartidas con MI-12/MI-13).
+  **Resultado esperado:** HTTP 201, comandasNotificadas = 2.
+  **AVISO:** Las notificaciones CAMBIO creadas persisten. Re-ejecución sin flyway reset
+    devolverá comandasNotificadas=0.
+  **Atómica:** afterResponse ejecuta INGRESO compensatorio qty=2 para restaurar stock=2.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 148,
+      "cantidad": 2.000,
+      "tipo": "EGRESO",
+      "observaciones": "Test FIFO MI-14: stock agotado, 2 notificadas"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('data.stockActualizado = 0', () => {
+        pm.expect(Number(body.data.stockActualizado)).to.eql(0);
+      });
+      pm.test('data.comandasNotificadas = 2 (ambas no cubiertas)', () => {
+        pm.expect(body.data.comandasNotificadas).to.eql(2);
+      });
+
+      // Compensación: INGRESO para restaurar stock=2
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/inventario/movimientos',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.environment.get('cocineroToken') },
+        body: { mode: 'raw', raw: JSON.stringify({ productoId: 148, cantidad: 2.000, tipo: 'INGRESO', observaciones: 'Reversa MI-14' }) }
+      }, (err, res) => {
+        pm.test('Reversa MI-14 restauró stock (201)', () => pm.expect(!err && res && res.code === 201).to.be.true);
+      });
+    language: text/javascript
+order: 1500

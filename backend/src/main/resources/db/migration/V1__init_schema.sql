@@ -15,6 +15,7 @@ SET row_security = off;
 -- =====================================================
 CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+CREATE EXTENSION IF NOT EXISTS unaccent;
 
 -- =====================================================
 -- SCHEMA

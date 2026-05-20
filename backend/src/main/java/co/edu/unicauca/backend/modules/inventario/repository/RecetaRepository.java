@@ -24,4 +24,15 @@ public interface RecetaRepository extends JpaRepository<Receta, Receta.RecetaId>
      */
     @Query("SELECT r FROM Receta r JOIN FETCH r.insumo WHERE r.productoId = :productoId")
     List<Receta> findByProductoIdFetchInsumo(@Param("productoId") Long productoId);
+
+    /**
+     * Devuelve los identificadores de producto distintos cuya receta contiene el
+     * insumo indicado. Se usa para rastrear qué productos de tipo
+     * {@code PREPARACION} se ven afectados por un egreso manual de un insumo.
+     *
+     * @param insumoId identificador del insumo
+     * @return lista de productoId únicos; vacía si ningún producto usa el insumo
+     */
+    @Query("SELECT DISTINCT r.productoId FROM Receta r WHERE r.insumoId = :insumoId")
+    List<Long> findProductoIdsByInsumoId(@Param("insumoId") Long insumoId);
 }

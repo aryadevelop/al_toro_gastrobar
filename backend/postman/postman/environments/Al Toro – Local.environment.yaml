@@ -114,8 +114,6 @@ values:
     value: ''
   - key: tmpReservaIdAjena
     value: ''
-  - key: tmpNotificacionCreada
-    value: ''
   - key: itemPicanhaBaseId
     value: ''
   - key: itemHamburguesaSinTomateId
@@ -153,4 +151,8 @@ values:
   - key: comandaIdBarraVisible
     value: ''
   - key: comandaIdCompletada
+    value: ''
+  - key: tmpNotificacionId
+    value: ''
+  - key: accessToken
     value: ''

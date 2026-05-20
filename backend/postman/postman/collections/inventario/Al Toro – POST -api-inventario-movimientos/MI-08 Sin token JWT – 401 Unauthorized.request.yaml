@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-08
+  **Objetivo:** El endpoint rechaza solicitudes sin token.
+  **Resultado esperado:** HTTP 401.
+  **Atómica:** la solicitud falla; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 1,
+      "cantidad": 1.000,
+      "tipo": "EGRESO"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 401 – sin token', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 6000

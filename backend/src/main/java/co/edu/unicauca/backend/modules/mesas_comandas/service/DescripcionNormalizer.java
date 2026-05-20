@@ -1,5 +1,6 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.service;
 
+import java.text.Normalizer;
 import java.util.Locale;
 
 /**
@@ -37,5 +38,28 @@ public final class DescripcionNormalizer {
             return "";
         }
         return recortado.replaceAll("\\s+", " ").toLowerCase(Locale.ROOT);
+    }
+
+    /**
+     * Devuelve la forma comparable de la descripción eliminando diacríticos
+     * (tildes, ñ → n, etc.), colapsando espacios y convirtiendo a minúscula.
+     * Diseñado para usarse como argumento de búsqueda antes de comparar con
+     * valores almacenados que pueden tener tildes.
+     *
+     * @param texto texto crudo; puede ser {@code null}
+     * @return cadena normalizada sin diacríticos, lista para comparación
+     */
+    public static String normalizarSinTildes(String texto) {
+        if (texto == null) {
+            return "";
+        }
+        String recortado = texto.trim();
+        if (recortado.isEmpty()) {
+            return "";
+        }
+        String nfd = Normalizer.normalize(recortado, Normalizer.Form.NFD);
+        return nfd.replaceAll("\\p{InCombiningDiacriticalMarks}", "")
+                  .replaceAll("\\s+", " ")
+                  .toLowerCase(Locale.ROOT);
     }
 }

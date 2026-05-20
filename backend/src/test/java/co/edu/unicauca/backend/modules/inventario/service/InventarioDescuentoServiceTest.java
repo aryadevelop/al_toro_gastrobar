@@ -27,6 +27,7 @@ import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
@@ -96,6 +97,7 @@ class InventarioDescuentoServiceTest {
             Producto p = productoVentaDirecta(10L, new BigDecimal("5"));
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(1L))
                     .thenReturn(List.of(item(p, 2, null)));
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
 
             service.descontarPorComanda(comanda(), actor());
 
@@ -112,10 +114,12 @@ class InventarioDescuentoServiceTest {
             Producto p = productoVentaDirecta(10L, null);
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(1L))
                     .thenReturn(List.of(item(p, 2, null)));
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
 
             service.descontarPorComanda(comanda(), actor());
 
-            verifyNoInteractions(productoRepository, movimientoRepository);
+            verify(productoRepository, never()).save(any());
+            verify(movimientoRepository, never()).save(any());
         }
 
         @Test @DisplayName("VENTA_DIRECTA insuficiente → BusinessException con mensaje")
@@ -123,6 +127,7 @@ class InventarioDescuentoServiceTest {
             Producto p = productoVentaDirecta(10L, new BigDecimal("1"));
             when(comandaItemRepository.findByComanda_ComandaIdOrderByProductoNombreAsc(1L))
                     .thenReturn(List.of(item(p, 5, null)));
+            when(productoRepository.findByIdForUpdate(10L)).thenReturn(Optional.of(p));
 
             assertThatThrownBy(() -> service.descontarPorComanda(comanda(), actor()))
                     .isInstanceOf(BusinessException.class)
@@ -138,7 +143,8 @@ class InventarioDescuentoServiceTest {
 
             service.descontarPorComanda(comanda(), actor());
 
-            verifyNoInteractions(insumoRepository, movimientoRepository);
+            verify(insumoRepository, never()).save(any());
+            verify(movimientoRepository, never()).save(any());
         }
 
         @Test @DisplayName("PREPARACION con 2 insumos suficientes → descuenta cada insumo y registra 2 movimientos")
@@ -150,6 +156,8 @@ class InventarioDescuentoServiceTest {
                     .thenReturn(List.of(item(p, 2, null)));
             when(recetaRepository.findByProductoIdFetchInsumo(20L))
                     .thenReturn(List.of(receta(20L, i1, "0.5"), receta(20L, i2, "1.0")));
+            when(insumoRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(i1));
+            when(insumoRepository.findByIdForUpdate(101L)).thenReturn(Optional.of(i2));
 
             service.descontarPorComanda(comanda(), actor());
 
@@ -168,6 +176,7 @@ class InventarioDescuentoServiceTest {
                     .thenReturn(List.of(item(p, 2, null)));
             when(recetaRepository.findByProductoIdFetchInsumo(20L))
                     .thenReturn(List.of(receta(20L, i, "0.5")));
+            when(insumoRepository.findByIdForUpdate(100L)).thenReturn(Optional.of(i));
 
             assertThatThrownBy(() -> service.descontarPorComanda(comanda(), actor()))
                     .isInstanceOf(BusinessException.class)

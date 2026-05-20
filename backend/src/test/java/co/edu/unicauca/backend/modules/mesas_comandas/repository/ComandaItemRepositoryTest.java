@@ -28,7 +28,9 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -406,7 +408,7 @@ class ComandaItemRepositoryTest {
         }
 
         @Test
-        @DisplayName("producto VENTA_DIRECTA con el mismo insumo → se excluye")
+        @DisplayName("producto VENTA_DIRECTA con el mismo insumo → se excluye (sin receta PREPARACION)")
         void productoVentaDirecta_seExcluye() {
             // Receta para el producto de VENTA_DIRECTA con el mismo insumo
             em.persistAndFlush(Receta.builder()
@@ -426,6 +428,140 @@ class ComandaItemRepositoryTest {
 
             BigDecimal result = repo.sumCantidadInsumoComprometida(insumo.getInsumoId());
             assertThat(result).isEqualByComparingTo("0");
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumCantidadProductoByComandaIds
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumCantidadProductoByComandaIds")
+    class SumCantidadProductoPorComandaTests {
+
+        @Test
+        @DisplayName("devuelve demanda por comanda para el producto indicado")
+        void demandaPorComanda() {
+            Comanda c1 = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            Comanda c2 = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(c1).producto(productoPlato)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(productoPlato.getProductoPrecio())
+                    .build());
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(c2).producto(productoPlato)
+                    .comandaItemCantidad(3)
+                    .comandaItemPrecio(productoPlato.getProductoPrecio())
+                    .build());
+
+            List<Object[]> resultado = repo.sumCantidadProductoByComandaIds(
+                    List.of(c1.getComandaId(), c2.getComandaId()),
+                    productoPlato.getProductoId());
+
+            Map<Long, Long> demanda = new HashMap<>();
+            for (Object[] fila : resultado) {
+                demanda.put(((Number) fila[0]).longValue(), ((Number) fila[1]).longValue());
+            }
+            assertThat(demanda).containsEntry(c1.getComandaId(), 2L);
+            assertThat(demanda).containsEntry(c2.getComandaId(), 3L);
+        }
+
+        @Test
+        @DisplayName("lista vacía cuando no hay ítems del producto en las comandas")
+        void sinDemanda() {
+            List<Object[]> resultado = repo.sumCantidadProductoByComandaIds(
+                    List.of(Long.MAX_VALUE), Long.MAX_VALUE);
+            assertThat(resultado).isEmpty();
+        }
+    }
+
+    // ──────────────────────────────────────────────────────────────────────────
+    // sumDemandaInsumoByComandaIds
+    // ──────────────────────────────────────────────────────────────────────────
+    @Nested
+    @DisplayName("sumDemandaInsumoByComandaIds")
+    class SumDemandaInsumoPorComandaTests {
+
+        private Insumo insumoFifo;
+        private Producto productoPrep;
+
+        @BeforeEach
+        void setUpFifo() {
+            insumoFifo = em.persistAndFlush(Insumo.builder()
+                    .insumoNombre("InsumoFifo" + System.nanoTime())
+                    .insumoUnidad(UnidadMedida.KG)
+                    .insumoEstado(EstadoGenerico.ACTIVO)
+                    .tipoInsumo(TipoInsumo.MATERIA_PRIMA)
+                    .insumoStockActual(new BigDecimal("10.000"))
+                    .build());
+
+            CategoriaCarta cat = em.persistAndFlush(CategoriaCarta.builder()
+                    .categoriaNombre("CatFifo" + System.nanoTime()).build());
+
+            productoPrep = em.persistAndFlush(Producto.builder()
+                    .categoriaCarta(cat)
+                    .productoNombre("ProdPrep" + System.nanoTime())
+                    .productoEstado(EstadoGenerico.ACTIVO)
+                    .productoPrecio(new BigDecimal("20000"))
+                    .productoTipo(TipoProducto.PREPARACION)
+                    .productoCategoria(CategoriaProducto.PLATO)
+                    .build());
+
+            em.persistAndFlush(Receta.builder()
+                    .insumoId(insumoFifo.getInsumoId())
+                    .productoId(productoPrep.getProductoId())
+                    .insumo(insumoFifo)
+                    .producto(productoPrep)
+                    .recetaCantidad(new BigDecimal("0.500"))
+                    .build());
+        }
+
+        @Test
+        @DisplayName("devuelve demanda de insumo por comanda multiplicando receta × cantidad")
+        void demandaPorComanda() {
+            Comanda c1 = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+            Comanda c2 = em.persistAndFlush(Comanda.builder()
+                    .visita(comandaBorrador.getVisita())
+                    .comandaEstacion(EstacionComanda.COCINA)
+                    .comandaEstado(EstadoComanda.PENDIENTE)
+                    .build());
+
+            // c1: 2 unidades × 0.500 = 1.000
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(c1).producto(productoPrep)
+                    .comandaItemCantidad(2)
+                    .comandaItemPrecio(productoPrep.getProductoPrecio())
+                    .build());
+            // c2: 4 unidades × 0.500 = 2.000
+            em.persistAndFlush(ComandaItem.builder()
+                    .comanda(c2).producto(productoPrep)
+                    .comandaItemCantidad(4)
+                    .comandaItemPrecio(productoPrep.getProductoPrecio())
+                    .build());
+
+            List<Object[]> resultado = repo.sumDemandaInsumoByComandaIds(
+                    List.of(c1.getComandaId(), c2.getComandaId()),
+                    insumoFifo.getInsumoId());
+
+            Map<Long, BigDecimal> demanda = new HashMap<>();
+            for (Object[] fila : resultado) {
+                demanda.put(((Number) fila[0]).longValue(), (BigDecimal) fila[1]);
+            }
+            assertThat(demanda.get(c1.getComandaId())).isEqualByComparingTo(new BigDecimal("1.000"));
+            assertThat(demanda.get(c2.getComandaId())).isEqualByComparingTo(new BigDecimal("2.000"));
         }
     }
 }

@@ -10,6 +10,37 @@ import static org.assertj.core.api.Assertions.assertThat;
 @DisplayName("DescripcionNormalizer")
 class DescripcionNormalizerTest {
 
+    // ── normalizarSinTildes ──────────────────────────────────────────────────
+
+    @Test
+    @DisplayName("normalizarSinTildes: null devuelve vacío")
+    void sinTildes_null() {
+        assertThat(DescripcionNormalizer.normalizarSinTildes(null)).isEmpty();
+    }
+
+    @Test
+    @DisplayName("normalizarSinTildes: cadena vacía y solo espacios devuelven vacío")
+    void sinTildes_vaciaYEspacios() {
+        assertThat(DescripcionNormalizer.normalizarSinTildes("")).isEmpty();
+        assertThat(DescripcionNormalizer.normalizarSinTildes("   ")).isEmpty();
+    }
+
+    @ParameterizedTest
+    @CsvSource({
+            "'águila', 'aguila'",
+            "'ÁGUILA', 'aguila'",
+            "'Café', 'cafe'",
+            "'niño', 'nino'",
+            "'  Ñoño  ', 'nono'",
+            "'sin tilde', 'sin tilde'"
+    })
+    @DisplayName("normalizarSinTildes: tildes eliminadas, mayúsculas a minúsculas, espacios recortados")
+    void sinTildes_converge(String entrada, String esperado) {
+        assertThat(DescripcionNormalizer.normalizarSinTildes(entrada)).isEqualTo(esperado);
+    }
+
+    // ── normalizar ───────────────────────────────────────────────────────────
+
     @Test
     @DisplayName("null se normaliza a cadena vacía")
     void nullDevuelveVacio() {

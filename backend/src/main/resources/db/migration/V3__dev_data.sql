@@ -708,3 +708,71 @@ JOIN Producto p ON p.producto_nombre = 'PA-HE-04-Sin-Stock'
 WHERE m.mesa_identificador = 'PA-HE-04-T1'
   AND c.comanda_estacion = 'COCINA'
   AND c.comanda_estado = 'BORRADOR';
+
+
+-- =====================================================
+-- PA-HE-04 Sección 16: Seed para tests FIFO de notificación condicional
+-- MI-12 (0 notificadas), MI-13 (1 notificada), MI-14 (2 notificadas)
+--
+-- Productos: 146 (MI-FIFO-Cubierto, stock=5), 147 (MI-FIFO-Parcial, stock=3),
+--            148 (MI-FIFO-Total, stock=2)
+-- Visitas:   18 (FIFO-T1), 19 (FIFO-T2)
+-- Mesas:     18, 19  (mesero_id=5)
+-- Comandas:  37 (PENDIENTE COCINA, createdAt -35 min) — productos 146 y 147 (MI-12, MI-13)
+--            38 (PENDIENTE COCINA, createdAt -25 min) — productos 146 y 147 (MI-12, MI-13)
+--            39 (PENDIENTE COCINA, createdAt -20 min) — producto 148 exclusivo (MI-14)
+--            40 (PENDIENTE COCINA, createdAt -15 min) — producto 148 exclusivo (MI-14)
+--
+-- MI-12: egreso prod 146 qty=1 → stockRest=4 ≥ 2 → 0 notif
+-- MI-13: egreso prod 147 qty=2 → stockRest=1, c37(dem=1)=cubierta, c38(dem=1)=notificada → 1 notif
+-- MI-14: egreso prod 148 qty=2 → stockRest=0, c39=notificada, c40=notificada → 2 notif
+--        (c39/c40 son exclusivas de MI-14; la notificación de c38 de MI-13 no interfiere)
+--
+-- NOTA: MI-13 crea notificación CAMBIO en c38 que persiste. MI-14 usa c39/c40 sin estado previo.
+--       Requieren flyway clean + migrate para reejecutar correctamente.
+-- =====================================================
+
+-- Productos FIFO (IDs 146, 147, 148)
+INSERT INTO restaurante.Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual)
+VALUES
+    (1, 'MI-FIFO-Cubierto', 'ACTIVO', 10000, 'VENTA_DIRECTA', 'PLATO', 5),
+    (1, 'MI-FIFO-Parcial',  'ACTIVO', 10000, 'VENTA_DIRECTA', 'PLATO', 3),
+    (1, 'MI-FIFO-Total',    'ACTIVO', 10000, 'VENTA_DIRECTA', 'PLATO', 2);
+
+-- Visitas 18 y 19 (sin reserva, activas)
+INSERT INTO restaurante.Visita (cliente_id, reserva_id, visita_fecha_hora_inicio, visita_fecha_hora_fin) VALUES
+(12, NULL, NOW() - INTERVAL '40 minutes', NULL),
+(12, NULL, NOW() - INTERVAL '30 minutes', NULL);
+
+-- Mesas para visitas 18 y 19 (mesero_id=5 = mesero2@altoro.com)
+INSERT INTO restaurante.Mesa (visita_id, zona_id, mesero_id, mesa_identificador, mesa_numero_personas, mesa_estado, mesa_notas) VALUES
+(18, 1, 5, 'MI-FIFO-T1', 2, 'ATENDIDA', 'Seed PA-HE-04: FIFO test T1 (comanda más antigua)'),
+(19, 1, 5, 'MI-FIFO-T2', 2, 'ATENDIDA', 'Seed PA-HE-04: FIFO test T2 (comanda más reciente)');
+
+-- Comandas 37-40 PENDIENTE COCINA con created_at explícito para orden FIFO determinista
+-- c37/c38: productos 146 y 147 (MI-12 y MI-13)
+-- c39/c40: producto 148 exclusivo (MI-14), sin notificaciones previas
+INSERT INTO restaurante.Comanda (visita_id, comanda_estacion, comanda_fecha_hora_inicio, comanda_notas, comanda_estado, created_at, updated_at)
+VALUES
+(18, 'COCINA', NOW() - INTERVAL '35 minutes', 'Seed FIFO: comanda antigua MI-12/MI-13 (T1)', 'PENDIENTE',
+    NOW() - INTERVAL '35 minutes', NOW() - INTERVAL '35 minutes'),
+(19, 'COCINA', NOW() - INTERVAL '25 minutes', 'Seed FIFO: comanda reciente MI-12/MI-13 (T2)', 'PENDIENTE',
+    NOW() - INTERVAL '25 minutes', NOW() - INTERVAL '25 minutes'),
+(18, 'COCINA', NOW() - INTERVAL '20 minutes', 'Seed FIFO: comanda antigua MI-14 (T1)', 'PENDIENTE',
+    NOW() - INTERVAL '20 minutes', NOW() - INTERVAL '20 minutes'),
+(19, 'COCINA', NOW() - INTERVAL '15 minutes', 'Seed FIFO: comanda reciente MI-14 (T2)', 'PENDIENTE',
+    NOW() - INTERVAL '15 minutes', NOW() - INTERVAL '15 minutes');
+
+-- Items de comandas 37 y 38: productos 146 y 147 (MI-12, MI-13)
+-- Items de comandas 39 y 40: producto 148 exclusivo (MI-14)
+INSERT INTO restaurante.Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+SELECT v.comanda_id, p.producto_id, 1, p.producto_precio, NULL, NULL
+FROM (VALUES
+    (37::bigint, 'MI-FIFO-Cubierto'),
+    (37,         'MI-FIFO-Parcial'),
+    (38::bigint, 'MI-FIFO-Cubierto'),
+    (38,         'MI-FIFO-Parcial'),
+    (39::bigint, 'MI-FIFO-Total'),
+    (40::bigint, 'MI-FIFO-Total')
+) AS v(comanda_id, nombre)
+JOIN restaurante.Producto p ON p.producto_nombre = v.nombre;

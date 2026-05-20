@@ -273,7 +273,7 @@ class ProductoServiceTest {
             ProductoBusquedaResponse r1 = mock(ProductoBusquedaResponse.class);
             ProductoBusquedaResponse r2 = mock(ProductoBusquedaResponse.class);
 
-            when(productoRepository.buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO))
+            when(productoRepository.buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of(p1, p2));
             when(productoMapper.toBusquedaResponse(p1)).thenReturn(r1);
             when(productoMapper.toBusquedaResponse(p2)).thenReturn(r2);
@@ -281,14 +281,14 @@ class ProductoServiceTest {
             List<ProductoBusquedaResponse> result = productoService.buscarProductos("  emp  ");
 
             assertThat(result).containsExactly(r1, r2);
-            verify(productoRepository).buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO);
+            verify(productoRepository).buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO.name());
             verify(productoMapper, times(2)).toBusquedaResponse(any());
         }
 
         @Test
         @DisplayName("query sin coincidencias retorna lista vacia")
         void querySinCoincidencias_retornaListaVacia() {
-            when(productoRepository.buscarPorNombreSinMenu("xyz", EstadoGenerico.ACTIVO))
+            when(productoRepository.buscarPorNombreSinMenu("xyz", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of());
 
             List<ProductoBusquedaResponse> result = productoService.buscarProductos("xyz");

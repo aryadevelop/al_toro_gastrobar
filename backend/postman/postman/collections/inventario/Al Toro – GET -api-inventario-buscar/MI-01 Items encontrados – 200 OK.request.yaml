@@ -1,0 +1,36 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-01 (HE-04-HU-04-CA-02)
+  **Objetivo:** Un COCINERO busca productos e insumos por nombre y recibe una lista unificada válida.
+  **Pre-condición:** `{{emailCocinero}}` existe con rol COCINERO. Existen productos/insumos activos cuyo nombre contiene la letra "a".
+  **Resultado esperado:** HTTP 200 con `success: true` y `data` como arreglo ordenado.
+  **Atómica:** solo lectura; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/buscar?q=a"
+method: GET
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('data es arreglo', () => pm.expect(body.data).to.be.an('array'));
+      pm.test('cada ítem tiene tipo, id, nombre, unidadMedida y stockActual', () => {
+        body.data.forEach(item => {
+          pm.expect(item).to.have.property('tipo');
+          pm.expect(item).to.have.property('id');
+          pm.expect(item).to.have.property('nombre');
+          pm.expect(item).to.have.property('unidadMedida');
+          pm.expect(item).to.have.property('stockActual');
+        });
+      });
+      pm.test('tipo solo es PRODUCTO o INSUMO', () => {
+        body.data.forEach(item => pm.expect(['PRODUCTO', 'INSUMO']).to.include(item.tipo));
+      });
+      pm.test('ítems ordenados alfabéticamente por nombre', () => {
+        const nombres = body.data.map(i => i.nombre.toLowerCase());
+        pm.expect(nombres).to.deep.equal([...nombres].sort());
+      });
+    language: text/javascript
+order: 1000
