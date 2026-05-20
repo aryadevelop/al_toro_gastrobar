@@ -25,6 +25,8 @@ public interface VentaAdminRepository extends JpaRepository<Venta, Long> {
 
     Optional<Venta> findFirstByVisita_Cliente_UsuarioIdOrderByVentaFechaHoraDesc(Long clienteId);
 
+    List<Venta> findByVisita_Cliente_UsuarioIdIn(List<Long> clienteIds);
+
     @Query(value = """
             SELECT EXTRACT(YEAR FROM v.venta_fecha_hora) AS anio,
                    SUM(v.venta_total) AS total,
