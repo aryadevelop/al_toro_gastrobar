@@ -30,6 +30,8 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
      */
     List<Reserva> findByCliente_UsuarioIdOrderByReservaFechaHoraLlegadaDesc(Long clienteId);
 
+    List<Reserva> findByCliente_UsuarioIdInAndReservaFechaCreacionAfter(List<Long> clienteIds, LocalDateTime fechaCreacion);
+
     /**
      * Devuelve la suma de comensales agrupada por zona para un rango de fecha/hora y estados dados.
      *
