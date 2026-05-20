@@ -1,0 +1,57 @@
+$kind: collection
+name: Al Toro – POST /api/inventario/movimientos
+description: |-
+  ## Descripción
+  Registra un ajuste manual de inventario (INGRESO o EGRESO) de un producto o insumo. Exactamente uno de `productoId` o `insumoId` debe estar presente. En EGRESO valida stock; si hay comandas PENDIENTE afectadas crea notificación CAMBIO y emite WS al tablero. Siempre difunde el evento de stock a `/topic/inventario`.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+  ```
+
+  ## Estructura de la Respuesta Exitosa (201)
+  ```json
+  {
+    "success": true,
+    "message": "Ajuste de inventario registrado correctamente.",
+    "data": { "movimientoId": 1, "stockActualizado": 3.000, "comandasNotificadas": 0 }
+  }
+  ```
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MI-04 | Egreso de producto exitoso (compensado) | 201 |
+  | MI-05 | Ingreso de insumo exitoso (compensado) | 201 |
+  | MI-06 | Stock insuficiente para egreso | 409 |
+  | MI-07 | Producto e insumo ausentes | 400 |
+  | MI-08 | Sin token JWT | 401 |
+  | MI-09 | Tipo de movimiento ausente | 400 |
+  | MI-10 | Cantidad ausente | 400 |
+  | MI-11 | Rol no autorizado (CLIENTE) | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de COCINERO y CLIENTE
+      const login = (emailVar, tokenVar) => {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            email: pm.environment.get(emailVar),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          }) }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailVar + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenVar, res.json().accessToken);
+        });
+      };
+      login('emailCocinero', 'cocineroToken');
+      login('emailCliente', 'clienteToken');
+    language: text/javascript

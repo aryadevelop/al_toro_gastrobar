@@ -1,0 +1,54 @@
+$kind: collection
+name: Al Toro – GET /api/inventario/buscar
+description: |-
+  ## Descripción
+  Buscador de productos e insumos activos para el formulario de ajuste manual de inventario. Devuelve una lista unificada ordenada alfabéticamente por nombre: productos (unidad `"UNIDAD"`) e insumos (su unidad real). Incluye productos con `stockActual = 0`.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{cocineroToken}}
+  ```
+  Accesible para `COCINERO`, `BARTENDER` y `ADMIN`. El pre-request de la colección hace login automático como COCINERO.
+
+  ## Estructura de la Respuesta Exitosa (200)
+  ```json
+  {
+    "success": true,
+    "data": [
+      { "tipo": "INSUMO", "id": 1, "nombre": "Sal marina", "stockActual": 2.500, "unidadMedida": "KG" },
+      { "tipo": "PRODUCTO", "id": 10, "nombre": "Lomo de res", "stockActual": 5.000, "unidadMedida": "UNIDAD" }
+    ]
+  }
+  ```
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MI-01 | Items encontrados con token COCINERO | 200 |
+  | MI-02 | Solicitud sin token JWT | 401 |
+  | MI-03 | Token de rol no autorizado (CLIENTE) | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de COCINERO y CLIENTE
+      const login = (emailVar, tokenVar) => {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            email: pm.environment.get(emailVar),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          }) }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailVar + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenVar, res.json().accessToken);
+        });
+      };
+      login('emailCocinero', 'cocineroToken');
+      login('emailCliente', 'clienteToken');
+    language: text/javascript

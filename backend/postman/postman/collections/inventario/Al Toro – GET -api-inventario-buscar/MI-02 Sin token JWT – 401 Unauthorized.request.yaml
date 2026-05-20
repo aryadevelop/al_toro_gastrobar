@@ -1,0 +1,13 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-02
+  **Objetivo:** El buscador rechaza solicitudes sin token.
+  **Resultado esperado:** HTTP 401.
+  **Atómica:** solo lectura; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/buscar?q=sal"
+method: GET
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 401 – sin token', () => pm.response.to.have.status(401));
+    language: text/javascript
+order: 2000

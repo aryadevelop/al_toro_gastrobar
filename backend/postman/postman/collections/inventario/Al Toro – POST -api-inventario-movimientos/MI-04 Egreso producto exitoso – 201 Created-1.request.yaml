@@ -1,0 +1,58 @@
+$kind: http-request
+name: MI-04 Egreso producto exitoso – 201 Created
+description: |-
+  **Criterio de Aceptación:** MI-04 (HE-04-HU-04-CA-04 / CA-06)
+  **Objetivo:** Un COCINERO registra un egreso de producto con stock suficiente.
+  **Pre-condición:** producto `143` con `stockActual >= 1`.
+  **Resultado esperado:** HTTP 201 con `movimientoId`, `stockActualizado` y `comandasNotificadas`.
+  **Atómica:** el afterResponse ejecuta un INGRESO compensatorio de la misma cantidad para restaurar el stock.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 143,
+      "cantidad": 1.000,
+      "tipo": "EGRESO",
+      "observaciones": "Test egreso manual MI-04"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201 – egreso registrado', () => pm.response.to.have.status(201));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('message de éxito presente', () => {
+        pm.expect(body.message).to.eql('Ajuste de inventario registrado correctamente.');
+      });
+      pm.test('data.movimientoId es número', () => pm.expect(body.data.movimientoId).to.be.a('number'));
+      pm.test('data.stockActualizado es número', () => pm.expect(body.data.stockActualizado).to.be.a('number'));
+      pm.test('data.comandasNotificadas es número >= 0', () => {
+        pm.expect(body.data.comandasNotificadas).to.be.at.least(0);
+      });
+
+      // Compensación: INGRESO inverso para mantener el stock invariante (prueba atómica)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/inventario/movimientos',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + pm.environment.get('cocineroToken')
+        },
+        body: { mode: 'raw', raw: JSON.stringify({
+          productoId: 143,
+          cantidad: 1.000,
+          tipo: 'INGRESO',
+          observaciones: 'Reversa MI-04'
+        }) }
+      }, (err, res) => {
+        pm.test('Reversa MI-04 restauró el stock (201)', () => {
+          pm.expect(!err && res && res.code === 201).to.be.true;
+        });
+      });
+    language: text/javascript
+order: 1469

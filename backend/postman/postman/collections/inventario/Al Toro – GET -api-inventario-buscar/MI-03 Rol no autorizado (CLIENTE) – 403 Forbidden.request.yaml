@@ -1,0 +1,16 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-03
+  **Objetivo:** Un CLIENTE no puede acceder al buscador de inventario.
+  **Pre-condición:** `{{clienteToken}}` corresponde a un usuario con rol CLIENTE.
+  **Resultado esperado:** HTTP 403.
+  **Atómica:** solo lectura; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/buscar?q=sal"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 403 – rol CLIENTE', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 3000

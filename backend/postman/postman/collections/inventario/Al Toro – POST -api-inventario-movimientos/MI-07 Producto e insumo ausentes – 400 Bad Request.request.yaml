@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-07 (HE-04-HU-04-CA-07)
+  **Objetivo:** Rechazar un ajuste sin productoId ni insumoId.
+  **Resultado esperado:** HTTP 400, `success: false`.
+  **Atómica:** la solicitud falla; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "cantidad": 1.000,
+      "tipo": "EGRESO"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – producto/insumo ausente', () => pm.response.to.have.status(400));
+      const body = pm.response.json();
+      pm.test('success: false', () => pm.expect(body).to.have.property('success', false));
+    language: text/javascript
+order: 5000
