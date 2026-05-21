@@ -152,7 +152,5 @@ values:
     value: ''
   - key: comandaIdCompletada
     value: ''
-  - key: tmpNotificacionId
-    value: ''
   - key: accessToken
     value: ''

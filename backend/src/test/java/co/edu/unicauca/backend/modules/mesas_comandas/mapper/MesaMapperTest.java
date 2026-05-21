@@ -11,8 +11,10 @@ import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.shared.enums.*;
 import org.junit.jupiter.api.DisplayName;
+import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.util.List;
 
@@ -52,7 +54,7 @@ class MesaMapperTest {
         List<Notificacion> notificaciones = List.of();
 
         // Act
-        MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, notificaciones, false, "mesero1@altoro.com");
+        MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, notificaciones, false, "mesero1@altoro.com", false);
 
         // Assert
         assertThat(response.getMesaId()).isEqualTo(1L);
@@ -74,13 +76,27 @@ class MesaMapperTest {
                 .build();
 
         // Act
-        MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, List.of(notif), true, "mesero2@altoro.com");
+        MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, List.of(notif), true, "mesero2@altoro.com", false);
 
         // Assert
         assertThat(response.getNombreMesero()).isEqualTo("Juan Pérez");  // RN-04: mesa ajena
         assertThat(response.getEsMesaPropia()).isFalse();
         assertThat(response.getTieneBorrador()).isTrue();
         assertThat(response.getNotificacionesActivas()).hasSize(1);
+    }
+
+    @Test
+    @DisplayName("toMesaMapaResponse con esCajero=true ignora ownership y siempre llena nombreMesero")
+    void toMesaMapaResponse_Cajero_EsMesaPropiaFalseYNombrePoblado() {
+        // Arrange
+        Mesa mesa = crearMesa("T-03", "mesero1@altoro.com", "Carlos Pérez");
+
+        // Act — pasa email que coincide con el del mesero pero esCajero=true debe ignorarlo
+        MesaMapaResponse response = mapper.toMesaMapaResponse(mesa, List.of(), false, "mesero1@altoro.com", true);
+
+        // Assert
+        assertThat(response.getEsMesaPropia()).isFalse();
+        assertThat(response.getNombreMesero()).isEqualTo("Carlos Pérez");
     }
 
     @Test
@@ -128,7 +144,7 @@ class MesaMapperTest {
         );
 
         // Act
-        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), items);
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), items, false);
 
         // Assert
         assertThat(response.getNombreCliente()).isEqualTo("María López");
@@ -148,7 +164,7 @@ class MesaMapperTest {
         mesa.setMesaNotas(null);  // Explicitly null
 
         // Act
-        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of());
+        MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), false);
 
         // Assert
         assertThat(response.getNotasMesa()).isNull();
@@ -211,7 +227,8 @@ class MesaMapperTest {
         MesaDetalleResponse response = mapper.toMesaDetalleResponse(
                 mesa,
                 List.of(itemConNota, itemNotaNull, itemNotaVacia, itemNotaDuplicada, itemOtraNota),
-                List.of());
+                List.of(),
+                false);
 
         // Assert: distincts only, separadas por " | ", null/blank descartadas
         assertThat(response.getNotasComandas()).contains("Sin hielo");
@@ -235,7 +252,7 @@ class MesaMapperTest {
 
         // Act
         MesaDetalleResponse response = mapper.toMesaDetalleResponse(
-                mesa, List.of(itemA, itemB, itemC), List.of());
+                mesa, List.of(itemA, itemB, itemC), List.of(), false);
 
         // Assert
         assertThat(response.getNotasComandas()).isNull();
@@ -258,6 +275,225 @@ class MesaMapperTest {
         // Assert
         assertThat(response.getIdentificadorMesa()).isEqualTo("T-05");
         assertThat(response.getItemsEnProduccion()).hasSize(1);
+    }
+
+    @Nested
+    @DisplayName("EsCumpleanosHoy")
+    class EsCumpleanosHoy {
+
+        @Test
+        @DisplayName("fechaNull → false")
+        void fechaNull_retornaFalse() {
+            assertThat(MesaMapper.esCumpleanosHoy(null)).isFalse();
+        }
+
+        @Test
+        @DisplayName("mismo mes y día → true")
+        void mismoMesYDia_retornaTrue() {
+            LocalDate hoy = LocalDate.now();
+            LocalDate hace30Anios = hoy.minusYears(30);
+            assertThat(MesaMapper.esCumpleanosHoy(hace30Anios)).isTrue();
+        }
+
+        @Test
+        @DisplayName("día distinto → false")
+        void diaDistinto_retornaFalse() {
+            LocalDate noEsHoy = LocalDate.now().minusDays(1).minusYears(20);
+            assertThat(MesaMapper.esCumpleanosHoy(noEsHoy)).isFalse();
+        }
+    }
+
+    @Nested
+    @DisplayName("toMesaDetalleResponse — esCajero")
+    class ToMesaDetalleResponseCajero {
+
+        @Test
+        @DisplayName("cajero con cliente cumpleaños hoy → clienteId, puntos, cumpleaños=true, puedeGenerarCuenta=true")
+        void cajero_visitaConClienteCumpleHoy_camposLlenos() {
+            // Arrange
+            LocalDate hoy = LocalDate.now();
+            LocalDate fechaNacimiento = hoy.minusYears(25);  // cumpleaños hoy
+
+            Usuario usuario = new Usuario();
+            usuario.setUsuarioEmail("mesero1@altoro.com");
+
+            Empleado empleado = new Empleado();
+            empleado.setUsuario(usuario);
+            empleado.setEmpleadoNombre("Juan Pérez");
+
+            Cliente cliente = new Cliente();
+            cliente.setUsuarioId(100L);
+            cliente.setClienteNombre("María López");
+            cliente.setClienteFechaNacimiento(fechaNacimiento);
+            cliente.setClientePuntos(50);
+
+            Visita visita = new Visita();
+            visita.setVisitaId(1L);
+            visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+            visita.setCliente(cliente);
+
+            Mesa mesa = new Mesa();
+            mesa.setVisitaId(1L);
+            mesa.setMesaIdentificador("T-01");
+            mesa.setMesaNumeroPersonas(2);
+            mesa.setMesaEstado(EstadoMesa.ATENDIDA);
+            mesa.setMesero(empleado);
+            mesa.setVisita(visita);
+
+            // Act
+            MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), true);
+
+            // Assert
+            assertThat(response.getClienteId()).isEqualTo(100L);
+            assertThat(response.getPuntosFidelizacion()).isEqualTo(50);
+            assertThat(response.getEsCumpleanos()).isTrue();
+            assertThat(response.getPuedeGenerarCuenta()).isTrue();
+        }
+
+        @Test
+        @DisplayName("cajero con cliente sin cumpleaños hoy → esCumpleanos=false")
+        void cajero_visitaConClienteSinCumple_esCumpleanosFalse() {
+            // Arrange
+            LocalDate ayer = LocalDate.now().minusDays(1);
+            LocalDate fechaNacimiento = ayer.minusYears(25);  // cumpleaños ayer
+
+            Usuario usuario = new Usuario();
+            usuario.setUsuarioEmail("mesero1@altoro.com");
+
+            Empleado empleado = new Empleado();
+            empleado.setUsuario(usuario);
+            empleado.setEmpleadoNombre("Juan Pérez");
+
+            Cliente cliente = new Cliente();
+            cliente.setUsuarioId(101L);
+            cliente.setClienteNombre("Pedro García");
+            cliente.setClienteFechaNacimiento(fechaNacimiento);
+            cliente.setClientePuntos(25);
+
+            Visita visita = new Visita();
+            visita.setVisitaId(2L);
+            visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+            visita.setCliente(cliente);
+
+            Mesa mesa = new Mesa();
+            mesa.setVisitaId(2L);
+            mesa.setMesaIdentificador("T-02");
+            mesa.setMesaNumeroPersonas(3);
+            mesa.setMesaEstado(EstadoMesa.ATENDIDA);
+            mesa.setMesero(empleado);
+            mesa.setVisita(visita);
+
+            // Act
+            MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), true);
+
+            // Assert
+            assertThat(response.getEsCumpleanos()).isFalse();
+        }
+
+        @Test
+        @DisplayName("cajero walk-in sin cliente → clienteId null, puntos null, esCumpleanos null")
+        void cajero_visitaSinCliente_camposClienteNull() {
+            // Arrange
+            Usuario usuario = new Usuario();
+            usuario.setUsuarioEmail("mesero1@altoro.com");
+
+            Empleado empleado = new Empleado();
+            empleado.setUsuario(usuario);
+            empleado.setEmpleadoNombre("Juan Pérez");
+
+            Visita visita = new Visita();
+            visita.setVisitaId(3L);
+            visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+            visita.setCliente(null);  // walk-in
+
+            Mesa mesa = new Mesa();
+            mesa.setVisitaId(3L);
+            mesa.setMesaIdentificador("T-03");
+            mesa.setMesaNumeroPersonas(4);
+            mesa.setMesaEstado(EstadoMesa.ATENDIDA);
+            mesa.setMesero(empleado);
+            mesa.setVisita(visita);
+
+            // Act
+            MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), true);
+
+            // Assert
+            assertThat(response.getClienteId()).isNull();
+            assertThat(response.getPuntosFidelizacion()).isNull();
+            assertThat(response.getEsCumpleanos()).isNull();
+            assertThat(response.getPuedeGenerarCuenta()).isTrue();  // ATENDIDA → true
+        }
+
+        @Test
+        @DisplayName("cajero mesa ESPERA → puedeGenerarCuenta=false")
+        void cajero_mesaEspera_puedeGenerarCuentaFalse() {
+            // Arrange
+            Usuario usuario = new Usuario();
+            usuario.setUsuarioEmail("mesero1@altoro.com");
+
+            Empleado empleado = new Empleado();
+            empleado.setUsuario(usuario);
+            empleado.setEmpleadoNombre("Juan Pérez");
+
+            Visita visita = new Visita();
+            visita.setVisitaId(4L);
+            visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+            visita.setCliente(null);
+
+            Mesa mesa = new Mesa();
+            mesa.setVisitaId(4L);
+            mesa.setMesaIdentificador("T-04");
+            mesa.setMesaNumeroPersonas(2);
+            mesa.setMesaEstado(EstadoMesa.ESPERA);
+            mesa.setMesero(empleado);
+            mesa.setVisita(visita);
+
+            // Act
+            MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), true);
+
+            // Assert
+            assertThat(response.getPuedeGenerarCuenta()).isFalse();
+        }
+
+        @Test
+        @DisplayName("mesero (esCajero=false) → los 4 campos extra son null")
+        void mesero_esCajeroFalse_cuatroCamposNull() {
+            // Arrange
+            Usuario usuario = new Usuario();
+            usuario.setUsuarioEmail("mesero1@altoro.com");
+
+            Empleado empleado = new Empleado();
+            empleado.setUsuario(usuario);
+            empleado.setEmpleadoNombre("Juan Pérez");
+
+            Cliente cliente = new Cliente();
+            cliente.setUsuarioId(102L);
+            cliente.setClienteNombre("Ana Martínez");
+            cliente.setClienteFechaNacimiento(LocalDate.now().minusYears(30));
+            cliente.setClientePuntos(100);
+
+            Visita visita = new Visita();
+            visita.setVisitaId(5L);
+            visita.setVisitaFechaHoraInicio(LocalDateTime.now());
+            visita.setCliente(cliente);
+
+            Mesa mesa = new Mesa();
+            mesa.setVisitaId(5L);
+            mesa.setMesaIdentificador("T-05");
+            mesa.setMesaNumeroPersonas(2);
+            mesa.setMesaEstado(EstadoMesa.ATENDIDA);
+            mesa.setMesero(empleado);
+            mesa.setVisita(visita);
+
+            // Act
+            MesaDetalleResponse response = mapper.toMesaDetalleResponse(mesa, List.of(), List.of(), false);
+
+            // Assert
+            assertThat(response.getClienteId()).isNull();
+            assertThat(response.getPuntosFidelizacion()).isNull();
+            assertThat(response.getEsCumpleanos()).isNull();
+            assertThat(response.getPuedeGenerarCuenta()).isNull();
+        }
     }
 
     // Helpers

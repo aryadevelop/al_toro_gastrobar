@@ -1,17 +1,16 @@
 $kind: http-request
-name: MD-04 CAJERO intenta acceder – 403 Forbidden
+name: MC-11 CAJERO con zonaId inexistente – 404 Not Found
 description: |-
-  **Objetivo:** Verificar que rol CAJERO no tiene acceso al endpoint.
-  **Pre-condición:** `cajeroToken` disponible. Endpoint requiere MESERO o ADMIN.
-  **Resultado esperado:** 403 Forbidden.
-url: "{{baseUrl}}/api/mesas/10/detalle"
+  **Objetivo:** Verificar que CAJERO recibe 404 al consultar una zona inexistente.
+  **Pre-condición:** `cajeroToken` disponible. zonaId=99999 no existe en seed.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/mesas?zonaId=99999"
 method: GET
 headers:
   Authorization: Bearer {{cajeroToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del CAJERO
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -28,14 +27,19 @@ scripts:
         if (!err && res && res.code === 200) {
           pm.environment.set('cajeroToken', res.json().accessToken);
         } else {
-          console.warn('MD-04: login CAJERO falló', err, res && res.code);
+          console.warn('MC-11: login CAJERO falló', err, res && res.code);
         }
       });
     language: text/javascript
   - type: afterResponse
     code: |-
-      pm.test('El sistema rechaza con 403 cuando CAJERO intenta acceder', function () {
-        pm.response.to.have.status(403);
+      pm.test('Retorna 404 cuando zonaId no existe', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('Código de error es ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-001');
       });
     language: text/javascript
-order: 4000
+order: 11000

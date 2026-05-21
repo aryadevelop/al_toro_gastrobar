@@ -6,8 +6,8 @@ description: |-
   Registra que el mesero sirvió las bebidas de una comanda.
 
   **Control de acceso:**
-  - MESERO/ADMIN: acceso permitido.
-  - CAJERO/CLIENTE: 403 Forbidden.
+  - MESERO/CAJERO/ADMIN: acceso permitido.
+  - CLIENTE: 403 Forbidden.
   - Sin token: 401 Unauthorized.
 
   ## Variables de entorno requeridas
@@ -19,10 +19,10 @@ description: |-
   | SB-01 | MESERO sirve bebidas válido | 200 |
   | SB-02 | ADMIN sirve bebidas | 200 |
   | SB-03 | Sin token | 401 |
-  | SB-04 | CAJERO | 403 |
   | SB-05 | CLIENTE | 403 |
   | SB-06 | ID inexistente | 404 |
   | SB-07 | Ya atendida | 409 |
+  | SB-08 | CAJERO sirve bebidas | 200 |
 
   > ⚠️ TODO — Test dependiente de seed data
   >

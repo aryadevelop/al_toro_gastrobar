@@ -10,9 +10,11 @@ description: |-
   - CA-02: Manejo de mesas sin visita activa
 
   **Control de acceso:**
-  - MESERO/ADMIN: acceso permitido
-  - CAJERO/CLIENTE: 403 Forbidden
+  - MESERO/CAJERO/ADMIN: acceso permitido
+  - CLIENTE: 403 Forbidden
   - Sin token: 401 Unauthorized
+
+  **Campos extra para CAJERO:** `clienteId`, `puntosFidelizacion`, `esCumpleanos`, `puedeGenerarCuenta` (null para MESERO/ADMIN).
 
   **Campos de MesaDetalleResponse:**
   - mesaId, mesaIdentificador, numeroPersonas, estado, nombreMesero
@@ -31,10 +33,10 @@ description: |-
   | MD-01 | MESERO obtiene detalle de mesa activa — 200 OK | 200 |
   | MD-02 | MESERO con mesaId inexistente — 404 Not Found | 404 |
   | MD-03 | ADMIN obtiene detalle de mesa — 200 OK | 200 |
-  | MD-04 | CAJERO intenta acceder — 403 Forbidden | 403 |
   | MD-05 | Sin token de autenticación — 401 Unauthorized | 401 |
   | MD-06 | CLIENTE intenta acceder — 403 Forbidden | 403 |
   | MD-07 | Segunda llamada retorna datos consistentes (idempotencia) | 200 |
+  | MD-09 | CAJERO obtiene detalle con campos extra — 200 OK | 200 |
 
 scripts:
   - type: http:beforeRequest

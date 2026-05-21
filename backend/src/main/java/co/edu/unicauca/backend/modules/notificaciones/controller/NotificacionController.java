@@ -23,7 +23,7 @@ import org.springframework.web.bind.annotation.*;
 @RestController
 @RequestMapping("/api/notificaciones")
 @RequiredArgsConstructor
-@Tag(name = "Notificaciones", description = "Gestión de notificaciones de mesa para empleados")
+@Tag(name = "Notificaciones", description = "Gestión de notificaciones de mesa para meseros, cajeros y producción")
 public class NotificacionController {
 
     private final NotificacionService notificacionService;
@@ -40,7 +40,7 @@ public class NotificacionController {
      * @return 200 OK con mensaje de confirmación
      */
     @PatchMapping("/{notificacionId}/atender")
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Marcar solicitud de asistencia como atendida")
     public ResponseEntity<ApiResponse<Void>> atenderAsistencia(
             @PathVariable Long notificacionId,
@@ -61,7 +61,7 @@ public class NotificacionController {
      * @return 200 OK con mensaje de confirmación
      */
     @PatchMapping("/{notificacionId}/servir-platos")
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Marcar notificación de platos listos como atendida")
     public ResponseEntity<ApiResponse<Void>> servirPlatos(
             @PathVariable Long notificacionId,
@@ -79,7 +79,7 @@ public class NotificacionController {
      * @return 200 OK con mensaje de confirmación
      */
     @PatchMapping("/{notificacionId}/servir-bebidas")
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Marcar notificación de bebidas listas como atendida")
     public ResponseEntity<ApiResponse<Void>> servirBebidas(
             @PathVariable Long notificacionId,
@@ -121,7 +121,7 @@ public class NotificacionController {
      * @return 200 OK con {@link AtenderCambioResponse} que incluye el {@code comandaId}
      */
     @PatchMapping("/{notificacionId}/atender-cambio")
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Atender solicitud de cambio de comanda")
     public ResponseEntity<ApiResponse<AtenderCambioResponse>> atenderCambio(
             @PathVariable Long notificacionId,

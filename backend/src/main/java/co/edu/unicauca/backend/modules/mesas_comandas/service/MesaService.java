@@ -15,6 +15,7 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
+import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -52,11 +53,13 @@ public class MesaService {
      * Si zonaId es especificado, devuelve solo esa zona.
      *
      * @param zonaId ID de zona (null = todas las zonas)
-     * @param emailMesero email del mesero que hace la petición (para flag esMesaPropia)
+     * @param authentication contexto de seguridad del request (para email y detección de rol CAJERO)
      * @return MapaMesasResponse con zonas y mesas
      * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si zonaId no existe
      */
-    public MapaMesasResponse obtenerMapaMesas(Long zonaId, String emailMesero) {
+    public MapaMesasResponse obtenerMapaMesas(Long zonaId, Authentication authentication) {
+        String emailMesero = authentication.getName();
+        boolean esCajero = esCajero(authentication);
 
         // 1. Obtener zonas
         List<Zona> zonas = zonaId != null
@@ -81,7 +84,7 @@ public class MesaService {
         List<ZonaMesasResponse> zonasResponse = zonas.stream()
                 .map(zona -> {
                     List<Mesa> mesasZona = mesasPorZona.getOrDefault(zona.getZonaId(), List.of());
-                    List<MesaMapaResponse> mesasDto = mapearMesas(mesasZona, emailMesero);
+                    List<MesaMapaResponse> mesasDto = mapearMesas(mesasZona, emailMesero, esCajero);
 
                     return ZonaMesasResponse.builder()
                             .zonaId(zona.getZonaId())
@@ -103,10 +106,12 @@ public class MesaService {
      * <p>Incluye información de la mesa, visita, mesero, zona, y items en producción.
      * 
      * @param visitaId ID de la visita (PK de Mesa)
+     * @param authentication contexto de seguridad (para detección de rol CAJERO y campos extra del DTO)
      * @return MesaDetalleResponse con información completa
      * @throws BusinessException con ErrorCode.ENTITY_NOT_FOUND si la mesa no existe o está cerrada
      */
-    public MesaDetalleResponse obtenerDetalleMesa(Long visitaId) {
+    public MesaDetalleResponse obtenerDetalleMesa(Long visitaId, Authentication authentication) {
+        boolean esCajero = esCajero(authentication);
 
         // 1. Obtener mesa
         Mesa mesa = mesaRepository.findById(visitaId)
@@ -131,7 +136,7 @@ public class MesaService {
             mesaMapper.agruparItemsEnProduccion(items);
 
         // 5. Mapear a DTO (pasando items originales para extraer notas)
-        return mesaMapper.toMesaDetalleResponse(mesa, items, itemsAgrupados);
+        return mesaMapper.toMesaDetalleResponse(mesa, items, itemsAgrupados, esCajero);
     }
 
     /**
@@ -169,7 +174,7 @@ public class MesaService {
      * Mapea lista de mesas a DTOs, obteniendo notificaciones y flag de borrador.
      * Método privado auxiliar para obtenerMapaMesas.
      */
-    private List<MesaMapaResponse> mapearMesas(List<Mesa> mesas, String emailMesero) {
+    private List<MesaMapaResponse> mapearMesas(List<Mesa> mesas, String emailMesero, boolean esCajero) {
         return mesas.stream()
                 .map(mesa -> {
                     Long visitaId = mesa.getVisitaId();
@@ -182,8 +187,20 @@ public class MesaService {
                     boolean tieneBorrador = mesaRepository.existeComandaBorradorEnMesa(visitaId);
 
                     // Mapear a DTO
-                    return mesaMapper.toMesaMapaResponse(mesa, notificaciones,tieneBorrador, emailMesero);
+                    return mesaMapper.toMesaMapaResponse(mesa, notificaciones, tieneBorrador, emailMesero, esCajero);
                 })
                 .collect(Collectors.toList());
+    }
+
+    /**
+     * Indica si el principal autenticado tiene rol CAJERO.
+     *
+     * @param authentication contexto de seguridad del request
+     * @return true si entre las authorities aparece ROLE_CAJERO
+     */
+    private boolean esCajero(Authentication authentication) {
+        return authentication.getAuthorities().stream()
+                .map(GrantedAuthority::getAuthority)
+                .anyMatch("ROLE_CAJERO"::equals);
     }
 }

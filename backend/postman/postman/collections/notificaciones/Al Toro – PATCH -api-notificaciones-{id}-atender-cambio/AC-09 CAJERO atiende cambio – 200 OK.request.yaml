@@ -1,0 +1,28 @@
+$kind: http-request
+name: AC-09 CAJERO atiende cambio – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Requiere una notificación seed ACTIVA de tipo CAMBIO (id 19).
+  > Cuando se construya el endpoint público para modificar comanda PENDIENTE,
+  > refactorizar a patrón create-fresh.
+
+  **Objetivo:** Verificar que CAJERO puede marcar como atendida una notificación CAMBIO (PA-111).
+  El cajero solo marca la notificación; el frontend ignora el comandaId del response y no abre edición.
+  **Pre-condición:** `cajeroToken` disponible. Notificación seed ACTIVA CAMBIO id=19.
+  **Resultado esperado:** 200 OK, body contiene `data.comandaId` numérico.
+url: "{{baseUrl}}/api/notificaciones/19/atender-cambio"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+      pm.test('data.comandaId es un número', () => {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('comandaId');
+        pm.expect(body.data.comandaId).to.be.a('number');
+      });
+    language: text/javascript
+order: 7309

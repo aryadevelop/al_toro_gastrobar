@@ -1,17 +1,16 @@
 $kind: http-request
-name: MC-05 CAJERO intenta acceder – 403 Forbidden
+name: MC-10 CAJERO filtra por zona específica – 200 OK
 description: |-
-  **Objetivo:** Verificar que rol CAJERO no tiene acceso al endpoint de mapa.
-  **Pre-condición:** `cajeroToken` disponible. Endpoint requiere MESERO o ADMIN.
-  **Resultado esperado:** 403 Forbidden.
-url: "{{baseUrl}}/api/mesas"
+  **Objetivo:** Verificar que CAJERO puede filtrar el mapa por zonaId.
+  **Pre-condición:** `cajeroToken` disponible. Zona 1 existe (Salón Principal).
+  **Resultado esperado:** 200 OK con única zona (zonaId=1).
+url: "{{baseUrl}}/api/mesas?zonaId=1"
 method: GET
 headers:
   Authorization: Bearer {{cajeroToken}}
 scripts:
   - type: beforeRequest
     code: |-
-      // Login autónomo del CAJERO
       pm.sendRequest({
         url: pm.environment.get('baseUrl') + '/api/auth/login',
         method: 'POST',
@@ -28,14 +27,20 @@ scripts:
         if (!err && res && res.code === 200) {
           pm.environment.set('cajeroToken', res.json().accessToken);
         } else {
-          console.warn('MC-05: login CAJERO falló', err, res && res.code);
+          console.warn('MC-10: login CAJERO falló', err, res && res.code);
         }
       });
     language: text/javascript
   - type: afterResponse
     code: |-
-      pm.test('El sistema rechaza con 403 cuando CAJERO intenta acceder', function () {
-        pm.response.to.have.status(403);
+      pm.test('CAJERO obtiene 200 OK', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Retorna única zona con zonaId=1', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.zonas).to.have.lengthOf(1);
+        pm.expect(body.data.zonas[0].zonaId).to.equal(1);
       });
     language: text/javascript
-order: 5000
+order: 10000

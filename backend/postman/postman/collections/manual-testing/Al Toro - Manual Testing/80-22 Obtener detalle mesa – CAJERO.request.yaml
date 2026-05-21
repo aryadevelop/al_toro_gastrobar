@@ -1,0 +1,36 @@
+$kind: http-request
+name: 80-22 Obtener detalle mesa – CAJERO
+description: Obtiene el detalle de una mesa específica con campos extra de cajero (clienteId, puntosFidelizacion, esCumpleanos, puedeGenerarCuenta)
+url: "{{baseUrl}}/api/mesas/{{tmpMesaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.environment.set('tmpMesaId', '1');
+
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpMesaId');
+      pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 8220
