@@ -65,8 +65,8 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/` | **MESERO / ADMIN** | Obtener mapa completo de mesas agrupadas por zona. Incluye estado de cada mesa, identificador asignado, y visita activa. |
-| GET | `/{mesaId}/detalle` | **MESERO / ADMIN** | Detalle de mesa específica: identificador, estado, visita activa con cliente, items de comandas pendientes. |
+| GET | `/` | **MESERO / CAJERO / ADMIN** | Obtener mapa completo de mesas agrupadas por zona. Incluye estado de cada mesa, identificador asignado, y visita activa. Para CAJERO, `esMesaPropia=false` y `nombreMesero` se devuelve siempre poblado. |
+| GET | `/{mesaId}/detalle` | **MESERO / CAJERO / ADMIN** | Detalle de mesa específica: identificador, estado, visita activa con cliente, items de comandas pendientes. Cajero recibe campos extra `clienteId`, `puntosFidelizacion`, `esCumpleanos`, `puedeGenerarCuenta`. |
 | GET | `/{mesaId}/items-produccion` | **MESERO / ADMIN** | Items de comandas en producción para la mesa (estados `PENDIENTE`, `EN_PREPARACION`, `LISTO`). Agrupados por comanda y estación (COCINA/BARRA). |
 | POST | `/` | **MESERO / ADMIN** | Asignar identificador a mesa. Requiere `mesaId` y `identificador`. Valida unicidad y reglas de asignación. Publica evento WebSocket. |
 | GET | `/zonas-disponibles` | **MESERO / ADMIN** | Lista zonas con mesas disponibles para asignar. Excluye mesas ya asignadas o con visita activa. |
@@ -114,7 +114,10 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| PATCH | `/{notificacionId}/atender` | **MESERO / ADMIN** | Marca solicitud de asistencia como atendida (`ACTIVA` → `ATENDIDA`). Publica evento WebSocket al cliente de la visita. |
+| PATCH | `/{notificacionId}/atender` | **MESERO / CAJERO / ADMIN** | Marca solicitud de asistencia como atendida (`ACTIVA` → `ATENDIDA`). Publica evento WebSocket al cliente de la visita. |
+| PATCH | `/{notificacionId}/servir-platos` | **MESERO / CAJERO / ADMIN** | Marca notificación `PLATOS_LISTOS` como atendida. Refresca el mapa de mesas vía WebSocket. |
+| PATCH | `/{notificacionId}/servir-bebidas` | **MESERO / CAJERO / ADMIN** | Marca notificación `BEBIDAS_LISTAS` como atendida. Refresca el mapa de mesas vía WebSocket. |
+| PATCH | `/{notificacionId}/atender-cambio` | **MESERO / CAJERO / ADMIN** | Atiende notificación `CAMBIO` y devuelve `comandaId` para que el mesero edite la comanda. Cajero la marca como vista (no abre edición). |
 | POST | `/cambio` | **PRODUCCION** (COCINERO / BARTENDER) | Crea una notificación `CAMBIO` sobre una comanda `PENDIENTE` para que el mesero acuda a la mesa y acuerde la sustitución con el cliente. Body: `{ comandaId }`. Refresca el mapa de mesas vía WebSocket. 409 si la comanda no está `PENDIENTE` o ya tiene una notificación `CAMBIO` activa, 403 si la estación no es del usuario. |
 
 ---
@@ -140,8 +143,10 @@ Base URL: `http://localhost:8080/api`
 - **Auth**: login, refresh, me, logout
 - **Clientes**: puntos (cualquier cliente), canje-puntos
 - **Productos**: carta, menu-especial
+- **Mesas**: mapa, detalle
 - **Visitas**: activa (cualquier cliente con param)
 - **Ventas**: cerrar cuenta
+- **Notificaciones**: atender, servir-platos, servir-bebidas, atender-cambio
 
 ### ADMIN
 - **Auth**: login, refresh, me, logout
@@ -150,7 +155,7 @@ Base URL: `http://localhost:8080/api`
 - **Productos**: carta, menu-especial
 - **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
 - **Visitas**: activa (cualquier cliente con param)
-- **Notificaciones**: atender
+- **Notificaciones**: atender, servir-platos, servir-bebidas, atender-cambio
 - **Inventario**: buscar, movimientos
 
 ### Public (sin autenticación)
