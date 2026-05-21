@@ -1,0 +1,99 @@
+$kind: http-request
+name: NC-06 CAJERO atiende solicitud activa – 200 OK
+description: |-
+  **Objetivo:** Verificar que CAJERO también puede atender una notificación de asistencia
+  (PA-111 — cajero atiende notificaciones cuando el mesero está ocupado).
+  **Pre-condición:** `cajeroToken` y `clienteToken` disponibles. Visita activa del cliente.
+  **Resultado esperado:** 200 OK, mensaje "atendida".
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionId}}/atender"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (emailKey, tokenKey, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('NC-06: login ' + emailKey + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenKey, res.json().accessToken);
+          cb();
+        });
+      };
+
+      const solicitarAsistencia = (visitaId, clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/' + visitaId + '/asistencia',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 201) {
+            console.warn('NC-06: POST asistencia falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpNotificacionId', res.json().data.notificacionId);
+        });
+      };
+
+      const obtenerVisitaYSolicitar = (clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('NC-06: GET /visitas/activa falló', err, res && res.code);
+            return;
+          }
+          const estado = res.json().data;
+          const visitaId = estado.visitaId;
+          if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+            const cajeroToken = pm.environment.get('cajeroToken');
+            pm.sendRequest({
+              url: baseUrl + '/api/notificaciones/' + estado.notificacionAsistenciaId + '/atender',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + cajeroToken }
+            }, () => {
+              solicitarAsistencia(visitaId, clienteToken);
+            });
+          } else {
+            solicitarAsistencia(visitaId, clienteToken);
+          }
+        });
+      };
+
+      login('emailCliente', 'clienteToken', () => {
+        login('emailCajero', 'cajeroToken', () => {
+          const clienteToken = pm.environment.get('clienteToken');
+          obtenerVisitaYSolicitar(clienteToken);
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO atiende la solicitud con 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('mensaje confirma atendida', function () {
+        pm.expect(pm.response.json().message).to.include('atendida');
+      });
+      pm.environment.unset('tmpNotificacionId');
+    language: text/javascript
+order: 6000

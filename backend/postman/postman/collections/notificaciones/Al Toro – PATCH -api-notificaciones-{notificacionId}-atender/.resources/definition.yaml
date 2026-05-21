@@ -8,7 +8,7 @@ description: |-
 
   **Criterios de Aceptación cubiertos:** CA-05 (mesero atiende la solicitud).
 
-  **Control de acceso:** MESERO y ADMIN. CLIENTE → 403.
+  **Control de acceso:** MESERO, CAJERO y ADMIN. CLIENTE → 403.
 
   **Efecto observable WS:** Al atender, se publica `AsistenciaAtendidaWsMessage` al cliente. El test NC-05 valida el efecto consultando GET /api/visitas/activa.
 
@@ -32,6 +32,7 @@ description: |-
   | NC-03 | MESERO intenta atender notificación inexistente — 404 Not Found | 404 |
   | NC-04 | CLIENTE intenta atender — 403 Forbidden | 403 |
   | NC-05 | Verificar GET /visitas/activa refleja asistencia atendida (valida WS) | 200 |
+  | NC-06 | CAJERO atiende solicitud activa — 200 OK | 200 |
 
 scripts:
   - type: http:beforeRequest
@@ -41,7 +42,8 @@ scripts:
       // ---------------------------------------------------------------------------
       const logins = [
         { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
-        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   }
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',   tokenKey: 'cajeroToken'   }
       ];
 
       const runLogin = (index) => {

@@ -6,8 +6,8 @@ description: |-
   Registra que el mesero sirvió los platos de una comanda.
 
   **Control de acceso:**
-  - MESERO/ADMIN: acceso permitido.
-  - CAJERO/CLIENTE: 403 Forbidden.
+  - MESERO/CAJERO/ADMIN: acceso permitido.
+  - CLIENTE: 403 Forbidden.
   - Sin token: 401 Unauthorized.
 
   ## Variables de entorno requeridas
@@ -19,10 +19,10 @@ description: |-
   | SP-01 | MESERO sirve platos válido | 200 |
   | SP-02 | ADMIN sirve platos | 200 |
   | SP-03 | Sin token | 401 |
-  | SP-04 | CAJERO | 403 |
   | SP-05 | CLIENTE | 403 |
   | SP-06 | ID inexistente | 404 |
   | SP-07 | Ya atendida | 409 |
+  | SP-08 | CAJERO sirve platos | 200 |
 
   > ⚠️ TODO — Test dependiente de seed data
   >

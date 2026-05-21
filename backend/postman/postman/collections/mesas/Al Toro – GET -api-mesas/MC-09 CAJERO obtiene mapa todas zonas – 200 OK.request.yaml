@@ -1,0 +1,55 @@
+$kind: http-request
+name: MC-09 CAJERO obtiene mapa todas zonas – 200 OK
+description: |-
+  **Objetivo:** Verificar que rol CAJERO obtiene el mapa con todas las zonas.
+  **Pre-condición:** `cajeroToken` disponible. BD tiene zonas seed y mesas activas.
+  **Resultado esperado:** 200 OK con array de zonas; cada mesa expone `esMesaPropia=false` y `nombreMesero` no null.
+url: "{{baseUrl}}/api/mesas"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-09: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO obtiene 200 OK', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Estructura de zonas correcta', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('zonas');
+        pm.expect(body.data.zonas).to.be.an('array');
+      });
+
+      pm.test('Para CAJERO mesas activas tienen esMesaPropia=false y nombreMesero poblado', function () {
+        const body = pm.response.json();
+        const mesas = body.data.zonas.flatMap(z => z.mesas);
+        mesas.forEach(mesa => {
+          pm.expect(mesa.esMesaPropia).to.equal(false);
+          pm.expect(mesa.nombreMesero).to.not.be.null;
+        });
+      });
+    language: text/javascript
+order: 9000
