@@ -29,7 +29,7 @@ import java.util.List;
 @RestController
 @RequestMapping("/api/mesas")
 @RequiredArgsConstructor
-@Tag(name = "Mesas", description = "API de mapa de mesas para meseros")
+@Tag(name = "Mesas", description = "API de mapa de mesas para meseros y cajeros")
 public class MesaController {
 
     private final MesaService mesaService;
@@ -48,7 +48,7 @@ public class MesaController {
      * @return MapaMesasResponse con zonas y mesas
      */
     @GetMapping
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Obtener mapa de mesas",
                description = "Lista todas las zonas con sus mesas activas. Puede filtrarse por zona.")
     public ResponseEntity<ApiResponse<MapaMesasResponse>> obtenerMapaMesas(
@@ -56,8 +56,7 @@ public class MesaController {
             @RequestParam(required = false) Long zonaId,
             Authentication authentication) {
 
-        String emailMesero = authentication.getName();
-        MapaMesasResponse mapa = mesaService.obtenerMapaMesas(zonaId, emailMesero);
+        MapaMesasResponse mapa = mesaService.obtenerMapaMesas(zonaId, authentication);
 
         return ResponseEntity.ok(ApiResponse.ok("Mapa de mesas obtenido exitosamente", mapa));
     }
@@ -69,14 +68,15 @@ public class MesaController {
      * @return MesaDetalleResponse con información completa
      */
     @GetMapping("/{mesaId}/detalle")
-    @PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('MESERO', 'CAJERO', 'ADMIN')")
     @Operation(summary = "Obtener detalle de mesa",
-               description = "Devuelve información detallada de una mesa específica")
+               description = "Devuelve información detallada de una mesa específica. Cajero recibe campos extra (clienteId, puntosFidelizacion, esCumpleanos, puedeGenerarCuenta).")
     public ResponseEntity<ApiResponse<MesaDetalleResponse>> obtenerDetalleMesa(
             @Parameter(description = "ID de la mesa (visita_id)")
-            @PathVariable Long mesaId) {
+            @PathVariable Long mesaId,
+            Authentication authentication) {
 
-        MesaDetalleResponse detalle = mesaService.obtenerDetalleMesa(mesaId);
+        MesaDetalleResponse detalle = mesaService.obtenerDetalleMesa(mesaId, authentication);
 
         return ResponseEntity.ok(ApiResponse.ok("Detalle de mesa obtenido exitosamente", detalle));
     }

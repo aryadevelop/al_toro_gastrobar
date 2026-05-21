@@ -118,10 +118,11 @@ class MesaServiceTest {
             when(mesaRepository.existeComandaBorradorEnMesa(anyLong())).thenReturn(false);
 
             MesaMapaResponse mesaDto = MesaMapaResponse.builder().build();
-            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString())).thenReturn(mesaDto);
+            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString(), anyBoolean())).thenReturn(mesaDto);
 
             // Act
-            MapaMesasResponse resultado = mesaService.obtenerMapaMesas(null, "mesero1@altoro.com");
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            MapaMesasResponse resultado = mesaService.obtenerMapaMesas(null, auth);
 
             // Assert
             assertThat(resultado).isNotNull();
@@ -160,10 +161,11 @@ class MesaServiceTest {
             when(mesaRepository.existeComandaBorradorEnMesa(anyLong())).thenReturn(false);
 
             MesaMapaResponse mesaDto = MesaMapaResponse.builder().build();
-            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString())).thenReturn(mesaDto);
+            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString(), anyBoolean())).thenReturn(mesaDto);
 
             // Act
-            MapaMesasResponse resultado = mesaService.obtenerMapaMesas(1L, "mesero1@altoro.com");
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            MapaMesasResponse resultado = mesaService.obtenerMapaMesas(1L, auth);
 
             // Assert
             assertThat(resultado).isNotNull();
@@ -186,7 +188,8 @@ class MesaServiceTest {
             when(zonaRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> mesaService.obtenerMapaMesas(999L, "mesero1@altoro.com"))
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            assertThatThrownBy(() -> mesaService.obtenerMapaMesas(999L, auth))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", ErrorCode.ENTITY_NOT_FOUND.getCode())
                     .hasMessageContaining("Zona no encontrada");
@@ -211,26 +214,53 @@ class MesaServiceTest {
             when(mesaRepository.existeComandaBorradorEnMesa(1L)).thenReturn(true);
 
             MesaMapaResponse mesaDto = MesaMapaResponse.builder().build();
-            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString())).thenReturn(mesaDto);
+            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString(), anyBoolean())).thenReturn(mesaDto);
 
             // Act
-            mesaService.obtenerMapaMesas(null, "mesero1@altoro.com");
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            mesaService.obtenerMapaMesas(null, auth);
 
             // Assert
             ArgumentCaptor<List<Notificacion>> notifCaptor = ArgumentCaptor.forClass(List.class);
             ArgumentCaptor<Boolean> borradorCaptor = ArgumentCaptor.forClass(Boolean.class);
             ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
+            ArgumentCaptor<Boolean> esCajeroCaptor = ArgumentCaptor.forClass(Boolean.class);
 
             verify(mesaMapper).toMesaMapaResponse(
                     eq(mesa),
                     notifCaptor.capture(),
                     borradorCaptor.capture(),
-                    emailCaptor.capture()
+                    emailCaptor.capture(),
+                    esCajeroCaptor.capture()
             );
 
             assertThat(notifCaptor.getValue()).hasSize(1);
             assertThat(borradorCaptor.getValue()).isTrue();
             assertThat(emailCaptor.getValue()).isEqualTo("mesero1@altoro.com");
+            assertThat(esCajeroCaptor.getValue()).isFalse();
+        }
+
+        @Test
+        @DisplayName("con rol CAJERO invoca mapper con flag esCajero=true")
+        void conRolCajero_invocaMapperConFlagCajeroTrue() {
+            // Arrange
+            Zona zona = crearZona(1L, "Terraza");
+            Empleado mesero = crearEmpleado("mesero1@altoro.com", "Juan Pérez");
+            Mesa mesa = crearMesa(1L, "T1", zona, mesero);
+
+            when(zonaRepository.findAll()).thenReturn(List.of(zona));
+            when(mesaRepository.findAllMesasActivas()).thenReturn(List.of(mesa));
+            when(notificacionRepository.findNotificacionesActivasByMesa(anyLong())).thenReturn(List.of());
+            when(mesaRepository.existeComandaBorradorEnMesa(anyLong())).thenReturn(false);
+            when(mesaMapper.toMesaMapaResponse(any(), anyList(), anyBoolean(), anyString(), anyBoolean()))
+                    .thenReturn(MesaMapaResponse.builder().build());
+
+            // Act
+            Authentication auth = crearAuthentication("cajero1@altoro.com", "CAJERO");
+            mesaService.obtenerMapaMesas(null, auth);
+
+            // Assert
+            verify(mesaMapper).toMesaMapaResponse(eq(mesa), anyList(), anyBoolean(), eq("cajero1@altoro.com"), eq(true));
         }
     }
 
@@ -257,10 +287,11 @@ class MesaServiceTest {
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(items);
             when(mesaMapper.agruparItemsEnProduccion(items)).thenReturn(itemsDto);
-            when(mesaMapper.toMesaDetalleResponse(mesa, items, itemsDto)).thenReturn(expectedResponse);
+            when(mesaMapper.toMesaDetalleResponse(mesa, items, itemsDto, false)).thenReturn(expectedResponse);
 
             // Act
-            MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L);
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L, auth);
 
             // Assert
             assertThat(resultado).isEqualTo(expectedResponse);
@@ -268,7 +299,32 @@ class MesaServiceTest {
             verify(mesaRepository).findById(1L);
             verify(comandaRepository).findItemsEnProduccionByVisita(1L);
             verify(mesaMapper).agruparItemsEnProduccion(items);
-            verify(mesaMapper).toMesaDetalleResponse(mesa, items, itemsDto);
+            verify(mesaMapper).toMesaDetalleResponse(mesa, items, itemsDto, false);
+        }
+
+        @Test
+        @DisplayName("con rol CAJERO invoca mapper con flag esCajero=true")
+        void conRolCajero_invocaMapperConFlagCajeroTrue() {
+            // Arrange
+            Zona zona = crearZona(1L, "Terraza");
+            Empleado mesero = crearEmpleado("mesero1@altoro.com", "Juan Pérez");
+            Mesa mesa = crearMesa(1L, "T1", zona, mesero);
+
+            List<ComandaItem> items = List.of();
+            List<ItemComandaEnProduccionResponse> itemsDto = List.of();
+
+            when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+            when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(items);
+            when(mesaMapper.agruparItemsEnProduccion(items)).thenReturn(itemsDto);
+            when(mesaMapper.toMesaDetalleResponse(eq(mesa), eq(items), eq(itemsDto), eq(true)))
+                    .thenReturn(MesaDetalleResponse.builder().build());
+
+            // Act
+            Authentication auth = crearAuthentication("cajero1@altoro.com", "CAJERO");
+            mesaService.obtenerDetalleMesa(1L, auth);
+
+            // Assert
+            verify(mesaMapper).toMesaDetalleResponse(mesa, items, itemsDto, true);
         }
 
         @Test
@@ -287,10 +343,11 @@ class MesaServiceTest {
             when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findItemsEnProduccionByVisita(1L)).thenReturn(itemsVacios);
             when(mesaMapper.agruparItemsEnProduccion(itemsVacios)).thenReturn(itemsDtoVacios);
-            when(mesaMapper.toMesaDetalleResponse(mesa, itemsVacios, itemsDtoVacios)).thenReturn(expectedResponse);
+            when(mesaMapper.toMesaDetalleResponse(mesa, itemsVacios, itemsDtoVacios, false)).thenReturn(expectedResponse);
 
             // Act
-            MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L);
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            MesaDetalleResponse resultado = mesaService.obtenerDetalleMesa(1L, auth);
 
             // Assert
             assertThat(resultado).isEqualTo(expectedResponse);
@@ -304,7 +361,8 @@ class MesaServiceTest {
             when(mesaRepository.findById(999L)).thenReturn(Optional.empty());
 
             // Act & Assert
-            assertThatThrownBy(() -> mesaService.obtenerDetalleMesa(999L))
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            assertThatThrownBy(() -> mesaService.obtenerDetalleMesa(999L, auth))
                     .isInstanceOf(BusinessException.class)
                     .hasFieldOrPropertyWithValue("code", ErrorCode.ENTITY_NOT_FOUND.getCode())
                     .hasMessageContaining("Mesa no encontrada");

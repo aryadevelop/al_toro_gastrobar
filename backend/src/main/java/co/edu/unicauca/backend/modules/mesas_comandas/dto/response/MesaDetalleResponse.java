@@ -46,4 +46,16 @@ public class MesaDetalleResponse {
 
     /** Items de comandas en estados: PENDIENTE, EN_PREPARACION, LISTO, COMPLETADO */
     private final List<ItemComandaEnProduccionResponse> itemsComanda;
+
+    /** ID del cliente asociado a la visita. null si la visita es walk-in anónima o si el caller no es CAJERO. */
+    private final Long clienteId;
+
+    /** Puntos de fidelización canjeables (Cliente.clientePuntos). null si no hay cliente o caller no es CAJERO. */
+    private final Integer puntosFidelizacion;
+
+    /** True si hoy coincide con día/mes de Cliente.clienteFechaNacimiento. null si no hay cliente o caller no es CAJERO. */
+    private final Boolean esCumpleanos;
+
+    /** True si rol=CAJERO y mesaEstado=ATENDIDA. False si rol=CAJERO y estado distinto. null si caller no es CAJERO. */
+    private final Boolean puedeGenerarCuenta;
 }

@@ -89,7 +89,7 @@ class MesaControllerTest {
                     .zonas(List.of(zona1, zona2))
                     .build();
 
-            when(mesaService.obtenerMapaMesas(isNull(), eq("mesero1@altoro.com"))).thenReturn(response);
+            when(mesaService.obtenerMapaMesas(isNull(), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas"))
@@ -105,7 +105,7 @@ class MesaControllerTest {
                     .andExpect(jsonPath("$.data.zonas[1].cantidadMesasActivas").value(0))
                     .andExpect(jsonPath("$.message").value("Mapa de mesas obtenido exitosamente"));
 
-            verify(mesaService).obtenerMapaMesas(null, "mesero1@altoro.com");
+            verify(mesaService).obtenerMapaMesas(eq(null), any(Authentication.class));
         }
 
         @Test
@@ -124,7 +124,7 @@ class MesaControllerTest {
                     .zonas(List.of(zona))
                     .build();
 
-            when(mesaService.obtenerMapaMesas(eq(1L), eq("mesero1@altoro.com"))).thenReturn(response);
+            when(mesaService.obtenerMapaMesas(eq(1L), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas")
@@ -136,7 +136,7 @@ class MesaControllerTest {
                     .andExpect(jsonPath("$.data.zonas[0].zonaId").value(1))
                     .andExpect(jsonPath("$.data.zonas[0].cantidadMesasActivas").value(3));
 
-            verify(mesaService).obtenerMapaMesas(1L, "mesero1@altoro.com");
+            verify(mesaService).obtenerMapaMesas(eq(1L), any(Authentication.class));
         }
 
         @Test
@@ -148,14 +148,25 @@ class MesaControllerTest {
                     .zonas(List.of())
                     .build();
 
-            when(mesaService.obtenerMapaMesas(isNull(), eq("admin@altoro.com"))).thenReturn(response);
+            when(mesaService.obtenerMapaMesas(isNull(), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(mesaService).obtenerMapaMesas(null, "admin@altoro.com");
+            verify(mesaService).obtenerMapaMesas(eq(null), any(Authentication.class));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero1@altoro.com", roles = "CAJERO")
+        @DisplayName("cajero puede acceder al mapa → 200 OK")
+        void cajeroPuedeAccederAlMapa() throws Exception {
+            when(mesaService.obtenerMapaMesas(isNull(), any(Authentication.class)))
+                    .thenReturn(MapaMesasResponse.builder().zonas(List.of()).build());
+
+            mockMvc.perform(get("/api/mesas"))
+                    .andExpect(status().isOk());
         }
 
         @Test
@@ -163,7 +174,7 @@ class MesaControllerTest {
         @DisplayName("zonaId inexistente → 404 Not Found")
         void zonaIdInexistente_retorna404() throws Exception {
             // Arrange
-            when(mesaService.obtenerMapaMesas(eq(999L), anyString()))
+            when(mesaService.obtenerMapaMesas(eq(999L), any(Authentication.class)))
                     .thenThrow(new BusinessException(
                             ErrorCode.ENTITY_NOT_FOUND,
                             "Zona no encontrada",
@@ -174,7 +185,7 @@ class MesaControllerTest {
                             .param("zonaId", "999"))
                     .andExpect(status().isNotFound());
 
-            verify(mesaService).obtenerMapaMesas(999L, "mesero1@altoro.com");
+            verify(mesaService).obtenerMapaMesas(eq(999L), any(Authentication.class));
         }
     }
 
@@ -196,7 +207,7 @@ class MesaControllerTest {
                     .itemsComanda(List.of())
                     .build();
 
-            when(mesaService.obtenerDetalleMesa(1L)).thenReturn(response);
+            when(mesaService.obtenerDetalleMesa(eq(1L), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas/1/detalle"))
@@ -209,7 +220,7 @@ class MesaControllerTest {
                     .andExpect(jsonPath("$.data.estado").value("EN_PREPARACION"))
                     .andExpect(jsonPath("$.message").value("Detalle de mesa obtenido exitosamente"));
 
-            verify(mesaService).obtenerDetalleMesa(1L);
+            verify(mesaService).obtenerDetalleMesa(eq(1L), any(Authentication.class));
         }
 
         @Test
@@ -222,14 +233,25 @@ class MesaControllerTest {
                     .identificador("T1")
                     .build();
 
-            when(mesaService.obtenerDetalleMesa(1L)).thenReturn(response);
+            when(mesaService.obtenerDetalleMesa(eq(1L), any(Authentication.class))).thenReturn(response);
 
             // Act & Assert
             mockMvc.perform(get("/api/mesas/1/detalle"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
 
-            verify(mesaService).obtenerDetalleMesa(1L);
+            verify(mesaService).obtenerDetalleMesa(eq(1L), any(Authentication.class));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero1@altoro.com", roles = "CAJERO")
+        @DisplayName("cajero puede acceder al detalle → 200 OK")
+        void cajeroPuedeAccederAlDetalle() throws Exception {
+            when(mesaService.obtenerDetalleMesa(eq(1L), any(Authentication.class)))
+                    .thenReturn(MesaDetalleResponse.builder().visitaId(1L).build());
+
+            mockMvc.perform(get("/api/mesas/1/detalle"))
+                    .andExpect(status().isOk());
         }
 
         @Test
@@ -237,7 +259,7 @@ class MesaControllerTest {
         @DisplayName("mesaId inexistente → 404 Not Found")
         void mesaIdInexistente_retorna404() throws Exception {
             // Arrange
-            when(mesaService.obtenerDetalleMesa(999L))
+            when(mesaService.obtenerDetalleMesa(eq(999L), any(Authentication.class)))
                     .thenThrow(new BusinessException(
                             ErrorCode.ENTITY_NOT_FOUND,
                             "Mesa no encontrada",
@@ -247,7 +269,7 @@ class MesaControllerTest {
             mockMvc.perform(get("/api/mesas/999/detalle"))
                     .andExpect(status().isNotFound());
 
-            verify(mesaService).obtenerDetalleMesa(999L);
+            verify(mesaService).obtenerDetalleMesa(eq(999L), any(Authentication.class));
         }
     }
 
