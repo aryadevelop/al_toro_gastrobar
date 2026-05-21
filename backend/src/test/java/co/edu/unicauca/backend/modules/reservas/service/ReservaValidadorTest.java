@@ -107,6 +107,15 @@ class ReservaValidadorTest {
                     .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
                             .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
         }
+
+        @Test
+        @DisplayName("emailCliente=null (ADMIN) → omite ownership y no lanza excepción")
+        void adminSinEmail_noLanza() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+
+            assertThatCode(() -> validador.validarElegibilidadModificacion(reserva, null))
+                    .doesNotThrowAnyException();
+        }
     }
 
     // ── esHorarioValido ───────────────────────────────────────────────────────
@@ -354,6 +363,15 @@ class ReservaValidadorTest {
             assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, "CLIENTE@ALTORO.COM"))
                     .doesNotThrowAnyException();
         }
+
+        @Test
+        @DisplayName("emailCliente=null (ADMIN) → omite ownership y no lanza excepción")
+        void adminSinEmail_noLanza() {
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+
+            assertThatCode(() -> validador.validarElegibilidadCancelacion(reserva, null))
+                    .doesNotThrowAnyException();
+        }
     }
 
     // -----------------------------------------------------------------------
@@ -485,6 +503,18 @@ class ReservaValidadorTest {
                     });
         }
 
+
+        @Test
+        @DisplayName("MESERO con reserva del día actual → no lanza excepción")
+        void meseroReservaHoy_noLanza() {
+            // Reserva CONFIRMADA de hace 40 minutos (mismo día)
+            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
+            reserva.setReservaFechaHoraLlegada(horaLlegada);
+
+            assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
+                    .doesNotThrowAnyException();
+        }
 
         @Test
         @DisplayName("MESERO con reserva de día pasado → BusinessException INVALID_STATE")

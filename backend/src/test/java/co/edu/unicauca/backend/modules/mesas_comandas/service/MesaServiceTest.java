@@ -355,6 +355,23 @@ class MesaServiceTest {
         }
 
         @Test
+        @DisplayName("con visita ya cerrada lanza BusinessException ENTITY_NOT_FOUND")
+        void conVisitaCerrada_lanzaBusinessException() {
+            Zona zona = crearZona(1L, "Terraza");
+            Empleado mesero = crearEmpleado("mesero1@altoro.com", "Juan Pérez");
+            Mesa mesa = crearMesa(1L, "T1", zona, mesero);
+            mesa.getVisita().setVisitaFechaHoraFin(LocalDateTime.now());
+
+            when(mesaRepository.findById(1L)).thenReturn(Optional.of(mesa));
+
+            Authentication auth = crearAuthentication("mesero1@altoro.com", "MESERO");
+            assertThatThrownBy(() -> mesaService.obtenerDetalleMesa(1L, auth))
+                    .isInstanceOf(BusinessException.class)
+                    .hasFieldOrPropertyWithValue("code", ErrorCode.ENTITY_NOT_FOUND.getCode())
+                    .hasMessageContaining("cerrada");
+        }
+
+        @Test
         @DisplayName("con visitaId inexistente lanza BusinessException")
         void conVisitaIdInexistente_lanzaBusinessException() {
             // Arrange

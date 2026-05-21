@@ -9,6 +9,8 @@ import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoMesa;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
+import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -134,6 +136,21 @@ class MesaAsignarEvaluadorTest {
 
             verify(mesaRepository, never()).save(any());
             verify(mesaWsPublisher, never()).publicarCambioEstadoMesa(any(), any());
+        }
+
+        @Test
+        @DisplayName("mesa no encontrada en BD → lanza ResourceNotFoundException")
+        void mesaInexistente_lanzaResourceNotFound() {
+            when(notificacionRepository.existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
+                    VISITA_ID, TipoNotificacion.PLATOS_LISTOS, EstadoNotificacion.ACTIVA)).thenReturn(false);
+            when(notificacionRepository.existsByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
+                    VISITA_ID, TipoNotificacion.BEBIDAS_LISTAS, EstadoNotificacion.ACTIVA)).thenReturn(false);
+            when(comandaRepository.existsByVisita_VisitaIdAndComandaEstadoIn(VISITA_ID, ESTADOS_PRODUCCION))
+                    .thenReturn(false);
+            when(mesaRepository.findById(VISITA_ID)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> service.evaluarYActualizarEstadoMesa(VISITA_ID))
+                    .isInstanceOf(ResourceNotFoundException.class);
         }
     }
 }

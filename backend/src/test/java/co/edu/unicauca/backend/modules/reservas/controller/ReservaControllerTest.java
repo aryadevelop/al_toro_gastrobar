@@ -139,6 +139,56 @@ class ReservaControllerTest {
                             .content(body))
                     .andExpect(status().isUnprocessableEntity());
         }
+
+        @Test
+        @WithMockUser(username = "admin@altoro.com", roles = "ADMIN")
+        @DisplayName("ADMIN crea reserva en nombre de cliente → toma emailCliente del body")
+        void adminConEmailEnBody_retorna201() throws Exception {
+            ReservaResponse resp = ReservaResponse.builder().reservaId(2L).estado("PENDIENTE").build();
+            when(reservaService.crearReserva(eq("cliente@altoro.com"), any())).thenReturn(resp);
+
+            String body = objectMapper.writeValueAsString(Map.of(
+                    "fechaHoraLlegada", LocalDateTime.now().plusDays(2).toString(),
+                    "numeroPersonas", 2,
+                    "emailCliente", "cliente@altoro.com"));
+
+            mockMvc.perform(post("/api/reservas")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isCreated());
+
+            verify(reservaService).crearReserva(eq("cliente@altoro.com"), any());
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/reservas/cliente/canceladas-devueltas")
+    class ObtenerReservasCanceladasODevueltas {
+
+        @Test
+        @WithMockUser(username = "cliente@altoro.com", roles = "CLIENTE")
+        @DisplayName("Cliente propietario → 200 con lista")
+        void propietario_retorna200() throws Exception {
+            when(reservaService.obtenerReservasCanceladasODevueltas(anyString()))
+                    .thenReturn(List.of(ReservaDetalleResponse.builder().build()));
+
+            mockMvc.perform(get("/api/reservas/cliente/canceladas-devueltas")
+                            .param("emailCliente", "cliente@altoro.com"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray());
+        }
+
+        @Test
+        @WithMockUser(username = "admin@altoro.com", roles = "ADMIN")
+        @DisplayName("ADMIN consulta reservas de cualquier cliente → 200 OK")
+        void adminCualquierCliente_retorna200() throws Exception {
+            when(reservaService.obtenerReservasCanceladasODevueltas(anyString()))
+                    .thenReturn(List.of());
+
+            mockMvc.perform(get("/api/reservas/cliente/canceladas-devueltas")
+                            .param("emailCliente", "cliente@altoro.com"))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Nested
