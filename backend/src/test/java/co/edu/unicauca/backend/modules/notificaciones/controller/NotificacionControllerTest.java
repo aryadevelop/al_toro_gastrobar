@@ -76,6 +76,16 @@ class NotificacionControllerTest {
         }
 
         @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO atiende solicitud activa → 200 OK")
+        void cajeroAtiendeOk() throws Exception {
+            doNothing().when(notificacionService).atenderAsistencia(eq(50L), any());
+
+            mockMvc.perform(patch("/api/notificaciones/50/atender"))
+                    .andExpect(status().isOk());
+        }
+
+        @Test
         @WithMockUser(username = "mesero@altoro.com", roles = "MESERO")
         @DisplayName("Solicitud ya atendida → 409 Conflict")
         void yaAtendida_retorna409() throws Exception {
@@ -111,6 +121,16 @@ class NotificacionControllerTest {
             mockMvc.perform(patch("/api/notificaciones/50/servir-platos"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO sirve platos → 200 OK")
+        void cajeroSirvePlatosOk() throws Exception {
+            doNothing().when(notificacionService).servirPlatos(eq(50L), any());
+
+            mockMvc.perform(patch("/api/notificaciones/50/servir-platos"))
+                    .andExpect(status().isOk());
         }
 
         @Test
@@ -194,6 +214,16 @@ class NotificacionControllerTest {
             mockMvc.perform(patch("/api/notificaciones/50/servir-bebidas"))
                     .andExpect(status().isConflict());
         }
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO sirve bebidas → 200 OK")
+        void cajeroSirveBebidasOk() throws Exception {
+            doNothing().when(notificacionService).servirBebidas(eq(50L), any());
+
+            mockMvc.perform(patch("/api/notificaciones/50/servir-bebidas"))
+                    .andExpect(status().isOk());
+        }
     }
 
     @Nested
@@ -213,6 +243,19 @@ class NotificacionControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.comandaId").value(80));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO atiende cambio → 200 OK")
+        void cajeroAtiendeCambioOk() throws Exception {
+            AtenderCambioResponse response = AtenderCambioResponse.builder()
+                    .comandaId(80L)
+                    .build();
+            when(notificacionService.atenderCambio(eq(50L), any())).thenReturn(response);
+
+            mockMvc.perform(patch("/api/notificaciones/50/atender-cambio"))
+                    .andExpect(status().isOk());
         }
 
         @Test
