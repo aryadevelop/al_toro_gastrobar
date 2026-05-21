@@ -175,4 +175,56 @@ class JwtTokenProviderTest {
             assertThat(jwtTokenProvider.isTokenValid(tokenDeOtroProveedor, usuario)).isFalse();
         }
     }
+
+    @Nested
+    @DisplayName("getExpirationSeconds")
+    class GetExpirationSeconds {
+
+        @Test
+        @DisplayName("Devuelve la expiración configurada convertida a segundos")
+        void devuelveExpiracionEnSegundos() {
+            assertThat(jwtTokenProvider.getExpirationSeconds()).isEqualTo(86_400L);
+        }
+    }
+
+    @Nested
+    @DisplayName("generateRefreshToken")
+    class GenerateRefreshToken {
+
+        @Test
+        @DisplayName("Genera refresh token con formato JWT válido")
+        void generaRefreshToken_formatoValido() {
+            String refresh = jwtTokenProvider.generateRefreshToken(usuario);
+            assertThat(refresh).isNotBlank();
+            assertThat(refresh.split("\\.")).hasSize(3);
+        }
+
+        @Test
+        @DisplayName("Refresh token devuelve subject correcto")
+        void refreshToken_extraeUsername() {
+            String refresh = jwtTokenProvider.generateRefreshToken(usuario);
+            assertThat(jwtTokenProvider.extractUsername(refresh)).isEqualTo("testuser");
+        }
+    }
+
+    @Nested
+    @DisplayName("isAccessToken / isRefreshToken")
+    class TipoToken {
+
+        @Test
+        @DisplayName("Access token → isAccessToken=true, isRefreshToken=false")
+        void accessToken_clasificadoComoAccess() {
+            String access = jwtTokenProvider.generateToken(usuario);
+            assertThat(jwtTokenProvider.isAccessToken(access)).isTrue();
+            assertThat(jwtTokenProvider.isRefreshToken(access)).isFalse();
+        }
+
+        @Test
+        @DisplayName("Refresh token → isRefreshToken=true, isAccessToken=false")
+        void refreshToken_clasificadoComoRefresh() {
+            String refresh = jwtTokenProvider.generateRefreshToken(usuario);
+            assertThat(jwtTokenProvider.isRefreshToken(refresh)).isTrue();
+            assertThat(jwtTokenProvider.isAccessToken(refresh)).isFalse();
+        }
+    }
 }

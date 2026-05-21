@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.auth.controller;
 
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthResponse;
 import co.edu.unicauca.backend.modules.auth.dto.response.AuthUserResponse;
+import co.edu.unicauca.backend.modules.auth.dto.response.RegisterResponse;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.auth.service.AuthService;
@@ -62,6 +63,58 @@ class AuthControllerTest {
                 .accessToken("access-token")
                 .refreshToken("refresh-token")
                 .build();
+    }
+
+    @Nested
+    @DisplayName("POST /api/auth/register")
+    class Register {
+
+        @Test
+        @DisplayName("Registro válido → 201 Created con datos del usuario")
+        void registroValido_retorna201() throws Exception {
+            when(authService.register(any())).thenReturn(RegisterResponse.builder()
+                    .success(true)
+                    .message("Cuenta creada exitosamente")
+                    .user(RegisterResponse.UserRegistrationData.builder()
+                            .id("99")
+                            .email("nuevo@altoro.com")
+                            .nombre("Juan")
+                            .telefono("3101234567")
+                            .role("CLIENTE")
+                            .build())
+                    .build());
+
+            String body = objectMapper.writeValueAsString(Map.of(
+                    "email", "nuevo@altoro.com",
+                    "nombre", "Juan",
+                    "telefono", "3101234567",
+                    "password", "Password123!",
+                    "passwordConfirmation", "Password123!",
+                    "aceptaTerminos", true));
+
+            mockMvc.perform(post("/api/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.user.email").value("nuevo@altoro.com"));
+        }
+
+        @Test
+        @DisplayName("Sin email → 422 Unprocessable Entity")
+        void registroSinEmail_retorna422() throws Exception {
+            String body = objectMapper.writeValueAsString(Map.of(
+                    "nombre", "Juan",
+                    "telefono", "3101234567",
+                    "password", "Password123!",
+                    "passwordConfirmation", "Password123!",
+                    "aceptaTerminos", true));
+
+            mockMvc.perform(post("/api/auth/register")
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(body))
+                    .andExpect(status().isUnprocessableEntity());
+        }
     }
 
     @Nested

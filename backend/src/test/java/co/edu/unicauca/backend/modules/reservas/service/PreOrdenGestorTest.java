@@ -392,6 +392,109 @@ class PreOrdenGestorTest {
         }
 
         @Test
+        @DisplayName("Producto inexistente en persistirPreOrden → ResourceNotFoundException")
+        void productoInexistente_lanzaResourceNotFound() {
+            Reserva reserva = mock(Reserva.class);
+            PreOrdenItemRequest item = itemNormal(99L);
+            when(productoRepository.findById(99L)).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> preOrdenGestor.persistirPreOrden(reserva, List.of(item)))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Menú especial con bebida inexistente → ResourceNotFoundException")
+        void bebidaMenuInexistente_lanzaResourceNotFound() {
+            Reserva reserva = mock(Reserva.class);
+            Comanda cocinaMock = mock(Comanda.class);
+            when(comandaRepository.save(any())).thenReturn(cocinaMock);
+
+            PreOrdenItemRequest item = itemMenuEspecial(1L);
+            item.setBebidaProductoId(77L);
+            Producto producto = productoActivo(1L, true);
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(producto));
+            when(productoRepository.findById(77L)).thenReturn(Optional.empty());
+            when(comandaItemRepository.save(any())).thenReturn(mock(ComandaItem.class));
+
+            assertThatThrownBy(() -> preOrdenGestor.persistirPreOrden(reserva, List.of(item)))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("Ítem carta BEBIDA → crea comanda BARRA")
+        void itemBebidaCarta_creaBarra() {
+            Reserva reserva = mock(Reserva.class);
+            Comanda barraMock = mock(Comanda.class);
+            when(comandaRepository.save(any())).thenReturn(barraMock);
+
+            PreOrdenItemRequest item = itemNormal(5L);
+            Producto bebida = productoActivoCarta(5L, CategoriaProducto.BEBIDA);
+            when(productoRepository.findById(5L)).thenReturn(Optional.of(bebida));
+            when(comandaItemRepository.save(any())).thenReturn(mock(ComandaItem.class));
+
+            preOrdenGestor.persistirPreOrden(reserva, List.of(item));
+
+            ArgumentCaptor<Comanda> captor = ArgumentCaptor.forClass(Comanda.class);
+            verify(comandaRepository).save(captor.capture());
+            assertThat(captor.getValue().getComandaEstacion()).isEqualTo(EstacionComanda.BARRA);
+        }
+
+        @Test
+        @DisplayName("Múltiples ítems del mismo tipo → no recrea comanda COCINA/BARRA")
+        void multiplesItems_reutilizaComandas() {
+            Reserva reserva = mock(Reserva.class);
+            // Solo se esperan 2 saves de comanda: una COCINA, una BARRA
+            when(comandaRepository.save(any())).thenReturn(mock(Comanda.class), mock(Comanda.class));
+            when(comandaItemRepository.save(any())).thenReturn(mock(ComandaItem.class));
+
+            // 2 ítems carta PLATO (cubre línea 245: cocina ya creada en 2da iteración)
+            PreOrdenItemRequest plato1 = itemNormal(1L);
+            PreOrdenItemRequest plato2 = itemNormal(2L);
+            // 2 ítems carta BEBIDA (cubre línea 248: barra ya creada en 2da iteración)
+            PreOrdenItemRequest bebida1 = itemNormal(3L);
+            PreOrdenItemRequest bebida2 = itemNormal(4L);
+            // 2 ítems menú especial (cubre líneas 192/229: cocina y barra ya creadas)
+            PreOrdenItemRequest menu1 = itemMenuEspecial(5L);
+            menu1.setBebidaProductoId(6L);
+            PreOrdenItemRequest menu2 = itemMenuEspecial(7L);
+            menu2.setBebidaProductoId(8L);
+
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(productoActivoCarta(1L, CategoriaProducto.PLATO)));
+            when(productoRepository.findById(2L)).thenReturn(Optional.of(productoActivoCarta(2L, CategoriaProducto.PLATO)));
+            when(productoRepository.findById(3L)).thenReturn(Optional.of(productoActivoCarta(3L, CategoriaProducto.BEBIDA)));
+            when(productoRepository.findById(4L)).thenReturn(Optional.of(productoActivoCarta(4L, CategoriaProducto.BEBIDA)));
+            when(productoRepository.findById(5L)).thenReturn(Optional.of(productoActivo(5L, true)));
+            when(productoRepository.findById(6L)).thenReturn(Optional.of(productoActivoCarta(6L, CategoriaProducto.BEBIDA)));
+            when(productoRepository.findById(7L)).thenReturn(Optional.of(productoActivo(7L, true)));
+            when(productoRepository.findById(8L)).thenReturn(Optional.of(productoActivoCarta(8L, CategoriaProducto.BEBIDA)));
+
+            preOrdenGestor.persistirPreOrden(reserva,
+                    List.of(plato1, plato2, bebida1, bebida2, menu1, menu2));
+
+            // Solo 2 comandas creadas (1 COCINA + 1 BARRA), no 6
+            verify(comandaRepository, times(2)).save(any());
+        }
+
+        @Test
+        @DisplayName("Menú especial con lista de opciones vacía → no guarda modificaciones")
+        void menuEspecialConOpcionesVacias_noGuardaModificaciones() {
+            Reserva reserva = mock(Reserva.class);
+            when(comandaRepository.save(any())).thenReturn(mock(Comanda.class), mock(Comanda.class));
+
+            PreOrdenItemRequest item = itemMenuEspecialConOpciones(1L, List.of());
+            item.setBebidaProductoId(2L);
+            Producto producto = productoActivo(1L, true);
+            Producto bebida = productoActivoCarta(2L, CategoriaProducto.BEBIDA);
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(producto));
+            when(productoRepository.findById(2L)).thenReturn(Optional.of(bebida));
+            when(comandaItemRepository.save(any())).thenReturn(mock(ComandaItem.class));
+
+            preOrdenGestor.persistirPreOrden(reserva, List.of(item));
+
+            verify(comandaMenuModificacionRepository, never()).save(any());
+        }
+
+        @Test
         @DisplayName("Menú especial crea Comanda COCINA y BARRA con mismo UUID grupo")
         void menuEspecial_createsTwoComandasConMismoGrupo() {
             Reserva reserva = mock(Reserva.class);

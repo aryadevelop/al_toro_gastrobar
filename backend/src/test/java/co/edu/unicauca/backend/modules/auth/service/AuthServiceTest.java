@@ -154,6 +154,67 @@ class AuthServiceTest {
         }
 
         @Test
+        @DisplayName("Email inexistente → BadCredentialsException con mensaje genérico")
+        void emailInexistente_retorna401() {
+            when(usuarioRepository.findByUsuarioEmail("nadie@altoro.com")).thenReturn(Optional.empty());
+
+            LoginRequest request = LoginRequest.builder()
+                    .email("nadie@altoro.com")
+                    .password("Al.Toro2026!")
+                    .build();
+
+            assertThatThrownBy(() -> authService.login(request))
+                    .isInstanceOf(BadCredentialsException.class)
+                    .hasMessageContaining("Credenciales incorrectas");
+        }
+
+        @Test
+        @DisplayName("Empleado sin fila en tabla empleado → fallbackUser usa email como nombre")
+        void empleadoSinPerfil_usaEmailComoNombre() throws Exception {
+            Usuario usuario = usuario(50L, "huerfano@altoro.com", "$2b$hash");
+
+            when(usuarioRepository.findByUsuarioEmail("huerfano@altoro.com")).thenReturn(Optional.of(usuario));
+            when(passwordEncoder.matches("Al.Toro2026!", "$2b$hash")).thenReturn(true);
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(50L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(usuarioRol(50L, RolNombre.MESERO, RolEstado.ACTIVO)));
+            when(sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(50L)).thenReturn(List.of());
+
+            UserDetails userDetails = User.withUsername("huerfano@altoro.com").password("x").roles("MESERO").build();
+            when(userDetailsService.loadUserByUsername("huerfano@altoro.com")).thenReturn(userDetails);
+            when(jwtTokenProvider.generateToken(userDetails)).thenReturn("a");
+            when(jwtTokenProvider.generateRefreshToken(userDetails)).thenReturn("r");
+            when(empleadoRepository.findByUsuario_UsuarioEmail("huerfano@altoro.com")).thenReturn(Optional.empty());
+
+            AuthResponse response = authService.login(LoginRequest.builder()
+                    .email("huerfano@altoro.com").password("Al.Toro2026!").build());
+
+            assertThat(response.getUser().getNombre()).isEqualTo("huerfano@altoro.com");
+        }
+
+        @Test
+        @DisplayName("Cliente sin fila en tabla cliente → fallbackUser usa email como nombre")
+        void clienteSinPerfil_usaEmailComoNombre() throws Exception {
+            Usuario usuario = usuario(60L, "cliente.huerfano@altoro.com", "$2b$hash");
+
+            when(usuarioRepository.findByUsuarioEmail("cliente.huerfano@altoro.com")).thenReturn(Optional.of(usuario));
+            when(passwordEncoder.matches("Al.Toro2026!", "$2b$hash")).thenReturn(true);
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(60L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(usuarioRol(60L, RolNombre.CLIENTE, RolEstado.ACTIVO)));
+            when(sesionRepository.findByUsuarioUsuarioIdAndSesionActivaTrue(60L)).thenReturn(List.of());
+
+            UserDetails userDetails = User.withUsername("cliente.huerfano@altoro.com").password("x").roles("CLIENTE").build();
+            when(userDetailsService.loadUserByUsername("cliente.huerfano@altoro.com")).thenReturn(userDetails);
+            when(jwtTokenProvider.generateToken(userDetails)).thenReturn("a");
+            when(jwtTokenProvider.generateRefreshToken(userDetails)).thenReturn("r");
+            when(clienteRepository.findByUsuario_UsuarioEmail("cliente.huerfano@altoro.com")).thenReturn(Optional.empty());
+
+            AuthResponse response = authService.login(LoginRequest.builder()
+                    .email("cliente.huerfano@altoro.com").password("Al.Toro2026!").build());
+
+            assertThat(response.getUser().getNombre()).isEqualTo("cliente.huerfano@altoro.com");
+        }
+
+        @Test
         @DisplayName("Sesión activa y sin override → conflicto")
         void sesionActivaSinOverride_retorna409() throws Exception {
             Usuario usuario = usuario(4L, "mesero@altoro.com", "$2b$hash");
@@ -224,6 +285,80 @@ class AuthServiceTest {
             verify(sesionRepository).save(sesionActiva);
             assertThat(sesionActiva.getSesionToken()).isEqualTo("new-access");
             assertThat(sesionActiva.getSesionRefreshToken()).isEqualTo("new-refresh");
+        }
+
+        @Test
+        @DisplayName("Token NO es refresh token → BadCredentialsException")
+        void tokenNoEsRefresh_retorna401() {
+            when(jwtTokenProvider.isRefreshToken("access-token")).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("access-token").build()))
+                    .isInstanceOf(BadCredentialsException.class);
+        }
+
+        @Test
+        @DisplayName("Usuario del token ya no existe → BadCredentialsException")
+        void usuarioInexistente_retorna401() {
+            when(jwtTokenProvider.isRefreshToken("r")).thenReturn(true);
+            when(jwtTokenProvider.extractUsername("r")).thenReturn("borrado@altoro.com");
+            when(usuarioRepository.findByUsuarioEmail("borrado@altoro.com")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("r").build()))
+                    .isInstanceOf(BadCredentialsException.class);
+        }
+
+        @Test
+        @DisplayName("Usuario sin roles activos → 403 cuenta suspendida")
+        void sinRolesActivos_retorna403() throws Exception {
+            Usuario usuario = usuario(7L, "suspendido@altoro.com", "$2b$hash");
+            when(jwtTokenProvider.isRefreshToken("r")).thenReturn(true);
+            when(jwtTokenProvider.extractUsername("r")).thenReturn("suspendido@altoro.com");
+            when(usuarioRepository.findByUsuarioEmail("suspendido@altoro.com")).thenReturn(Optional.of(usuario));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(7L, RolEstado.ACTIVO)).thenReturn(List.of());
+
+            assertThatThrownBy(() -> authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("r").build()))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("suspendida");
+        }
+
+        @Test
+        @DisplayName("isTokenValid retorna false → BadCredentialsException")
+        void tokenInvalido_retorna401() throws Exception {
+            Usuario usuario = usuario(8L, "u@altoro.com", "$2b$hash");
+            when(jwtTokenProvider.isRefreshToken("r")).thenReturn(true);
+            when(jwtTokenProvider.extractUsername("r")).thenReturn("u@altoro.com");
+            when(usuarioRepository.findByUsuarioEmail("u@altoro.com")).thenReturn(Optional.of(usuario));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(8L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(usuarioRol(8L, RolNombre.MESERO, RolEstado.ACTIVO)));
+            UserDetails ud = User.withUsername("u@altoro.com").password("x").roles("MESERO").build();
+            when(userDetailsService.loadUserByUsername("u@altoro.com")).thenReturn(ud);
+            when(jwtTokenProvider.isTokenValid("r", ud)).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("r").build()))
+                    .isInstanceOf(BadCredentialsException.class);
+        }
+
+        @Test
+        @DisplayName("Sesión no encontrada en BD → BadCredentialsException")
+        void sesionInexistente_retorna401() throws Exception {
+            Usuario usuario = usuario(9L, "u2@altoro.com", "$2b$hash");
+            when(jwtTokenProvider.isRefreshToken("r")).thenReturn(true);
+            when(jwtTokenProvider.extractUsername("r")).thenReturn("u2@altoro.com");
+            when(usuarioRepository.findByUsuarioEmail("u2@altoro.com")).thenReturn(Optional.of(usuario));
+            when(usuarioRolRepository.findByUsuarioIdAndRolEstado(9L, RolEstado.ACTIVO))
+                    .thenReturn(List.of(usuarioRol(9L, RolNombre.MESERO, RolEstado.ACTIVO)));
+            UserDetails ud = User.withUsername("u2@altoro.com").password("x").roles("MESERO").build();
+            when(userDetailsService.loadUserByUsername("u2@altoro.com")).thenReturn(ud);
+            when(jwtTokenProvider.isTokenValid("r", ud)).thenReturn(true);
+            when(sesionRepository.findBySesionRefreshTokenAndSesionActivaTrue("r")).thenReturn(Optional.empty());
+
+            assertThatThrownBy(() -> authService.refresh(
+                    RefreshTokenRequest.builder().refreshToken("r").build()))
+                    .isInstanceOf(BadCredentialsException.class);
         }
     }
 
@@ -352,6 +487,78 @@ class AuthServiceTest {
             assertThatThrownBy(() -> authService.register(request))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("El formato de la fecha debe ser YYYY-MM-DD");
+        }
+
+        @Test
+        @DisplayName("Fecha nacimiento más de 100 años atrás → 400 BAD_REQUEST")
+        void fechaNacimientoMuyVieja_retorna400() {
+            String fechaVieja = java.time.LocalDate.now().minusYears(101).toString();
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("nuevo@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3109999999")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .fechaNacimiento(fechaVieja)
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("nuevo@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3109999999")).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("100 años");
+        }
+
+        @Test
+        @DisplayName("Fecha nacimiento en el futuro → 400 BAD_REQUEST")
+        void fechaNacimientoFutura_retorna400() {
+            String fechaFutura = java.time.LocalDate.now().plusDays(1).toString();
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("nuevo@altoro.com")
+                            .nombre("Test User")
+                            .telefono("3109999999")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .fechaNacimiento(fechaFutura)
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("nuevo@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3109999999")).thenReturn(false);
+
+            assertThatThrownBy(() -> authService.register(request))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("100 años");
+        }
+
+        @Test
+        @DisplayName("fechaNacimiento blank → registro exitoso ignorando el campo")
+        void fechaNacimientoBlank_registroExitoso() {
+            co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest request =
+                    co.edu.unicauca.backend.modules.auth.dto.request.RegisterRequest.builder()
+                            .email("blank@altoro.com")
+                            .nombre("Test")
+                            .telefono("3105555555")
+                            .password("Password123!")
+                            .passwordConfirmation("Password123!")
+                            .aceptaTerminos(true)
+                            .fechaNacimiento("   ")
+                            .build();
+
+            when(usuarioRepository.findByUsuarioEmail("blank@altoro.com")).thenReturn(Optional.empty());
+            when(clienteRepository.existsByClienteTelefono("3105555555")).thenReturn(false);
+            when(passwordEncoder.encode("Password123!")).thenReturn("$2b$h");
+            when(usuarioRepository.save(any(Usuario.class)))
+                    .thenReturn(Usuario.builder().usuarioId(77L).usuarioEmail("blank@altoro.com").build());
+            when(clienteRepository.save(any(co.edu.unicauca.backend.modules.usuarios.entity.Cliente.class)))
+                    .thenAnswer(inv -> inv.getArgument(0));
+            when(usuarioRolRepository.save(any(UsuarioRol.class))).thenReturn(UsuarioRol.builder().build());
+
+            assertThat(authService.register(request).getSuccess()).isTrue();
         }
     }
 

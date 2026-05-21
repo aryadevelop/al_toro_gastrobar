@@ -422,6 +422,47 @@ class MesaAsignarServiceTest {
         }
 
         @Test
+        @DisplayName("publica visit state suma items con precio y filtra los nulos")
+        void publicaVisitState_calculaTotalConItemsMixtos() {
+            Visita visitaConCliente = Visita.builder()
+                    .visitaId(VISITA_ID)
+                    .cliente(cliente)
+                    .reserva(reserva)
+                    .visitaFechaHoraInicio(LocalDateTime.now())
+                    .build();
+
+            doNothing().when(mesaValidador).validarHorarioAtencion();
+            doNothing().when(mesaValidador).validarIdentificadorNoOcupado(anyString());
+            doNothing().when(mesaValidador).validarZonaExiste(anyLong());
+            when(mesaValidador.validarReservaParaAsignacion(RESERVA_ID)).thenReturn(reserva);
+            when(zonaRepository.findById(ZONA_ID)).thenReturn(Optional.of(zona));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_MESERO)).thenReturn(Optional.of(mesero));
+            when(visitaRepository.save(any(Visita.class))).thenReturn(visitaConCliente);
+            when(mesaRepository.save(any(Mesa.class))).thenReturn(mesaGuardada);
+            when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
+                    .thenReturn(List.of());
+
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemConPrecio =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemPrecio(new BigDecimal("10.00"))
+                            .comandaItemCantidad(2)
+                            .build();
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem itemSinPrecio =
+                    co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem.builder()
+                            .comandaItemCantidad(1)
+                            .build();
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID))
+                    .thenReturn(List.of(itemConPrecio, itemSinPrecio));
+            when(visitaEstadoMapper.toItemsVisitaResponse(any())).thenReturn(List.of());
+
+            mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
+
+            ArgumentCaptor<VisitaActualizadaWsMessage> captor = ArgumentCaptor.forClass(VisitaActualizadaWsMessage.class);
+            verify(notificacionWsPublisher).publicarVisitaActualizada(eq(VISITA_ID), captor.capture());
+            assertThat(captor.getValue().getTotal()).isEqualByComparingTo("20.00");
+        }
+
+        @Test
         @DisplayName("NO publica visit state si cliente es null (walk-in)")
         void noPublicaVisitStateSinCliente() {
             // Arrange - Walk-in sin cliente
@@ -462,6 +503,42 @@ class MesaAsignarServiceTest {
             assertThat(mensaje.getClienteNombre()).isEqualTo("Cliente Prueba");
             assertThat(mensaje.getHoraLlegada()).isNotNull();
             assertThat(mensaje.getZonaNombre()).isEqualTo("Terraza");
+        }
+
+        @Test
+        @DisplayName("publica reservation update con zonaNombre=null si reserva no tiene zona")
+        void publicaReservationUpdate_zonaNull() {
+            Reserva reservaSinZona = Reserva.builder()
+                    .reservaId(RESERVA_ID)
+                    .reservaFechaHoraLlegada(LocalDateTime.now().plusHours(1))
+                    .cliente(cliente)
+                    .reservaEstado(EstadoReserva.CONFIRMADA)
+                    .build();
+            Visita visitaConCliente = Visita.builder()
+                    .visitaId(VISITA_ID)
+                    .cliente(cliente)
+                    .reserva(reservaSinZona)
+                    .visitaFechaHoraInicio(LocalDateTime.now())
+                    .build();
+
+            doNothing().when(mesaValidador).validarHorarioAtencion();
+            doNothing().when(mesaValidador).validarIdentificadorNoOcupado(anyString());
+            doNothing().when(mesaValidador).validarZonaExiste(anyLong());
+            when(mesaValidador.validarReservaParaAsignacion(RESERVA_ID)).thenReturn(reservaSinZona);
+            when(zonaRepository.findById(ZONA_ID)).thenReturn(Optional.of(zona));
+            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_MESERO)).thenReturn(Optional.of(mesero));
+            when(visitaRepository.save(any(Visita.class))).thenReturn(visitaConCliente);
+            when(mesaRepository.save(any(Mesa.class))).thenReturn(mesaGuardada);
+            when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(RESERVA_ID, EstadoComanda.PRE_RESERVA))
+                    .thenReturn(List.of());
+            when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
+            when(visitaEstadoMapper.toItemsVisitaResponse(any())).thenReturn(List.of());
+
+            mesaAsignarService.asignarMesa(requestConReserva, EMAIL_MESERO);
+
+            ArgumentCaptor<ReservaActualizadaWsMessage> captor = ArgumentCaptor.forClass(ReservaActualizadaWsMessage.class);
+            verify(notificacionWsPublisher).publicarReservaActualizada(captor.capture());
+            assertThat(captor.getValue().getZonaNombre()).isNull();
         }
 
         @Test

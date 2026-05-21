@@ -1,8 +1,11 @@
 package co.edu.unicauca.backend.modules.reservas.mapper;
 
+import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaMenuModificacion;
+import co.edu.unicauca.backend.shared.enums.TipoComponenteMenu;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
@@ -85,6 +88,52 @@ class PreOrdenMapperTest {
         // El campo bebida debe estar poblado con los datos de la bebida BARRA
         assertThat(r.getBebida()).isNotNull();
         assertThat(r.getBebida().productoNombre()).isEqualTo("Jugo de Lulo");
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse con BARRA antes que COCINA en el grupo → fusión correcta y modificaciones se mapean")
+    void toDetalleResponse_menuConModificaciones_yOrdenInverso() {
+        String grupo = "uuid-mods";
+
+        Comanda cocinaMock = mock(Comanda.class);
+        when(cocinaMock.getComandaEstacion()).thenReturn(EstacionComanda.COCINA);
+        Comanda barraMock = mock(Comanda.class);
+        when(barraMock.getComandaEstacion()).thenReturn(EstacionComanda.BARRA);
+
+        Producto menuProd = buildProducto(1L, "Menú deluxe", CategoriaProducto.PLATO, BigDecimal.valueOf(40000));
+        Producto bebidaProd = buildProducto(2L, "Limonada", CategoriaProducto.BEBIDA, BigDecimal.valueOf(8000));
+
+        OpcionModificacion opcion = OpcionModificacion.builder()
+                .opcionId(99L)
+                .opcionNombre("Pollo")
+                .tipoComponente(TipoComponenteMenu.ARROZ)
+                .build();
+        ComandaMenuModificacion modificacion = ComandaMenuModificacion.builder()
+                .id(1L)
+                .opcion(opcion)
+                .build();
+
+        ComandaItem itemBebida = buildItem(20L, barraMock, bebidaProd, BigDecimal.ZERO, grupo);
+        ComandaItem itemPlato = ComandaItem.builder()
+                .comandaItemId(21L)
+                .comanda(cocinaMock)
+                .producto(menuProd)
+                .comandaItemCantidad(1)
+                .comandaItemPrecio(BigDecimal.valueOf(40000))
+                .comandaItemMenuGrupo(grupo)
+                .modificaciones(List.of(modificacion))
+                .build();
+
+        // BARRA primero fuerza al filtro de COCINA a evaluar la rama "false" antes de la "true"
+        List<PreOrdenItemResponse> resp = mapper.toDetalleResponse(List.of(itemBebida, itemPlato));
+
+        assertThat(resp).hasSize(1);
+        PreOrdenItemResponse r = resp.get(0);
+        assertThat(r.getProductoNombre()).isEqualTo("Menú deluxe");
+        assertThat(r.getBebida().productoNombre()).isEqualTo("Limonada");
+        assertThat(r.getModificaciones()).hasSize(1);
+        assertThat(r.getModificaciones().get(0).getOpcionNombre()).isEqualTo("Pollo");
+        assertThat(r.getModificaciones().get(0).getTipoComponente()).isEqualTo("ARROZ");
     }
 
     @Test
