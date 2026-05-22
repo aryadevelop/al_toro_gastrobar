@@ -25,8 +25,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.LocalTime;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 /**
@@ -67,14 +69,36 @@ public class ReservaConsultaService {
      * @throws BusinessException si no hay reservas programadas para la fecha o identificador
      */
     public ListadoReservasResponse listarReservasDelDia(LocalDate fecha, Long identificador) {
+        return listarReservasDelDia(fecha, identificador, false);
+    }
+
+    /**
+     * Lista las reservas del día con resumen por zona, diferenciando la vista según el rol.
+     *
+     * <p>En la vista de mesero ({@code vistaCajero = false}) solo se consideran las reservas
+     * activas ({@code PENDIENTE} o {@code CONFIRMADA}) y cada ítem incluye el indicador de
+     * inasistencia. En la vista de cajero ({@code vistaCajero = true}) se incluyen las reservas
+     * en cualquier estado y cada ítem expone el {@code tipo} y los botones de acción del cajero;
+     * para el botón de devolución se resuelve en una sola consulta qué reservas tienen abono.</p>
+     *
+     * @param fecha         fecha a consultar; {@code null} para hoy
+     * @param identificador ID de reserva a buscar; {@code null} para listar por fecha
+     * @param vistaCajero   {@code true} para la vista de cajero (todos los estados); {@code false}
+     *                      para la vista de mesero (solo activas)
+     * @return {@link ListadoReservasResponse} con reservas y resumen por zona
+     * @throws BusinessException si la fecha es pasada (400) o no hay reservas (404)
+     */
+    public ListadoReservasResponse listarReservasDelDia(LocalDate fecha, Long identificador, boolean vistaCajero) {
+        // El cajero ve reservas en cualquier estado; el mesero solo las activas (PENDIENTE/CONFIRMADA)
+        List<EstadoReserva> estados = vistaCajero
+                ? List.of(EstadoReserva.values())
+                : List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA);
+
         List<Reserva> reservas;
 
         // Si se proporciona identificador, buscar por ID
         if (identificador != null) {
-            reservas = reservaRepository.findReservasActivasPorIdentificador(
-                    identificador,
-                    List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
-            );
+            reservas = reservaRepository.findReservasActivasPorIdentificador(identificador, estados);
         } else {
             if (fecha != null && fecha.isBefore(LocalDate.now())) {
                 throw new BusinessException(
@@ -89,26 +113,24 @@ public class ReservaConsultaService {
             LocalDateTime inicio = fechaConsulta.atTime(LocalTime.MIN);
             LocalDateTime fin = fechaConsulta.atTime(LocalTime.MAX);
 
-            reservas = reservaRepository.findReservasActivasDelDia(
-                    inicio,
-                    fin,
-                    List.of(EstadoReserva.PENDIENTE, EstadoReserva.CONFIRMADA)
-            );
+            reservas = reservaRepository.findReservasActivasDelDia(inicio, fin, estados);
         }
 
         // Validar que se encontraron reservas
         if (reservas.isEmpty()) {
             throw new BusinessException(
                     ErrorCode.ENTITY_NOT_FOUND,
-                    "No hay reservas activas o pendientes para la fecha o identificador especificado",
+                    "No hay reservas para la fecha o identificador especificado",
                     HttpStatus.NOT_FOUND
             );
         }
 
-        // Convertir reservas a DTOs
-        List<ReservaConsultaResponse> reservasDto = reservas.stream()
-                .map(reservaConsultaMapper::toConsultaResponse)
-                .collect(Collectors.toList());
+        // Convertir reservas a DTOs según la vista
+        List<ReservaConsultaResponse> reservasDto = vistaCajero
+                ? mapearParaCajero(reservas)
+                : reservas.stream()
+                        .map(reservaConsultaMapper::toConsultaResponse)
+                        .collect(Collectors.toList());
 
         // Calcular resumen por zona
         List<ResumenZonaResponse> resumen = calcularResumenPorZona(reservas);
@@ -117,6 +139,26 @@ public class ReservaConsultaService {
                 .reservas(reservasDto)
                 .resumenZonas(resumen)
                 .build();
+    }
+
+    /**
+     * Convierte las reservas a DTOs para la vista de cajero, resolviendo en una sola consulta
+     * qué reservas tienen abono registrado (necesario para el botón de devolución).
+     *
+     * @param reservas reservas a convertir (no vacía)
+     * @return lista de {@link ReservaConsultaResponse} con los botones de la vista de cajero
+     */
+    private List<ReservaConsultaResponse> mapearParaCajero(List<Reserva> reservas) {
+        // Recopilar los IDs y consultar en lote qué reservas tienen al menos un abono
+        List<Long> reservaIds = reservas.stream()
+                .map(Reserva::getReservaId)
+                .collect(Collectors.toList());
+        Set<Long> reservasConAbono = new HashSet<>(abonoRepository.findReservaIdsConAbono(reservaIds));
+
+        return reservas.stream()
+                .map(r -> reservaConsultaMapper.toCajeroConsultaResponse(
+                        r, reservasConAbono.contains(r.getReservaId())))
+                .collect(Collectors.toList());
     }
 
     /**
