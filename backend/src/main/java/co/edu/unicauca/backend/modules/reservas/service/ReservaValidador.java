@@ -6,6 +6,7 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
@@ -150,6 +151,34 @@ public class ReservaValidador {
         if (!estadosActivos.contains(reserva.getReservaEstado())) {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "No es posible cancelar esta reserva.", HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Validación de elegibilidad de confirmación
+    // -----------------------------------------------------------------------
+
+    /**
+     * Valida que una reserva pueda confirmarse por parte del cajero.
+     *
+     * <p>Solo las reservas {@code ESPECIAL} en estado {@code PENDIENTE} pueden confirmarse: las
+     * reservas {@code BASICA} nacen ya {@code CONFIRMADA} y cualquier otro estado es terminal o
+     * no admite la transición a {@code CONFIRMADA}.</p>
+     *
+     * @param reserva entidad de la reserva a confirmar
+     * @throws BusinessException con código {@code INVALID_STATE} y status {@code 422} si la reserva
+     *                           no es {@code ESPECIAL} o no está en estado {@code PENDIENTE}
+     */
+    public void validarElegibilidadConfirmacion(Reserva reserva) {
+
+        // Solo una reserva ESPECIAL en estado PENDIENTE puede transicionar a CONFIRMADA
+        boolean elegible = reserva.getReservaEstado() == EstadoReserva.PENDIENTE
+                && reserva.getReservaTipo() == TipoReserva.ESPECIAL;
+
+        if (!elegible) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se pueden confirmar reservas especiales en estado pendiente.",
+                    HttpStatus.UNPROCESSABLE_ENTITY);
         }
     }
 

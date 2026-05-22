@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
@@ -145,13 +146,36 @@ public class ReservaController {
      *         de redirección a WhatsApp
      */
     @PatchMapping("/{reservaId}/cancelar")
-    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")
+    @PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN', 'CAJERO')")
     @Operation(summary = "Cancelar una reserva futura del cliente")
     public ResponseEntity<ApiResponse<CancelarReservaResponse>> cancelarReserva(
             @PathVariable Long reservaId,
             Authentication authentication) {
 
         CancelarReservaResponse response = reservaService.cancelarReserva(reservaId, emailSiCliente(authentication));
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * Confirma una reserva especial pendiente, cambiando su estado a {@code CONFIRMADA}.
+     *
+     * <p>Acción del cajero (o administrador): una reserva {@code ESPECIAL} en estado
+     * {@code PENDIENTE} pasa a {@code CONFIRMADA}. No exige abono previo; el anticipo se
+     * gestiona de forma independiente. No aplica validación de ownership.
+     *
+     * @param reservaId identificador de la reserva a confirmar
+     * @return {@code 200 OK} con el estado resultante de la reserva
+     * @throws ResourceNotFoundException si la reserva no existe (404)
+     * @throws BusinessException         si la reserva no es {@code ESPECIAL} o no está
+     *                                   {@code PENDIENTE} (422 UNPROCESSABLE_ENTITY)
+     */
+    @PatchMapping("/{reservaId}/confirmar")
+    @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")
+    @Operation(summary = "Confirmar una reserva especial pendiente")
+    public ResponseEntity<ApiResponse<ConfirmarReservaResponse>> confirmarReserva(
+            @PathVariable Long reservaId) {
+
+        ConfirmarReservaResponse response = reservaService.confirmarReserva(reservaId);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 

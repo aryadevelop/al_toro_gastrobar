@@ -39,4 +39,18 @@ public interface AbonoRepository extends JpaRepository<Abono, Long> {
      */
     @Query("SELECT COALESCE(SUM(a.abonoMonto), 0) FROM Abono a WHERE a.reserva.reservaId = :reservaId")
     BigDecimal sumAbonosByReservaId(@Param("reservaId") Long reservaId);
+
+    /**
+     * Devuelve, de un conjunto de reservas, los identificadores de aquellas que tienen al menos
+     * un abono registrado.
+     *
+     * <p>Permite resolver en una sola consulta qué reservas de un listado poseen abonos, evitando
+     * una consulta por reserva. {@code DISTINCT} elimina duplicados cuando una reserva tiene varios
+     * abonos.</p>
+     *
+     * @param ids identificadores de las reservas a evaluar
+     * @return identificadores de las reservas que tienen al menos un abono; vacía si ninguna lo tiene
+     */
+    @Query("SELECT DISTINCT a.reserva.reservaId FROM Abono a WHERE a.reserva.reservaId IN :ids")
+    List<Long> findReservaIdsConAbono(@Param("ids") List<Long> ids);
 }

@@ -11,6 +11,7 @@ import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
@@ -464,7 +465,48 @@ public class ReservaService {
                         MensajeWhatsAppBuilder.MSG_WA_CANCELACION_REEMBOLSO)
                 : null;
 
+        // 6. Publicar evento WebSocket para refrescar los tableros de reservas en tiempo real
+        publicarCambioReserva(guardada, "CANCELADA");
+
         return reservaMapper.toCancelarResponse(guardada, requiereWhatsApp, mensajeWhatsApp);
+    }
+
+    // -----------------------------------------------------------------------
+    // Confirmar reserva
+    // -----------------------------------------------------------------------
+
+    /**
+     * Confirma una reserva especial pendiente, cambiando su estado a {@code CONFIRMADA}.
+     *
+     * <p>Operación destinada al cajero: una reserva {@code ESPECIAL} en estado {@code PENDIENTE}
+     * pasa a {@code CONFIRMADA}. No exige el registro de un abono previo; el anticipo se gestiona
+     * de forma independiente. No aplica validación de ownership: el cajero puede confirmar
+     * cualquier reserva.
+     *
+     * @param reservaId identificador de la reserva a confirmar
+     * @return {@link ConfirmarReservaResponse} con el estado resultante de la reserva
+     * @throws ResourceNotFoundException si la reserva no existe (404)
+     * @throws BusinessException         si la reserva no es {@code ESPECIAL} o no está en estado
+     *                                   {@code PENDIENTE} (código {@code INVALID_STATE}, status 422)
+     */
+    @Transactional
+    public ConfirmarReservaResponse confirmarReserva(Long reservaId) {
+
+        // 1. Verificar existencia de la reserva
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        // 2. Validar que sea una reserva ESPECIAL en estado PENDIENTE
+        reservaValidador.validarElegibilidadConfirmacion(reserva);
+
+        // 3. Cambiar estado a CONFIRMADA y persistir
+        reserva.setReservaEstado(EstadoReserva.CONFIRMADA);
+        Reserva guardada = reservaRepository.save(reserva);
+
+        // 4. Publicar evento WebSocket para refrescar los tableros de reservas en tiempo real
+        publicarCambioReserva(guardada, "CONFIRMADA");
+
+        return reservaMapper.toConfirmarResponse(guardada);
     }
 
     // -----------------------------------------------------------------------
@@ -895,7 +937,8 @@ public class ReservaService {
      * Publica un evento WebSocket de cambio en reserva activa.
      *
      * @param reserva     reserva que cambió
-     * @param tipoEvento  tipo de evento ({@code CREADA} o {@@code MODIFICADA})
+     * @param tipoEvento  tipo de evento ({@code CREADA}, {@code MODIFICADA}, {@code CONFIRMADA},
+     *                    {@code CANCELADA} o {@code INASISTENCIA})
      */
     private void publicarCambioReserva(Reserva reserva, String tipoEvento) {
         String horaLlegada = reserva.getReservaFechaHoraLlegada()
