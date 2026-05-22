@@ -62,19 +62,19 @@ public class ReservaConsultaResponse {
     private final Boolean mostrarConfirmar;
 
     /**
-     * Indica si debe mostrarse el botón "Agregar abono" (vista de cajero).
+     * Indica si debe mostrarse el botón "Agregar anticipo" (vista de cajero).
      *
      * <p>{@code true} cuando la reserva está {@code CONFIRMADA}; {@code null} en la vista de mesero.
      */
-    private final Boolean mostrarAgregarAbono;
+    private final Boolean mostrarAgregarAnticipo;
 
     /**
-     * Indica si debe mostrarse el botón "Confirmar devolución" (vista de cajero).
+     * Indica si debe mostrarse el botón "Agregar devolución" (vista de cajero).
      *
      * <p>{@code true} cuando la reserva está {@code CANCELADA} y tiene al menos un abono
      * registrado; {@code null} en la vista de mesero.
      */
-    private final Boolean mostrarConfirmarDevolucion;
+    private final Boolean mostrarAgregarDevolucion;
 
     /**
      * Indica si debe mostrarse el botón "Cancelar" (vista de cajero).

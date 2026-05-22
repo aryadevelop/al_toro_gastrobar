@@ -393,7 +393,7 @@ class ReservaConsultaServiceTest {
         assertThat(response.getReservas().get(0).getTipo()).isEqualTo("ESPECIAL");
         assertThat(response.getReservas().get(0).getMostrarConfirmar()).isTrue();
         assertThat(response.getReservas().get(1).getEstado()).isEqualTo("CANCELADA");
-        assertThat(response.getReservas().get(1).getMostrarConfirmarDevolucion()).isTrue();
+        assertThat(response.getReservas().get(1).getMostrarAgregarDevolucion()).isTrue();
     }
 
     @Test

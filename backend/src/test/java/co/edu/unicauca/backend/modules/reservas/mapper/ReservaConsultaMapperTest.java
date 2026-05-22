@@ -125,8 +125,8 @@ class ReservaConsultaMapperTest {
 
         assertThat(response.getTipo()).isNull();
         assertThat(response.getMostrarConfirmar()).isNull();
-        assertThat(response.getMostrarAgregarAbono()).isNull();
-        assertThat(response.getMostrarConfirmarDevolucion()).isNull();
+        assertThat(response.getMostrarAgregarAnticipo()).isNull();
+        assertThat(response.getMostrarAgregarDevolucion()).isNull();
         assertThat(response.getMostrarCancelar()).isNull();
     }
 
@@ -147,38 +147,38 @@ class ReservaConsultaMapperTest {
             assertThat(r.getTipo()).isEqualTo("ESPECIAL");
             assertThat(r.getMostrarConfirmar()).isTrue();
             assertThat(r.getMostrarCancelar()).isTrue();
-            assertThat(r.getMostrarAgregarAbono()).isFalse();
-            assertThat(r.getMostrarConfirmarDevolucion()).isFalse();
+            assertThat(r.getMostrarAgregarAnticipo()).isFalse();
+            assertThat(r.getMostrarAgregarDevolucion()).isFalse();
         }
 
         @Test
-        @DisplayName("CONFIRMADA → mostrarAgregarAbono y mostrarCancelar")
-        void confirmada_mostrarAgregarAbono() {
+        @DisplayName("CONFIRMADA → mostrarAgregarAnticipo y mostrarCancelar")
+        void confirmada_mostrarAgregarAnticipo() {
             ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
                     reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.ESPECIAL), false);
 
-            assertThat(r.getMostrarAgregarAbono()).isTrue();
+            assertThat(r.getMostrarAgregarAnticipo()).isTrue();
             assertThat(r.getMostrarCancelar()).isTrue();
             assertThat(r.getMostrarConfirmar()).isFalse();
         }
 
         @Test
-        @DisplayName("CANCELADA con abono → mostrarConfirmarDevolucion")
+        @DisplayName("CANCELADA con abono → mostrarAgregarDevolucion")
         void canceladaConAbono_mostrarDevolucion() {
             ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
                     reservaCajero(EstadoReserva.CANCELADA, TipoReserva.ESPECIAL), true);
 
-            assertThat(r.getMostrarConfirmarDevolucion()).isTrue();
+            assertThat(r.getMostrarAgregarDevolucion()).isTrue();
             assertThat(r.getMostrarCancelar()).isFalse();
         }
 
         @Test
-        @DisplayName("CANCELADA sin abono → no mostrarConfirmarDevolucion")
+        @DisplayName("CANCELADA sin abono → no mostrarAgregarDevolucion")
         void canceladaSinAbono_noMostrarDevolucion() {
             ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
                     reservaCajero(EstadoReserva.CANCELADA, TipoReserva.ESPECIAL), false);
 
-            assertThat(r.getMostrarConfirmarDevolucion()).isFalse();
+            assertThat(r.getMostrarAgregarDevolucion()).isFalse();
         }
 
         @Test
@@ -197,7 +197,7 @@ class ReservaConsultaMapperTest {
                     reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.BASICA), false);
 
             assertThat(r.getMostrarConfirmar()).isFalse();
-            assertThat(r.getMostrarAgregarAbono()).isTrue();
+            assertThat(r.getMostrarAgregarAnticipo()).isTrue();
             assertThat(r.getTipo()).isEqualTo("BASICA");
         }
 

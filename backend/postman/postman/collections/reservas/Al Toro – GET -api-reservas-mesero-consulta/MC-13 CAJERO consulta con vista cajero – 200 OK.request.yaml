@@ -3,8 +3,8 @@ name: MC-13 CAJERO consulta con vista cajero – 200 OK
 description: |-
   CA-01/CA-03: El CAJERO accede al listado y recibe la vista de cajero:
   - Incluye reservas en cualquier estado (no solo PENDIENTE/CONFIRMADA).
-  - Cada item expone los campos `tipo`, `mostrarConfirmar`, `mostrarAgregarAbono`,
-    `mostrarConfirmarDevolucion` y `mostrarCancelar` según el estado de la reserva.
+  - Cada item expone los campos `tipo`, `mostrarConfirmar`, `mostrarAgregarAnticipo`,
+    `mostrarAgregarDevolucion` y `mostrarCancelar` según el estado de la reserva.
   El beforeRequest crea una reserva ESPECIAL PENDIENTE para garantizar que haya
   al menos un item con mostrarConfirmar=true en la respuesta.
   Resultado esperado: 200 OK, reservas con campos de vista cajero.

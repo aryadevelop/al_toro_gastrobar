@@ -2,6 +2,7 @@ package co.edu.unicauca.backend.modules.reservas.mapper;
 
 import co.edu.unicauca.backend.modules.reservas.dto.response.*;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.service.ReservaConsultaService;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import org.springframework.stereotype.Component;
@@ -65,8 +66,8 @@ public class ReservaConsultaMapper {
      * de los botones de acción del cajero, calculados según el estado y el tipo:
      * <ul>
      *   <li>{@code mostrarConfirmar}: reserva {@code ESPECIAL} en estado {@code PENDIENTE}.</li>
-     *   <li>{@code mostrarAgregarAbono}: reserva en estado {@code CONFIRMADA}.</li>
-     *   <li>{@code mostrarConfirmarDevolucion}: reserva {@code CANCELADA} con al menos un abono.</li>
+     *   <li>{@code mostrarAgregarAnticipo}: reserva en estado {@code CONFIRMADA}.</li>
+     *   <li>{@code mostrarAgregarDevolucion}: reserva {@code CANCELADA} con al menos un abono.</li>
      *   <li>{@code mostrarCancelar}: reserva {@code PENDIENTE} o {@code CONFIRMADA}.</li>
      * </ul>
      *
@@ -95,8 +96,8 @@ public class ReservaConsultaMapper {
                 .estado(estado.name())
                 .tipo(reserva.getReservaTipo().name())
                 .mostrarConfirmar(esEspecial && estado == EstadoReserva.PENDIENTE)
-                .mostrarAgregarAbono(estado == EstadoReserva.CONFIRMADA)
-                .mostrarConfirmarDevolucion(estado == EstadoReserva.CANCELADA && tieneAbono)
+                .mostrarAgregarAnticipo(estado == EstadoReserva.CONFIRMADA)
+                .mostrarAgregarDevolucion(estado == EstadoReserva.CANCELADA && tieneAbono)
                 .mostrarCancelar(activa)
                 .build();
     }
