@@ -29,7 +29,7 @@ Base URL: `http://localhost:8080/api`
 | GET | `/cliente/futuras?emailCliente=` | **CLIENTE** | Lista reservas futuras del cliente (`PENDIENTE`/`CONFIRMADA`) ordenadas ASC por fecha. Ownership validation. |
 | GET | `/cliente/canceladas-devueltas?emailCliente=` | **CLIENTE** | Historial de reservas canceladas (`CANCELADA`/`DEVUELTA`) del cliente. Ownership validation. |
 | GET | `/{reservaId}/detalle` | **CLIENTE / CAJERO / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos, `clienteId`. CLIENTE: ownership validation. |
-| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / CAJERO / ADMIN** | Lista reservas del día. MESERO/ADMIN: solo estados `PENDIENTE`/`CONFIRMADA`, con `mostrarBotonInasistencia`. CAJERO: todos los estados, con `tipo` y flags de acción (`mostrarConfirmar`, `mostrarAgregarAbono`, `mostrarConfirmarDevolucion`, `mostrarCancelar`). |
+| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / CAJERO / ADMIN** | Lista reservas del día. MESERO/ADMIN: solo estados `PENDIENTE`/`CONFIRMADA`, con `mostrarBotonInasistencia`. CAJERO: todos los estados, con `tipo` y flags de acción (`mostrarConfirmar`, `mostrarAgregarAnticipo`, `mostrarAgregarDevolucion`, `mostrarCancelar`). |
 | GET | `/mesero/{reservaId}/detalle` | **MESERO / ADMIN** | Detalle completo para meseros: incluye teléfono cliente, modificaciones de pre-orden, información de contacto. |
 
 ---

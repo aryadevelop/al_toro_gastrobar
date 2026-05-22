@@ -2,7 +2,7 @@ $kind: http-request
 name: 30-03 Consulta Reservas – CAJERO
 description: |-
   Consulta de reservas con vista de cajero: incluye todos los estados y los campos
-  tipo, mostrarConfirmar, mostrarAgregarAbono, mostrarConfirmarDevolucion, mostrarCancelar.
+  tipo, mostrarConfirmar, mostrarAgregarAnticipo, mostrarAgregarDevolucion, mostrarCancelar.
   Sin parámetro fecha = día actual. Cambiar fecha o identificador según prueba manual.
 url: "{{baseUrl}}/api/reservas/mesero/consulta"
 method: GET
