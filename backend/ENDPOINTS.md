@@ -23,12 +23,13 @@ Base URL: `http://localhost:8080/api`
 | GET | `/disponibilidad?fechaHora=` | **CLIENTE** | Consulta zonas y decoraciones disponibles para una fecha/hora. Solo horario 17:00–22:00. Retorna capacidad disponible por zona. |
 | POST | `/` | **CLIENTE** | Crear reserva. Puede incluir pre-orden de comanda (estado `PRE_RESERVA`). Valida capacidad de zona, decoración exclusiva, y horarios. |
 | PUT | `/{reservaId}` | **CLIENTE** | Modificar reserva futura. Cutoff: 13:00 día anterior (BASICA), 23:00 día anterior (ESPECIAL). Solo `PENDIENTE`/`CONFIRMADA`. |
-| PATCH | `/{reservaId}/cancelar` | **CLIENTE** | Cancelar reserva. Sin restricción de tiempo. Retorna flag `requiereWhatsApp` si hay abono a reembolsar. |
+| PATCH | `/{reservaId}/cancelar` | **CLIENTE / CAJERO / ADMIN** | Cancelar reserva. Sin restricción de tiempo. CLIENTE: solo sus propias reservas. CAJERO/ADMIN: cualquier reserva. Retorna flag `requiereWhatsApp` si hay abono a reembolsar. |
+| PATCH | `/{reservaId}/confirmar` | **CAJERO / ADMIN** | Confirmar una reserva `ESPECIAL PENDIENTE`. Estado pasa a `CONFIRMADA`. Emite evento WS en `/topic/reservas/cambios`. 422 si no es ESPECIAL o no está PENDIENTE. |
 | PATCH | `/{reservaId}/marcar-inasistencia` | **MESERO / ADMIN** | Marcar reserva como inasistencia tras 30 minutos de tolerancia. Solo `CONFIRMADA`. Libera zona y decoración. Cambio irreversible. |
 | GET | `/cliente/futuras?emailCliente=` | **CLIENTE** | Lista reservas futuras del cliente (`PENDIENTE`/`CONFIRMADA`) ordenadas ASC por fecha. Ownership validation. |
 | GET | `/cliente/canceladas-devueltas?emailCliente=` | **CLIENTE** | Historial de reservas canceladas (`CANCELADA`/`DEVUELTA`) del cliente. Ownership validation. |
-| GET | `/{reservaId}/detalle` | **CLIENTE / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos. CLIENTE: ownership validation. |
-| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / ADMIN** | Lista reservas activas del día (o fecha especificada). Si se proporciona `identificador`, busca por ID de reserva. Retorna campo `mostrarBotonInasistencia` calculado dinámicamente. |
+| GET | `/{reservaId}/detalle` | **CLIENTE / CAJERO / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos, `clienteId`. CLIENTE: ownership validation. |
+| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / CAJERO / ADMIN** | Lista reservas del día. MESERO/ADMIN: solo estados `PENDIENTE`/`CONFIRMADA`, con `mostrarBotonInasistencia`. CAJERO: todos los estados, con `tipo` y flags de acción (`mostrarConfirmar`, `mostrarAgregarAbono`, `mostrarConfirmarDevolucion`, `mostrarCancelar`). |
 | GET | `/mesero/{reservaId}/detalle` | **MESERO / ADMIN** | Detalle completo para meseros: incluye teléfono cliente, modificaciones de pre-orden, información de contacto. |
 
 ---
@@ -141,6 +142,7 @@ Base URL: `http://localhost:8080/api`
 
 ### CAJERO
 - **Auth**: login, refresh, me, logout
+- **Reservas**: consulta (vista cajero: todos estados + flags), detalle (con clienteId), confirmar, cancelar
 - **Clientes**: puntos (cualquier cliente), canje-puntos
 - **Productos**: carta, menu-especial
 - **Mesas**: mapa, detalle
@@ -150,7 +152,7 @@ Base URL: `http://localhost:8080/api`
 
 ### ADMIN
 - **Auth**: login, refresh, me, logout
-- **Reservas**: detalle, consulta (mesero), detalle (mesero)
+- **Reservas**: detalle, consulta (mesero/cajero), detalle (mesero), confirmar, cancelar
 - **Clientes**: puntos (cualquier cliente)
 - **Productos**: carta, menu-especial
 - **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
@@ -182,7 +184,8 @@ Endpoints con ownership validation (CLIENTE solo accede a recursos propios):
 ### Multi-rol Endpoints
 Endpoints que sirven a múltiples roles con comportamiento diferenciado:
 - `GET /api/visitas/activa` — CLIENTE usa token, otros roles usan `?emailCliente=`
-- `GET /api/reservas/{reservaId}/detalle` — CLIENTE con ownership, ADMIN sin restricción
+- `GET /api/reservas/{reservaId}/detalle` — CLIENTE con ownership, CAJERO/ADMIN sin restricción; CAJERO recibe campo extra `clienteId`
+- `GET /api/reservas/mesero/consulta` — MESERO/ADMIN recibe vista con `mostrarBotonInasistencia`; CAJERO recibe vista con `tipo` y flags de acción
 
 ### WebSocket Integration
 Endpoints que publican eventos WebSocket:
@@ -191,6 +194,8 @@ Endpoints que publican eventos WebSocket:
 - `PATCH /api/notificaciones/{notificacionId}/atender` → `/topic/visita/{visitaId}/asistencia`
 - `POST /api/ventas` → `/topic/visita/{visitaId}/cuenta`
 - `POST /api/comandas/borrador/{comandaId}/enviar` → `/topic/estacion/{estacion}` (COCINA o BARRA) + `/topic/mesas` + `/topic/visita/{visitaId}/orden` + RabbitMQ `comanda.nueva`
+- `PATCH /api/reservas/{reservaId}/confirmar` → `/topic/reservas/cambios`
+- `PATCH /api/reservas/{reservaId}/cancelar` → `/topic/reservas/cambios`
 - `POST /api/comandas/borrador/items` → `/topic/mesas`
 - `PATCH /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
 - `DELETE /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
