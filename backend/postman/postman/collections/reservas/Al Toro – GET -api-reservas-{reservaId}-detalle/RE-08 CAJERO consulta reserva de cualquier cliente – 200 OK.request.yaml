@@ -86,6 +86,9 @@ scripts:
         pm.expect(String(pm.response.json().data.reservaId))
           .to.eql(String(pm.environment.get('tmpReservaId')));
       });
+      pm.test('CA-06: detalle incluye clienteId (visible para CAJERO)', function () {
+        pm.expect(pm.response.json().data.clienteId).to.be.a('number');
+      });
 
       const reservaId = pm.environment.get('tmpReservaId');
       if (reservaId) {

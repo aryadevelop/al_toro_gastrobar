@@ -112,8 +112,6 @@ values:
     value: ''
   - key: mesero2Token
     value: ''
-  - key: tmpReservaIdAjena
-    value: ''
   - key: itemPicanhaBaseId
     value: ''
   - key: itemHamburguesaSinTomateId

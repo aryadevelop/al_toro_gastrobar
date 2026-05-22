@@ -1,0 +1,86 @@
+$kind: http-request
+name: CR-03b CAJERO cancela reserva – 200 OK
+description: |
+  CA-13: CAJERO puede cancelar cualquier reserva sin restricción de ownership.
+  El beforeRequest crea una reserva BASICA a nombre del cliente seed y luego
+  el CAJERO la cancela con su propio token.
+  Resultado esperado: 200, estado=CANCELADA, tipo=BASICA, reservaId coincide.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      // Paso 1: cliente crea la reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('CR-03b: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaId', r2.json().data.reservaId);
+
+          // Paso 2: CAJERO obtiene su token
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('cajeroToken', r3.json().accessToken);
+            } else {
+              console.warn('CR-03b: login CAJERO falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CA-13: CAJERO cancela reserva → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('CA-13: estado=CANCELADA, tipo=BASICA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estado).to.eql('CANCELADA');
+        pm.expect(data.tipo).to.eql('BASICA');
+      });
+      pm.test('CA-13: reservaId coincide', function () {
+        pm.expect(pm.response.json().data.reservaId)
+          .to.eql(parseInt(pm.environment.get('tmpReservaId')));
+      });
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 3000
