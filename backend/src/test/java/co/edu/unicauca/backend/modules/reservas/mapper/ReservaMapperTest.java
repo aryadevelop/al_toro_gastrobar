@@ -119,6 +119,24 @@ class ReservaMapperTest {
     }
 
     @Test
+    @DisplayName("toDecoracionDto → un solo link → puedeSeleccionarZona=false")
+    void toDecoracionDto_unSoloLink_noPuedeSeleccionarZona() {
+        Decoracion dec = Decoracion.builder()
+                .decoracionId(3L)
+                .decoracionNombre("Velas")
+                .decoracionEstado(EstadoGenerico.ACTIVO)
+                .build();
+        Zona zonaUnica = Zona.builder().zonaId(1L).zonaNombre("Terraza").build();
+        DecoracionZona dzUnico = DecoracionZona.builder()
+                .decoracionId(3L).zonaId(1L).zona(zonaUnica).build();
+
+        DecoracionDisponibleResponse resp = mapper.toDecoracionDto(dec, List.of(dzUnico), Set.of(1L));
+
+        assertThat(resp.getPuedeSeleccionarZona()).isFalse();
+        assertThat(resp.getZonaIdsCompatibles()).containsExactly(1L);
+    }
+
+    @Test
     @DisplayName("toDecoracionDto → decoración sin zonas libres no tiene zonas compatibles")
     void toDecoracionDto_sinZonasLibres_listaCompatiblesVacia() {
         Decoracion dec = Decoracion.builder()
@@ -155,7 +173,89 @@ class ReservaMapperTest {
         assertThat(resp.getAbonos()).isNull();
     }
 
-    
+    @Test
+    @DisplayName("toDetalleResponse → incluye clienteId desde el usuarioId del cliente")
+    void toDetalleResponse_incluyeClienteId() {
+        Cliente clienteMock = mock(Cliente.class, withSettings().strictness(Strictness.LENIENT));
+        when(clienteMock.getClienteNombre()).thenReturn("Juan Pérez");
+        when(clienteMock.getUsuarioId()).thenReturn(7L);
+        Reserva reserva = Reserva.builder()
+                .reservaId(1L)
+                .cliente(clienteMock)
+                .reservaFechaHoraLlegada(LocalDateTime.now().plusDays(5))
+                .reservaNumeroPersonas(4)
+                .reservaEstado(EstadoReserva.PENDIENTE)
+                .reservaTipo(TipoReserva.BASICA)
+                .build();
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
+
+        assertThat(resp.getClienteId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → con zona asignada mapea zonaId y zonaNombre")
+    void toDetalleResponse_conZona_mapeaZonaCampos() {
+        Reserva reserva = reservaBase();
+        reserva.setZona(Zona.builder().zonaId(7L).zonaNombre("TERRAZA").build());
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
+
+        assertThat(resp.getZonaId()).isEqualTo(7L);
+        assertThat(resp.getZonaNombre()).isEqualTo("TERRAZA");
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → estado terminal CANCELADA → modificable=false")
+    void toDetalleResponse_estadoTerminal_modificableFalse() {
+        Reserva reserva = reservaBase();
+        reserva.setReservaEstado(EstadoReserva.CANCELADA);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
+
+        assertThat(resp.isModificable()).isFalse();
+    }
+
+    // ── toConfirmarResponse ───────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("toConfirmarResponse — conversión a DTO de confirmación")
+    class ToConfirmarResponse {
+
+        @Test
+        @DisplayName("Reserva especial confirmada → mapea todos los campos")
+        void mapeaTodosLosCampos() {
+            Reserva reserva = reservaBase();
+            reserva.setReservaEstado(EstadoReserva.CONFIRMADA);
+            reserva.setReservaTipo(TipoReserva.ESPECIAL);
+            reserva.setZona(Zona.builder().zonaId(2L).zonaNombre("Terraza").build());
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse resp =
+                    mapper.toConfirmarResponse(reserva);
+
+            assertThat(resp.getReservaId()).isEqualTo(1L);
+            assertThat(resp.getEstado()).isEqualTo("CONFIRMADA");
+            assertThat(resp.getTipo()).isEqualTo("ESPECIAL");
+            assertThat(resp.getNumeroPersonas()).isEqualTo(4);
+            assertThat(resp.getClienteNombre()).isEqualTo("Juan Pérez");
+            assertThat(resp.getZonaNombre()).isEqualTo("Terraza");
+            assertThat(resp.getFechaHoraLlegada()).isNotNull();
+        }
+
+        @Test
+        @DisplayName("Reserva sin zona → zonaNombre es null")
+        void zonaNull_dejaZonaNombreNull() {
+            Reserva reserva = reservaBase();
+            reserva.setReservaEstado(EstadoReserva.CONFIRMADA);
+            reserva.setReservaTipo(TipoReserva.ESPECIAL);
+
+            co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse resp =
+                    mapper.toConfirmarResponse(reserva);
+
+            assertThat(resp.getZonaNombre()).isNull();
+        }
+    }
+
     // ── toResponse ────────────────────────────────────────────────────────────
 
     @Nested

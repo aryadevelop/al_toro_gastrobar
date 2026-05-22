@@ -23,7 +23,10 @@ import java.time.LocalDateTime;
 import java.time.LocalTime;
 import java.util.List;
 
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyList;
@@ -141,6 +144,15 @@ class DisponibilidadConsultadorTest {
                     consultador.consultarParaNuevaReserva(FECHA_HORA, 2, APERTURA, CIERRE);
 
             assertThat(result.getDisponible()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Fecha en el pasado → lanza BusinessException")
+        void fechaEnElPasado_lanzaBusinessException() {
+            LocalDateTime pasado = LocalDateTime.now().minusHours(2);
+
+            assertThatThrownBy(() -> consultador.consultarParaNuevaReserva(pasado, 2, APERTURA, CIERRE))
+                    .isInstanceOf(BusinessException.class);
         }
 
         @Test

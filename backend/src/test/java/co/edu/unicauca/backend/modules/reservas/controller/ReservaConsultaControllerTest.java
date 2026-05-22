@@ -29,6 +29,7 @@ import java.time.LocalDate;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
@@ -108,7 +109,7 @@ class ReservaConsultaControllerTest {
                     ))
                     .build();
 
-            when(reservaConsultaService.listarReservasDelDia(null, null))
+            when(reservaConsultaService.listarReservasDelDia(null, null, false))
                     .thenReturn(mockResponse);
 
             // Act & Assert
@@ -140,7 +141,7 @@ class ReservaConsultaControllerTest {
                     .resumenZonas(List.of())
                     .build();
 
-            when(reservaConsultaService.listarReservasDelDia(eq(fechaConsulta), eq(null)))
+            when(reservaConsultaService.listarReservasDelDia(eq(fechaConsulta), eq(null), eq(false)))
                     .thenReturn(mockResponse);
 
             // Act & Assert
@@ -170,7 +171,7 @@ class ReservaConsultaControllerTest {
                     .resumenZonas(List.of())
                     .build();
 
-            when(reservaConsultaService.listarReservasDelDia(any(), eq(42L)))
+            when(reservaConsultaService.listarReservasDelDia(any(), eq(42L), eq(false)))
                     .thenReturn(mockResponse);
 
             // Act & Assert
@@ -207,7 +208,7 @@ class ReservaConsultaControllerTest {
                     .reservas(List.of())
                     .resumenZonas(List.of())
                     .build();
-            when(reservaConsultaService.listarReservasDelDia(any(), any()))
+            when(reservaConsultaService.listarReservasDelDia(any(), any(), anyBoolean()))
                     .thenReturn(mockResponse);
 
             // Act & Assert
@@ -218,6 +219,36 @@ class ReservaConsultaControllerTest {
         }
 
         @Test
+        @WithMockUser(roles = "CAJERO")
+        @DisplayName("Con rol CAJERO → 200 con vista de cajero (flags y tipo)")
+        void listarReservas_conRolCajero_retorna200ConVistaCajero() throws Exception {
+            ListadoReservasResponse mockResponse = ListadoReservasResponse.builder()
+                    .reservas(List.of(
+                            ReservaConsultaResponse.builder()
+                                    .reservaId(1L)
+                                    .clienteNombre("Juan Pérez")
+                                    .horaLlegada("19:00")
+                                    .numeroPersonas(4)
+                                    .estado("PENDIENTE")
+                                    .tipo("ESPECIAL")
+                                    .mostrarConfirmar(true)
+                                    .mostrarCancelar(true)
+                                    .build()
+                    ))
+                    .resumenZonas(List.of())
+                    .build();
+
+            // El controller debe invocar el overload con vistaCajero = true para el rol CAJERO
+            when(reservaConsultaService.listarReservasDelDia(null, null, true))
+                    .thenReturn(mockResponse);
+
+            mockMvc.perform(get("/api/reservas/mesero/consulta"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.reservas[0].tipo").value("ESPECIAL"))
+                    .andExpect(jsonPath("$.data.reservas[0].mostrarConfirmar").value(true));
+        }
+
+        @Test
         @DisplayName("Sin autenticación → retorna 401")
         void listarReservas_sinAutenticacion_retorna401() throws Exception {
             // Arrange
@@ -225,7 +256,7 @@ class ReservaConsultaControllerTest {
                     .reservas(List.of())
                     .resumenZonas(List.of())
                     .build();
-            when(reservaConsultaService.listarReservasDelDia(any(), any()))
+            when(reservaConsultaService.listarReservasDelDia(any(), any(), anyBoolean()))
                     .thenReturn(mockResponse);
 
             // Act & Assert
