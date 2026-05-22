@@ -1,0 +1,93 @@
+$kind: http-request
+name: CF-08 BASICA PENDIENTE – 422 Unprocessable Entity
+description: |
+  Solo se pueden confirmar reservas ESPECIALES. Una reserva BASICA PENDIENTE
+  no es elegible para confirmación.
+  El beforeRequest crea una reserva BASICA PENDIENTE (sin decoración con costo).
+  Resultado esperado: 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdCF08}}/confirmar"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      // Paso 1: cliente crea reserva BASICA (sin decoración con costo)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 }) }
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('CF-08: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaIdCF08', r2.json().data.reservaId);
+          pm.environment.set('tmpClienteTokenCF08', clienteToken);
+
+          // Paso 2: CAJERO obtiene su token
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('cajeroToken', r3.json().accessToken);
+            } else {
+              console.warn('CF-08: login CAJERO falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('BASICA PENDIENTE no es confirmable → 422', function () {
+        pm.response.to.have.status(422);
+      });
+
+      // Cleanup: cliente cancela la reserva BASICA creada
+      const reservaId = pm.environment.get('tmpReservaIdCF08');
+      if (reservaId && reservaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('tmpClienteTokenCF08') }
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code !== 200) {
+            console.warn('Cleanup CF-08: cancelar reserva falló', r2 && r2.code);
+          }
+        });
+      }
+      pm.environment.unset('tmpReservaIdCF08');
+      pm.environment.unset('tmpClienteTokenCF08');
+    language: text/javascript
+order: 8000

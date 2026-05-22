@@ -8,7 +8,9 @@ import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadR
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -115,6 +117,70 @@ class ReservaValidadorTest {
 
             assertThatCode(() -> validador.validarElegibilidadModificacion(reserva, null))
                     .doesNotThrowAnyException();
+        }
+    }
+
+    // ── validarElegibilidadConfirmacion ───────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarElegibilidadConfirmacion — solo ESPECIAL + PENDIENTE")
+    class ValidarElegibilidadConfirmacion {
+
+        private Reserva reservaCon(EstadoReserva estado, TipoReserva tipo) {
+            return Reserva.builder().reservaEstado(estado).reservaTipo(tipo).build();
+        }
+
+        @Test
+        @DisplayName("ESPECIAL en estado PENDIENTE → no lanza excepción")
+        void especialPendiente_noLanza() {
+            Reserva reserva = reservaCon(EstadoReserva.PENDIENTE, TipoReserva.ESPECIAL);
+
+            assertThatCode(() -> validador.validarElegibilidadConfirmacion(reserva))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("ESPECIAL ya CONFIRMADA → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void especialConfirmada_lanzaUnprocessable() {
+            Reserva reserva = reservaCon(EstadoReserva.CONFIRMADA, TipoReserva.ESPECIAL);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadConfirmacion(reserva))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("ESPECIAL CANCELADA → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void especialCancelada_lanzaUnprocessable() {
+            Reserva reserva = reservaCon(EstadoReserva.CANCELADA, TipoReserva.ESPECIAL);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadConfirmacion(reserva))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("BASICA en estado PENDIENTE → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void basicaPendiente_lanzaUnprocessable() {
+            Reserva reserva = reservaCon(EstadoReserva.PENDIENTE, TipoReserva.BASICA);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadConfirmacion(reserva))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
+        }
+
+        @Test
+        @DisplayName("ESPECIAL en estado terminal ATENDIDA → BusinessException 422 UNPROCESSABLE_ENTITY")
+        void especialAtendida_lanzaUnprocessable() {
+            Reserva reserva = reservaCon(EstadoReserva.ATENDIDA, TipoReserva.ESPECIAL);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadConfirmacion(reserva))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.UNPROCESSABLE_ENTITY));
         }
     }
 
@@ -507,10 +573,15 @@ class ReservaValidadorTest {
         @Test
         @DisplayName("MESERO con reserva del día actual → no lanza excepción")
         void meseroReservaHoy_noLanza() {
-            // Reserva CONFIRMADA de hace 40 minutos (mismo día)
-            LocalDateTime horaLlegada = LocalDateTime.now().minusMinutes(40);
+            LocalDateTime cuarentaAtras = LocalDateTime.now().minusMinutes(40);
+            // Si retroceder 40 min cruza medianoche, el escenario es físicamente imposible hoy
+            Assumptions.assumeTrue(
+                cuarentaAtras.toLocalDate().isEqual(LocalDate.now()),
+                "Omitido: primeros 40 minutos del día — 'hace 40 min' cae en el día anterior"
+            );
+
             Reserva reserva = reservaCon("cliente@altoro.com", EstadoReserva.CONFIRMADA);
-            reserva.setReservaFechaHoraLlegada(horaLlegada);
+            reserva.setReservaFechaHoraLlegada(cuarentaAtras);
 
             assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, true))
                     .doesNotThrowAnyException();

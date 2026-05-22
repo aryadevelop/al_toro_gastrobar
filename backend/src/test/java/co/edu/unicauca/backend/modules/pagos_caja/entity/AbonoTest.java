@@ -119,6 +119,22 @@ class AbonoTest {
     }
 
     @Test
+    @DisplayName("equals() misma referencia → retorna true")
+    void equals_mismaReferencia_retornaTrue() {
+        Abono abono = Abono.builder().abonoId(1L).build();
+
+        assertThat(abono.equals(abono)).isTrue();
+    }
+
+    @Test
+    @DisplayName("equals() con objeto de distinto tipo → retorna false")
+    void equals_tipoDistinto_retornaFalse() {
+        Abono abono = Abono.builder().abonoId(1L).build();
+
+        assertThat(abono.equals("no soy un Abono")).isFalse();
+    }
+
+    @Test
     @DisplayName("equals() con ID null → retorna false")
     void equals_idNull_retornaFalse() {
         Abono abono1 = Abono.builder().abonoId(null).build();

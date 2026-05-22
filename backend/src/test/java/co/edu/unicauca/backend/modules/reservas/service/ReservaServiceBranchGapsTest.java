@@ -357,6 +357,60 @@ class ReservaServiceBranchGapsTest {
 
             service.crearReserva(EMAIL, req);
         }
+
+        @Test
+        @DisplayName("Fecha hoy + tipo ESPECIAL (preOrden con menú) → lanza anticipación mínima")
+        void hoyEspecial_lanzaAnticipaciónMinima() {
+            stubDisponibilidadLibreCrear();
+            LocalDateTime hoy = LocalDate.now().atTime(20, 0);
+            PreOrdenItemRequest menu = new PreOrdenItemRequest();
+            menu.setProductoId(1L);
+            menu.setCantidad(1);
+            menu.setEsMenuEspecial(true);
+
+            CrearReservaRequest req = crearRequest(hoy, 2, null, null, List.of(menu));
+
+            assertThatThrownBy(() -> service.crearReserva(EMAIL, req))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("anticipación");
+        }
+    }
+
+    @Nested
+    @DisplayName("crearReserva con decoración Y zona → validarCompatibilidadDecoracionZona")
+    class DecoracionYZonaSimultaneos {
+
+        @Test
+        @DisplayName("Ambos decoracionId y zonaId no-null → ejercita validarCompatibilidadDecoracionZona")
+        void decoracionYZona_invocaCompatibilidad() {
+            Decoracion dec = new Decoracion();
+            setField(dec, Decoracion.class, "decoracionId", 2L);
+            when(decoracionRepository.findById(2L)).thenReturn(Optional.of(dec));
+
+            co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona zona =
+                    new co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona();
+            setField(zona, co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona.class, "zonaId", 3L);
+            setField(zona, co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona.class, "zonaCapacidadPersonas", 50);
+            when(zonaRepository.findById(3L)).thenReturn(Optional.of(zona));
+
+            ZonaDisponibleResponse zonaDto = ZonaDisponibleResponse.builder().zonaId(3L).capacidad(100).build();
+            DecoracionDisponibleResponse decDto = DecoracionDisponibleResponse.builder().decoracionId(2L).build();
+            when(disponibilidadConsultador.consultarParaNuevaReserva(any(), anyInt(), any(), any()))
+                    .thenReturn(DisponibilidadResponse.builder()
+                            .disponible(true)
+                            .zonas(List.of(zonaDto))
+                            .decoraciones(List.of(decDto))
+                            .build());
+            when(reservaRepository.sumPersonasByZonaEnDia(any(), any(), any(), any())).thenReturn(0);
+            when(reservaRepository.save(any())).thenAnswer(inv -> {
+                Reserva r = inv.getArgument(0);
+                setField(r, Reserva.class, "reservaId", RESERVA_ID);
+                return r;
+            });
+
+            CrearReservaRequest req = crearRequest(fechaFutura, 2, 2L, 3L, null);
+            service.crearReserva(EMAIL, req);
+        }
     }
 
     // ────────────────────────────────────────────────────────────────────────

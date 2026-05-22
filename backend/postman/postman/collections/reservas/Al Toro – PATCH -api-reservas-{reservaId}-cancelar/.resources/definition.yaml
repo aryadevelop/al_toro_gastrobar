@@ -5,10 +5,10 @@ description: |-
 
   Cancela una reserva futura activa (PENDIENTE o CONFIRMADA).
 
-  **Control de acceso:** `@PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN')")`.
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CLIENTE', 'ADMIN', 'CAJERO')")`.
   - CLIENTE: solo puede cancelar sus propias reservas (ownership validado en servicio).
-  - ADMIN: puede cancelar cualquier reserva.
-  - MESERO/CAJERO/COCINERO: 403 Forbidden.
+  - ADMIN/CAJERO: pueden cancelar cualquier reserva sin restricción de ownership.
+  - MESERO/COCINERO: 403 Forbidden.
   - Sin token: 401 Unauthorized.
 
   **WhatsApp:** `requiereWhatsApp=true` cuando hay que gestionar reembolso de un abono neto > 0.
@@ -22,7 +22,7 @@ description: |-
   |-------|-----------------------------------------------------|------|
   | CR-01 | Sin token                                           | 401  |
   | CR-02 | MESERO sin permiso                                  | 403  |
-  | CR-03 | CAJERO sin permiso                                  | 403  |
+  | CR-03b| CAJERO cancela reserva (CA-13)                      | 200  |
   | CR-04 | COCINERO sin permiso                                | 403  |
   | CR-05 | ADMIN cancela reserva de otro cliente               | 200  |
   | CR-06 | Reserva inexistente                                 | 404  |
@@ -33,7 +33,7 @@ description: |-
   | CR-11 | CA-03 ESPECIAL antes 16h                            | 200  |
   | CR-12 | CA-04 ESPECIAL después 16h                          | 200  |
 
-  Tests 401/403 (CR-01..CR-04) no llegan al servicio: el filtro de seguridad rechaza
+  Tests 401/403 (CR-01, CR-02, CR-04) no llegan al servicio: el filtro de seguridad rechaza
   antes. CR-06 (404) usa ID 999999 inexistente — tampoco muta DB.
 
   > ⚠️ TODO — CR-10 (BASICA con abono) y CR-12 (ESPECIAL pasada)

@@ -4,6 +4,8 @@ import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ReservaActualizadaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
@@ -72,6 +74,7 @@ class ReservaServiceCancelarTest {
     @Mock DisponibilidadConsultador disponibilidadConsultador;
     @Mock PreOrdenGestor preOrdenGestor;
     @Mock MensajeWhatsAppBuilder mensajeWhatsAppBuilder;
+    @Mock NotificacionWsPublisher wsPublisher;
 
     @InjectMocks
     ReservaService service;
@@ -232,6 +235,37 @@ class ReservaServiceCancelarTest {
             service.cancelarReserva(RESERVA_ID, EMAIL);
 
             verify(reservaMapper).toCancelarResponse(any(Reserva.class), eq(false), eq(null));
+        }
+    }
+
+    // ── WebSocket ─────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("Notificación WebSocket de cancelación")
+    class NotificacionWebSocket {
+
+        @BeforeEach
+        void setUp() {
+            Reserva reserva = buildReserva(TipoReserva.BASICA, EstadoReserva.CONFIRMADA,
+                    LocalDateTime.now().plusDays(2));
+            when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(reserva));
+            when(reservaRepository.save(any(Reserva.class))).thenAnswer(inv -> inv.getArgument(0));
+            when(abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(RESERVA_ID))
+                    .thenReturn(List.of());
+            when(reservaMapper.toCancelarResponse(any(), eq(false), eq(null)))
+                    .thenReturn(stubResponse(false));
+        }
+
+        @Test
+        @DisplayName("Cancelar exitosa publica evento WS con tipoEvento CANCELADA")
+        void cancelarExitosa_publicaEventoCancelada() {
+            service.cancelarReserva(RESERVA_ID, EMAIL);
+
+            ArgumentCaptor<ReservaActualizadaWsMessage> captor =
+                    ArgumentCaptor.forClass(ReservaActualizadaWsMessage.class);
+            verify(wsPublisher).publicarReservaActualizada(captor.capture());
+            assertThat(captor.getValue().getTipoEvento()).isEqualTo("CANCELADA");
+            assertThat(captor.getValue().getReservaId()).isEqualTo(RESERVA_ID);
         }
     }
 

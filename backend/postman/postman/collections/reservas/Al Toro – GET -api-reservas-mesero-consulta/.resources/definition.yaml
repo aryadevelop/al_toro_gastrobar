@@ -5,7 +5,7 @@ description: |-
 
   **Criterio de Aceptación cubierto:** PA-78-CA-01 a CA-03 (consulta de reservas con filtros).
 
-  **Roles autorizados:** `MESERO`, `ADMIN`.
+  **Roles autorizados:** `MESERO`, `CAJERO`, `ADMIN`.
 
   **Encabezados requeridos:** `Authorization: Bearer <token-según-rol>`
 
@@ -33,6 +33,8 @@ description: |-
   | MC-08 | Identificador inexistente | 404 |
   | MC-09 | Resumen agrupa correctamente por zona | 200 |
   | MC-10 | Resumen incluye "Sin asignar" | 200 |
+  | MC-13 | CAJERO consulta con vista cajero (tipo + flags) | 200 |
+  | MC-14 | COCINERO sin permiso | 403 |
 scripts:
   - type: http:beforeRequest
     code: |-
@@ -40,7 +42,8 @@ scripts:
       const logins = [
         { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
         { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
-        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  }
       ];
 
       const runLogin = (index) => {

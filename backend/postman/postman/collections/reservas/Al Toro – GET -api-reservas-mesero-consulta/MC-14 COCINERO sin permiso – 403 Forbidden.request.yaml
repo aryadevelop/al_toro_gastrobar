@@ -1,9 +1,9 @@
 $kind: http-request
-name: CR-03 CAJERO sin permiso – 403 Forbidden
-url: "{{baseUrl}}/api/reservas/1/cancelar"
-method: PATCH
+name: MC-14 COCINERO sin permiso – 403 Forbidden
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
 headers:
-  Authorization: Bearer {{cajeroToken}}
+  Authorization: Bearer {{cocineroToken}}
 scripts:
   - type: beforeRequest
     code: |-
@@ -12,22 +12,22 @@ scripts:
         method: 'POST',
         header: { 'Content-Type': 'application/json' },
         body: { mode: 'raw', raw: JSON.stringify({
-          email: pm.environment.get('emailCajero'),
+          email: pm.environment.get('emailCocinero'),
           password: pm.environment.get('passwordValida'),
           forceSessionOverride: true
         })}
       }, function (err, res) {
         if (!err && res && res.code === 200) {
-          pm.environment.set('cajeroToken', res.json().accessToken);
+          pm.environment.set('cocineroToken', res.json().accessToken);
         } else {
-          console.warn('CR-03: login CAJERO falló', err, res && res.code);
+          console.warn('MC-14: login COCINERO falló', err, res && res.code);
         }
       });
     language: text/javascript
   - type: afterResponse
     code: |-
-      pm.test('CAJERO no puede cancelar reservas → 403', function () {
+      pm.test('COCINERO no puede consultar reservas mesero → 403', function () {
         pm.response.to.have.status(403);
       });
     language: text/javascript
-order: 3000
+order: 1400

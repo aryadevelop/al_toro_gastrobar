@@ -6,6 +6,7 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
@@ -375,6 +376,68 @@ class ReservaControllerTest {
                     .andExpect(status().isOk());
 
             verify(reservaService).cancelarReserva(eq(RESERVA_ID), eq("cliente@test.com"));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("CAJERO cancela → 200 OK; ownership omitido (email null)")
+        void cajeroCancela_200EmailNull() throws Exception {
+            when(reservaService.cancelarReserva(RESERVA_ID, null))
+                    .thenReturn(responseBasicaSinWa());
+
+            mockMvc.perform(patch("/api/reservas/{id}/cancelar", RESERVA_ID))
+                    .andExpect(status().isOk());
+
+            verify(reservaService).cancelarReserva(RESERVA_ID, null);
+        }
+    }
+
+    // ── PATCH /{reservaId}/confirmar ──────────────────────────────────────────
+
+    @Nested
+    @DisplayName("PATCH /api/reservas/{reservaId}/confirmar")
+    class ConfirmarReserva {
+
+        private final Long RESERVA_ID = 7L;
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("Confirmación válida → 200 OK con estado CONFIRMADA")
+        void confirmacionValida_200() throws Exception {
+            when(reservaService.confirmarReserva(RESERVA_ID))
+                    .thenReturn(ConfirmarReservaResponse.builder()
+                            .reservaId(RESERVA_ID).estado("CONFIRMADA").tipo("ESPECIAL").build());
+
+            mockMvc.perform(patch("/api/reservas/{id}/confirmar", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.reservaId").value(RESERVA_ID))
+                    .andExpect(jsonPath("$.data.estado").value("CONFIRMADA"));
+
+            verify(reservaService).confirmarReserva(RESERVA_ID);
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("Reserva no encontrada → 404 Not Found")
+        void reservaNoEncontrada_404() throws Exception {
+            when(reservaService.confirmarReserva(RESERVA_ID))
+                    .thenThrow(new ResourceNotFoundException("Reserva", RESERVA_ID));
+
+            mockMvc.perform(patch("/api/reservas/{id}/confirmar", RESERVA_ID))
+                    .andExpect(status().isNotFound());
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("Reserva no elegible → 422 Unprocessable Entity")
+        void noElegible_422() throws Exception {
+            when(reservaService.confirmarReserva(RESERVA_ID))
+                    .thenThrow(new BusinessException(ErrorCode.INVALID_STATE,
+                            "Solo se pueden confirmar reservas especiales en estado pendiente.",
+                            org.springframework.http.HttpStatus.UNPROCESSABLE_ENTITY));
+
+            mockMvc.perform(patch("/api/reservas/{id}/confirmar", RESERVA_ID))
+                    .andExpect(status().isUnprocessableEntity());
         }
     }
 

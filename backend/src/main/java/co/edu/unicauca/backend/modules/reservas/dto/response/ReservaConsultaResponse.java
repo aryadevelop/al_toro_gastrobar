@@ -41,6 +41,46 @@ public class ReservaConsultaResponse {
 
     /**
      * Indica si debe mostrarse el botón "Marcar inasistencia".
+     *
+     * <p>Solo se calcula en la vista de mesero; queda {@code null} en la vista de cajero.
      */
     private final Boolean mostrarBotonInasistencia;
+
+    /**
+     * Tipo de reserva: {@code BASICA} o {@code ESPECIAL}.
+     *
+     * <p>Solo se incluye en la vista de cajero; queda {@code null} en la vista de mesero.
+     */
+    private final String tipo;
+
+    /**
+     * Indica si debe mostrarse el botón "Confirmar" (vista de cajero).
+     *
+     * <p>{@code true} cuando la reserva es {@code ESPECIAL} y está {@code PENDIENTE};
+     * {@code null} en la vista de mesero.
+     */
+    private final Boolean mostrarConfirmar;
+
+    /**
+     * Indica si debe mostrarse el botón "Agregar abono" (vista de cajero).
+     *
+     * <p>{@code true} cuando la reserva está {@code CONFIRMADA}; {@code null} en la vista de mesero.
+     */
+    private final Boolean mostrarAgregarAbono;
+
+    /**
+     * Indica si debe mostrarse el botón "Confirmar devolución" (vista de cajero).
+     *
+     * <p>{@code true} cuando la reserva está {@code CANCELADA} y tiene al menos un abono
+     * registrado; {@code null} en la vista de mesero.
+     */
+    private final Boolean mostrarConfirmarDevolucion;
+
+    /**
+     * Indica si debe mostrarse el botón "Cancelar" (vista de cajero).
+     *
+     * <p>{@code true} cuando la reserva está {@code PENDIENTE} o {@code CONFIRMADA};
+     * {@code null} en la vista de mesero.
+     */
+    private final Boolean mostrarCancelar;
 }

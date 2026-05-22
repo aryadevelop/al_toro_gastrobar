@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.reservas.mapper;
 import co.edu.unicauca.backend.modules.reservas.dto.response.*;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDateTime;
@@ -54,6 +55,49 @@ public class ReservaConsultaMapper {
                 .clienteTelefono(reserva.getCliente().getClienteTelefono())
                 .estado(reserva.getReservaEstado().name())
                 .mostrarBotonInasistencia(mostrarBotonInasistencia)
+                .build();
+    }
+
+    /**
+     * Convierte una {@link Reserva} en el DTO de ítem del listado para la vista de cajero.
+     *
+     * <p>A diferencia de la vista de mesero, incluye el {@code tipo} de reserva y los indicadores
+     * de los botones de acción del cajero, calculados según el estado y el tipo:
+     * <ul>
+     *   <li>{@code mostrarConfirmar}: reserva {@code ESPECIAL} en estado {@code PENDIENTE}.</li>
+     *   <li>{@code mostrarAgregarAbono}: reserva en estado {@code CONFIRMADA}.</li>
+     *   <li>{@code mostrarConfirmarDevolucion}: reserva {@code CANCELADA} con al menos un abono.</li>
+     *   <li>{@code mostrarCancelar}: reserva {@code PENDIENTE} o {@code CONFIRMADA}.</li>
+     * </ul>
+     *
+     * <p>El campo {@code mostrarBotonInasistencia} (propio de la vista de mesero) se omite.
+     *
+     * @param reserva    entidad de reserva a convertir
+     * @param tieneAbono {@code true} si la reserva tiene al menos un abono registrado
+     * @return {@link ReservaConsultaResponse} con los campos y botones de la vista de cajero
+     */
+    public ReservaConsultaResponse toCajeroConsultaResponse(Reserva reserva, boolean tieneAbono) {
+        EstadoReserva estado = reserva.getReservaEstado();
+        boolean esEspecial = reserva.getReservaTipo() == TipoReserva.ESPECIAL;
+        boolean activa = estado == EstadoReserva.PENDIENTE || estado == EstadoReserva.CONFIRMADA;
+
+        return ReservaConsultaResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .clienteNombre(reserva.getCliente().getClienteNombre())
+                .zonaId(reserva.getZona() != null ? reserva.getZona().getZonaId() : null)
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
+                .decoracionNombre(reserva.getDecoracion() != null
+                        ? reserva.getDecoracion().getDecoracionNombre()
+                        : null)
+                .horaLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER_TIME))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .clienteTelefono(reserva.getCliente().getClienteTelefono())
+                .estado(estado.name())
+                .tipo(reserva.getReservaTipo().name())
+                .mostrarConfirmar(esEspecial && estado == EstadoReserva.PENDIENTE)
+                .mostrarAgregarAbono(estado == EstadoReserva.CONFIRMADA)
+                .mostrarConfirmarDevolucion(estado == EstadoReserva.CANCELADA && tieneAbono)
+                .mostrarCancelar(activa)
                 .build();
     }
 

@@ -41,7 +41,11 @@ import java.util.Optional;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyList;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -242,7 +246,7 @@ class ReservaConsultaServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, null))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage("No hay reservas activas o pendientes para la fecha o identificador especificado")
+                .hasMessage("No hay reservas para la fecha o identificador especificado")
                 .extracting("code", "status")
                 .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
     }
@@ -258,7 +262,7 @@ class ReservaConsultaServiceTest {
         // Act & Assert
         assertThatThrownBy(() -> reservaConsultaService.listarReservasDelDia(null, identificadorInexistente))
                 .isInstanceOf(BusinessException.class)
-                .hasMessage("No hay reservas activas o pendientes para la fecha o identificador especificado")
+                .hasMessage("No hay reservas para la fecha o identificador especificado")
                 .extracting("code", "status")
                 .containsExactly(ErrorCode.ENTITY_NOT_FOUND.getCode(), HttpStatus.NOT_FOUND);
     }
@@ -364,6 +368,67 @@ class ReservaConsultaServiceTest {
                 .hasMessage("No se pueden consultar reservas para fechas pasadas")
                 .extracting("status")
                 .isEqualTo(HttpStatus.BAD_REQUEST);
+    }
+
+    // ── Tests de la vista de cajero (vistaCajero = true) ────────────────────
+
+    @Test
+    @DisplayName("vista cajero retorna reservas en cualquier estado con sus flags")
+    void listarReservasDelDia_vistaCajero_retornaTodosLosEstados() {
+        LocalDate hoy = LocalDate.now();
+        Cliente c1 = cliente(40L, "Cajero Uno", "3000000001");
+        Reserva pendienteEspecial = reserva(800L, hoy.atTime(19, 0), 2, EstadoReserva.PENDIENTE,
+                TipoReserva.ESPECIAL, c1, zona(1L, "TERRAZA"), null);
+        Reserva cancelada = reserva(801L, hoy.atTime(20, 0), 3, EstadoReserva.CANCELADA,
+                TipoReserva.ESPECIAL, c1, zona(1L, "TERRAZA"), null);
+
+        when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
+                .thenReturn(List.of(pendienteEspecial, cancelada));
+        // La reserva cancelada 801 tiene abono → debe mostrar botón de devolución
+        when(abonoRepository.findReservaIdsConAbono(anyList())).thenReturn(List.of(801L));
+
+        ListadoReservasResponse response = reservaConsultaService.listarReservasDelDia(null, null, true);
+
+        assertThat(response.getReservas()).hasSize(2);
+        assertThat(response.getReservas().get(0).getTipo()).isEqualTo("ESPECIAL");
+        assertThat(response.getReservas().get(0).getMostrarConfirmar()).isTrue();
+        assertThat(response.getReservas().get(1).getEstado()).isEqualTo("CANCELADA");
+        assertThat(response.getReservas().get(1).getMostrarConfirmarDevolucion()).isTrue();
+    }
+
+    @Test
+    @DisplayName("vista cajero resuelve los abonos en una sola consulta batch")
+    void listarReservasDelDia_vistaCajero_usaQueryBatchUnaVez() {
+        LocalDate hoy = LocalDate.now();
+        Cliente c1 = cliente(41L, "Cajero Dos", "3000000002");
+        Reserva r1 = reserva(810L, hoy.atTime(19, 0), 2, EstadoReserva.CANCELADA,
+                TipoReserva.ESPECIAL, c1, zona(1L, "TERRAZA"), null);
+
+        when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
+                .thenReturn(List.of(r1));
+        when(abonoRepository.findReservaIdsConAbono(anyList())).thenReturn(List.of());
+
+        reservaConsultaService.listarReservasDelDia(null, null, true);
+
+        verify(abonoRepository, times(1)).findReservaIdsConAbono(anyList());
+    }
+
+    @Test
+    @DisplayName("vista mesero no consulta abonos en batch y conserva el botón de inasistencia")
+    void listarReservasDelDia_vistaMesero_noUsaQueryBatch() {
+        LocalDate hoy = LocalDate.now();
+        Cliente c1 = cliente(42L, "Mesero Uno", "3000000003");
+        Reserva r1 = reserva(820L, hoy.atTime(19, 0), 2, EstadoReserva.CONFIRMADA,
+                TipoReserva.BASICA, c1, zona(1L, "TERRAZA"), null);
+
+        when(reservaRepository.findReservasActivasDelDia(any(), any(), any()))
+                .thenReturn(List.of(r1));
+
+        ListadoReservasResponse response = reservaConsultaService.listarReservasDelDia(null, null, false);
+
+        verify(abonoRepository, never()).findReservaIdsConAbono(anyList());
+        assertThat(response.getReservas().get(0).getMostrarBotonInasistencia()).isNotNull();
+        assertThat(response.getReservas().get(0).getTipo()).isNull();
     }
 
     @Test

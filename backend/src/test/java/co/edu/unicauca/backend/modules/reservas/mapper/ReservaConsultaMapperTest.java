@@ -3,9 +3,9 @@ package co.edu.unicauca.backend.modules.reservas.mapper;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaConsultaResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
-import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import org.junit.jupiter.api.BeforeEach;
@@ -115,6 +115,131 @@ class ReservaConsultaMapperTest {
         assertThat(response.getHoraLlegada()).isEqualTo("20:00");
         assertThat(response.getNumeroPersonas()).isEqualTo(2);
         assertThat(response.getEstado()).isEqualTo("PENDIENTE");
+    }
+
+    @Test
+    @DisplayName("toConsultaResponse (mesero) → no setea tipo ni flags de cajero")
+    void toConsultaResponse_noSeteaFlagsCajero() {
+        ReservaConsultaResponse response = mapper.toConsultaResponse(
+                reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.ESPECIAL));
+
+        assertThat(response.getTipo()).isNull();
+        assertThat(response.getMostrarConfirmar()).isNull();
+        assertThat(response.getMostrarAgregarAbono()).isNull();
+        assertThat(response.getMostrarConfirmarDevolucion()).isNull();
+        assertThat(response.getMostrarCancelar()).isNull();
+    }
+
+    // -----------------------------------------------------------------------
+    // Tests para la vista de cajero (toCajeroConsultaResponse)
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("toCajeroConsultaResponse — tipo y botones del cajero")
+    class VistaCajero {
+
+        @Test
+        @DisplayName("ESPECIAL PENDIENTE → mostrarConfirmar y mostrarCancelar; expone tipo")
+        void especialPendiente_mostrarConfirmar() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.PENDIENTE, TipoReserva.ESPECIAL), false);
+
+            assertThat(r.getTipo()).isEqualTo("ESPECIAL");
+            assertThat(r.getMostrarConfirmar()).isTrue();
+            assertThat(r.getMostrarCancelar()).isTrue();
+            assertThat(r.getMostrarAgregarAbono()).isFalse();
+            assertThat(r.getMostrarConfirmarDevolucion()).isFalse();
+        }
+
+        @Test
+        @DisplayName("CONFIRMADA → mostrarAgregarAbono y mostrarCancelar")
+        void confirmada_mostrarAgregarAbono() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.ESPECIAL), false);
+
+            assertThat(r.getMostrarAgregarAbono()).isTrue();
+            assertThat(r.getMostrarCancelar()).isTrue();
+            assertThat(r.getMostrarConfirmar()).isFalse();
+        }
+
+        @Test
+        @DisplayName("CANCELADA con abono → mostrarConfirmarDevolucion")
+        void canceladaConAbono_mostrarDevolucion() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.CANCELADA, TipoReserva.ESPECIAL), true);
+
+            assertThat(r.getMostrarConfirmarDevolucion()).isTrue();
+            assertThat(r.getMostrarCancelar()).isFalse();
+        }
+
+        @Test
+        @DisplayName("CANCELADA sin abono → no mostrarConfirmarDevolucion")
+        void canceladaSinAbono_noMostrarDevolucion() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.CANCELADA, TipoReserva.ESPECIAL), false);
+
+            assertThat(r.getMostrarConfirmarDevolucion()).isFalse();
+        }
+
+        @Test
+        @DisplayName("Vista de cajero → no setea mostrarBotonInasistencia")
+        void noSeteaMostrarBotonInasistencia() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.ESPECIAL), false);
+
+            assertThat(r.getMostrarBotonInasistencia()).isNull();
+        }
+
+        @Test
+        @DisplayName("BASICA CONFIRMADA → mostrarConfirmar=false, tipo=BASICA")
+        void basicaConfirmada_noMostrarConfirmar() {
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(
+                    reservaCajero(EstadoReserva.CONFIRMADA, TipoReserva.BASICA), false);
+
+            assertThat(r.getMostrarConfirmar()).isFalse();
+            assertThat(r.getMostrarAgregarAbono()).isTrue();
+            assertThat(r.getTipo()).isEqualTo("BASICA");
+        }
+
+        @Test
+        @DisplayName("Cajero con zona y decoración → mapea zonaId, zonaNombre y decoracionNombre")
+        void conZonaYDecoracion_mapeaCampos() {
+            Cliente cliente = Cliente.builder().usuarioId(1L).clienteNombre("Juan Pérez").build();
+            Zona zona = Zona.builder().zonaId(5L).zonaNombre("VIP").build();
+            Decoracion deco = Decoracion.builder()
+                    .decoracionId(3L).decoracionNombre("Romántica").build();
+            Reserva reserva = Reserva.builder()
+                    .reservaId(200L)
+                    .cliente(cliente)
+                    .zona(zona)
+                    .decoracion(deco)
+                    .reservaFechaHoraLlegada(LocalDateTime.of(2026, 4, 25, 19, 30))
+                    .reservaNumeroPersonas(4)
+                    .reservaEstado(EstadoReserva.CONFIRMADA)
+                    .reservaTipo(TipoReserva.ESPECIAL)
+                    .build();
+
+            ReservaConsultaResponse r = mapper.toCajeroConsultaResponse(reserva, false);
+
+            assertThat(r.getZonaId()).isEqualTo(5L);
+            assertThat(r.getZonaNombre()).isEqualTo("VIP");
+            assertThat(r.getDecoracionNombre()).isEqualTo("Romántica");
+        }
+    }
+
+    private Reserva reservaCajero(EstadoReserva estado, TipoReserva tipo) {
+        Cliente cliente = Cliente.builder()
+                .usuarioId(1L)
+                .clienteNombre("Juan Pérez")
+                .build();
+        return Reserva.builder()
+                .reservaId(100L)
+                .cliente(cliente)
+                .reservaFechaHoraLlegada(LocalDateTime.of(2026, 4, 25, 19, 30))
+                .reservaNumeroPersonas(4)
+                .reservaEstado(estado)
+                .reservaTipo(tipo)
+                .build();
     }
 
     // -----------------------------------------------------------------------

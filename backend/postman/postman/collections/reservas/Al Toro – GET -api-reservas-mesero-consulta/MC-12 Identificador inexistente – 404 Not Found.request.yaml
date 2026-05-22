@@ -22,7 +22,7 @@ scripts:
       });
 
       pm.test('El mensaje es el esperado', function () {
-        pm.expect(body.message).to.equal('No hay reservas activas o pendientes para la fecha o identificador especificado');
+        pm.expect(body.message).to.equal('No hay reservas para la fecha o identificador especificado');
       });
 
       pm.test('El código de error es ENT-001', function () {

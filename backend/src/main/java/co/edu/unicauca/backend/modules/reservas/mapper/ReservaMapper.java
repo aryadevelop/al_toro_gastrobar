@@ -8,6 +8,7 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionDisponibl
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.PreOrdenItemResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
@@ -183,6 +184,7 @@ public class ReservaMapper {
 
         return ReservaDetalleResponse.builder()
                 .reservaId(reserva.getReservaId())
+                .clienteId(reserva.getCliente() != null ? reserva.getCliente().getUsuarioId() : null)
                 .clienteNombre(reserva.getCliente().getClienteNombre())
                 .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
@@ -226,6 +228,24 @@ public class ReservaMapper {
                 .notas(reserva.getReservaNotas())
                 .requiereWhatsApp(requiereWhatsApp)
                 .mensajeWhatsApp(mensajeWhatsApp)
+                .build();
+    }
+
+    /**
+     * Construye el DTO de respuesta para la confirmación de una reserva especial.
+     *
+     * @param reserva entidad actualizada con estado {@code CONFIRMADA}
+     * @return {@link ConfirmarReservaResponse} con los datos de la reserva confirmada
+     */
+    public ConfirmarReservaResponse toConfirmarResponse(Reserva reserva) {
+        return ConfirmarReservaResponse.builder()
+                .reservaId(reserva.getReservaId())
+                .estado(reserva.getReservaEstado().name())
+                .tipo(reserva.getReservaTipo().name())
+                .fechaHoraLlegada(reserva.getReservaFechaHoraLlegada().format(FORMATTER))
+                .numeroPersonas(reserva.getReservaNumeroPersonas())
+                .clienteNombre(reserva.getCliente().getClienteNombre())
+                .zonaNombre(reserva.getZona() != null ? reserva.getZona().getZonaNombre() : null)
                 .build();
     }
 

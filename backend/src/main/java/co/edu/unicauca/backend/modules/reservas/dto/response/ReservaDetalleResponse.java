@@ -29,9 +29,15 @@ public class ReservaDetalleResponse {
 
     /** Identificador único de la reserva. */
     private final Long reservaId;
+    
+    /** Identificador del cliente que realizó la reserva; {@code null} si no aplica. */
+    private final Long clienteId;
 
     /** Nombre del cliente; {@code null} en consultas de cliente autenticado. */
     private final String clienteNombre;
+
+    /** Teléfono del cliente; {@code null} en consultas de cliente. */
+    private final String clienteTelefono;
 
     /** Fecha y hora de llegada programada en formato {@code yyyy-MM-dd'T'HH:mm:ss}. */
     private final String fechaHoraLlegada;
@@ -51,20 +57,11 @@ public class ReservaDetalleResponse {
     /** Identificador de la decoración seleccionada; {@code null} si no aplica. */
     private final Long decoracionId;
 
-    /**
-     * {@code true} si la reserva puede modificarse (estado activo y antes de las 16:00
-     * del día de llegada); {@code false} en caso contrario.
-     */
-    private final boolean modificable;
-
     /** Nombre de la zona seleccionada; {@code null} si el cliente no eligió zona. */
     private final String zonaNombre;
 
     /** Nombre de la decoración seleccionada; {@code null} si no aplica. */
     private final String decoracionNombre;
-
-    /** Observaciones o peticiones especiales del cliente; {@code null} si no hay notas. */
-    private final String notas;
 
     /**
      * Productos solicitados en la pre-orden al crear la reserva;
@@ -90,6 +87,13 @@ public class ReservaDetalleResponse {
      */
     private final BigDecimal totalAbonado;
 
-    /** Teléfono del cliente; {@code null} en consultas de cliente. */
-    private final String clienteTelefono;
+    /** Observaciones o peticiones especiales del cliente; {@code null} si no hay notas. */
+    private final String notas;
+
+    /**
+     * {@code true} si la reserva puede modificarse (estado activo y antes de las 16:00
+     * del día de llegada); {@code false} en caso contrario.
+     */
+    private final boolean modificable;
+
 }
