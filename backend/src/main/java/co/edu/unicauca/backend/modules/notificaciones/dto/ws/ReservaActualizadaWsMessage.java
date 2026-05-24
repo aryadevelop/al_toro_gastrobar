@@ -17,7 +17,10 @@ public class ReservaActualizadaWsMessage {
     /** Identificador de la reserva que cambió. */
     private final Long reservaId;
 
-    /** Tipo de cambio: {@code CREADA} o {@code MODIFICADA}. */
+    /**
+     * Tipo de cambio: {@code CREADA}, {@code MODIFICADA}, {@code CONFIRMADA},
+     * {@code CANCELADA}, {@code INASISTENCIA}, {@code ANTICIPO} o {@code DEVOLUCION}.
+     */
     private final String tipoEvento;
 
     /** Nombre del cliente de la reserva. */

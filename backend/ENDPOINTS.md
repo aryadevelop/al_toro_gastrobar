@@ -31,6 +31,8 @@ Base URL: `http://localhost:8080/api`
 | GET | `/{reservaId}/detalle` | **CLIENTE / CAJERO / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos, `clienteId`. CLIENTE: ownership validation. |
 | GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / CAJERO / ADMIN** | Lista reservas del día. MESERO/ADMIN: solo estados `PENDIENTE`/`CONFIRMADA`, con `mostrarBotonInasistencia`. CAJERO: todos los estados, con `tipo` y flags de acción (`mostrarConfirmar`, `mostrarAgregarAnticipo`, `mostrarAgregarDevolucion`, `mostrarCancelar`). |
 | GET | `/mesero/{reservaId}/detalle` | **MESERO / ADMIN** | Detalle completo para meseros: incluye teléfono cliente, modificaciones de pre-orden, información de contacto. |
+| POST | `/{reservaId}/abonos` | **CAJERO / ADMIN** | Registra un anticipo (reserva `CONFIRMADA`) o una devolución (reserva `CANCELADA`). Body `RegistrarAbonoRequest` { tipo (`ANTICIPO`\|`DEVOLUCION`), monto, metodo (`EFECTIVO`\|`TARJETA`\|`TRANSFERENCIA`\|`OTRO`), fechaHora }. Responde 201 con `RegistrarAbonoResponse` { abonoId, tipo, estado, resumen }. Una devolución que salda el neto pasa la reserva a `DEVUELTA`. Publica evento WS `ANTICIPO`/`DEVOLUCION` en `/topic/reservas/cambios`. Errores: 422 (Bean Validation), 400 (fecha futura o anterior a creación de reserva), 409 (estado inválido / tope de monto excedido), 404 (reserva inexistente), 401/403. |
+| GET | `/{reservaId}/resumen-pago` | **CAJERO / ADMIN** | Devuelve el resumen de pagos de la reserva (`ResumenPagoResponse`): cliente, fecha/hora, personas, estado, tipo, totalReserva, totalAnticipado, totalDevuelto, netoAbonado, pendientePorAbonar, pendientePorDevolver. Errores: 404, 401/403. |
 
 ---
 
@@ -142,7 +144,7 @@ Base URL: `http://localhost:8080/api`
 
 ### CAJERO
 - **Auth**: login, refresh, me, logout
-- **Reservas**: consulta (vista cajero: todos estados + flags), detalle (con clienteId), confirmar, cancelar
+- **Reservas**: consulta (vista cajero: todos estados + flags), detalle (con clienteId), confirmar, cancelar, registrar abono (anticipo/devolución), resumen-pago
 - **Clientes**: puntos (cualquier cliente), canje-puntos
 - **Productos**: carta, menu-especial
 - **Mesas**: mapa, detalle
@@ -152,7 +154,7 @@ Base URL: `http://localhost:8080/api`
 
 ### ADMIN
 - **Auth**: login, refresh, me, logout
-- **Reservas**: detalle, consulta (mesero/cajero), detalle (mesero), confirmar, cancelar
+- **Reservas**: detalle, consulta (mesero/cajero), detalle (mesero), confirmar, cancelar, registrar abono (anticipo/devolución), resumen-pago
 - **Clientes**: puntos (cualquier cliente)
 - **Productos**: carta, menu-especial
 - **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
@@ -194,8 +196,9 @@ Endpoints que publican eventos WebSocket:
 - `PATCH /api/notificaciones/{notificacionId}/atender` → `/topic/visita/{visitaId}/asistencia`
 - `POST /api/ventas` → `/topic/visita/{visitaId}/cuenta`
 - `POST /api/comandas/borrador/{comandaId}/enviar` → `/topic/estacion/{estacion}` (COCINA o BARRA) + `/topic/mesas` + `/topic/visita/{visitaId}/orden` + RabbitMQ `comanda.nueva`
-- `PATCH /api/reservas/{reservaId}/confirmar` → `/topic/reservas/cambios`
-- `PATCH /api/reservas/{reservaId}/cancelar` → `/topic/reservas/cambios`
+- `PATCH /api/reservas/{reservaId}/confirmar` → `/topic/reservas/cambios` (tipo `CONFIRMADA`)
+- `PATCH /api/reservas/{reservaId}/cancelar` → `/topic/reservas/cambios` (tipo `CANCELADA`)
+- `POST /api/reservas/{reservaId}/abonos` → `/topic/reservas/cambios` (tipo `ANTICIPO` o `DEVOLUCION`)
 - `POST /api/comandas/borrador/items` → `/topic/mesas`
 - `PATCH /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
 - `DELETE /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
