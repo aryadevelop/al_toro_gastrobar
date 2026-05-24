@@ -554,4 +554,119 @@ class ReservaMapperTest {
 
         assertThat(resp.isModificable()).isFalse();
     }
+
+    // ── total y valorDecoracion en toDetalleResponse ──────────────────────────
+
+    @Test
+    @DisplayName("toDetalleResponse → con pre-orden y decoración con costo: total es la suma y valorDecoracion está presente")
+    void toDetalleResponse_conPreOrdenYDecoracionConCosto_totalEsSumaYValorDecoracionPresente() {
+        // Item: 1 x 10000 → preOrdenTotal = 10000
+        ComandaItem item = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item.getComandaItemPrecio()).thenReturn(new BigDecimal("10000"));
+        when(item.getComandaItemCantidad()).thenReturn(1);
+        when(preOrdenMapper.toDetalleResponse(List.of(item))).thenReturn(List.of());
+
+        Decoracion decoracion = Decoracion.builder()
+                .decoracionId(1L)
+                .decoracionNombre("Globos")
+                .decoracionCostoAdicional(new BigDecimal("5000"))
+                .decoracionEstado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.ACTIVO)
+                .build();
+        Reserva reserva = reservaBase();
+        reserva.setDecoracion(decoracion);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
+
+        assertThat(resp.getValorDecoracion()).isEqualByComparingTo(new BigDecimal("5000"));
+        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("15000"));
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → con pre-orden y sin decoración: total es preOrdenTotal y valorDecoracion es null")
+    void toDetalleResponse_conPreOrdenSinDecoracion_totalEsPreOrdenYValorDecoracionNull() {
+        // Item: 3 x 2000 → preOrdenTotal = 6000
+        ComandaItem item = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item.getComandaItemPrecio()).thenReturn(new BigDecimal("2000"));
+        when(item.getComandaItemCantidad()).thenReturn(3);
+        when(preOrdenMapper.toDetalleResponse(List.of(item))).thenReturn(List.of());
+
+        Reserva reserva = reservaBase();
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
+
+        assertThat(resp.getValorDecoracion()).isNull();
+        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("6000"));
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → con decoración sin costo: valorDecoracion es null y total es preOrdenTotal")
+    void toDetalleResponse_conDecoracionSinCosto_valorDecoracionNull() {
+        // Item: 1 x 8000 → preOrdenTotal = 8000
+        ComandaItem item = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item.getComandaItemPrecio()).thenReturn(new BigDecimal("8000"));
+        when(item.getComandaItemCantidad()).thenReturn(1);
+        when(preOrdenMapper.toDetalleResponse(List.of(item))).thenReturn(List.of());
+
+        // Decoración con costoAdicional null → sin costo
+        Decoracion decoracion = Decoracion.builder()
+                .decoracionId(2L)
+                .decoracionNombre("Velas")
+                .decoracionEstado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.ACTIVO)
+                .build();
+        Reserva reserva = reservaBase();
+        reserva.setDecoracion(decoracion);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
+
+        assertThat(resp.getValorDecoracion()).isNull();
+        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("8000"));
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → sin pre-orden ni decoración: total es null")
+    void toDetalleResponse_sinPreOrdenSinDecoracion_totalNull() {
+        Reserva reserva = reservaBase();
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
+
+        assertThat(resp.getValorDecoracion()).isNull();
+        assertThat(resp.getTotal()).isNull();
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → sin pre-orden con decoración con costo: total es valorDecoracion")
+    void toDetalleResponse_sinPreOrdenConDecoracionConCosto_totalEsValorDecoracion() {
+        // Sin items → preOrdenTotal = null
+        Decoracion decoracion = Decoracion.builder()
+                .decoracionId(4L)
+                .decoracionNombre("Globos")
+                .decoracionCostoAdicional(new BigDecimal("5000"))
+                .decoracionEstado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.ACTIVO)
+                .build();
+        Reserva reserva = reservaBase();
+        reserva.setDecoracion(decoracion);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
+
+        assertThat(resp.getValorDecoracion()).isEqualByComparingTo("5000");
+        assertThat(resp.getTotal()).isEqualByComparingTo("5000");
+    }
+
+    @Test
+    @DisplayName("toResumen → no puebla total ni valorDecoracion (listados los omiten)")
+    void toResumen_noPoblaTotalNiValorDecoracion() {
+        Decoracion decoracion = Decoracion.builder()
+                .decoracionId(3L)
+                .decoracionNombre("Flores")
+                .decoracionCostoAdicional(new BigDecimal("12000"))
+                .decoracionEstado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.ACTIVO)
+                .build();
+        Reserva reserva = reservaBase();
+        reserva.setDecoracion(decoracion);
+
+        ReservaDetalleResponse resp = mapper.toResumen(reserva);
+
+        assertThat(resp.getTotal()).isNull();
+        assertThat(resp.getValorDecoracion()).isNull();
+    }
 }
