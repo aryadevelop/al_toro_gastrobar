@@ -1,0 +1,39 @@
+$kind: http-request
+name: RP-07 Reserva inexistente – 404 Not Found
+description: |
+  ID 999999 no existe. El servicio lanza ResourceNotFoundException.
+  Resultado esperado: 404 Not Found, code = ENT-001.
+url: "{{baseUrl}}/api/reservas/999999/resumen-pago"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('RP-07: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva inexistente → 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('code = ENT-001', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 7000

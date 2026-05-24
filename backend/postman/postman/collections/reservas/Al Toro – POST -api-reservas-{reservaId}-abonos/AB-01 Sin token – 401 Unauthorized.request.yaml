@@ -1,0 +1,26 @@
+$kind: http-request
+name: AB-01 Sin token – 401 Unauthorized
+description: |
+  Sin cabecera Authorization, el filtro JWT rechaza el request antes de llegar al controlador.
+  Resultado esperado: 401 Unauthorized.
+url: "{{baseUrl}}/api/reservas/999999/abonos"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tipo": "ANTICIPO",
+      "monto": 50000,
+      "metodo": "EFECTIVO",
+      "fechaHora": "2026-05-23T10:00:00"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 401 la petición sin token', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 1000

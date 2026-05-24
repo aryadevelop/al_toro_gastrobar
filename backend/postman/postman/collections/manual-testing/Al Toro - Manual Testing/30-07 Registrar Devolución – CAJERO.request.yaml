@@ -1,0 +1,50 @@
+$kind: http-request
+name: 30-07 Registrar Devolución – CAJERO
+description: |-
+  Registra una devolución sobre una reserva CANCELADA como CAJERO.
+  Cambiar tmpReservaId al ID de la reserva con devolución (debe existir en estado CANCELADA
+  y tener un neto abonado > 0 para que la devolución no exceda el pendiente).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tipo": "DEVOLUCION",
+      "monto": 50000,
+      "metodo": "TRANSFERENCIA",
+      "fechaHora": "2026-05-23T11:00:00"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Ajustar el ID de reserva según la prueba manual (debe estar en estado CANCELADA con anticipo previo)
+      pm.environment.set('tmpReservaId', '10');
+
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 3070
