@@ -14,18 +14,24 @@ import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResp
 import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.PreOrdenItemRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.RegistrarAbonoRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.RegistrarAbonoResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ResumenPagoResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.mapper.AbonoMapper;
 import co.edu.unicauca.backend.modules.reservas.mapper.ReservaMapper;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
+import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
 import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
+import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.TipoAbono;
@@ -90,7 +96,9 @@ public class ReservaService {
     private final ComandaRepository comandaRepository;
     private final ComandaItemRepository comandaItemRepository;
     private final AbonoRepository abonoRepository;
+    private final EmpleadoRepository empleadoRepository;
     private final ReservaMapper reservaMapper;
+    private final AbonoMapper abonoMapper;
     private final ReservaValidador reservaValidador;
     private final DisponibilidadConsultador disponibilidadConsultador;
     private final PreOrdenGestor preOrdenGestor;
@@ -363,8 +371,7 @@ public class ReservaService {
         boolean nuevoEsEspecial = nuevoTipo == TipoReserva.ESPECIAL;
         BigDecimal valorAnterior = (anteriorEraEspecial && nuevoEsEspecial)
                 ? calcularValorEspecial(reserva.getDecoracion(),
-                                        obtenerItemsPreOrden(reservaId),
-                                        reserva.getReservaNumeroPersonas())
+                                        obtenerItemsPreOrden(reservaId))
                 : BigDecimal.ZERO;
 
         // 7. Actualizar campos, eliminar pre-orden anterior y persistir
@@ -388,7 +395,7 @@ public class ReservaService {
         String mensajeWhatsApp = construirNotificacionWhatsApp(
                 anteriorEraEspecial, nuevoEsEspecial,
                 valorAnterior, nuevaDecoracion,
-                reservaResultado, request.getNumeroPersonas(), reservaId);
+                reservaResultado, reservaId);
 
         // Publicar evento WS si la reserva sigue activa
         if (reservaResultado.getReservaEstado() == EstadoReserva.CONFIRMADA
@@ -575,6 +582,82 @@ public class ReservaService {
     }
 
     // -----------------------------------------------------------------------
+    // Abonos: resumen de pago y registro de anticipos/devoluciones
+    // -----------------------------------------------------------------------
+
+    /**
+     * Devuelve el resumen financiero de una reserva: valor total, anticipos, devoluciones
+     * y saldos pendientes.
+     *
+     * @param reservaId identificador de la reserva
+     * @return {@link ResumenPagoResponse} con los importes consolidados de la reserva
+     * @throws ResourceNotFoundException si la reserva no existe
+     */
+    @Transactional(readOnly = true)
+    public ResumenPagoResponse obtenerResumenPago(Long reservaId) {
+
+        // Lectura sin bloqueo: el resumen no modifica datos
+        Reserva reserva = reservaRepository.findById(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        DatosResumenPago d = calcularDatosResumenPago(reserva);
+        return abonoMapper.toResumenPago(reserva, d.totalReserva(), d.totalAnticipado(), d.totalDevuelto());
+    }
+
+    /**
+     * Registra un anticipo o devolución sobre una reserva y devuelve el resumen financiero
+     * actualizado.
+     *
+     * <p>Una devolución que salda el neto abonado transiciona la reserva a {@code DEVUELTA}.
+     * Tras persistir el movimiento se publica un evento WebSocket cuyo tipo coincide con el
+     * tipo de abono registrado.
+     *
+     * @param reservaId   identificador de la reserva
+     * @param request     datos del movimiento: tipo, monto, método y fecha
+     * @param emailCajero correo del cajero que registra el movimiento
+     * @return {@link RegistrarAbonoResponse} con el abono creado y el resumen actualizado
+     * @throws ResourceNotFoundException si la reserva o el cajero no existen
+     * @throws BusinessException         si el estado, la fecha o el monto incumplen las reglas de negocio
+     */
+    @Transactional
+    public RegistrarAbonoResponse registrarAbono(Long reservaId, RegistrarAbonoRequest request, String emailCajero) {
+
+        // Bloqueo pesimista para serializar registros concurrentes de abonos sobre la misma reserva
+        Reserva reserva = reservaRepository.findByIdForUpdate(reservaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Reserva", reservaId));
+
+        Empleado cajero = empleadoRepository.findByUsuario_UsuarioEmail(emailCajero)
+                .orElseThrow(() -> new ResourceNotFoundException("Empleado", "email", emailCajero));
+
+        reservaValidador.validarElegibilidadAbono(reserva, request.getTipo());
+        reservaValidador.validarFechaAbono(request.getFechaHora(), reserva.getReservaFechaCreacion());
+
+        DatosResumenPago d = calcularDatosResumenPago(reserva);
+        if (request.getTipo() == TipoAbono.ANTICIPO) {
+            reservaValidador.validarMontoAnticipo(request.getMonto(), d.totalReserva(), d.netoAbonado());
+        } else {
+            reservaValidador.validarMontoDevolucion(request.getMonto(), d.netoAbonado());
+        }
+
+        Abono abono = abonoMapper.toEntity(request, reserva, cajero);
+        Abono guardado = abonoRepository.save(abono);
+
+        // Una devolución que deja el neto en cero salda por completo la reserva: pasa a DEVUELTA
+        if (request.getTipo() == TipoAbono.DEVOLUCION
+                && d.netoAbonado().subtract(request.getMonto()).compareTo(BigDecimal.ZERO) == 0) {
+            reserva.setReservaEstado(EstadoReserva.DEVUELTA);
+            reservaRepository.save(reserva);
+        }
+
+        publicarCambioReserva(reserva, request.getTipo().name());
+
+        DatosResumenPago dActualizado = calcularDatosResumenPago(reserva);
+        ResumenPagoResponse resumen = abonoMapper.toResumenPago(reserva,
+                dActualizado.totalReserva(), dActualizado.totalAnticipado(), dActualizado.totalDevuelto());
+        return abonoMapper.toRegistrarResponse(guardado, resumen);
+    }
+
+    // -----------------------------------------------------------------------
     // Lógica interna de pre-orden
     // -----------------------------------------------------------------------
 
@@ -623,6 +706,48 @@ public class ReservaService {
         return obtenerItemsPreOrden(reservaId).stream()
                 .map(i -> i.getComandaItemPrecio().multiply(BigDecimal.valueOf(i.getComandaItemCantidad())))
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /**
+     * Calcula el valor estimado total de la reserva sin doble conteo: para reservas
+     * ESPECIAL incluye la decoración y el menú especial escalado por su cantidad más los
+     * platos a la carta; para BASICA equivale al total de la pre-orden de platos.
+     *
+     * @param reserva reserva cuyo total se calcula
+     * @param items   ítems de la pre-orden de la reserva
+     * @return valor total estimado de la reserva
+     */
+    private BigDecimal calcularTotalReserva(Reserva reserva, List<ComandaItem> items) {
+        BigDecimal especial = calcularValorEspecial(reserva.getDecoracion(), items);
+        // Los ítems de menú especial ya están contemplados en calcularValorEspecial; aquí se excluyen para no duplicarlos
+        BigDecimal platosNoEspeciales = items.stream()
+                .filter(i -> !Boolean.TRUE.equals(i.getProducto().getMenuEspecial()))
+                .map(i -> i.getComandaItemPrecio().multiply(BigDecimal.valueOf(i.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        return especial.add(platosNoEspeciales);
+    }
+
+    /** Agrupa los importes financieros de una reserva para validación y resumen. */
+    private record DatosResumenPago(BigDecimal totalReserva, BigDecimal totalAnticipado,
+                                    BigDecimal totalDevuelto, BigDecimal netoAbonado) {}
+
+    /**
+     * Consolida los importes financieros de una reserva: total estimado, anticipos acumulados,
+     * devoluciones acumuladas y neto abonado.
+     *
+     * @param reserva reserva cuyos importes se consolidan
+     * @return {@link DatosResumenPago} con los totales calculados
+     */
+    private DatosResumenPago calcularDatosResumenPago(Reserva reserva) {
+        List<ComandaItem> items = obtenerItemsPreOrden(reserva.getReservaId());
+        BigDecimal totalReserva = calcularTotalReserva(reserva, items);
+        List<Abono> abonos = abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(reserva.getReservaId());
+        BigDecimal totalAnticipado = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.ANTICIPO)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalDevuelto = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.DEVOLUCION)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        return new DatosResumenPago(totalReserva, totalAnticipado, totalDevuelto,
+                totalAnticipado.subtract(totalDevuelto));
     }
 
     // -----------------------------------------------------------------------
@@ -787,23 +912,24 @@ public class ReservaService {
 
     /**
      * Calcula el valor monetario total de los componentes especiales de una reserva:
-     * costo de la decoración más el precio del menú especial multiplicado por el número de personas.
+     * costo de la decoración más el precio del menú especial multiplicado por la cantidad
+     * elegida en el propio ítem.
      *
      * @param decoracion decoración asignada a la reserva; puede ser {@code null}
      * @param items      ítems de la pre-orden a evaluar
-     * @param personas   número de personas para escalar el precio del menú especial
-     * @return suma del costo de decoración más precio × personas de los ítems especiales
+     * @return suma del costo de decoración más precio × cantidad de los ítems especiales
      */
-    private BigDecimal calcularValorEspecial(Decoracion decoracion, List<ComandaItem> items, int personas) {
+    private BigDecimal calcularValorEspecial(Decoracion decoracion, List<ComandaItem> items) {
         BigDecimal valor = BigDecimal.ZERO;
         // Agregar el costo adicional de la decoración si tiene uno definido
         if (decoracion != null && decoracion.getDecoracionCostoAdicional() != null) {
             valor = valor.add(decoracion.getDecoracionCostoAdicional());
         }
-        // Agregar precio × personas solo para ítems de menú especial
+        // Agregar precio × cantidad elegida solo para ítems de menú especial
         for (ComandaItem item : items) {
             if (Boolean.TRUE.equals(item.getProducto().getMenuEspecial())) {
-                valor = valor.add(item.getComandaItemPrecio().multiply(BigDecimal.valueOf(personas)));
+                valor = valor.add(item.getComandaItemPrecio()
+                        .multiply(BigDecimal.valueOf(item.getComandaItemCantidad())));
             }
         }
         return valor;
@@ -839,7 +965,7 @@ public class ReservaService {
      *
      * <ul>
      *   <li>BASICA → ESPECIAL: siempre notifica (el cliente debe abonar anticipo).</li>
-     *   <li>ESPECIAL → ESPECIAL: notifica solo si el valor total (decoración + menú × personas) cambió.</li>
+     *   <li>ESPECIAL → ESPECIAL: notifica solo si el valor total (decoración + menú × cantidad) cambió.</li>
      *   <li>ESPECIAL → BASICA: notifica si el abono neto supera el total de platos (posible devolución).</li>
      *   <li>BASICA → BASICA: notifica si el abono neto supera el total de platos (posible ajuste).</li>
      * </ul>
@@ -849,14 +975,13 @@ public class ReservaService {
      * @param valorAnterior        valor especial calculado antes de eliminar la pre-orden original
      * @param nuevaDecoracion      decoración resultante de la reserva ya modificada
      * @param reservaResultado     entidad de reserva guardada con los datos actualizados
-     * @param nuevasPersonas       número de personas actualizado
      * @param reservaIdOriginal    ID de la reserva (para calcular el abono neto histórico)
      * @return mensaje precompuesto para WhatsApp, o {@code null} si no aplica notificación
      */
     private String construirNotificacionWhatsApp(
             boolean anteriorEraEspecial, boolean nuevoEsEspecial,
             BigDecimal valorAnterior, Decoracion nuevaDecoracion,
-            Reserva reservaResultado, int nuevasPersonas, Long reservaIdOriginal) {
+            Reserva reservaResultado, Long reservaIdOriginal) {
 
         // BASICA → ESPECIAL: el cliente debe abonar un anticipo para confirmar el servicio especial
         if (!anteriorEraEspecial && nuevoEsEspecial) {
@@ -867,8 +992,7 @@ public class ReservaService {
         if (anteriorEraEspecial && nuevoEsEspecial) {
             BigDecimal valorNuevo = calcularValorEspecial(
                     nuevaDecoracion,
-                    obtenerItemsPreOrden(reservaResultado.getReservaId()),
-                    nuevasPersonas);
+                    obtenerItemsPreOrden(reservaResultado.getReservaId()));
             if (valorAnterior.compareTo(valorNuevo) != 0) {
                 return mensajeWhatsAppBuilder.construirMensaje(reservaResultado, MensajeWhatsAppBuilder.MSG_WA_CAMBIO_ESPECIAL);
             }

@@ -8,6 +8,7 @@ import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadR
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import org.junit.jupiter.api.Assumptions;
@@ -648,6 +649,211 @@ class ReservaValidadorTest {
 
             // When/Then: ADMIN puede marcar inasistencia de cualquier fecha
             assertThatCode(() -> validador.validarElegibilidadInasistencia(reserva, false))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    // ── validarElegibilidadAbono ──────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarElegibilidadAbono — estado vs tipo de abono")
+    class ValidarElegibilidadAbono {
+
+        private Reserva reservaCon(EstadoReserva estado) {
+            return Reserva.builder().reservaEstado(estado).build();
+        }
+
+        @Test
+        @DisplayName("ANTICIPO sobre reserva CONFIRMADA → no lanza excepción")
+        void abonoAnticipo_estadoConfirmada_noLanza() {
+            Reserva reserva = reservaCon(EstadoReserva.CONFIRMADA);
+
+            assertThatCode(() -> validador.validarElegibilidadAbono(reserva, TipoAbono.ANTICIPO))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("ANTICIPO sobre reserva PENDIENTE → BusinessException 409 CONFLICT")
+        void abonoAnticipo_estadoPendiente_lanza409() {
+            Reserva reserva = reservaCon(EstadoReserva.PENDIENTE);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadAbono(reserva, TipoAbono.ANTICIPO))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.CONFLICT));
+        }
+
+        @Test
+        @DisplayName("ANTICIPO sobre reserva CANCELADA → BusinessException 409 CONFLICT")
+        void abonoAnticipo_estadoCancelada_lanza409() {
+            Reserva reserva = reservaCon(EstadoReserva.CANCELADA);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadAbono(reserva, TipoAbono.ANTICIPO))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.CONFLICT));
+        }
+
+        @Test
+        @DisplayName("DEVOLUCION sobre reserva CANCELADA → no lanza excepción")
+        void abonoDevolucion_estadoCancelada_noLanza() {
+            Reserva reserva = reservaCon(EstadoReserva.CANCELADA);
+
+            assertThatCode(() -> validador.validarElegibilidadAbono(reserva, TipoAbono.DEVOLUCION))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("DEVOLUCION sobre reserva CONFIRMADA → BusinessException 409 CONFLICT")
+        void abonoDevolucion_estadoConfirmada_lanza409() {
+            Reserva reserva = reservaCon(EstadoReserva.CONFIRMADA);
+
+            assertThatThrownBy(() -> validador.validarElegibilidadAbono(reserva, TipoAbono.DEVOLUCION))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.CONFLICT));
+        }
+    }
+
+    // ── validarFechaAbono ─────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarFechaAbono — rangos permitidos")
+    class ValidarFechaAbono {
+
+        private final LocalDateTime creacion = LocalDateTime.now().minusDays(5);
+
+        @Test
+        @DisplayName("Fecha hoy → no lanza excepción")
+        void fechaAbono_hoy_noLanza() {
+            LocalDateTime fechaHoy = LocalDate.now().atTime(10, 0);
+
+            assertThatCode(() -> validador.validarFechaAbono(fechaHoy, creacion))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Fecha futura → BusinessException 400 BAD_REQUEST")
+        void fechaAbono_futura_lanza400() {
+            LocalDateTime fechaFutura = LocalDate.now().plusDays(1).atTime(10, 0);
+
+            assertThatThrownBy(() -> validador.validarFechaAbono(fechaFutura, creacion))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.BAD_REQUEST));
+        }
+
+        @Test
+        @DisplayName("Fecha anterior a creación → BusinessException 400 BAD_REQUEST")
+        void fechaAbono_antesDeCreacion_lanza400() {
+            // Fecha de creación es hace 5 días; fecha del abono es hace 10 días
+            LocalDateTime fechaAnterior = LocalDate.now().minusDays(10).atTime(10, 0);
+
+            assertThatThrownBy(() -> validador.validarFechaAbono(fechaAnterior, creacion))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> assertThat(((BusinessException) ex).getStatus())
+                            .isEqualTo(HttpStatus.BAD_REQUEST));
+        }
+
+        @Test
+        @DisplayName("Fecha igual a creación → no lanza excepción (límite inferior inclusivo)")
+        void fechaAbono_igualACreacion_noLanza() {
+            // Misma fecha que la creación de la reserva
+            LocalDateTime fechaIgualACreacion = creacion;
+
+            assertThatCode(() -> validador.validarFechaAbono(fechaIgualACreacion, creacion))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    // ── validarMontoAnticipo ──────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarMontoAnticipo — tope sobre totalReserva")
+    class ValidarMontoAnticipo {
+
+        @Test
+        @DisplayName("Monto dentro del total disponible → no lanza excepción")
+        void montoAnticipo_dentroDelTotal_noLanza() {
+            BigDecimal total = new BigDecimal("100.00");
+            BigDecimal neto  = new BigDecimal("30.00");
+            BigDecimal monto = new BigDecimal("50.00"); // 30 + 50 = 80 <= 100
+
+            assertThatCode(() -> validador.validarMontoAnticipo(monto, total, neto))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Monto que excede el total → BusinessException 409 con pendiente en mensaje")
+        void montoAnticipo_excedeTotal_lanza409ConPendienteEnMensaje() {
+            // total=100.00, neto=70.00, monto=50.00 → 70+50=120 > 100 → pendiente=30.00
+            BigDecimal total = new BigDecimal("100.00");
+            BigDecimal neto  = new BigDecimal("70.00");
+            BigDecimal monto = new BigDecimal("50.00");
+
+            assertThatThrownBy(() -> validador.validarMontoAnticipo(monto, total, neto))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                        assertThat(bex.getMessage()).contains("Monto pendiente máximo");
+                        // total.subtract(neto) = 100.00 - 70.00 = 30.00 (scale 2)
+                        assertThat(bex.getMessage()).contains("30.00");
+                    });
+        }
+
+        @Test
+        @DisplayName("Monto que completa exactamente el total → no lanza excepción")
+        void montoAnticipo_completaExacto_noLanza() {
+            BigDecimal total = new BigDecimal("100.00");
+            BigDecimal neto  = new BigDecimal("60.00");
+            BigDecimal monto = new BigDecimal("40.00"); // 60 + 40 = 100 == 100
+
+            assertThatCode(() -> validador.validarMontoAnticipo(monto, total, neto))
+                    .doesNotThrowAnyException();
+        }
+    }
+
+    // ── validarMontoDevolucion ────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("validarMontoDevolucion — tope sobre netoAbonado")
+    class ValidarMontoDevolucion {
+
+        @Test
+        @DisplayName("Monto a devolver dentro del neto → no lanza excepción")
+        void montoDevolucion_dentroDelNeto_noLanza() {
+            BigDecimal neto  = new BigDecimal("80.00");
+            BigDecimal monto = new BigDecimal("50.00");
+
+            assertThatCode(() -> validador.validarMontoDevolucion(monto, neto))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Monto a devolver excede el neto → BusinessException 409 con netoAbonado en mensaje")
+        void montoDevolucion_excedeNeto_lanza409() {
+            // neto=30.00, monto=50.00 → 50 > 30 → mensaje incluye "30.00" (netoAbonado concatenado)
+            BigDecimal neto  = new BigDecimal("30.00");
+            BigDecimal monto = new BigDecimal("50.00");
+
+            assertThatThrownBy(() -> validador.validarMontoDevolucion(monto, neto))
+                    .isInstanceOf(BusinessException.class)
+                    .satisfies(ex -> {
+                        BusinessException bex = (BusinessException) ex;
+                        assertThat(bex.getStatus()).isEqualTo(HttpStatus.CONFLICT);
+                        // netoAbonado.toString() con scale 2 → "30.00"
+                        assertThat(bex.getMessage()).contains("30.00");
+                    });
+        }
+
+        @Test
+        @DisplayName("Monto igual al neto → no lanza excepción (límite exacto)")
+        void montoDevolucion_igualAlNeto_noLanza() {
+            BigDecimal neto  = new BigDecimal("50.00");
+            BigDecimal monto = new BigDecimal("50.00");
+
+            assertThatCode(() -> validador.validarMontoDevolucion(monto, neto))
                     .doesNotThrowAnyException();
         }
     }

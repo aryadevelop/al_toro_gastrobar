@@ -2,7 +2,9 @@ package co.edu.unicauca.backend.modules.reservas.repository;
 
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -192,6 +194,18 @@ public interface ReservaRepository extends JpaRepository<Reserva, Long> {
             @Param("inicio") LocalDateTime inicio,
             @Param("fin") LocalDateTime fin,
             @Param("estados") List<EstadoReserva> estados);
+
+    /**
+     * Adquiere un bloqueo de escritura pesimista sobre la fila de la reserva indicada.
+     * Usar dentro de una transacción {@code @Transactional} para serializar
+     * concurrencia en operaciones de registro de anticipos y devoluciones.
+     *
+     * @param id identificador de la reserva
+     * @return reserva bloqueada, o {@link Optional#empty()} si no existe
+     */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT r FROM Reserva r WHERE r.reservaId = :id")
+    Optional<Reserva> findByIdForUpdate(@Param("id") Long id);
 
     /**
      * Devuelve todas las reservas activas que coincidan con un identificador específico,
