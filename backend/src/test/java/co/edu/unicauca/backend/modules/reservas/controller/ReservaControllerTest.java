@@ -5,13 +5,18 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
+import co.edu.unicauca.backend.modules.reservas.dto.request.RegistrarAbonoRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.RegistrarAbonoResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ResumenPagoResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
+import co.edu.unicauca.backend.shared.enums.MetodoPago;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -32,11 +37,13 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.math.BigDecimal;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -583,6 +590,251 @@ class ReservaControllerTest {
                     .andExpect(status().isOk());
 
             verify(reservaService).marcarInasistencia(eq(RESERVA_ID), any(Authentication.class));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // POST /api/reservas/{reservaId}/abonos
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("POST /api/reservas/{reservaId}/abonos")
+    class RegistrarAbono {
+
+        private final Long RESERVA_ID = 10L;
+
+        private String bodyValido(TipoAbono tipo) throws Exception {
+            return objectMapper.writeValueAsString(Map.of(
+                    "tipo", tipo.name(),
+                    "monto", "50000.00",
+                    "metodo", MetodoPago.EFECTIVO.name(),
+                    "fechaHora", LocalDateTime.now().toString()
+            ));
+        }
+
+        private RegistrarAbonoResponse responseDummy() {
+            return RegistrarAbonoResponse.builder()
+                    .abonoId(1L)
+                    .tipo("ANTICIPO")
+                    .estado("REGISTRADO")
+                    .resumen(ResumenPagoResponse.builder()
+                            .reservaId(RESERVA_ID)
+                            .totalAnticipado(new BigDecimal("50000.00"))
+                            .build())
+                    .build();
+        }
+
+        /**
+         * Test de autorización basada en roles con {@code @PreAuthorize}.
+         *
+         * <p>IMPORTANTE: {@code @WebMvcTest} con {@code PermissiveSecurityConfig} no evalúa
+         * {@code @PreAuthorize} correctamente. El endpoint está anotado con
+         * {@code @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")} pero esta configuración
+         * permite el acceso a todos los roles autenticados.
+         *
+         * <p>La autorización real basada en roles se verifica en:
+         * <ul>
+         *   <li>Tests de integración con {@code @SpringBootTest}</li>
+         *   <li>Tests Postman que ejecutan contra la aplicación completa</li>
+         * </ul>
+         */
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("CAJERO con body ANTICIPO válido → 201 Created")
+        void registrarAbono_conCAJERO_201() throws Exception {
+            when(reservaService.registrarAbono(eq(RESERVA_ID), any(RegistrarAbonoRequest.class), eq("cajero@test.com")))
+                    .thenReturn(responseDummy());
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyValido(TipoAbono.ANTICIPO)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.message").value("Anticipo registrado correctamente"))
+                    .andExpect(jsonPath("$.data.abonoId").value(1L))
+                    .andExpect(jsonPath("$.data.tipo").value("ANTICIPO"));
+
+            verify(reservaService).registrarAbono(eq(RESERVA_ID), any(RegistrarAbonoRequest.class), eq("cajero@test.com"));
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("ADMIN con body ANTICIPO válido → 201 Created")
+        void registrarAbono_conADMIN_201() throws Exception {
+            when(reservaService.registrarAbono(eq(RESERVA_ID), any(RegistrarAbonoRequest.class), eq("admin@test.com")))
+                    .thenReturn(responseDummy());
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyValido(TipoAbono.ANTICIPO)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("CAJERO registra DEVOLUCION → mensaje correcto en 201")
+        void registrarAbono_devolucion_mensajeDevolucion() throws Exception {
+            RegistrarAbonoResponse respDevolucion = RegistrarAbonoResponse.builder()
+                    .abonoId(2L).tipo("DEVOLUCION").estado("REGISTRADO").build();
+            when(reservaService.registrarAbono(eq(RESERVA_ID), any(RegistrarAbonoRequest.class), eq("cajero@test.com")))
+                    .thenReturn(respDevolucion);
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyValido(TipoAbono.DEVOLUCION)))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.message").value("Devolución registrada correctamente"));
+
+            verify(reservaService).registrarAbono(eq(RESERVA_ID), any(RegistrarAbonoRequest.class), eq("cajero@test.com"));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("monto null → 422 Unprocessable Entity (Bean Validation)")
+        void registrarAbono_montoNull_400() throws Exception {
+            String bodyMontoNull = objectMapper.writeValueAsString(Map.of(
+                    "tipo", TipoAbono.ANTICIPO.name(),
+                    "metodo", MetodoPago.EFECTIVO.name(),
+                    "fechaHora", LocalDateTime.now().toString()
+            ));
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyMontoNull))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("El monto es obligatorio"));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("metodo null → 422 Unprocessable Entity (Bean Validation)")
+        void registrarAbono_metodoNull_400() throws Exception {
+            String bodyMetodoNull = objectMapper.writeValueAsString(Map.of(
+                    "tipo", TipoAbono.ANTICIPO.name(),
+                    "monto", "50000.00",
+                    "fechaHora", LocalDateTime.now().toString()
+            ));
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyMetodoNull))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("Debe seleccionar un método de pago"));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("fechaHora null → 422 Unprocessable Entity (Bean Validation)")
+        void registrarAbono_fechaNull_400() throws Exception {
+            String bodyFechaNull = objectMapper.writeValueAsString(Map.of(
+                    "tipo", TipoAbono.ANTICIPO.name(),
+                    "monto", "50000.00",
+                    "metodo", MetodoPago.EFECTIVO.name()
+            ));
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyFechaNull))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("Debe seleccionar una fecha"));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("tipo null → 422 Unprocessable Entity (Bean Validation)")
+        void registrarAbono_tipoNull_400() throws Exception {
+            String bodyTipoNull = objectMapper.writeValueAsString(Map.of(
+                    "monto", "50000.00",
+                    "metodo", MetodoPago.EFECTIVO.name(),
+                    "fechaHora", LocalDateTime.now().toString()
+            ));
+
+            mockMvc.perform(post("/api/reservas/{id}/abonos", RESERVA_ID)
+                            .contentType(MediaType.APPLICATION_JSON)
+                            .content(bodyTipoNull))
+                    .andExpect(status().isUnprocessableEntity())
+                    .andExpect(jsonPath("$.success").value(false))
+                    .andExpect(jsonPath("$.message").value("Debe seleccionar el tipo de abono"));
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // GET /api/reservas/{reservaId}/resumen-pago
+    // -----------------------------------------------------------------------
+
+    @Nested
+    @DisplayName("GET /api/reservas/{reservaId}/resumen-pago")
+    class ObtenerResumenPago {
+
+        private final Long RESERVA_ID = 10L;
+
+        private ResumenPagoResponse responseDummy() {
+            return ResumenPagoResponse.builder()
+                    .reservaId(RESERVA_ID)
+                    .clienteNombre("Paula Muñoz")
+                    .estado("CONFIRMADA")
+                    .tipo("ESPECIAL")
+                    .totalAnticipado(new BigDecimal("50000.00"))
+                    .netoAbonado(new BigDecimal("50000.00"))
+                    .build();
+        }
+
+        /**
+         * Test de autorización basada en roles con {@code @PreAuthorize}.
+         *
+         * <p>IMPORTANTE: {@code @WebMvcTest} con {@code PermissiveSecurityConfig} no evalúa
+         * {@code @PreAuthorize} correctamente. El endpoint está anotado con
+         * {@code @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")} pero esta configuración
+         * permite el acceso a todos los roles autenticados.
+         *
+         * <p>La autorización real basada en roles se verifica en:
+         * <ul>
+         *   <li>Tests de integración con {@code @SpringBootTest}</li>
+         *   <li>Tests Postman que ejecutan contra la aplicación completa</li>
+         * </ul>
+         */
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("CAJERO consulta resumen → 200 OK con datos financieros")
+        void resumenPago_conCAJERO_200() throws Exception {
+            when(reservaService.obtenerResumenPago(RESERVA_ID)).thenReturn(responseDummy());
+
+            mockMvc.perform(get("/api/reservas/{id}/resumen-pago", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true))
+                    .andExpect(jsonPath("$.data.reservaId").value(RESERVA_ID))
+                    .andExpect(jsonPath("$.data.clienteNombre").value("Paula Muñoz"))
+                    .andExpect(jsonPath("$.data.estado").value("CONFIRMADA"));
+
+            verify(reservaService).obtenerResumenPago(RESERVA_ID);
+        }
+
+        @Test
+        @WithMockUser(username = "admin@test.com", roles = "ADMIN")
+        @DisplayName("ADMIN consulta resumen → 200 OK")
+        void resumenPago_conADMIN_200() throws Exception {
+            when(reservaService.obtenerResumenPago(RESERVA_ID)).thenReturn(responseDummy());
+
+            mockMvc.perform(get("/api/reservas/{id}/resumen-pago", RESERVA_ID))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.success").value(true));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@test.com", roles = "CAJERO")
+        @DisplayName("Reserva no encontrada → 404 Not Found")
+        void resumenPago_reservaNoEncontrada_404() throws Exception {
+            when(reservaService.obtenerResumenPago(RESERVA_ID))
+                    .thenThrow(new ResourceNotFoundException("Reserva", RESERVA_ID));
+
+            mockMvc.perform(get("/api/reservas/{id}/resumen-pago", RESERVA_ID))
+                    .andExpect(status().isNotFound());
         }
     }
 }

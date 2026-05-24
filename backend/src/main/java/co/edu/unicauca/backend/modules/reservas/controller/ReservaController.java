@@ -1,16 +1,20 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearReservaRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.RegistrarAbonoRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.CancelarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ConfirmarReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.request.ModificarReservaRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DisponibilidadResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.MarcarInasistenciaResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ModificarReservaResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.RegistrarAbonoResponse;
+import co.edu.unicauca.backend.modules.reservas.dto.response.ResumenPagoResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaDetalleResponse;
 import co.edu.unicauca.backend.modules.reservas.dto.response.ReservaResponse;
 import co.edu.unicauca.backend.modules.reservas.service.ReservaService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
@@ -279,6 +283,59 @@ public class ReservaController {
 
         ReservaDetalleResponse response = reservaService.obtenerDetalleReserva(reservaId, emailSiCliente(authentication));
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * Registra un anticipo o devolución sobre una reserva existente.
+     *
+     * <p>Solo los roles {@code CAJERO} y {@code ADMIN} pueden ejecutar esta acción.
+     * No aplica validación de ownership: cualquier cajero o administrador puede registrar
+     * movimientos sobre cualquier reserva.
+     *
+     * <p>El tipo de mensaje de confirmación varía según el tipo de movimiento:
+     * <ul>
+     *   <li>{@code ANTICIPO} — "Anticipo registrado correctamente"</li>
+     *   <li>{@code DEVOLUCION} — "Devolución registrada correctamente"</li>
+     * </ul>
+     *
+     * @param reservaId      identificador de la reserva sobre la que se registra el movimiento
+     * @param request        datos del anticipo o devolución (tipo, monto, método, fecha)
+     * @param authentication contexto de seguridad del request; se usa para obtener el email del cajero
+     * @return {@code 201 Created} con los datos del abono registrado y el resumen financiero actualizado
+     */
+    @PostMapping("/{reservaId}/abonos")
+    @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")
+    @Operation(summary = "Registrar anticipo o devolución sobre una reserva")
+    public ResponseEntity<ApiResponse<RegistrarAbonoResponse>> registrarAbono(
+            @PathVariable Long reservaId,
+            @Valid @RequestBody RegistrarAbonoRequest request,
+            Authentication authentication) {
+
+        RegistrarAbonoResponse data =
+                reservaService.registrarAbono(reservaId, request, authentication.getName());
+        String mensaje = request.getTipo() == TipoAbono.ANTICIPO
+                ? "Anticipo registrado correctamente"
+                : "Devolución registrada correctamente";
+        return ResponseEntity.status(HttpStatus.CREATED).body(ApiResponse.created(mensaje, data));
+    }
+
+    /**
+     * Retorna el resumen financiero de los pagos asociados a una reserva.
+     *
+     * <p>Solo los roles {@code CAJERO} y {@code ADMIN} pueden consultar el resumen.
+     * No aplica validación de ownership: cualquier cajero o administrador puede consultar
+     * el resumen de cualquier reserva.
+     *
+     * @param reservaId identificador de la reserva a consultar
+     * @return {@code 200 OK} con el resumen consolidado de anticipos, devoluciones y saldos
+     */
+    @GetMapping("/{reservaId}/resumen-pago")
+    @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")
+    @Operation(summary = "Obtener resumen financiero de pagos de una reserva")
+    public ResponseEntity<ApiResponse<ResumenPagoResponse>> obtenerResumenPago(
+            @PathVariable Long reservaId) {
+
+        return ResponseEntity.ok(ApiResponse.ok(reservaService.obtenerResumenPago(reservaId)));
     }
 
     /**

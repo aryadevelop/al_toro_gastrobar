@@ -82,6 +82,7 @@ public class PreOrdenGestor {
      *       con {@code menu_especial=true} en la base de datos.</li>
      *   <li>Solo un ítem de menú especial por reserva.</li>
      *   <li>El menú especial requiere más de 10 comensales.</li>
+     *   <li>La cantidad elegida para el ítem de menú especial debe ser mayor a 10.</li>
      *   <li>El ítem de menú especial debe incluir {@code bebidaProductoId} no nulo.</li>
      *   <li>La bebida seleccionada debe estar disponible en {@code menu_bebida_disponible}
      *       para el menú indicado.</li>
@@ -124,6 +125,15 @@ public class PreOrdenGestor {
             throw new BusinessException(ErrorCode.INVALID_STATE,
                     "El menú especial solo está disponible para reservas de más de 10 personas.",
                     HttpStatus.UNPROCESSABLE_ENTITY);
+        }
+
+        // Validar que la cantidad elegida para cada ítem de menú especial sea mayor a 10
+        for (PreOrdenItemRequest item : items) {
+            if (Boolean.TRUE.equals(item.getEsMenuEspecial()) && item.getCantidad() <= 10) {
+                throw new BusinessException(ErrorCode.INVALID_STATE,
+                        "La cantidad del menú especial debe ser mayor a 10.",
+                        HttpStatus.UNPROCESSABLE_ENTITY);
+            }
         }
 
         // Validar bebida obligatoria y disponible para ítems de menú especial

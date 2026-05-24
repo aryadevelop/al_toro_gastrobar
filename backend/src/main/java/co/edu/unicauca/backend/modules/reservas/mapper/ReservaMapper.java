@@ -173,6 +173,19 @@ public class ReservaMapper {
                                 .multiply(BigDecimal.valueOf(d.getComandaItemCantidad())))
                         .reduce(BigDecimal.ZERO, BigDecimal::add);
 
+        // Costo adicional de la decoración seleccionada; null si no aplica o no tiene costo.
+        BigDecimal valorDecoracion = (reserva.getDecoracion() != null
+                && reserva.getDecoracion().getDecoracionCostoAdicional() != null)
+                ? reserva.getDecoracion().getDecoracionCostoAdicional()
+                : null;
+
+        // Total = preOrdenTotal + valorDecoracion; null solo cuando ambos son null.
+        BigDecimal baseProductos = preOrdenTotal != null ? preOrdenTotal : BigDecimal.ZERO;
+        BigDecimal baseDeco = valorDecoracion != null ? valorDecoracion : BigDecimal.ZERO;
+        BigDecimal total = (preOrdenTotal == null && valorDecoracion == null)
+                ? null
+                : baseProductos.add(baseDeco);
+
         // Si no hay abonos, se dejan los campos relacionados como null para omitirlos en la respuesta.
         List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null
                 : construirAbonosDto(abonos);
@@ -199,6 +212,8 @@ public class ReservaMapper {
                 .clienteTelefono(reserva.getCliente() != null ? reserva.getCliente().getClienteTelefono() : null)
                 .preOrdenItems(preOrdenItems)
                 .preOrdenTotal(preOrdenTotal)
+                .valorDecoracion(valorDecoracion)
+                .total(total)
                 .abonos(abonosDto)
                 .totalAbonado(totalAbonado)
                 .modificable(esModificable(reserva))

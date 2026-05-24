@@ -18,6 +18,7 @@ import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
@@ -29,6 +30,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.flyway.enabled=false"
 })
 class ReservaRepositoryTest {
@@ -139,6 +141,30 @@ class ReservaRepositoryTest {
                     zona.getZonaId(), BASE.minusHours(1), BASE.plusHours(1), ACTIVOS);
 
             assertThat(sum).isZero();
+        }
+    }
+
+    @Nested
+    @DisplayName("findByIdForUpdate")
+    class FindByIdForUpdate {
+
+        @Test
+        @DisplayName("Retorna la reserva cuando existe")
+        void findByIdForUpdate_reservaExistente_retornaReserva() {
+            Reserva r = reserva(EstadoReserva.CONFIRMADA, 4, BASE);
+
+            Optional<Reserva> result = reservaRepo.findByIdForUpdate(r.getReservaId());
+
+            assertThat(result).isPresent();
+            assertThat(result.get().getReservaId()).isEqualTo(r.getReservaId());
+        }
+
+        @Test
+        @DisplayName("Retorna vacío cuando no existe")
+        void findByIdForUpdate_reservaInexistente_retornaVacio() {
+            Optional<Reserva> result = reservaRepo.findByIdForUpdate(99999L);
+
+            assertThat(result).isEmpty();
         }
     }
 

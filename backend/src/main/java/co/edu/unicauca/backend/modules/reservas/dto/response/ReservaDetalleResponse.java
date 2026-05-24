@@ -19,6 +19,8 @@ import java.util.List;
  *   <li>{@code decoracionId} y {@code decoracionNombre} — si la reserva no incluyó decoración.</li>
  *   <li>{@code notas} — si no se registraron observaciones especiales.</li>
  *   <li>{@code preOrdenItems} y {@code preOrdenTotal} — si la reserva no tiene pre-orden.</li>
+ *   <li>{@code valorDecoracion} — si la reserva no tiene decoración o esta no tiene costo.</li>
+ *   <li>{@code total} — si no hay pre-orden ni decoración con costo.</li>
  *   <li>{@code abonos} y {@code totalAbonado} — si no se registraron anticipos.</li>
  * </ul>
  */
@@ -74,6 +76,19 @@ public class ReservaDetalleResponse {
      * {@code null} si no hay pre-orden.
      */
     private final BigDecimal preOrdenTotal;
+
+    /**
+     * Costo adicional cobrado por la decoración seleccionada;
+     * {@code null} si la reserva no incluye decoración o si la decoración no tiene costo.
+     */
+    private final BigDecimal valorDecoracion;
+
+    /**
+     * Importe total de la reserva, calculado como la suma del total de la pre-orden
+     * más el costo de decoración; {@code null} únicamente cuando no existe pre-orden
+     * ni decoración con costo.
+     */
+    private final BigDecimal total;
 
     /**
      * Historial de abonos y devoluciones registrados para esta reserva;

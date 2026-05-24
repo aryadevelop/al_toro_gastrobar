@@ -1,0 +1,166 @@
+$kind: http-request
+name: AB-07 CAJERO registra devolución sobre CANCELADA – 201 Created
+description: |
+  CAJERO registra una devolución sobre una reserva CANCELADA que tiene anticipo previo.
+  El beforeRequest encadena 4 pasos:
+    (1) cliente crea reserva ESPECIAL PENDIENTE,
+    (2) CAJERO la confirma,
+    (3) CAJERO registra un anticipo (para tener neto > 0),
+    (4) CAJERO cancela la reserva (deja estado CANCELADA con anticipo registrado).
+  El POST principal registra la devolución sobre esa reserva CANCELADA.
+  Resultado esperado: 201, data.tipo=DEVOLUCION, message contiene "Devolución".
+  No se requiere cleanup adicional en afterResponse: la reserva ya está CANCELADA (estado terminal).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdAB07}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: "{{tmpDevolucionBodyAB07}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaReserva = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      const now = new Date();
+      const fechaAbono = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+        + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+
+      // Body de la devolución (monto <= anticipo de 50000)
+      pm.environment.set('tmpDevolucionBodyAB07', JSON.stringify({
+        tipo: 'DEVOLUCION',
+        monto: 3000,
+        metodo: 'TRANSFERENCIA',
+        fechaHora: fechaAbono
+      }));
+
+      // Paso 1: cliente crea reserva ESPECIAL PENDIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fechaReserva,
+            numeroPersonas: 2,
+            decoracionId: 1,
+            zonaId: 2
+          })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('AB-07: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          const reservaId = r2.json().data.reservaId;
+          pm.environment.set('tmpReservaIdAB07', reservaId);
+
+          // Paso 2: CAJERO obtiene token, confirma la reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (e3 || !r3 || r3.code !== 200) {
+              console.warn('AB-07: login CAJERO falló', e3, r3 && r3.code);
+              return;
+            }
+            const cajeroToken = r3.json().accessToken;
+            pm.environment.set('cajeroToken', cajeroToken);
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/confirmar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + cajeroToken }
+            }, function (e4, r4) {
+              if (e4 || !r4 || r4.code !== 200) {
+                console.warn('AB-07: confirmar reserva falló', e4, r4 && r4.code);
+                return;
+              }
+
+              // Paso 3: CAJERO registra anticipo sobre la reserva CONFIRMADA
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/abonos',
+                method: 'POST',
+                header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cajeroToken },
+                body: { mode: 'raw', raw: JSON.stringify({
+                  tipo: 'ANTICIPO',
+                  monto: 5000,
+                  metodo: 'EFECTIVO',
+                  fechaHora: fechaAbono
+                })}
+              }, function (e5, r5) {
+                if (e5 || !r5 || r5.code !== 201) {
+                  console.warn('AB-07: anticipo falló', e5, r5 && r5.code);
+                  return;
+                }
+
+                // Paso 4: CAJERO cancela la reserva (estado CANCELADA requerido para devolución)
+                pm.sendRequest({
+                  url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+                  method: 'PATCH',
+                  header: { 'Authorization': 'Bearer ' + cajeroToken }
+                }, function (e6, r6) {
+                  if (!e6 && r6 && r6.code !== 200) {
+                    console.warn('AB-07: cancelar reserva falló', r6 && r6.code);
+                  }
+                });
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('AB-07: CAJERO registra devolución → 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('AB-07: data.tipo = DEVOLUCION', function () {
+        pm.expect(pm.response.json().data.tipo).to.equal('DEVOLUCION');
+      });
+      pm.test('AB-07: message contiene "Devolución"', function () {
+        pm.expect(pm.response.json().message).to.include('Devolución');
+      });
+      pm.test('AB-07: data.abonoId es número positivo', function () {
+        pm.expect(pm.response.json().data.abonoId).to.be.a('number').and.above(0);
+      });
+      pm.test('AB-07: data.resumen presente', function () {
+        pm.expect(pm.response.json().data.resumen).to.be.an('object');
+      });
+      pm.test('AB-07: resumen.pendientePorDevolver presente (reserva CANCELADA con devolución parcial)', function () {
+        const resumen = pm.response.json().data.resumen;
+        // Reserva CANCELADA (anticipo 5000, devolución parcial 3000 → pendientePorDevolver=2000):
+        // pendientePorDevolver presente (> 0), pendientePorAbonar ausente
+        pm.expect(resumen.pendientePorDevolver).to.be.a('number');
+        pm.expect(resumen).to.not.have.property('pendientePorAbonar');
+      });
+      // Reserva ya está CANCELADA (estado terminal) — no requiere cleanup adicional.
+      pm.environment.unset('tmpReservaIdAB07');
+      pm.environment.unset('tmpDevolucionBodyAB07');
+    language: text/javascript
+order: 7000

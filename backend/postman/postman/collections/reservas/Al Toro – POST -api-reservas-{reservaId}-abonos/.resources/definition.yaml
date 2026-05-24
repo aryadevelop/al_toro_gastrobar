@@ -1,0 +1,67 @@
+$kind: collection
+name: Al Toro – POST /api/reservas/{reservaId}/abonos
+description: |-
+  # POST /api/reservas/{reservaId}/abonos
+
+  Registra un abono (anticipo o devolución) sobre una reserva existente.
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")`.
+  - CAJERO/ADMIN: pueden registrar abonos sobre cualquier reserva.
+  - MESERO/CLIENTE/COCINERO: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  **Body:** `RegistrarAbonoRequest { tipo, monto, metodo, fechaHora }`.
+
+  **Validaciones Bean (@Valid → 422):**
+  - `tipo` null → 422
+  - `monto` null → 422
+  - `monto` ≤ 0 (`@DecimalMin("0.01")`) → 422
+  - `metodo` null → 422
+  - `fechaHora` null → 422
+
+  **Validaciones de negocio (400/409):**
+  - `fechaHora` futura o anterior a creación de reserva → 400 (NEG-001)
+  - Anticipo sobre reserva NO CONFIRMADA → 409 (NEG-002)
+  - Devolución sobre reserva NO CANCELADA → 409 (NEG-002)
+  - Anticipo que excede el pendiente máximo → 409 (NEG-001)
+  - Devolución que excede el neto abonado → 409 (NEG-001)
+  - Reserva inexistente → 404 (ENT-001)
+
+  **Respuesta 201:** `ApiResponse<RegistrarAbonoResponse>` con
+  `data = { abonoId, tipo, estado, resumen{...} }` y
+  `message` = "Anticipo registrado correctamente" / "Devolución registrada correctamente".
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden.
+  - Tests 201 ANTICIPO: `beforeRequest` crea reserva ESPECIAL (cliente) → confirma (cajero).
+    `afterResponse` cancela la reserva y elimina variables temporales.
+  - Tests 201 DEVOLUCION: `beforeRequest` crea reserva ESPECIAL → confirma → registra anticipo → cancela.
+    `afterResponse` elimina variables temporales (reserva ya cancelada, no requiere cleanup adicional).
+  - Tests 422/400: no crean datos (body inválido no pasa validación; reserva 999999 no existe).
+  - Tests 409 estado: crean reserva PENDIENTE (no confirmada) para anticipo, o CONFIRMADA (no cancelada)
+    para devolución; cleanup en `afterResponse` cancela la reserva creada.
+  - Tests 409 excede monto: crean reserva → confirman → registran anticipo mínimo → intentan segundo anticipo
+    que excede; cleanup cancela la reserva.
+  - Tests 401/403: usan ID 999999 — no llegan al servicio.
+
+  | ID    | Escenario                                                    | HTTP |
+  |-------|--------------------------------------------------------------|------|
+  | AB-01 | Sin token                                                    | 401  |
+  | AB-02 | MESERO sin permiso                                           | 403  |
+  | AB-03 | CLIENTE sin permiso                                          | 403  |
+  | AB-04 | COCINERO sin permiso                                         | 403  |
+  | AB-05 | CAJERO registra anticipo sobre CONFIRMADA                    | 201  |
+  | AB-06 | ADMIN registra anticipo sobre CONFIRMADA                     | 201  |
+  | AB-07 | CAJERO registra devolución sobre CANCELADA (con anticipo)    | 201  |
+  | AB-08 | monto null → 422                                             | 422  |
+  | AB-09 | monto ≤ 0 → 422                                              | 422  |
+  | AB-10 | metodo null → 422                                            | 422  |
+  | AB-11 | fechaHora null → 422                                         | 422  |
+  | AB-12 | tipo null → 422                                              | 422  |
+  | AB-13 | fechaHora futura → 400                                       | 400  |
+  | AB-14 | Anticipo sobre reserva NO CONFIRMADA → 409                   | 409  |
+  | AB-15 | Devolución sobre reserva NO CANCELADA → 409                  | 409  |
+  | AB-16 | Anticipo excede pendiente máximo → 409                       | 409  |
+  | AB-17 | Devolución excede neto abonado → 409                         | 409  |
+  | AB-18 | Reserva inexistente → 404                                    | 404  |

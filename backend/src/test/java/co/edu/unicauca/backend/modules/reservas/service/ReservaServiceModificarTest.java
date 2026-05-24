@@ -614,7 +614,7 @@ class ReservaServiceModificarTest {
     private ModificarReservaRequest buildRequestConMenuEspecial(LocalDateTime fecha, int personas) {
         PreOrdenItemRequest item = new PreOrdenItemRequest();
         item.setProductoId(99L);
-        item.setCantidad(2);
+        item.setCantidad(11); // cantidad válida bajo la regla cantidad>10 del menú especial
         item.setEsMenuEspecial(true);
 
         ModificarReservaRequest req = new ModificarReservaRequest();

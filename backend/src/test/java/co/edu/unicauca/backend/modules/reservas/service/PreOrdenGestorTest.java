@@ -90,7 +90,7 @@ class PreOrdenGestorTest {
     private PreOrdenItemRequest itemMenuEspecial(long productoId) {
         PreOrdenItemRequest item = new PreOrdenItemRequest();
         item.setProductoId(productoId);
-        item.setCantidad(1);
+        item.setCantidad(11);
         item.setEsMenuEspecial(true);
         return item;
     }
@@ -242,6 +242,46 @@ class PreOrdenGestorTest {
             assertThatThrownBy(() -> preOrdenGestor.validarPreOrden(List.of(item), 11))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("disponible");
+        }
+
+        @Test
+        @DisplayName("Menú especial con cantidad > 10 → no lanza excepción")
+        void validarPreOrden_menuEspecialCantidadMayorA10_noLanza() {
+            PreOrdenItemRequest item = itemMenuEspecial(1L);
+            item.setCantidad(11);
+            item.setBebidaProductoId(100L);
+            Producto producto = productoActivo(1L, true);
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(producto));
+            when(menuBebidaDisponibleRepository.existsByMenuIdAndBebidaId(1L, 100L)).thenReturn(true);
+
+            assertThatCode(() -> preOrdenGestor.validarPreOrden(List.of(item), 11))
+                    .doesNotThrowAnyException();
+        }
+
+        @Test
+        @DisplayName("Menú especial con cantidad = 10 → BusinessException con mensaje exacto")
+        void validarPreOrden_menuEspecialCantidadIgualA10_lanza422() {
+            PreOrdenItemRequest item = itemMenuEspecial(1L);
+            item.setCantidad(10);
+            Producto producto = productoActivo(1L, true);
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(producto));
+
+            assertThatThrownBy(() -> preOrdenGestor.validarPreOrden(List.of(item), 11))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("La cantidad del menú especial debe ser mayor a 10.");
+        }
+
+        @Test
+        @DisplayName("Menú especial con cantidad < 10 → BusinessException con mensaje exacto")
+        void validarPreOrden_menuEspecialCantidadMenorA10_lanza422() {
+            PreOrdenItemRequest item = itemMenuEspecial(1L);
+            item.setCantidad(5);
+            Producto producto = productoActivo(1L, true);
+            when(productoRepository.findById(1L)).thenReturn(Optional.of(producto));
+
+            assertThatThrownBy(() -> preOrdenGestor.validarPreOrden(List.of(item), 11))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessage("La cantidad del menú especial debe ser mayor a 10.");
         }
     }
 

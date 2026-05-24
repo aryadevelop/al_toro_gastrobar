@@ -53,6 +53,8 @@ import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyInt;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 /**
@@ -635,6 +637,55 @@ class ReservaServiceBranchGapsTest {
             stubDisponibilidadLibreModificar();
             ModificarReservaRequest req = modificarRequest(fechaFutura, 2, List.of(menu));
             service.modificarReserva(RESERVA_ID, EMAIL, req);
+        }
+    }
+
+    // ────────────────────────────────────────────────────────────────────────
+    // calcularValorEspecial — escala por cantidad del ítem, no por personas
+    // ────────────────────────────────────────────────────────────────────────
+
+    @Nested
+    @DisplayName("calcularValorEspecial — escala por cantidad del ítem")
+    class CalcularValorEspecialEscalaPorCantidad {
+
+        @Test
+        @DisplayName("ESPECIAL→ESPECIAL con cantidad=15 y personas=2: usa cantidad del ítem para calcular el valor")
+        void calcularValorEspecial_menuEspecial_escalaPorCantidadNoPorPersonas() {
+            Reserva especial = reservaConTipo(TipoReserva.ESPECIAL, EstadoReserva.PENDIENTE);
+            // personas=2, menú especial con cantidad=15 y precio=10
+            // Implementación correcta: valorAnterior = 10 × 15 = 150
+            // Implementación con bug (×personas): valorAnterior = 10 × 2 = 20
+            when(reservaRepository.findById(RESERVA_ID)).thenReturn(Optional.of(especial));
+            when(reservaRepository.save(any())).thenAnswer(inv -> inv.getArgument(0));
+
+            Producto prodMenu = Producto.builder().productoId(50L).menuEspecial(true).build();
+            ComandaItem itemAntes = ComandaItem.builder()
+                    .producto(prodMenu)
+                    .comandaItemPrecio(new BigDecimal("10"))
+                    .comandaItemCantidad(15)
+                    .build();
+            Comanda c = Comanda.builder().comandaId(55L).build();
+            // El mismo stub se usa para calcularValorEspecial (valorAnterior) y para valorNuevo
+            // → valorNuevo = precio × cantidad = 10 × 15 = 150 siempre
+            // Con código correcto: valorAnterior=150 == valorNuevo=150 → NO se llama a construirMensaje
+            // Con bug (×personas): valorAnterior=20 ≠ valorNuevo=150 → sí se llamaría (test fallaría)
+            when(comandaRepository.findByReserva_ReservaIdAndComandaEstado(eq(RESERVA_ID), any()))
+                    .thenReturn(List.of(c));
+            when(comandaItemRepository.findByComanda_ComandaId(55L)).thenReturn(List.of(itemAntes));
+
+            PreOrdenItemRequest menu = new PreOrdenItemRequest();
+            menu.setProductoId(50L);
+            menu.setCantidad(15);
+            menu.setEsMenuEspecial(true);
+
+            stubDisponibilidadLibreModificar();
+            ModificarReservaRequest req = modificarRequest(fechaFutura, 2, List.of(menu));
+            service.modificarReserva(RESERVA_ID, EMAIL, req);
+
+            // Si calcularValorEspecial usara personas (2) en lugar de cantidad (15),
+            // valorAnterior=20 ≠ valorNuevo=150 y se habría invocado construirMensaje.
+            // Con la implementación correcta valorAnterior==valorNuevo → no hay notificación.
+            verify(mensajeWhatsAppBuilder, never()).construirMensaje(any(), any());
         }
     }
 

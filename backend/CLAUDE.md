@@ -161,7 +161,7 @@ de `productoId`/`insumoId` viaja con valor; cualquier pantalla que muestre stock
 
 Base URL: `http://localhost:8080/api`. Lista completa en `ENDPOINTS.md`. Convenciones de naming en `docs/api-conventions.md`.
 
-**30 endpoints:** Auth (5), Reservas (9), Clientes (3), Productos (2), Mesas (5), Visitas (4), Ventas (1), Notificaciones (1).
+**34 endpoints:** Auth (5), Reservas (13), Clientes (3), Productos (2), Mesas (5), Visitas (4), Ventas (1), Notificaciones (1).
 
 ---
 

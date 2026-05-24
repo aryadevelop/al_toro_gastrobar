@@ -1,0 +1,49 @@
+$kind: http-request
+name: AB-12 tipo null – 422 Unprocessable Entity
+description: |
+  Bean Validation @NotNull en el campo tipo rechaza el request antes de llegar al servicio.
+  Resultado esperado: 422 Unprocessable Entity, code = VAL-001.
+url: "{{baseUrl}}/api/reservas/999999/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tipo": null,
+      "monto": 50000,
+      "metodo": "EFECTIVO",
+      "fechaHora": "2026-05-23T10:00:00"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('AB-12: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('tipo null → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.test('code = VAL-001', function () {
+        pm.expect(pm.response.json().code).to.equal('VAL-001');
+      });
+    language: text/javascript
+order: 12000

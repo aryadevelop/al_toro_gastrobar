@@ -1,0 +1,144 @@
+$kind: http-request
+name: AB-05 CAJERO registra anticipo sobre CONFIRMADA – 201 Created
+description: |
+  CAJERO registra un anticipo sobre una reserva ESPECIAL CONFIRMADA.
+  El beforeRequest: (1) cliente crea reserva ESPECIAL, (2) CAJERO la confirma,
+  (3) CAJERO obtiene token para el POST del abono.
+  El body incluye fechaHora = ahora (válida: no futura, no anterior a creación).
+  Resultado esperado: 201, data.tipo=ANTICIPO, message contiene "Anticipo".
+  Cleanup en afterResponse: CAJERO cancela la reserva.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdAB05}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: "{{tmpAbonoBodyAB05}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaReserva = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      // fechaHora del abono = ahora (válida: posterior a creación de reserva, no futura)
+      const now = new Date();
+      const fechaAbono = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+        + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+
+      pm.environment.set('tmpAbonoBodyAB05', JSON.stringify({
+        tipo: 'ANTICIPO',
+        monto: 5000,
+        metodo: 'EFECTIVO',
+        fechaHora: fechaAbono
+      }));
+
+      // Paso 1: cliente crea reserva ESPECIAL PENDIENTE (decoracionId=1 con costo)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fechaReserva,
+            numeroPersonas: 2,
+            decoracionId: 1,
+            zonaId: 2
+          })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('AB-05: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaIdAB05', r2.json().data.reservaId);
+
+          // Paso 2: CAJERO confirma la reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (e3 || !r3 || r3.code !== 200) {
+              console.warn('AB-05: login CAJERO para confirmar falló', e3, r3 && r3.code);
+              return;
+            }
+            const cajeroToken = r3.json().accessToken;
+            pm.environment.set('cajeroToken', cajeroToken);
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + r2.json().data.reservaId + '/confirmar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + cajeroToken }
+            }, function (e4, r4) {
+              if (!e4 && r4 && r4.code !== 200) {
+                console.warn('AB-05: confirmar reserva falló', r4 && r4.code);
+              }
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('AB-05: CAJERO registra anticipo → 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('AB-05: data.tipo = ANTICIPO', function () {
+        pm.expect(pm.response.json().data.tipo).to.equal('ANTICIPO');
+      });
+      pm.test('AB-05: message contiene "Anticipo"', function () {
+        pm.expect(pm.response.json().message).to.include('Anticipo');
+      });
+      pm.test('AB-05: data.abonoId es número positivo', function () {
+        pm.expect(pm.response.json().data.abonoId).to.be.a('number').and.above(0);
+      });
+      pm.test('AB-05: data.resumen presente', function () {
+        pm.expect(pm.response.json().data.resumen).to.be.an('object');
+      });
+      pm.test('AB-05: resumen.pendientePorAbonar presente (reserva CONFIRMADA)', function () {
+        const resumen = pm.response.json().data.resumen;
+        // Reserva CONFIRMADA: pendientePorAbonar presente, pendientePorDevolver ausente
+        pm.expect(resumen.pendientePorAbonar).to.be.a('number');
+        pm.expect(resumen).to.not.have.property('pendientePorDevolver');
+      });
+
+      // Cleanup: CAJERO cancela la reserva
+      const reservaId = pm.environment.get('tmpReservaIdAB05');
+      if (reservaId && reservaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('cajeroToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup AB-05: cancelar reserva falló', r && r.code);
+          }
+        });
+      }
+      pm.environment.unset('tmpReservaIdAB05');
+      pm.environment.unset('tmpAbonoBodyAB05');
+    language: text/javascript
+order: 5000

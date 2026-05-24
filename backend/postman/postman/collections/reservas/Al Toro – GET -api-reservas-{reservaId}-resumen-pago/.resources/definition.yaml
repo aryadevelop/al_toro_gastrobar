@@ -1,0 +1,39 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/{reservaId}/resumen-pago
+description: |-
+  # GET /api/reservas/{reservaId}/resumen-pago
+
+  Devuelve el resumen de pago de una reserva: totales anticipados, devueltos,
+  neto abonado y pendientes.
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")`.
+  - CAJERO/ADMIN: pueden consultar el resumen de cualquier reserva.
+  - MESERO/CLIENTE/COCINERO: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  **Respuesta 200:** `ApiResponse<ResumenPagoResponse>` con
+  `data = { reservaId, clienteNombre, fechaHoraLlegada, numeroPersonas, estado, tipo,
+  totalReserva, totalAnticipado, totalDevuelto, netoAbonado,
+  pendientePorAbonar, pendientePorDevolver }`.
+
+  **Errores:**
+  - 404 (ENT-001): reserva inexistente.
+  - 401 (AUTH-001): sin token.
+  - 403 (AUTH-002): rol no autorizado.
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden.
+  Los tests 200 crean su propia reserva ESPECIAL CONFIRMADA en `beforeRequest`
+  y la limpian (cancelan) en `afterResponse`.
+  Los tests 401/403/404 usan ID 999999 — no mutan DB.
+
+  | ID    | Escenario                             | HTTP |
+  |-------|---------------------------------------|------|
+  | RP-01 | Sin token                             | 401  |
+  | RP-02 | MESERO sin permiso                    | 403  |
+  | RP-03 | CLIENTE sin permiso                   | 403  |
+  | RP-04 | COCINERO sin permiso                  | 403  |
+  | RP-05 | CAJERO consulta resumen               | 200  |
+  | RP-06 | ADMIN consulta resumen                | 200  |
+  | RP-07 | Reserva inexistente                   | 404  |

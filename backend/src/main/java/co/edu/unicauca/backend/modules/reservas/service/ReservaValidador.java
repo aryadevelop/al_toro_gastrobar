@@ -6,6 +6,7 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.reservas.repository.BloqueDisponibilidadRepository;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import co.edu.unicauca.backend.shared.enums.TipoReserva;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
@@ -233,6 +234,107 @@ public class ReservaValidador {
                         "La decoración seleccionada no es compatible con la zona elegida.",
                         HttpStatus.UNPROCESSABLE_ENTITY);
             }
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Verificación de costo de decoración
+    // -----------------------------------------------------------------------
+
+    // -----------------------------------------------------------------------
+    // Validación de elegibilidad de abono
+    // -----------------------------------------------------------------------
+
+    /**
+     * Verifica que el tipo de abono sea compatible con el estado actual de la reserva.
+     *
+     * <p>Los anticipos solo se permiten sobre reservas {@code CONFIRMADA};
+     * las devoluciones solo sobre reservas {@code CANCELADA}.
+     * Lanza {@link BusinessException} con {@code 409 CONFLICT} si la condición no se cumple.
+     *
+     * @param reserva entidad de la reserva sobre la que se registrará el abono
+     * @param tipo    tipo de movimiento: {@code ANTICIPO} o {@code DEVOLUCION}
+     * @throws BusinessException si el estado de la reserva no es compatible con el tipo de abono
+     */
+    public void validarElegibilidadAbono(Reserva reserva, TipoAbono tipo) {
+        if (tipo == TipoAbono.ANTICIPO && reserva.getReservaEstado() != EstadoReserva.CONFIRMADA) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se pueden registrar anticipos en reservas confirmadas.", HttpStatus.CONFLICT);
+        }
+        if (tipo == TipoAbono.DEVOLUCION && reserva.getReservaEstado() != EstadoReserva.CANCELADA) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "Solo se pueden registrar devoluciones en reservas canceladas.", HttpStatus.CONFLICT);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Validación de fecha del abono
+    // -----------------------------------------------------------------------
+
+    /**
+     * Verifica que la fecha del abono no sea futura ni anterior a la fecha de creación de la reserva.
+     *
+     * <p>La fecha se extrae del {@link LocalDateTime} proporcionado y se compara contra
+     * la fecha actual y la fecha de creación de la reserva. Lanza {@link BusinessException}
+     * con {@code 400 BAD_REQUEST} si alguna de las condiciones no se cumple.
+     *
+     * @param fechaHora            fecha y hora del abono a validar
+     * @param fechaCreacionReserva fecha y hora de creación de la reserva; define el límite inferior
+     * @throws BusinessException si la fecha es futura o anterior a la creación de la reserva
+     */
+    public void validarFechaAbono(LocalDateTime fechaHora, LocalDateTime fechaCreacionReserva) {
+        LocalDate fecha = fechaHora.toLocalDate();
+        if (fecha.isAfter(LocalDate.now()) || fecha.isBefore(fechaCreacionReserva.toLocalDate())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "La fecha no puede ser futura ni anterior a la fecha de creación de la reserva",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Validación de monto de anticipo
+    // -----------------------------------------------------------------------
+
+    /**
+     * Verifica que el monto del anticipo no supere el saldo pendiente por abonar.
+     *
+     * <p>Suma el monto propuesto al neto ya abonado y lo compara con el total de la reserva.
+     * Lanza {@link BusinessException} con {@code 409 CONFLICT} indicando el monto máximo
+     * permitido si el total excede el valor de la reserva.
+     *
+     * @param monto        importe del anticipo a registrar
+     * @param totalReserva valor total de la reserva (pre-orden más decoración)
+     * @param netoAbonado  diferencia entre anticipos y devoluciones ya registrados
+     * @throws BusinessException si {@code netoAbonado + monto} supera {@code totalReserva}
+     */
+    public void validarMontoAnticipo(BigDecimal monto, BigDecimal totalReserva, BigDecimal netoAbonado) {
+        if (netoAbonado.add(monto).compareTo(totalReserva) > 0) {
+            BigDecimal pendiente = totalReserva.subtract(netoAbonado);
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "El monto total abonado no puede exceder el valor de la reserva. Monto pendiente máximo: "
+                            + pendiente, HttpStatus.CONFLICT);
+        }
+    }
+
+    // -----------------------------------------------------------------------
+    // Validación de monto de devolución
+    // -----------------------------------------------------------------------
+
+    /**
+     * Verifica que el monto a devolver no supere el neto abonado por el cliente.
+     *
+     * <p>Lanza {@link BusinessException} con {@code 409 CONFLICT} indicando el máximo
+     * devolvible si el monto excede el neto acumulado de anticipos menos devoluciones previas.
+     *
+     * @param monto       importe de la devolución a registrar
+     * @param netoAbonado neto acumulado (anticipos menos devoluciones previas) disponible para devolver
+     * @throws BusinessException si {@code monto} supera {@code netoAbonado}
+     */
+    public void validarMontoDevolucion(BigDecimal monto, BigDecimal netoAbonado) {
+        if (monto.compareTo(netoAbonado) > 0) {
+            throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                    "El monto a devolver no puede exceder el total abonado. Pendiente máximo: " + netoAbonado,
+                    HttpStatus.CONFLICT);
         }
     }
 
