@@ -1,0 +1,42 @@
+$kind: http-request
+name: 08 MESERO atiende el CAMBIO del menú – 200 OK
+description: |-
+  El mesero atiende la notificación CAMBIO ACTIVA (deja la comanda lista para modificar). Respuesta
+  200 con `data.comandaId` y message "Comanda lista para modificar.". No desincroniza el par menú.
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotificacionId}}/atender-cambio"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema atiende el cambio (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Devuelve la comanda lista para modificar', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.comandaId, 'comandaId').to.be.a('number');
+        // VERIFICAR EN VIVO: el message exacto es "Comanda lista para modificar." (manual 70-04 / notificaciones AC-01).
+        pm.expect(body.message).to.eql('Comanda lista para modificar.');
+      });
+    language: text/javascript
+order: 170

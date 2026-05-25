@@ -1,0 +1,39 @@
+$kind: http-request
+name: 04 CAJERO detalle tras anticipo – 200 OK
+description: Verifica que tras el anticipo el montoAbonado=40000 y el saldoPendiente=20000 (totalAPagar=60000).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('montoAbonado=40000 y saldoPendiente=totalAPagar−40000', function () {
+        const d = pm.response.json().data;
+        pm.expect(Number(d.montoAbonado)).to.eql(40000);
+        pm.expect(Number(d.saldoPendiente)).to.eql(Number(d.totalAPagar) - 40000);
+      });
+    language: text/javascript
+order: 130

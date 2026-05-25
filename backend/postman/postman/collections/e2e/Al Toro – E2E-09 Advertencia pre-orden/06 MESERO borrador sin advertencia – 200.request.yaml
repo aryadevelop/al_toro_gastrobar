@@ -1,0 +1,48 @@
+$kind: http-request
+name: 06 MESERO obtiene borrador – advertenciasPreorden vacío – 200 OK
+description: |-
+  Tras eliminar el ítem sin stock, el borrador ya no tiene advertencias: `advertenciasPreorden` queda
+  vacío ([]) y solo queda la Hamburguesa en platos[].
+url: "{{baseUrl}}/api/comandas/borrador?visitaId={{tmpVisitaId}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const data = pm.response.json().data;
+
+      pm.test('advertenciasPreorden queda vacío tras eliminar el ítem sin stock', function () {
+        const adv = data.advertenciasPreorden || [];
+        pm.expect(adv, 'advertenciasPreorden').to.be.an('array').with.lengthOf(0);
+      });
+
+      pm.test('El ítem 145 ya no está en platos[]', function () {
+        const item145 = (data.platos || []).find(p => p.productoId === 145);
+        pm.expect(item145, 'ítem 145 eliminado').to.be.undefined;
+      });
+    language: text/javascript
+order: 150

@@ -1,0 +1,32 @@
+$kind: collection
+name: Al Toro – E2E-08 Anticipo y devolución
+description: |-
+  **Escenario E2E-08** · Reserva ESPECIAL (por decoración) con anticipo, cancelación y devolución.
+  Valida el cálculo del abono NETO (`montoAbonado = anticipos − devoluciones`) y el saldo direccional
+  del detalle: `saldoPendiente` mientras está CONFIRMADA, y `pendientePorDevolver` una vez CANCELADA.
+  NO recorre el flujo de visita → independiente de la ventana horaria.
+
+  **Pre-condición:** la reserva ESPECIAL por decoración (Bodas Premium, totalAPagar=60000) fechada
+  HOY 21:00 PENDIENTE está sembrada en `V3__dev_data.sql`. Si ya fue consumida, re-sembrar con
+  `docker compose down -v && docker compose up --build`.
+
+  **Reglas de dominio ejercidas (validadas en vivo):**
+  - Payload de abono: `{monto, metodo, tipo, fechaHora}` — `fechaHora` obligatorio.
+  - ANTICIPO ≤ totalAPagar (tope = saldo pendiente).
+  - DEVOLUCIÓN solo en reservas CANCELADAS (en CONFIRMADA → 409 NEG-002).
+  - DEVOLUCIÓN ≤ neto abonado (exceso → 409 NEG-001).
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Paso | Aserción |
+  |-------|------|----------|
+  | 100 | CAJERO descubre la reserva sembrada (hora 21:00) | tipo ESPECIAL, decoración, captura `tmpReservaId` |
+  | 110 | CAJERO confirmar | estado CONFIRMADA |
+  | 120 | CAJERO anticipo 40000 | success; success false si excede total |
+  | 130 | CAJERO detalle | montoAbonado=40000, saldoPendiente=20000 |
+  | 140 | CAJERO cancelar | estado CANCELADA |
+  | 150 | CAJERO devolución 15000 | success (permitida en cancelada) |
+  | 160 | CAJERO detalle | montoAbonado=25000 (NETO); CANCELADA → pendientePorDevolver=25000, saldoPendiente omitido; 2 abonos |
+
+  **Negativos de abono NO duplicados aquí** (ya cubiertos por la colección por-endpoint
+  `POST /api/reservas/{reservaId}/abonos`): AB-14 (anticipo sobre no-confirmada), AB-15
+  (devolución sobre no-cancelada), AB-16 (anticipo excede pendiente), AB-17 (devolución excede neto).

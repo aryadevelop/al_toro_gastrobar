@@ -1,0 +1,50 @@
+$kind: http-request
+name: 07 COCINERO notifica CAMBIO sobre la comanda del menú – 201 Created
+description: |-
+  Producción registra una notificación CAMBIO sobre la comanda COCINA del menú (PENDIENTE).
+  Payload `{comandaId}`. Respuesta 201 con `data.notificacionId` y `data.estado='ACTIVA'`.
+  Captura `tmpNotificacionId` para el atender-cambio.
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "comandaId": {{tmpComandaCocinaId}}
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCocinero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cocineroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la notificación CAMBIO (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La notificación queda ACTIVA y se captura su id', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.notificacionId, 'notificacionId').to.be.a('number');
+        pm.expect(data.estado).to.eql('ACTIVA');
+        pm.environment.set('tmpNotificacionId', data.notificacionId);
+      });
+    language: text/javascript
+order: 160

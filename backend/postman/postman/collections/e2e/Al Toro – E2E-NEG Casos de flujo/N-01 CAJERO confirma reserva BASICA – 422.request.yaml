@@ -1,0 +1,87 @@
+$kind: http-request
+name: N-01 CAJERO confirma reserva BÁSICA (no ESPECIAL) – 422 Unprocessable Entity
+description: |-
+  Solo una reserva ESPECIAL en estado PENDIENTE puede confirmarse. El beforeRequest crea por API
+  una reserva BÁSICA para HOY (queda CONFIRMADA al instante) y luego el CAJERO intenta confirmarla
+  → 422 NEG-002 ("Solo se pueden confirmar reservas especiales en estado pendiente.").
+url: "{{baseUrl}}/api/reservas/{{tmpNegReservaBasicaId}}/confirmar"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // fechaHoraLlegada = HOY 19:00 (dentro de 17:00–22:00; una BÁSICA no exige anticipación)
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      const fecha = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+
+      // Paso 1: CLIENTE (paola) crea una BÁSICA para hoy → estado CONFIRMADA
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('N-01: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            emailCliente: 'paola.rojas@gmail.com',
+            fechaHoraLlegada: fecha,
+            numeroPersonas: 2,
+            preOrden: [ { productoId: 36, cantidad: 1, esMenuEspecial: false } ]
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('N-01: crear BÁSICA falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpNegReservaBasicaId', r2.json().data.reservaId);
+
+          // Paso 2: login CAJERO para ejecutar la request principal
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, (e3, r3) => {
+            if (!e3 && r3 && r3.code === 200) {
+              const token = r3.json().accessToken;
+              pm.environment.set('cajeroToken', token);
+              pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+            } else {
+              console.warn('N-01: login CAJERO falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Confirmar una BÁSICA no es elegible → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.test('code = NEG-002 (estado inválido)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+      });
+      pm.environment.unset('tmpNegReservaBasicaId');
+    language: text/javascript
+order: 100

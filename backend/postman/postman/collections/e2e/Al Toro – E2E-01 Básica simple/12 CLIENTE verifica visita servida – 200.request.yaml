@@ -1,0 +1,45 @@
+$kind: http-request
+name: 12 CLIENTE verifica visita (ítems Servido + total consistente) – 200 OK
+description: |-
+  El cliente ve sus ítems como "Servido" (comanda LISTO) y el `total` coincide con la suma de subtotales.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Todos los ítems aparecen como "Servido"', function () {
+        const items = pm.response.json().data.items;
+        pm.expect(items, 'items').to.be.an('array').with.lengthOf.at.least(2);
+        items.forEach(i => pm.expect(i.estadoItem, 'estadoItem de ' + i.nombreProducto).to.eql('Servido'));
+      });
+      pm.test('totalPreorden = suma de subtotales de los ítems', function () {
+        const data = pm.response.json().data;
+        const suma = data.items.reduce((acc, i) => acc + Number(i.subtotal), 0);
+        pm.expect(Number(data.totalPreorden)).to.eql(suma);
+      });
+    language: text/javascript
+order: 210

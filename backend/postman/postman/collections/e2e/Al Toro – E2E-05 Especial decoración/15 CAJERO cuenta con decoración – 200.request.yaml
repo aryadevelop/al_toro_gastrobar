@@ -1,0 +1,42 @@
+$kind: http-request
+name: 15 CAJERO consulta cuenta (decoración) – 200 OK
+description: |-
+  La cuenta del cajero refleja el `valorDecoracion` y el cliente asociado (reserva de paola).
+  Captura `tmpClienteId` para el canje de puntos (la consulta de reservas no expone clienteId).
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La cuenta tiene valorDecoracion y cliente asociado', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.valorDecoracion), 'valorDecoracion').to.be.above(0);
+        pm.expect(data.clienteId, 'clienteId').to.be.a('number');
+        pm.environment.set('tmpClienteId', data.clienteId);
+      });
+    language: text/javascript
+order: 240

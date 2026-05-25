@@ -1,0 +1,46 @@
+$kind: http-request
+name: 07 MESERO edita SOLO la línea B (modificada) del borrador – 200 OK
+description: |-
+  Tras atender el cambio, la comanda volvió a BORRADOR. El mesero edita ÚNICAMENTE la línea modificada
+  (B, "sin cebolla") sin tocar la línea base (A). Cambia la descripción para reflejar el cambio.
+  // VERIFICAR EN VIVO: status 200 del PATCH sobre el ítem del borrador tras atender-cambio
+  // (los comandaItemId deben conservarse; si el atender-cambio regenerara ids, re-capturar con un GET borrador).
+url: "{{baseUrl}}/api/comandas/borrador/items/{{tmpItemModId}}"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "cantidad": 1,
+      "descripcion": "sin cebolla y sin tomate"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema actualiza la línea modificada (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 160

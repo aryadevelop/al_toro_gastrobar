@@ -1,0 +1,37 @@
+$kind: http-request
+name: 11 BARTENDER inicia preparación BARRA – 200 OK
+description: La comanda BARRA pasa PENDIENTE → EN_PREPARACION (estación barra, token de BARTENDER).
+url: "{{baseUrl}}/api/comandas/produccion/{{tmpComandaBarraId}}/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{bartenderToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailBartender'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('bartenderToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema inicia la preparación BARRA (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La comanda BARRA queda EN_PREPARACION', function () {
+        pm.expect(pm.response.json().data.comandaEstado).to.eql('EN_PREPARACION');
+      });
+    language: text/javascript
+order: 200

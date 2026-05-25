@@ -1,0 +1,47 @@
+$kind: http-request
+name: 11 CLIENTE verifica visita activa – Hamburguesa en DOS líneas – 200 OK
+description: |-
+  🔴 INVARIANTE CRÍTICO (vista del cliente). En `GET /api/visitas/activa` la Hamburguesa sigue como
+  DOS líneas separadas: una base (descripcion=null) y otra modificada (descripcion poblada). No se fusionan.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const data = pm.response.json().data;
+      const hamburguesas = (data.items || []).filter(i => i.nombreProducto && i.nombreProducto.includes('Hamburguesa'));
+
+      pm.test('Hamburguesa aparece en DOS líneas separadas en la visita del cliente', function () {
+        pm.expect(hamburguesas, 'líneas de Hamburguesa').to.have.lengthOf(2);
+        const base = hamburguesas.find(h => h.descripcion === null || h.descripcion === undefined);
+        const mod  = hamburguesas.find(h => h.descripcion && h.descripcion.length > 0);
+        pm.expect(base, 'línea base sin descripción').to.exist;
+        pm.expect(mod,  'línea modificada con descripción').to.exist;
+      });
+    language: text/javascript
+order: 200

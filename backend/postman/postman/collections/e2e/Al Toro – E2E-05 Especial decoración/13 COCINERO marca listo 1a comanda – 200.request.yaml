@@ -1,0 +1,37 @@
+$kind: http-request
+name: 13 COCINERO marca lista la 1ª comanda – 200 OK
+description: La 1ª comanda COCINA pasa EN_PREPARACION → LISTO. Ambas tandas quedan listas.
+url: "{{baseUrl}}/api/comandas/produccion/{{tmpComandaCocinaId}}/listo"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCocinero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cocineroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema marca lista la 1ª comanda (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La 1ª comanda queda LISTO', function () {
+        pm.expect(pm.response.json().data.comandaEstado).to.eql('LISTO');
+      });
+    language: text/javascript
+order: 220

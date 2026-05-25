@@ -150,5 +150,15 @@ values:
     value: ''
   - key: comandaIdCompletada
     value: ''
-  - key: accessToken
+  - key: tmpNotificacionId
+    value: ''
+  - key: tmpFechaHora
+    value: ''
+  - key: tmpComandaBarraId
+    value: ''
+  - key: tmpMenuItemCocinaId
+    value: ''
+  - key: tmpMenuGrupo
+    value: ''
+  - key: tmpMenuCantidadAntes
     value: ''

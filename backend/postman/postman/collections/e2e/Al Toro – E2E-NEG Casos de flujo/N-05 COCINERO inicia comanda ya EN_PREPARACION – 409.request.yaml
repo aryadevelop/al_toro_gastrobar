@@ -1,0 +1,100 @@
+$kind: http-request
+name: N-05 COCINERO inicia una comanda ya EN_PREPARACION – 409 Conflict
+description: |-
+  Iniciar solo aplica a comandas PENDIENTE. El beforeRequest crea un walk-in, arma y envía una
+  comanda de cocina, y la INICIA una vez (PENDIENTE → EN_PREPARACION). La request principal vuelve
+  a llamar `/iniciar` sobre la misma comanda → 409 NEG-002 ("Comanda no PENDIENTE"). Coincide con
+  la colección por-endpoint de producción AC-08.
+  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
+  ⚠️ `iniciar` descuenta inventario; correr muchas veces puede agotar stock del producto 36.
+url: "{{baseUrl}}/api/comandas/produccion/{{tmpNegComandaEnPrepId}}/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const ident = 'N05-' + (Date.now() % 1000000);
+
+      // Paso 1: login MESERO
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-05: login MESERO falló', e1, r1 && r1.code); return; }
+        const meseroToken = r1.json().accessToken;
+        const meseroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + meseroToken };
+
+        // Paso 2: walk-in
+        pm.sendRequest({
+          url: baseUrl + '/api/mesas', method: 'POST', header: meseroHdr,
+          body: { mode: 'raw', raw: JSON.stringify({
+            mesaIdentificador: ident, zonaId: 3, numeroPersonas: 2, reservaId: null
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-05: walk-in falló', e2, r2 && r2.code); return; }
+          const visitaId = r2.json().data.visitaId;
+
+          // Paso 3: agregar ítem (crea comanda COCINA)
+          pm.sendRequest({
+            url: baseUrl + '/api/comandas/borrador/items', method: 'POST', header: meseroHdr,
+            body: { mode: 'raw', raw: JSON.stringify({ visitaId: visitaId, productoId: 36, cantidad: 1 }) }
+          }, (e3, r3) => {
+            if (e3 || !r3 || r3.code !== 200) { console.warn('N-05: agregar ítem falló', e3, r3 && r3.code); return; }
+            const comandaCocinaId = r3.json().data.comandaCocinaId;
+
+            // Paso 4: enviar (PENDIENTE)
+            pm.sendRequest({
+              url: baseUrl + '/api/comandas/borrador/' + comandaCocinaId + '/enviar',
+              method: 'POST', header: { 'Authorization': 'Bearer ' + meseroToken }
+            }, (e4, r4) => {
+              if (e4 || !r4 || r4.code !== 200) { console.warn('N-05: enviar falló', e4, r4 && r4.code); return; }
+
+              // Paso 5: login COCINERO e iniciar la PRIMERA vez (PENDIENTE → EN_PREPARACION)
+              pm.sendRequest({
+                url: baseUrl + '/api/auth/login', method: 'POST',
+                header: { 'Content-Type': 'application/json' },
+                body: { mode: 'raw', raw: JSON.stringify({
+                  email: pm.environment.get('emailCocinero'),
+                  password: pm.environment.get('passwordValida'),
+                  forceSessionOverride: true
+                })}
+              }, (e5, r5) => {
+                if (e5 || !r5 || r5.code !== 200) { console.warn('N-05: login COCINERO falló', e5, r5 && r5.code); return; }
+                const cocineroToken = r5.json().accessToken;
+                pm.environment.set('cocineroToken', cocineroToken);
+
+                pm.sendRequest({
+                  url: baseUrl + '/api/comandas/produccion/' + comandaCocinaId + '/iniciar',
+                  method: 'POST', header: { 'Authorization': 'Bearer ' + cocineroToken }
+                }, (e6, r6) => {
+                  if (e6 || !r6 || r6.code !== 200) { console.warn('N-05: primer iniciar falló', e6, r6 && r6.code); return; }
+                  // La comanda ya está EN_PREPARACION; la request principal vuelve a iniciar.
+                  pm.environment.set('tmpNegComandaEnPrepId', comandaCocinaId);
+                  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + cocineroToken });
+                });
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Re-iniciar una comanda EN_PREPARACION → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-002 (estado inválido)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+      });
+      pm.environment.unset('tmpNegComandaEnPrepId');
+    language: text/javascript
+order: 500

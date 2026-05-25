@@ -1,0 +1,54 @@
+$kind: http-request
+name: 01 CAJERO descubre la reserva sembrada (hora 21:00) – 200 OK
+description: |-
+  Primer paso: el CAJERO consulta las reservas del día y localiza la sembrada para E2E-08
+  (única a las 21:00). Captura su reservaId en `tmpReservaId`. Como puede haber varias por
+  re-corridas del seed, toma el reservaId MAYOR a esa hora.
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo CAJERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('E2E-08/01: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Existe una reserva ESPECIAL sembrada a las 21:00', function () {
+        const reservas = pm.response.json().data.reservas;
+        const candidatas = reservas.filter(r =>
+          r.horaLlegada === '21:00' && r.tipo === 'ESPECIAL' && r.estado === 'PENDIENTE');
+        // E2E-08 CONSUME su reserva (confirmar→cancelar). El seed vive en V3__dev_data.sql:
+        // para volver a tener una PENDIENTE del día, reinicia la BD (docker compose down -v && up --build).
+        pm.expect(candidatas.length,
+          'No hay reserva ESPECIAL PENDIENTE a las 21:00 → reinicia la BD (down -v && up --build) para re-sembrar V3'
+        ).to.be.above(0);
+        // Tomar el reservaId mayor (más reciente ante re-corridas del seed)
+        const elegida = candidatas.reduce((a, b) => (b.reservaId > a.reservaId ? b : a));
+        pm.expect(elegida.decoracionNombre, 'es especial por decoración').to.eql('Bodas Premium');
+        pm.environment.set('tmpReservaId', elegida.reservaId);
+      });
+    language: text/javascript
+order: 100

@@ -1,0 +1,52 @@
+$kind: http-request
+name: 06 CAJERO registrar devolución 15000 (TARJETA) – 201 Created
+description: |-
+  Registra una DEVOLUCIÓN de 15000 sobre la reserva ya CANCELADA. Es ≤ neto abonado (40000),
+  por lo que se acepta. `fechaHora` obligatorio (ahora − 60s).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "monto": 15000,
+      "metodo": "TARJETA",
+      "tipo": "DEVOLUCION",
+      "fechaHora": "{{tmpFechaHora}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date(Date.now() - 60000);
+      pm.environment.set('tmpFechaHora',
+        `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema acepta la devolución (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 150

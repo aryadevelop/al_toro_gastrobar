@@ -1,0 +1,40 @@
+$kind: http-request
+name: 07 CLIENTE visita activa refleja asistencia solicitada – 200 OK
+description: Verifica que la visita refleja `asistenciaSolicitada=true` y captura el id de la notificación de asistencia.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('asistenciaSolicitada=true y captura notificacionAsistenciaId', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.asistenciaSolicitada).to.be.true;
+        pm.expect(data.notificacionAsistenciaId, 'notificacionAsistenciaId').to.be.a('number');
+        pm.environment.set('tmpNotifAsistenciaId', data.notificacionAsistenciaId);
+      });
+    language: text/javascript
+order: 160

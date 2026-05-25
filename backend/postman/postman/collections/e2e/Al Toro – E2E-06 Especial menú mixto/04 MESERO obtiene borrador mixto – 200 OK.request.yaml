@@ -1,0 +1,61 @@
+$kind: http-request
+name: 04 MESERO obtiene borrador mixto precargado – 200 OK
+description: |-
+  El borrador trae la pre-orden MIXTA: el par de menú especial (COCINA precio completo + BARRA bebida 0,
+  mismo `menuGrupo`) MÁS al menos un ítem de carta. Captura las dos comandas (cocina/barra) y el
+  `comandaItemId` del plato de menú (línea COCINA del par) en `tmpMenuItemCocinaId`.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId={{tmpVisitaId}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El borrador mixto trae el par de menú + carta', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaCocinaId, 'comandaCocinaId').to.be.a('number');
+        pm.expect(data.comandaBarraId, 'comandaBarraId').to.be.a('number');
+        pm.environment.set('tmpComandaCocinaId', data.comandaCocinaId);
+        pm.environment.set('tmpComandaBarraId', data.comandaBarraId);
+
+        // Línea COCINA del menú (con menuGrupo) → guardar su comandaItemId para el ajuste posterior.
+        const platoMenu = (data.platos || []).find(p => p.menuGrupo);
+        pm.expect(platoMenu, 'plato del menú especial (con menuGrupo)').to.be.an('object');
+        pm.environment.set('tmpMenuItemCocinaId', platoMenu.comandaItemId);
+        pm.environment.set('tmpMenuGrupo', platoMenu.menuGrupo);
+
+        // Bebida del par (mismo menuGrupo, precio 0).
+        const bebidaMenu = (data.bebidas || []).find(b => b.menuGrupo === platoMenu.menuGrupo);
+        // VERIFICAR EN VIVO: la bebida del par de menú debe venir con precioUnitario 0 y mismo menuGrupo.
+        pm.expect(bebidaMenu, 'bebida del menú especial (mismo menuGrupo)').to.be.an('object');
+        pm.expect(Number(bebidaMenu.precioUnitario), 'bebida de menú a precio 0').to.eql(0);
+
+        // Debe existir además ≥1 ítem de carta (sin menuGrupo) en la pre-orden mixta.
+        const itemCarta = (data.platos || []).find(p => !p.menuGrupo);
+        // VERIFICAR EN VIVO: el seed E2E-06 debe traer el ítem de carta junto al par de menú.
+        pm.expect(itemCarta, 'ítem de carta de la pre-orden mixta (sin menuGrupo)').to.be.an('object');
+      });
+    language: text/javascript
+order: 130

@@ -1,0 +1,93 @@
+$kind: http-request
+name: N-13 CAJERO reasigna cliente en una visita ya cerrada – 409 Conflict
+description: |-
+  `PATCH /api/visitas/{id}/cliente` sobre una visita cerrada → 409 NEG-002 (no se puede reasignar
+  cliente tras el cierre). El beforeRequest crea un walk-in con un ítem, lo cierra como CAJERO, y la
+  request principal intenta asignar un cliente. Coincide con la colección por-endpoint
+  PATCH /api/visitas/{visitaId}/cliente AC-07.
+  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
+  // VERIFICAR EN VIVO: setup pesado (walk-in→armar→cerrar) antes de la reasignación. El clienteId
+  // del query param (11) debe corresponder a un cliente existente del seed.
+url: "{{baseUrl}}/api/visitas/{{tmpNegVisitaClienteId}}/cliente?clienteId=11"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  clienteId: "11"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const ident = 'N13-' + (Date.now() % 1000000);
+      const emailCajero = pm.environment.get('emailCajero');
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-13: login MESERO falló', e1, r1 && r1.code); return; }
+        const meseroToken = r1.json().accessToken;
+        const meseroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + meseroToken };
+
+        pm.sendRequest({
+          url: baseUrl + '/api/mesas', method: 'POST', header: meseroHdr,
+          body: { mode: 'raw', raw: JSON.stringify({
+            mesaIdentificador: ident, zonaId: 3, numeroPersonas: 2, reservaId: null
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-13: walk-in falló', e2, r2 && r2.code); return; }
+          const visitaId = r2.json().data.visitaId;
+
+          pm.sendRequest({
+            url: baseUrl + '/api/comandas/borrador/items', method: 'POST', header: meseroHdr,
+            body: { mode: 'raw', raw: JSON.stringify({ visitaId: visitaId, productoId: 36, cantidad: 1 }) }
+          }, (e3, r3) => {
+            if (e3 || !r3 || r3.code !== 200) { console.warn('N-13: agregar ítem falló', e3, r3 && r3.code); return; }
+
+            pm.sendRequest({
+              url: baseUrl + '/api/auth/login', method: 'POST',
+              header: { 'Content-Type': 'application/json' },
+              body: { mode: 'raw', raw: JSON.stringify({
+                email: emailCajero,
+                password: pm.environment.get('passwordValida'),
+                forceSessionOverride: true
+              })}
+            }, (e4, r4) => {
+              if (e4 || !r4 || r4.code !== 200) { console.warn('N-13: login CAJERO falló', e4, r4 && r4.code); return; }
+              const cajeroToken = r4.json().accessToken;
+              pm.environment.set('cajeroToken', cajeroToken);
+
+              pm.sendRequest({
+                url: baseUrl + '/api/ventas', method: 'POST',
+                header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cajeroToken },
+                body: { mode: 'raw', raw: JSON.stringify({
+                  emailCajero: emailCajero, visitaId: visitaId, descuento: 0, metodo: 'EFECTIVO'
+                })}
+              }, (e5, r5) => {
+                if (e5 || !r5 || r5.code !== 201) { console.warn('N-13: cierre falló', e5, r5 && r5.code); return; }
+                pm.environment.set('tmpNegVisitaClienteId', visitaId);
+                pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + cajeroToken });
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reasignar cliente en visita cerrada → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-002 (estado inválido)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+      });
+      pm.environment.unset('tmpNegVisitaClienteId');
+    language: text/javascript
+order: 1300

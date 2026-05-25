@@ -1,0 +1,30 @@
+$kind: collection
+name: Al Toro – E2E-07 Walk-in asignar cliente
+description: |-
+  **Escenario E2E-07** · Walk-in (sin reserva) al que el CAJERO asigna un cliente vía búsqueda parcial
+  de correo → otorga +1 punto al cerrar.
+  TR=WALK-IN · PO=ninguna · BR=vacío · PU=walk-in→asignado (+1) · MP=TRANSFERENCIA.
+
+  **Pre-condición:** NO requiere seed. La visita walk-in se crea por API (`reservaId=null`).
+  **Cliente:** paola.rojas@gmail.com — se localiza por fragmento de correo (`?correo=paola`) y se
+  asigna a la visita ya existente.
+  **Ventana horaria:** la asignación de mesa valida 17:00–22:00 (`LocalTime.now()`).
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | MESERO | Asignar mesa walk-in (`reservaId=null`) | 201; captura `tmpVisitaId` |
+  | 110 | MESERO | Agregar Hamburguesa (36) al borrador | 200 |
+  | 120 | MESERO | GET borrador | captura `tmpComandaCocinaId` |
+  | 130 | MESERO | Enviar comanda COCINA | 200 |
+  | 140 | COCINERO | Iniciar preparación | EN_PREPARACION |
+  | 150 | COCINERO | Marcar listo | LISTO |
+  | 160 | CAJERO | Buscar cliente por fragmento (`?correo=paola`) | ≥1 coincidencia; captura `tmpClienteId` (paola) |
+  | 170 | CAJERO | Puntos antes | captura `tmpPuntosAntes` |
+  | 180 | CAJERO | Asignar cliente a la visita (`?clienteId=`) | 200 |
+  | 190 | CAJERO | Cuenta preliminar | `clienteId` ahora poblado (= `tmpClienteId`) |
+  | 200 | CAJERO | Cerrar cuenta (TRANSFERENCIA) | 201 |
+  | 210 | CAJERO | Puntos después | `puntosActuales` = `tmpPuntosAntes` + 1 |
+
+  **Aserciones clave:** (1) la búsqueda por fragmento devuelve coincidencias (no exige email exacto);
+  (2) `clienteId` pasa de null → poblado tras asignar; (3) +1 punto al cliente recién asignado.

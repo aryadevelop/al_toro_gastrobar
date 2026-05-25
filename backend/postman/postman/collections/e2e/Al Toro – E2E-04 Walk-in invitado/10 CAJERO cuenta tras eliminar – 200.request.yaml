@@ -1,0 +1,43 @@
+$kind: http-request
+name: 10 CAJERO consulta cuenta tras eliminar el ítem – 200 OK
+description: |-
+  Verifica que el ítem eliminado ya no aparece en la cuenta y que el total bajó respecto a `tmpTotalAntes`.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El ítem eliminado ya no está y el total bajó', function () {
+        const data = pm.response.json().data;
+        const idEliminado = Number(pm.environment.get('tmpItemEliminar'));
+        const ids = data.items.map(i => i.comandaItemId);
+        pm.expect(ids, 'el ítem eliminado no debe estar').to.not.include(idEliminado);
+        pm.expect(data.items.length).to.be.below(Number(pm.environment.get('tmpItemsAntes')));
+        pm.expect(Number(data.totalAPagar)).to.be.below(Number(pm.environment.get('tmpTotalAntes')));
+      });
+    language: text/javascript
+order: 190

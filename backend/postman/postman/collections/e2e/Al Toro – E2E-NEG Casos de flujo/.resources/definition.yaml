@@ -1,0 +1,28 @@
+$kind: collection
+name: Al Toro – E2E-NEG Casos de flujo
+description: |-
+  Casos NEGATIVOS de flujo / transición de estado (N-01…N-13 del plan
+  `docs/superpowers/plans/2026-05-25-pruebas-integracion-e2e-por-rol.md` §5).
+
+  A diferencia de los escenarios E2E-NN (secuencias ordenadas que comparten estado), cada
+  request de esta colección es AUTOSUFICIENTE: su `beforeRequest` prepara el estado mínimo
+  necesario (crear reserva, asignar mesa, armar y cerrar una visita, etc.) y luego la request
+  principal provoca la transición inválida. No dependen del orden entre sí.
+
+  Cubre transiciones de estado prohibidas, NO los 403 por rol ni los 422 de validación de
+  payload (ya cubiertos por las colecciones por-endpoint). N-11 y N-12 se incluyen aquí por
+  ser reglas de cierre/canje aunque su status sea 422.
+
+  Login autónomo por rol en cada `beforeRequest` (emails de entorno: emailMesero, emailCajero,
+  emailCocinero; CLIENTE = paola.rojas@gmail.com hardcodeado; password `passwordValida`).
+
+  Respuestas de error: `{ "success": false, "code": "<CODE>", "message": "..." }`. Cada test
+  asevera el status HTTP y, cuando aplica, el `code` serializado (NEG-001, NEG-002, ENT-001…).
+
+  ⚠️ VENTANA HORARIA 17:00–22:00: los negativos que asignan mesa (N-08, N-09, N-13 — arman y
+  cierran una visita walk-in) requieren correrse dentro de esa ventana, porque `POST /api/mesas`
+  valida `LocalTime.now()`. Los negativos puros de reserva/comanda/canje no dependen de la hora.
+
+  ⚠️ DATOS SEMBRADOS: N-02 descubre una reserva ESPECIAL PENDIENTE sembrada en V3 (cualquier
+  hora; este caso NO la confirma). N-12 usa el cliente seed `sinpuntos@altoro.com` (clienteId 23).
+  Para datos frescos: `docker compose down -v && docker compose up --build`.

@@ -1,0 +1,91 @@
+$kind: http-request
+name: N-07 CAJERO cierra cuenta con descuento mayor al total – 409 Conflict
+description: |-
+  Un descuento superior al total de la cuenta viola la regla de cierre → 409 NEG-001. El
+  beforeRequest crea un walk-in con un ítem de carta (cuenta > 0) y deja la visita abierta. La
+  request principal cierra con un descuento desproporcionado. Coincide con la colección
+  por-endpoint VE-06.
+  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": {{tmpNegVisitaDescuentoId}},
+      "descuento": 99999999,
+      "metodo": "EFECTIVO"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const ident = 'N07-' + (Date.now() % 1000000);
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-07: login MESERO falló', e1, r1 && r1.code); return; }
+        const meseroToken = r1.json().accessToken;
+        const meseroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + meseroToken };
+
+        pm.sendRequest({
+          url: baseUrl + '/api/mesas', method: 'POST', header: meseroHdr,
+          body: { mode: 'raw', raw: JSON.stringify({
+            mesaIdentificador: ident, zonaId: 3, numeroPersonas: 2, reservaId: null
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-07: walk-in falló', e2, r2 && r2.code); return; }
+          const visitaId = r2.json().data.visitaId;
+
+          // agregar ítem para que la cuenta tenga total > 0
+          pm.sendRequest({
+            url: baseUrl + '/api/comandas/borrador/items', method: 'POST', header: meseroHdr,
+            body: { mode: 'raw', raw: JSON.stringify({ visitaId: visitaId, productoId: 36, cantidad: 1 }) }
+          }, (e3, r3) => {
+            if (e3 || !r3 || r3.code !== 200) { console.warn('N-07: agregar ítem falló', e3, r3 && r3.code); return; }
+            pm.environment.set('tmpNegVisitaDescuentoId', visitaId);
+
+            // login CAJERO para la request principal
+            pm.sendRequest({
+              url: baseUrl + '/api/auth/login', method: 'POST',
+              header: { 'Content-Type': 'application/json' },
+              body: { mode: 'raw', raw: JSON.stringify({
+                email: pm.environment.get('emailCajero'),
+                password: pm.environment.get('passwordValida'),
+                forceSessionOverride: true
+              })}
+            }, (e4, r4) => {
+              if (!e4 && r4 && r4.code === 200) {
+                const token = r4.json().accessToken;
+                pm.environment.set('cajeroToken', token);
+                pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+              } else { console.warn('N-07: login CAJERO falló', e4, r4 && r4.code); }
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Descuento > total → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-001 (regla violada)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-001');
+      });
+      pm.environment.unset('tmpNegVisitaDescuentoId');
+    language: text/javascript
+order: 700

@@ -1,0 +1,45 @@
+$kind: http-request
+name: N-12 CAJERO canjea puntos de cliente con saldo 0 – 422 Unprocessable Entity
+description: |-
+  El canje exige saldo de puntos > 0. Se usa el cliente seed `sinpuntos@altoro.com` (clienteId 23,
+  saldo 0 permanente) → 422. Caso autosuficiente: solo requiere token CAJERO. Coincide con la
+  colección por-endpoint PC-07.
+url: "{{baseUrl}}/api/clientes/23/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('N-12: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Canje sin saldo → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.test('El mensaje indica ausencia de puntos para canjear', function () {
+        const msg = (pm.response.json().message || '').toLowerCase();
+        pm.expect(msg).to.satisfy(m => m.includes('punto') || m.includes('canjear'));
+      });
+    language: text/javascript
+order: 1200

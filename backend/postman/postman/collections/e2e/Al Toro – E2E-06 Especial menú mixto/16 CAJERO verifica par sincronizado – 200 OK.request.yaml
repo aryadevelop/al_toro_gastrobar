@@ -1,0 +1,58 @@
+$kind: http-request
+name: 16 CAJERO verifica el par sincronizado tras el ajuste – 200 OK
+description: |-
+  ASERCIÓN CLAVE de E2E-06: tras ajustar la cantidad del menú a 2, AMBAS líneas del par (cocina y
+  barra del mismo `menuGrupo`) deben quedar en cantidad 2, y la bebida debe seguir con
+  `precioUnitario=0`.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El ajuste de cantidad sincroniza el par (cocina + barra = 2) y la bebida sigue en 0', function () {
+        const data = pm.response.json().data;
+        const items = []
+          .concat(data.platos || [])
+          .concat(data.bebidas || [])
+          .concat(data.items || []);
+        const grupo = pm.environment.get('tmpMenuGrupo');
+        const lineasMenu = items.filter(i => i.menuGrupo && (!grupo || i.menuGrupo === grupo));
+        pm.expect(lineasMenu.length, 'líneas del par de menú').to.be.at.least(2);
+
+        const cocina = lineasMenu.find(i => Number(i.precioUnitario) > 0);
+        const barra = lineasMenu.find(i => Number(i.precioUnitario) === 0);
+        pm.expect(cocina, 'línea COCINA del menú').to.be.an('object');
+        pm.expect(barra, 'línea BARRA del menú').to.be.an('object');
+
+        // (a) ambas líneas del par cambian a la nueva cantidad (2)
+        pm.expect(Number(cocina.cantidad), 'cantidad cocina tras ajuste').to.eql(2);
+        pm.expect(Number(barra.cantidad), 'cantidad barra tras ajuste (sincronizada)').to.eql(2);
+        // (b) la bebida sigue en precio 0
+        pm.expect(Number(barra.precioUnitario), 'bebida sigue a precio 0').to.eql(0);
+      });
+    language: text/javascript
+order: 250

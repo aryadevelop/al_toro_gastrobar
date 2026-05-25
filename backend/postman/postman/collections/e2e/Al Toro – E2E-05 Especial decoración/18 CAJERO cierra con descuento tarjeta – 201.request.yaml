@@ -1,0 +1,47 @@
+$kind: http-request
+name: 18 CAJERO cierra la cuenta con descuento (TARJETA) – 201 Created
+description: |-
+  Registra la venta y cierra la visita con descuento y método TARJETA. El total (ítems + decoración)
+  se recalcula en el servidor; el cajero solo envía descuento y método. Otorga +1 punto de lealtad.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": {{tmpVisitaId}},
+      "descuento": 5000,
+      "metodo": "TARJETA"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema cierra la cuenta (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 270

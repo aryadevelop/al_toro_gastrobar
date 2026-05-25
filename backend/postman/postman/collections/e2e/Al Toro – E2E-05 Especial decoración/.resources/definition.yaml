@@ -1,0 +1,39 @@
+$kind: collection
+name: Al Toro – E2E-05 Especial decoración
+description: |-
+  **Escenario E2E-05** · Reserva ESPECIAL POR DECORACIÓN (sin menú, sin pre-orden), armado en visita,
+  con 2ª tanda en producción, descuento y canje de puntos antes de cerrar.
+  TR=ESPECIAL(decoración) · CF=confirmar (sin anticipo) · BR=vacío · BA=2ª tanda · DE=con descuento ·
+  PU=canje antes de cerrar (reset) · MP=TARJETA.
+
+  **Pre-condición (seed):** reserva ESPECIAL por decoración (Bodas Premium, costo 60000) fechada
+  HOY **20:00** PENDIENTE, sembrada en `V3__dev_data.sql` a nombre de paola. Si ya fue consumida,
+  re-sembrar con `docker compose down -v && docker compose up --build`.
+  **Cliente:** paola.rojas@gmail.com (hardcodeado en el paso de cliente). El `clienteId` se captura
+  de la cuenta del cajero (la consulta de reservas NO expone clienteId, solo clienteNombre).
+  **Ventana horaria:** la asignación de mesa valida 17:00–22:00 (`LocalTime.now()`).
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | CAJERO | Descubre reserva 20:00 ESPECIAL Bodas Premium | tipo ESPECIAL, decoración; captura `tmpReservaId` |
+  | 110 | CAJERO | Confirmar (sin anticipo) | CONFIRMADA |
+  | 120 | MESERO | Asignar mesa (reserva) | 201; borrador vacío; captura `tmpVisitaId` |
+  | 130 | MESERO | Agregar Hamburguesa (1ª comanda) | 200 |
+  | 140 | MESERO | GET borrador | captura `tmpComandaCocinaId` |
+  | 150 | MESERO | Enviar 1ª COCINA | 200 |
+  | 160 | COCINERO | Iniciar 1ª | EN_PREPARACION |
+  | 170 | MESERO | Agregar Picanha (2ª tanda, nuevo borrador) | 200 |
+  | 180 | MESERO | GET borrador (nuevo) | captura `tmpComandaCocinaId2` ≠ `tmpComandaCocinaId` |
+  | 190 | MESERO | Enviar 2ª COCINA | 200 |
+  | 200 | COCINERO | Iniciar 2ª | EN_PREPARACION |
+  | 210 | COCINERO | Listo 2ª | LISTO |
+  | 220 | COCINERO | Listo 1ª | LISTO |
+  | 230 | CLIENTE | Visita activa | `valorDecoracion` presente; `totalAPagar = totalPreorden + valorDecoracion` (acumula ambas tandas) |
+  | 240 | CAJERO | Cuenta | `valorDecoracion` presente; captura `tmpClienteId` |
+  | 250 | CAJERO | Canjea puntos del cliente (reset) | 200; captura `tmpPuntosTrasCanje` |
+  | 260 | CAJERO | Cerrar con descuento (TARJETA) | 201 |
+  | 270 | CAJERO | Puntos tras cierre | `puntosActuales = tmpPuntosTrasCanje + 1` |
+
+  **Aserción clave:** `valorDecoracion` aparece en la cuenta y suma al `totalAPagar` aunque la reserva
+  NO tenga menú especial (ESPECIAL por decoración).
