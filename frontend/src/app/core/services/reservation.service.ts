@@ -4,16 +4,19 @@ import { combineLatest, map, Observable, of } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
+  BackendAbonoItem,
+  BackendCancelarReservaResponse,
+  BackendConfirmarReservaResponse,
+  BackendCrearReservaRequest,
+  BackendDisponibilidadResponse,
+  BackendPreOrdenItem,
   BackendRegistrarAbonoRequest,
   BackendRegistrarAbonoResponse,
   BackendResumenPagoResponse,
-  BackendCancelarReservaResponse,
-  BackendCrearReservaRequest,
-  BackendDisponibilidadResponse,
   BackendMarcarInasistenciaResponse,
   BackendModificarReservaResponse,
-  BackendReservaDetalle,
   BackendListadoReservasResponse,
+  BackendReservaDetalle,
 } from '../models/api.models';
 import { Pago, Reserva } from '../models/domain.models';
 import { AuthService } from './auth.service';
@@ -34,9 +37,35 @@ export interface ReservationAvailability {
 
 export interface ReservationDetailData {
   reservation: Reserva;
+  clienteId?: string;
+  rawEstado: string;
+  rawTipo?: string;
   preOrderTotal: number;
+  totalReserva: number;
+  valorDecoracion: number;
   totalPaid: number;
-  payments: Pago[];
+  payments: ReservationDetailPayment[];
+  preOrderItemsDetail: ReservationDetailPreOrderItem[];
+  canConfirm: boolean;
+  canAddAnticipo: boolean;
+  canAddDevolucion: boolean;
+  canCancel: boolean;
+}
+
+export interface ReservationDetailPreOrderItem {
+  productId: string;
+  productName: string;
+  quantity: number;
+  unitPrice: number;
+  subtotal: number;
+  description?: string;
+  isSpecialMenu?: boolean;
+  modificationLabels: string[];
+}
+
+export interface ReservationDetailPayment extends Pago {
+  tipo?: string;
+  rawMetodo: string;
 }
 
 export interface ReservationUpdateResult {
@@ -161,6 +190,30 @@ export class ReservationService {
           }));
 
           return { reservas, resumenZonas };
+        })
+      );
+  }
+
+  confirmar(reservaId: string): Observable<ReservationUpdateResult> {
+    return this.http
+      .patch<ApiEnvelope<BackendConfirmarReservaResponse>>(API_PATHS.reservas.confirmar(reservaId), {})
+      .pipe(
+        map((response) => {
+          const data = response.data;
+          const reservation = this.toReserva({
+            reservaId: data.reservaId,
+            fechaHoraLlegada: data.fechaHoraLlegada,
+            numeroPersonas: data.numeroPersonas,
+            estado: data.estado,
+            tipo: data.tipo,
+            clienteNombre: data.clienteNombre,
+            zonaNombre: data.zonaNombre,
+          });
+
+          return {
+            reservation,
+            requiresWhatsApp: false,
+          } satisfies ReservationUpdateResult;
         })
       );
   }
@@ -306,17 +359,25 @@ export class ReservationService {
       .pipe(
         map((response) => {
           const detail = response.data;
+          const rawEstado = detail.estado ?? '';
+          const rawTipo = detail.tipo;
+          const abonos = detail.abonos ?? [];
+
           return {
             reservation: this.toReserva(detail),
+            clienteId: detail.clienteId ? String(detail.clienteId) : undefined,
+            rawEstado,
+            rawTipo,
             preOrderTotal: detail.preOrdenTotal ?? 0,
+            totalReserva: detail.total ?? 0,
+            valorDecoracion: detail.valorDecoracion ?? 0,
             totalPaid: detail.totalAbonado ?? 0,
-            payments: (detail.abonos ?? []).map((item) => ({
-              id: String(item.abonoId),
-              saleId: String(detail.reservaId),
-              method: this.toPaymentMethod(item.metodo),
-              amount: item.monto,
-              paidAt: item.fechaHora,
-            })),
+            payments: abonos.map((item) => this.toDetailPayment(item, detail.reservaId)),
+            preOrderItemsDetail: (detail.preOrdenItems ?? []).map((item) => this.toDetailPreOrderItem(item)),
+            canConfirm: this.canConfirmFromState(rawEstado, rawTipo),
+            canAddAnticipo: this.canAddAnticipoFromState(rawEstado),
+            canAddDevolucion: this.canAddDevolucionFromState(rawEstado, abonos.length),
+            canCancel: this.canCancelFromState(rawEstado),
           } satisfies ReservationDetailData;
         })
       );
@@ -504,6 +565,49 @@ export class ReservationService {
     }
 
     return undefined;
+  }
+
+  private toDetailPayment(item: BackendAbonoItem, reservaId: number): ReservationDetailPayment {
+    return {
+      id: String(item.abonoId),
+      saleId: String(reservaId),
+      method: this.toPaymentMethod(item.metodo),
+      amount: item.monto,
+      paidAt: item.fechaHora,
+      tipo: item.tipo,
+      rawMetodo: item.metodo,
+    };
+  }
+
+  private toDetailPreOrderItem(item: BackendPreOrdenItem): ReservationDetailPreOrderItem {
+    const unitPrice = item.precioUnitario ?? 0;
+    return {
+      productId: String(item.productoId),
+      productName: item.productoNombre,
+      quantity: item.cantidad,
+      unitPrice,
+      subtotal: unitPrice * item.cantidad,
+      description: item.descripcion,
+      isSpecialMenu: Boolean(item.modificaciones && item.modificaciones.length > 0),
+      modificationLabels: (item.modificaciones ?? []).map((mod) => mod.opcionNombre),
+    };
+  }
+
+  private canConfirmFromState(rawEstado: string, rawTipo?: string): boolean {
+    return (rawEstado ?? '').toUpperCase() === 'PENDIENTE' && (rawTipo ?? '').toUpperCase() === 'ESPECIAL';
+  }
+
+  private canAddAnticipoFromState(rawEstado: string): boolean {
+    return (rawEstado ?? '').toUpperCase() === 'CONFIRMADA';
+  }
+
+  private canAddDevolucionFromState(rawEstado: string, abonosCount: number): boolean {
+    return (rawEstado ?? '').toUpperCase() === 'CANCELADA' && abonosCount > 0;
+  }
+
+  private canCancelFromState(rawEstado: string): boolean {
+    const normalized = (rawEstado ?? '').toUpperCase();
+    return normalized === 'PENDIENTE' || normalized === 'CONFIRMADA';
   }
 
   private toResumenPago(input: BackendResumenPagoResponse): ReservationPaymentSummary {

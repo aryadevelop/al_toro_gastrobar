@@ -32,14 +32,22 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
       <app-page-header title="Reservas" subtitle="Gestión de reservas y abonos"></app-page-header>
 
       <div class="search-bar card">
-        <input
-          class="input-field"
-          type="text"
-          placeholder="Buscar por identificador o fecha (YYYY-MM-DD)"
-          [value]="searchQuery"
-          (input)="onSearchInput($event)"
-          (keyup.enter)="buscar()"
-        />
+        <label class="search-field">
+          <span>Fecha</span>
+          <input class="input-field" type="date" [value]="selectedDate" (change)="onDateChange($event)" />
+        </label>
+        <label class="search-field">
+          <span>Identificador</span>
+          <input
+            class="input-field"
+            type="text"
+            inputmode="numeric"
+            placeholder="Ej: 123"
+            [value]="searchIdentifier"
+            (input)="onIdentifierInput($event)"
+            (keyup.enter)="buscar()"
+          />
+        </label>
         <button class="btn-primary" type="button" (click)="buscar()">Buscar</button>
       </div>
 
@@ -75,6 +83,14 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
               <button
                 class="card-btn"
                 type="button"
+                *ngIf="r.mostrarConfirmar"
+                (click)="confirmarReserva(r)"
+              >
+                Confirmar
+              </button>
+              <button
+                class="card-btn"
+                type="button"
                 *ngIf="r.mostrarAgregarAnticipo"
                 (click)="openAbonoForm(r, 'ANTICIPO')"
               >
@@ -86,7 +102,15 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
                 *ngIf="r.mostrarAgregarDevolucion"
                 (click)="openAbonoForm(r, 'DEVOLUCION')"
               >
-                Agregar devolución
+                Confirmar devolución
+              </button>
+              <button
+                class="card-btn card-btn-danger"
+                type="button"
+                *ngIf="r.mostrarCancelar"
+                (click)="onCancelReservaRequested(r)"
+              >
+                Cancelar reserva
               </button>
             </div>
           </article>
@@ -102,15 +126,52 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
           <h3>Detalle de la reserva</h3>
 
           <div *ngIf="detailData" class="modal-body">
+            <p *ngIf="detailData.clienteId"><strong>ID Cliente:</strong> {{ detailData.clienteId }}</p>
             <p><strong>Cliente:</strong> {{ detailData.reservation.guestName }}</p>
+            <p *ngIf="detailData.reservation.phone"><strong>Teléfono:</strong> {{ detailData.reservation.phone }}</p>
             <p><strong>Fecha y hora:</strong> {{ detailData.reservation.date }} {{ detailData.reservation.time }}</p>
             <p><strong>Personas:</strong> {{ detailData.reservation.guests }}</p>
             <p><strong>Estado:</strong> {{ estadoLabel(detailRawEstado) }}</p>
+            <p *ngIf="detailData.reservation.decorationName"><strong>Decoración:</strong> {{ detailData.reservation.decorationName }}</p>
+            <p *ngIf="detailData.reservation.zoneName"><strong>Zona:</strong> {{ detailData.reservation.zoneName }}</p>
+            <p *ngIf="detailData.reservation.type"><strong>Tipo:</strong> {{ detailData.reservation.type === 'SPECIAL' ? 'Especial' : 'Básica' }}</p>
+
+            <div class="detail-block" *ngIf="detailData.preOrderItemsDetail.length">
+              <h4>Pre-orden</h4>
+              <ul class="detail-list">
+                <li *ngFor="let item of detailData.preOrderItemsDetail">
+                  <span>{{ item.productName }} x{{ item.quantity }}</span>
+                  <small>{{ formatMoney(item.subtotal) }}</small>
+                </li>
+              </ul>
+            </div>
+
+            <div class="detail-block" *ngIf="detailData.payments.length">
+              <h4>Abonos realizados</h4>
+              <ul class="detail-list">
+                <li *ngFor="let p of detailData.payments">
+                  <span>{{ paymentTypeLabel(p.tipo) }} · {{ paymentMethodLabel(p.rawMetodo) }} · {{ formatDateTime(p.paidAt) }}</span>
+                  <small>{{ formatMoney(p.amount) }}</small>
+                </li>
+              </ul>
+            </div>
+
+            <p><strong>Total preorden:</strong> {{ formatMoney(detailData.preOrderTotal) }}</p>
+            <p><strong>Total reserva:</strong> {{ formatMoney(detailData.totalReserva) }}</p>
             <p><strong>Total abonado:</strong> {{ formatMoney(detailData.totalPaid) }}</p>
+            <p *ngIf="detailData.reservation.notes"><strong>Notas:</strong> {{ detailData.reservation.notes }}</p>
           </div>
 
-          <div class="modal-actions" *ngIf="selectedReservaForDetail as reserva">
+          <div class="modal-actions" *ngIf="selectedReservaForDetail as reserva; else detailActionsByState">
             <button class="card-btn" type="button" (click)="cerrarDetalle()">Cerrar</button>
+            <button
+              class="card-btn"
+              type="button"
+              *ngIf="reserva.mostrarConfirmar"
+              (click)="confirmarReserva(reserva)"
+            >
+              Confirmar
+            </button>
             <button
               class="btn-primary"
               type="button"
@@ -125,9 +186,23 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
               *ngIf="reserva.mostrarAgregarDevolucion"
               (click)="openAbonoForm(reserva, 'DEVOLUCION')"
             >
-              Agregar devolución
+              Confirmar devolución
+            </button>
+            <button
+              class="card-btn card-btn-danger"
+              type="button"
+              *ngIf="reserva.mostrarCancelar"
+              (click)="onCancelReservaRequested(reserva)"
+            >
+              Cancelar reserva
             </button>
           </div>
+
+          <ng-template #detailActionsByState>
+            <div class="modal-actions" *ngIf="detailData">
+              <button class="card-btn" type="button" (click)="cerrarDetalle()">Cerrar</button>
+            </div>
+          </ng-template>
         </div>
       </div>
 
@@ -210,14 +285,25 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
         (cancel)="showCancelConfirmDialog = false"
         (confirm)="confirmCancelAbono()"
       ></app-confirm-dialog>
+
+      <app-confirm-dialog
+        [open]="showCancelReservaConfirmDialog"
+        title="Cancelar reserva"
+        message="¿Desea registrar la cancelación de la reserva?"
+        cancelLabel="Volver"
+        confirmLabel="Confirmar"
+        (cancel)="showCancelReservaConfirmDialog = false"
+        (confirm)="confirmCancelReserva()"
+      ></app-confirm-dialog>
     </section>
   `,
   styles: [
     `
       :host { display: block; }
       .reservas-shell { gap: 1rem; }
-      .search-bar { padding: 0.8rem; display: flex; gap: 0.5rem; }
-      .search-bar .input-field { flex: 1; min-width: 0; }
+      .search-bar { padding: 0.8rem; display: flex; gap: 0.6rem; align-items: flex-end; flex-wrap: wrap; }
+      .search-field { display: grid; gap: 0.2rem; flex: 1; min-width: 170px; }
+      .search-field span { font-size: 0.76rem; color: var(--muted); font-weight: 600; }
       .empty-note { margin: 0; color: var(--muted); font-size: 0.9rem; }
 
       .zona-group { display: grid; gap: 0.55rem; }
@@ -279,6 +365,11 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
       }
       .modal-card h3 { margin: 0; }
       .modal-body p { margin: 0.2rem 0; font-size: 0.84rem; }
+      .detail-block { margin-top: 0.5rem; }
+      .detail-block h4 { margin: 0 0 0.35rem; font-size: 0.86rem; }
+      .detail-list { margin: 0; padding-left: 1rem; display: grid; gap: 0.2rem; }
+      .detail-list li { display: flex; justify-content: space-between; gap: 0.6rem; font-size: 0.82rem; }
+      .detail-list small { color: var(--muted); }
       .modal-actions { display: flex; justify-content: flex-end; gap: 0.45rem; flex-wrap: wrap; }
 
       .abono-modal form { display: grid; gap: 0.55rem; }
@@ -302,7 +393,8 @@ type AbonoTipo = 'ANTICIPO' | 'DEVOLUCION';
   ],
 })
 export class ReservasCajeroPageComponent implements OnDestroy {
-  searchQuery = '';
+  selectedDate = this.todayIsoDate();
+  searchIdentifier = '';
   zonaGroups: ZonaGroup[] = [];
   loading = false;
   message = '';
@@ -323,7 +415,9 @@ export class ReservasCajeroPageComponent implements OnDestroy {
   abonoTargetReserva: ReservationListCajeroItem | null = null;
   abonoResumen: ReservationPaymentSummary | null = null;
   showCancelConfirmDialog = false;
+  showCancelReservaConfirmDialog = false;
   montoMaxMessage = '';
+  pendingCancelReserva: ReservationListCajeroItem | null = null;
 
   readonly abonoForm = this.fb.nonNullable.group({
     monto: ['', [Validators.required]],
@@ -355,28 +449,23 @@ export class ReservasCajeroPageComponent implements OnDestroy {
     }
   }
 
-  onSearchInput(event: Event): void {
+  onIdentifierInput(event: Event): void {
     const target = event.target as HTMLInputElement;
-    this.searchQuery = target.value;
+    this.searchIdentifier = target.value.replace(/[^0-9]/g, '');
+  }
+
+  onDateChange(event: Event): void {
+    const target = event.target as HTMLInputElement;
+    this.selectedDate = target.value || this.todayIsoDate();
+    this.buscar();
   }
 
   buscar(showLoading = true): void {
     this.message = '';
     if (showLoading) this.loading = true;
 
-    let fechaParam: string | undefined;
-    let identificadorParam: string | undefined;
-
-    const q = this.searchQuery.trim();
-    if (q) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(q)) {
-        fechaParam = q;
-      } else if (/^\d+$/.test(q)) {
-        identificadorParam = q;
-      } else {
-        fechaParam = q;
-      }
-    }
+    const fechaParam = this.selectedDate;
+    const identificadorParam = this.searchIdentifier.trim() || undefined;
 
     this.reservationService
       .listForCajero(fechaParam, identificadorParam)
@@ -425,7 +514,7 @@ export class ReservasCajeroPageComponent implements OnDestroy {
       next: (data) => {
         this.detailData = data;
         this.selectedReservaForDetail = reserva;
-        this.detailRawEstado = reserva.rawEstado;
+        this.detailRawEstado = data.rawEstado;
         this.showDetail = true;
       },
       error: () => {
@@ -439,6 +528,51 @@ export class ReservasCajeroPageComponent implements OnDestroy {
     this.detailData = undefined;
     this.selectedReservaForDetail = null;
     this.detailRawEstado = '';
+  }
+
+  confirmarReserva(reserva: ReservationListCajeroItem): void {
+    this.reservationService.confirmar(reserva.id).subscribe({
+      next: () => {
+        this.showToast('Reserva confirmada correctamente');
+        this.buscar(false);
+        if (this.showDetail && this.selectedReservaForDetail?.id === reserva.id) {
+          this.verDetalle(reserva);
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        const msg = this.extractBackendMessage(err);
+        this.showToast(msg || 'No fue posible confirmar la reserva.', true);
+      },
+    });
+  }
+
+  onCancelReservaRequested(reserva: ReservationListCajeroItem): void {
+    this.pendingCancelReserva = reserva;
+    this.showCancelReservaConfirmDialog = true;
+  }
+
+  confirmCancelReserva(): void {
+    this.showCancelReservaConfirmDialog = false;
+    const reserva = this.pendingCancelReserva;
+    this.pendingCancelReserva = null;
+    if (!reserva) return;
+
+    this.reservationService.cancel(reserva.id).subscribe({
+      next: (result) => {
+        this.showToast('Reserva cancelada correctamente');
+        if (result.requiresWhatsApp) {
+          this.showToast(result.whatsappMessage || 'La reserva tenía abonos. Debe registrar el desembolso correspondiente.');
+        }
+        this.buscar(false);
+        if (this.showDetail && this.selectedReservaForDetail?.id === reserva.id) {
+          this.verDetalle(reserva);
+        }
+      },
+      error: (err: HttpErrorResponse) => {
+        const msg = this.extractBackendMessage(err);
+        this.showToast(msg || 'No fue posible cancelar la reserva.', true);
+      },
+    });
   }
 
   openAbonoForm(reserva: ReservationListCajeroItem, tipo: AbonoTipo): void {
@@ -607,6 +741,19 @@ export class ReservasCajeroPageComponent implements OnDestroy {
     return parsed.toLocaleString('es-CO', { dateStyle: 'short', timeStyle: 'short' });
   }
 
+  paymentMethodLabel(raw: string): string {
+    const normalized = (raw ?? '').toUpperCase();
+    if (normalized === 'EFECTIVO') return 'Efectivo';
+    if (normalized === 'TARJETA') return 'Tarjeta';
+    if (normalized === 'TRANSFERENCIA') return 'Transferencia';
+    return 'Otro';
+  }
+
+  paymentTypeLabel(raw?: string): string {
+    const normalized = (raw ?? '').toUpperCase();
+    return normalized === 'DEVOLUCION' ? 'Devolución' : 'Anticipo';
+  }
+
   ngOnDestroy(): void {
     this.pollingSub?.unsubscribe();
     this.wsSub?.unsubscribe();
@@ -636,6 +783,11 @@ export class ReservasCajeroPageComponent implements OnDestroy {
         map.set(key, group);
       }
       group.reservas.push(reserva);
+    }
+
+    for (const group of map.values()) {
+      group.reservas.sort((a, b) => a.time.localeCompare(b.time));
+      group.cantidadReservas = group.reservas.length;
     }
 
     return Array.from(map.values()).filter((g) => g.reservas.length > 0);
@@ -673,6 +825,14 @@ export class ReservasCajeroPageComponent implements OnDestroy {
   private toIsoFromLocal(value: string): string {
     const parsed = new Date(value);
     return Number.isNaN(parsed.getTime()) ? value : parsed.toISOString();
+  }
+
+  private todayIsoDate(): string {
+    const today = new Date();
+    const y = today.getFullYear();
+    const m = String(today.getMonth() + 1).padStart(2, '0');
+    const d = String(today.getDate()).padStart(2, '0');
+    return `${y}-${m}-${d}`;
   }
 
   private showToast(msg: string, danger = false): void {

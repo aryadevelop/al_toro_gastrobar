@@ -9,6 +9,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Mesero', path: '/app/mesero', icon: 'restaurant', roles: ['MESERO'] },
   { label: 'Producción', path: '/app/produccion', icon: 'kitchen', roles: ['PRODUCCION'] },
   { label: 'Cajero', path: '/app/cajero', icon: 'payments', roles: ['CAJERO'] },
+  { label: 'Reservas', path: '/app/cajero/reservas', icon: 'history', roles: ['CAJERO'] },
   { label: 'Administrador', path: '/app/admin', icon: 'shield', roles: ['ADMIN'] },
   { label: 'Historial visitas', path: '/app/admin/cliente-historial', icon: 'history', roles: ['ADMIN'] },
   { label: 'Mi perfil', path: '/app/profile', icon: 'badge', roles: ['ADMIN', 'CLIENTE', 'MESERO', 'PRODUCCION', 'CAJERO'] }

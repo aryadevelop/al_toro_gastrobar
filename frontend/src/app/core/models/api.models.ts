@@ -159,6 +159,16 @@ export interface BackendModificarReservaResponse {
   mensajeWhatsApp?: string;
 }
 
+export interface BackendConfirmarReservaResponse {
+  reservaId: number;
+  estado: string;
+  tipo?: string;
+  fechaHoraLlegada: string;
+  numeroPersonas: number;
+  clienteNombre?: string;
+  zonaNombre?: string;
+}
+
 export interface BackendCancelarReservaResponse {
   reservaId: number;
   estado: string;
