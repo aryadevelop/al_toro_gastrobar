@@ -1,6 +1,8 @@
 package co.edu.unicauca.backend.modules.usuarios.controller;
 
+import co.edu.unicauca.backend.modules.usuarios.dto.response.ClienteBusquedaResponse;
 import co.edu.unicauca.backend.modules.usuarios.dto.response.ClientePuntosResponse;
+import co.edu.unicauca.backend.modules.usuarios.service.ClienteBusquedaService;
 import co.edu.unicauca.backend.modules.usuarios.service.PuntosService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
@@ -13,6 +15,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.Authentication;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
 
 /**
  * Controlador REST para la consulta y gestión de puntos de fidelización.
@@ -31,6 +35,7 @@ import org.springframework.web.bind.annotation.*;
 public class ClienteController {
 
     private final PuntosService puntosService;
+    private final ClienteBusquedaService clienteBusquedaService;
 
     /**
      * Retorna los puntos actuales y acumulados del cliente autenticado.
@@ -93,6 +98,22 @@ public class ClienteController {
 
         ClientePuntosResponse response = puntosService.canjearPuntos(clienteId, emailEmpleado);
         return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    /**
+     * Busca clientes por coincidencia parcial de correo, para que el cajero
+     * relacione la cuenta de una mesa con un cliente.
+     *
+     * @param correo fragmento del correo a buscar
+     * @return lista de clientes coincidentes (vacía si no hay coincidencias)
+     */
+    @GetMapping("/buscar")
+    @PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")
+    @Operation(summary = "Buscar clientes por coincidencia parcial de correo")
+    public ResponseEntity<ApiResponse<List<ClienteBusquedaResponse>>> buscarClientes(
+            @RequestParam String correo) {
+        List<ClienteBusquedaResponse> data = clienteBusquedaService.buscarPorEmail(correo);
+        return ResponseEntity.ok(ApiResponse.ok(data));
     }
 
     /**

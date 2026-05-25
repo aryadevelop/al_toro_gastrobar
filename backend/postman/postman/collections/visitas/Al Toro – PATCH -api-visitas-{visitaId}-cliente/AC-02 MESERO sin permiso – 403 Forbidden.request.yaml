@@ -1,0 +1,36 @@
+$kind: http-request
+name: AC-02 MESERO sin permiso – 403 Forbidden
+url: "{{baseUrl}}/api/visitas/15/cliente?clienteId=11"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  clienteId: "11"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('MESERO no puede asignar cliente → 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('code = AUTH-002', function () {
+        pm.expect(pm.response.json().code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 2000

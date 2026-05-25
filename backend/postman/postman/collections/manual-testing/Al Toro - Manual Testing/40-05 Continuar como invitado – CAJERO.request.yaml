@@ -1,0 +1,33 @@
+$kind: http-request
+name: 40-05 Continuar como invitado – CAJERO
+description: Marca la visita como invitado (sin clienteId → cliente queda en null) (CA-04). Usar una visita ABIERTA (p.ej. 15).
+url: "{{baseUrl}}/api/visitas/15/cliente"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 4050
