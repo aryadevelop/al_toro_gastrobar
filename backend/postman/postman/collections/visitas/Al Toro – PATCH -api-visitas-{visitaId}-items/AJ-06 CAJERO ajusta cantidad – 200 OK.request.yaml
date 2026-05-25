@@ -1,0 +1,60 @@
+$kind: http-request
+name: AJ-06 CAJERO ajusta cantidad – 200 OK
+description: |-
+  Obtiene dinámicamente un comandaItemId real de la cuenta de la visita 19 y ajusta su cantidad.
+  Verifica 200 y que la cuenta recalculada vuelve consistente.
+url: "{{baseUrl}}/api/visitas/19/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "items": [ { "comandaItemId": {{tmpAjusteItemId}}, "cantidad": 2 } ] }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          // Probar la cuenta de la visita 19 para tomar un comandaItemId real
+          pm.sendRequest({
+            url: baseUrl + '/api/ventas/19/cuenta',
+            method: 'GET',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, function (e2, r2) {
+            if (!e2 && r2 && r2.code === 200) {
+              const items = r2.json().data.items;
+              if (items && items.length) {
+                pm.environment.set('tmpAjusteItemId', items[0].comandaItemId);
+              }
+            }
+          });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Ajuste válido → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      const d = pm.response.json().data;
+      pm.test('cuenta recalculada consistente', function () {
+        const suma = d.items.reduce((acc, it) => acc + Number(it.subtotal), 0);
+        pm.expect(Number(d.totalPreorden)).to.be.closeTo(suma, 0.001);
+      });
+      pm.environment.unset('tmpAjusteItemId');
+    language: text/javascript
+order: 6000

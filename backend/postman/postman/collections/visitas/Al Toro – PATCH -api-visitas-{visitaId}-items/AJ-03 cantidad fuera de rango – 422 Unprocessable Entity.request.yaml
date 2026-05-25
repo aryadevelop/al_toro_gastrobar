@@ -1,0 +1,37 @@
+$kind: http-request
+name: AJ-03 cantidad fuera de rango – 422 Unprocessable Entity
+description: cantidad 300 viola @Max(250) → 422 (validación de bean, no llega al servicio).
+url: "{{baseUrl}}/api/visitas/19/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "items": [ { "comandaItemId": 1, "cantidad": 300 } ] }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('cantidad > 250 → 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 3000

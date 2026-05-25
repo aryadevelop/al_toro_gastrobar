@@ -14,6 +14,10 @@ import java.math.BigDecimal;
 
 /**
  * DTO de entrada para cerrar la cuenta de una visita y registrar la venta.
+ *
+ * <p>El subtotal y el total NO se reciben del cliente: se recalculan en el servidor
+ * a partir de las comandas persistidas para evitar manipulación. El cajero solo
+ * aporta el descuento aplicado y el método de pago.
  */
 @Getter
 @Builder
@@ -21,29 +25,14 @@ import java.math.BigDecimal;
 @AllArgsConstructor
 public class CerrarCuentaRequest {
 
-    /**
-     * Correo del cajero que realiza el cierre de cuenta; obligatorio.
-     */
+    /** Correo del cajero que realiza el cierre de cuenta; obligatorio. */
     @NotNull(message = "El email del cajero es obligatorio")
     @Email(message = "El email del cajero no tiene un formato válido")
     private String emailCajero;
 
-    /**
-     * Identificador de la visita cuya cuenta se va a cerrar; obligatorio.
-     * Debe corresponder a una visita existente sin venta previa.
-     */
+    /** Identificador de la visita cuya cuenta se va a cerrar; obligatorio. */
     @NotNull(message = "El identificador de la visita es obligatorio")
     private Long visitaId;
-
-    /**
-     * Subtotal de la cuenta (suma de los ítems de comanda) antes de descuentos;
-     * no puede ser negativo; obligatorio.
-     */
-    @NotNull(message = "El subtotal es obligatorio")
-    @DecimalMin(value = "0.00", message = "El subtotal no puede ser negativo")
-    @Digits(integer = 10, fraction = 2,
-            message = "El subtotal debe tener máximo 10 dígitos enteros y 2 decimales")
-    private BigDecimal subtotal;
 
     /**
      * Descuento aplicado a la cuenta; no puede ser negativo.
@@ -54,17 +43,7 @@ public class CerrarCuentaRequest {
             message = "El descuento debe tener máximo 10 dígitos enteros y 2 decimales")
     private BigDecimal descuento;
 
-    /**
-     * Total final cobrado al cliente ({@code subtotal - descuento});
-     * no puede ser negativo; obligatorio.
-     */
-    @NotNull(message = "El total es obligatorio")
-    @DecimalMin(value = "0.00", message = "El total no puede ser negativo")
-    @Digits(integer = 10, fraction = 2,
-            message = "El total debe tener máximo 10 dígitos enteros y 2 decimales")
-    private BigDecimal total;
-
     /** Método de pago utilizado para cerrar la cuenta; obligatorio. */
-    @NotNull(message = "El método de pago es obligatorio")
+    @NotNull(message = "Se debe seleccionar el método de pago")
     private MetodoPago metodo;
 }

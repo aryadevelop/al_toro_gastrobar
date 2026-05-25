@@ -1,20 +1,10 @@
 $kind: http-request
-name: 60-01 Cerrar Cuenta – CAJERO
-description: Registrar venta y cerrar cuenta de una visita. El total se recalcula en el servidor; el cajero solo envía descuento y método.
-url: "{{baseUrl}}/api/ventas"
-method: POST
+name: 60-02 Cuenta preliminar – CAJERO
+description: Obtiene la cuenta preliminar de una visita (ítems, totales, decoración, abonos, saldo y puntos). Usar ID=1 como ejemplo.
+url: "{{baseUrl}}/api/ventas/1/cuenta"
+method: GET
 headers:
   Authorization: Bearer {{tmpCajeroToken}}
-  Content-Type: application/json
-body:
-  type: json
-  content: |-
-    {
-      "emailCajero": "cajero1@altoro.com",
-      "visitaId": 13,
-      "descuento": 5000.00,
-      "metodo": "EFECTIVO"
-    }
 scripts:
   - type: beforeRequest
     code: |-
@@ -38,7 +28,6 @@ scripts:
       });
     language: text/javascript
   - type: afterResponse
-    code: |-
-      pm.environment.unset('tmpCajeroToken');
+    code: pm.environment.unset('tmpCajeroToken');
     language: text/javascript
-order: 6010
+order: 6020

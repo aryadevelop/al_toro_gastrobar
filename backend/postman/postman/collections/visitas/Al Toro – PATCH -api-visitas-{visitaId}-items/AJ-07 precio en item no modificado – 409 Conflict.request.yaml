@@ -1,0 +1,55 @@
+$kind: http-request
+name: AJ-07 precio en item no modificado – 409 Conflict
+description: |-
+  Toma un ítem NO modificado (esModificado=false) de la cuenta de la visita 19 e intenta
+  editar su precio → 409 NEG-001 ("Solo se puede editar el precio de ítems modificados").
+url: "{{baseUrl}}/api/visitas/19/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "items": [ { "comandaItemId": {{tmpNoModItemId}}, "cantidad": 1, "precio": 5000 } ] }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.sendRequest({
+            url: baseUrl + '/api/ventas/19/cuenta',
+            method: 'GET',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, function (e2, r2) {
+            if (!e2 && r2 && r2.code === 200) {
+              const noMod = (r2.json().data.items || []).find(it => it.esModificado === false);
+              if (noMod) pm.environment.set('tmpNoModItemId', noMod.comandaItemId);
+            }
+          });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Precio en ítem no modificado → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-001', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-001');
+      });
+      pm.environment.unset('tmpNoModItemId');
+    language: text/javascript
+order: 7000

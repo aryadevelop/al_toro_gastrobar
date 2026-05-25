@@ -1,0 +1,37 @@
+$kind: http-request
+name: VE-04 Sin metodo de pago – 422 Unprocessable Entity
+description: Sin "metodo" el @NotNull falla → 422 (CA-13 "Se debe seleccionar el método de pago").
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "emailCajero": "cajero1@altoro.com", "visitaId": 16, "descuento": 0 }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Sin método → 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 4000

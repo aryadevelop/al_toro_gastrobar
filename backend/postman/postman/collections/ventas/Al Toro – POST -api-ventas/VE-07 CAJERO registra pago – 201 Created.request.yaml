@@ -1,0 +1,42 @@
+$kind: http-request
+name: VE-07 CAJERO registra pago – 201 Created
+description: |-
+  Registra el pago de la visita abierta 18 (ATENDIDA con ítems). SINGLE-USE: cierra la visita.
+  Verifica 201. Para repetir, re-seed la base de datos.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "emailCajero": "cajero1@altoro.com", "visitaId": 18, "descuento": 1000, "metodo": "TARJETA" }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Pago registrado → 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('respuesta success=true', function () {
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 7000

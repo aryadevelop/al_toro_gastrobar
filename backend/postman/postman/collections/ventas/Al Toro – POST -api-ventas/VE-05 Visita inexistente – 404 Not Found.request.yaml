@@ -1,0 +1,39 @@
+$kind: http-request
+name: VE-05 Visita inexistente – 404 Not Found
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    { "emailCajero": "cajero1@altoro.com", "visitaId": 999999, "descuento": 0, "metodo": "EFECTIVO" }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Visita inexistente → 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('code = ENT-001', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 5000

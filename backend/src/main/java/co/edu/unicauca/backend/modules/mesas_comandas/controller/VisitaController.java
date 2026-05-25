@@ -1,17 +1,21 @@
 package co.edu.unicauca.backend.modules.mesas_comandas.controller;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.dto.request.AjustarItemsRequest;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.EstadoVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.CuentaAjusteService;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.VisitaEstadoService;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.VisitaService;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionService;
+import co.edu.unicauca.backend.modules.pagos_caja.dto.response.CuentaPreliminarResponse;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -35,6 +39,7 @@ public class VisitaController {
     private final VisitaService visitaService;
     private final VisitaEstadoService visitaEstadoService;
     private final NotificacionService notificacionService;
+    private final CuentaAjusteService cuentaAjusteService;
 
     /**
      * Retorna el historial de visitas de un cliente, ordenadas de la más reciente a la más antigua.
@@ -154,5 +159,40 @@ public class VisitaController {
 
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Solicitud de asistencia enviada.", response));
+    }
+
+    /**
+     * Relaciona la cuenta de la visita con un cliente, o la marca como invitado
+     * cuando {@code clienteId} se omite.
+     *
+     * @param visitaId  identificador de la visita
+     * @param clienteId identificador del cliente; omitido = invitado
+     */
+    @PatchMapping("/{visitaId}/cliente")
+    @PreAuthorize("hasRole('CAJERO')")
+    @Operation(summary = "Asignar cliente a la visita o continuar como invitado")
+    public ResponseEntity<ApiResponse<Void>> asignarCliente(
+            @PathVariable Long visitaId,
+            @RequestParam(required = false) Long clienteId) {
+        visitaService.asignarCliente(visitaId, clienteId);
+        return ResponseEntity.ok(ApiResponse.ok("Cliente de la visita actualizado", null));
+    }
+
+    /**
+     * Ajusta en bloque los ítems de la cuenta (cantidades, precios de ítems
+     * modificados y eliminaciones) y devuelve la cuenta recalculada.
+     *
+     * @param visitaId identificador de la visita
+     * @param request  cambios a aplicar
+     * @return la cuenta preliminar recalculada
+     */
+    @PatchMapping("/{visitaId}/items")
+    @PreAuthorize("hasRole('CAJERO')")
+    @Operation(summary = "Ajustar cantidades/precios y eliminar ítems de la cuenta")
+    public ResponseEntity<ApiResponse<CuentaPreliminarResponse>> ajustarItems(
+            @PathVariable Long visitaId,
+            @Valid @RequestBody AjustarItemsRequest request) {
+        CuentaPreliminarResponse data = cuentaAjusteService.ajustarItems(visitaId, request);
+        return ResponseEntity.ok(ApiResponse.ok("Ajustes guardados", data));
     }
 }

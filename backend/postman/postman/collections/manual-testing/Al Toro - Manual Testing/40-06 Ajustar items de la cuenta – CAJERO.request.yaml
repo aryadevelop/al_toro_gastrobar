@@ -1,8 +1,8 @@
 $kind: http-request
-name: 60-01 Cerrar Cuenta – CAJERO
-description: Registrar venta y cerrar cuenta de una visita. El total se recalcula en el servidor; el cajero solo envía descuento y método.
-url: "{{baseUrl}}/api/ventas"
-method: POST
+name: 40-06 Ajustar items de la cuenta – CAJERO
+description: Ajusta cantidades/precios y elimina ítems de la cuenta (CA-06/07/08/09). Usar comandaItemId reales de la visita.
+url: "{{baseUrl}}/api/visitas/19/items"
+method: PATCH
 headers:
   Authorization: Bearer {{tmpCajeroToken}}
   Content-Type: application/json
@@ -10,10 +10,10 @@ body:
   type: json
   content: |-
     {
-      "emailCajero": "cajero1@altoro.com",
-      "visitaId": 13,
-      "descuento": 5000.00,
-      "metodo": "EFECTIVO"
+      "items": [
+        { "comandaItemId": 59, "cantidad": 2 }
+      ],
+      "eliminados": []
     }
 scripts:
   - type: beforeRequest
@@ -38,7 +38,6 @@ scripts:
       });
     language: text/javascript
   - type: afterResponse
-    code: |-
-      pm.environment.unset('tmpCajeroToken');
+    code: pm.environment.unset('tmpCajeroToken');
     language: text/javascript
-order: 6010
+order: 4060
