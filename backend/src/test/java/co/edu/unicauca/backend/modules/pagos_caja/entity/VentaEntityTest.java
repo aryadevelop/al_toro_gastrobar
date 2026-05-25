@@ -61,6 +61,7 @@ class VentaEntityTest {
     }
 
     @Test
+    @SuppressWarnings("unlikely-arg-type")
     void equals_objetoNoVenta_devuelveFalse() {
         Venta v = Venta.builder().visitaId(1L).build();
         assertThat(v.equals("string")).isFalse();

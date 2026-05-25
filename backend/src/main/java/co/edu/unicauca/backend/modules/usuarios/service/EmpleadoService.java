@@ -149,7 +149,7 @@ public class EmpleadoService {
     }
 
     public String cambiarEstadoEmpleado(Long empleadoId, String estado) {
-        Empleado empleado = empleadoRepository.findById(empleadoId)
+        empleadoRepository.findById(empleadoId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND,
                         "Empleado no encontrado", HttpStatus.NOT_FOUND));
 

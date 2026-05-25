@@ -1,6 +1,5 @@
 package co.edu.unicauca.backend.modules.usuarios.service;
 
-import co.edu.unicauca.backend.modules.auth.entity.Sesion;
 import co.edu.unicauca.backend.modules.auth.entity.Usuario;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.repository.UsuarioRepository;
@@ -30,7 +29,6 @@ import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.crypto.password.PasswordEncoder;
 
 import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,7 +74,6 @@ class EmpleadoServiceTest {
 
         @Test
         @DisplayName("Crea el empleado y asigna roles")
-        @SuppressWarnings("null")
         void creaEmpleadoYAsignaRoles() {
             when(usuarioRepository.findByUsuarioEmail(anyString())).thenReturn(Optional.empty());
             when(empleadoRepository.existsByEmpleadoTelefono(anyString())).thenReturn(false);
@@ -262,15 +259,6 @@ class EmpleadoServiceTest {
                 .empleadoTelefono("3005555555")
                 .empleadoDireccion("Calle 55")
                 .empleadoFechaIngreso(LocalDate.now())
-                .build();
-
-        Sesion sesion = Sesion.builder()
-                .sesionId(1L)
-                .usuario(usuario)
-                .sesionToken("token")
-                .sesionRefreshToken("refresh")
-                .sesionActiva(true)
-                .sesionFechaCreacion(LocalDateTime.now())
                 .build();
 
         when(empleadoRepository.findById(5L)).thenReturn(Optional.of(empleado));

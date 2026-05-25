@@ -29,7 +29,6 @@ import org.springframework.security.core.Authentication;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 
@@ -76,9 +75,8 @@ class ReservaServiceInasistenciaTest {
     void setUp() {
         // Mock default: Authentication como MESERO (lenient para evitar UnnecessaryStubbingException)
         lenient().when(authentication.getName()).thenReturn(EMAIL_MESERO);
-        lenient().when(authentication.getAuthorities()).thenReturn(
-                (Collection) List.of(new SimpleGrantedAuthority("ROLE_MESERO"))
-        );
+        lenient().doReturn(List.of(new SimpleGrantedAuthority("ROLE_MESERO")))
+                .when(authentication).getAuthorities();
     }
 
     // -----------------------------------------------------------------------

@@ -128,6 +128,7 @@ class AbonoTest {
 
     @Test
     @DisplayName("equals() con objeto de distinto tipo → retorna false")
+    @SuppressWarnings("unlikely-arg-type")
     void equals_tipoDistinto_retornaFalse() {
         Abono abono = Abono.builder().abonoId(1L).build();
 

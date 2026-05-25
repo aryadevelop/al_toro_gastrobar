@@ -27,7 +27,6 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.security.core.authority.SimpleGrantedAuthority;
 
 import java.time.LocalDateTime;
-import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -86,7 +85,6 @@ class MesaServiceTest {
         return empleado;
     }
 
-    @SuppressWarnings("unchecked")
     private Authentication crearAuthentication(String email, String... roles) {
         List<GrantedAuthority> authorities = List.of(roles).stream()
                 .map(role -> new SimpleGrantedAuthority("ROLE_" + role))
@@ -94,7 +92,7 @@ class MesaServiceTest {
 
         Authentication auth = mock(Authentication.class);
         lenient().when(auth.getName()).thenReturn(email);
-        lenient().when(auth.getAuthorities()).thenReturn((Collection) authorities);
+        lenient().doReturn(authorities).when(auth).getAuthorities();
         
         return auth;
     }
@@ -221,7 +219,7 @@ class MesaServiceTest {
             mesaService.obtenerMapaMesas(null, auth);
 
             // Assert
-            ArgumentCaptor<List<Notificacion>> notifCaptor = ArgumentCaptor.forClass(List.class);
+            ArgumentCaptor<List<Notificacion>> notifCaptor = ArgumentCaptor.captor();
             ArgumentCaptor<Boolean> borradorCaptor = ArgumentCaptor.forClass(Boolean.class);
             ArgumentCaptor<String> emailCaptor = ArgumentCaptor.forClass(String.class);
             ArgumentCaptor<Boolean> esCajeroCaptor = ArgumentCaptor.forClass(Boolean.class);
