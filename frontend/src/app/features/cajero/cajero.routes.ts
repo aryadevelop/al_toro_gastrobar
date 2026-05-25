@@ -3,6 +3,11 @@ import { Routes } from '@angular/router';
 export const CAJERO_ROUTES: Routes = [
   {
     path: '',
+    pathMatch: 'full',
+    redirectTo: 'mapa-mesas'
+  },
+  {
+    path: 'dashboard',
     loadComponent: () => import('./pages/cajero-dashboard/cajero-dashboard.component').then((m) => m.CajeroDashboardComponent)
   },
   {
