@@ -74,7 +74,6 @@ class EmpleadoServiceTest {
 
         @Test
         @DisplayName("Crea el empleado y asigna roles")
-        @SuppressWarnings("null")
         void creaEmpleadoYAsignaRoles() {
             when(usuarioRepository.findByUsuarioEmail(anyString())).thenReturn(Optional.empty());
             when(empleadoRepository.existsByEmpleadoTelefono(anyString())).thenReturn(false);
