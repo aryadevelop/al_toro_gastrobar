@@ -27,6 +27,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.flyway.enabled=false"
 })
 class VisitaRepositoryTest {
@@ -101,6 +102,28 @@ class VisitaRepositoryTest {
             Optional<Visita> result = visitaRepo.findByReserva_ReservaId(9999L);
 
             assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("findByIdForUpdate")
+    class FindByIdForUpdate {
+
+        @Test
+        @DisplayName("Recupera la visita existente con bloqueo")
+        void visitaExistente_laRetorna() {
+            Visita v = visita(LocalDateTime.now());
+
+            Optional<Visita> result = visitaRepo.findByIdForUpdate(v.getVisitaId());
+
+            assertThat(result).isPresent();
+            assertThat(result.get().getVisitaId()).isEqualTo(v.getVisitaId());
+        }
+
+        @Test
+        @DisplayName("Id inexistente retorna vacío")
+        void idInexistente_retornaVacio() {
+            assertThat(visitaRepo.findByIdForUpdate(999999L)).isEmpty();
         }
     }
 }

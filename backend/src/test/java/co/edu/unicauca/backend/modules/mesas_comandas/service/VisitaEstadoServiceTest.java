@@ -45,6 +45,7 @@ class VisitaEstadoServiceTest {
     @Mock MesaRepository mesaRepository;
     @Mock ComandaRepository comandaRepository;
     @Mock NotificacionRepository notificacionRepository;
+    @Mock co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository abonoRepository;
 
     VisitaEstadoMapper visitaEstadoMapper;
     VisitaEstadoService visitaEstadoService;
@@ -60,6 +61,7 @@ class VisitaEstadoServiceTest {
                 mesaRepository,
                 comandaRepository,
                 notificacionRepository,
+                abonoRepository,
                 visitaEstadoMapper
         );
     }
@@ -104,7 +106,7 @@ class VisitaEstadoServiceTest {
             Comanda c1 = comanda(1L, EstadoComanda.EN_PREPARACION);
             ComandaItem i1 = item(100L, c1, "Bandeja", 2, new BigDecimal("18000"));
 
-            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
+            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(List.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.of(mesa));
             when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(i1));
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
@@ -119,7 +121,7 @@ class VisitaEstadoServiceTest {
             assertThat(res.getItems()).hasSize(1);
             assertThat(res.getItems().get(0).getEstadoItem()).isEqualTo("En preparación");
             assertThat(res.getItems().get(0).getSubtotal()).isEqualByComparingTo("36000");
-            assertThat(res.getTotal()).isEqualByComparingTo("36000");
+            assertThat(res.getTotalPreorden()).isEqualByComparingTo("36000");
             assertThat(res.isAsistenciaSolicitada()).isFalse();
         }
 
@@ -130,7 +132,7 @@ class VisitaEstadoServiceTest {
             Comanda c1 = comanda(2L, EstadoComanda.LISTO);
             ComandaItem i1 = item(101L, c1, "Limonada", 1, new BigDecimal("8000"));
 
-            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
+            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(List.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
             when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of(i1));
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
@@ -152,7 +154,7 @@ class VisitaEstadoServiceTest {
                     .notificacionEstado(EstadoNotificacion.ACTIVA)
                     .build();
 
-            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
+            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(List.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
             when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
@@ -168,7 +170,7 @@ class VisitaEstadoServiceTest {
         @Test
         @DisplayName("lanza BusinessException cuando el cliente no tiene visita activa")
         void lanzaExcepcionSinVisitaActiva() {
-            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.empty());
+            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(List.of());
 
             assertThatThrownBy(() -> visitaEstadoService.obtenerEstadoVisitaActiva(EMAIL))
                     .isInstanceOf(BusinessException.class);
@@ -179,7 +181,7 @@ class VisitaEstadoServiceTest {
         void totalCeroCuandoSinItems() {
             Visita visita = visitaActiva();
 
-            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(Optional.of(visita));
+            when(visitaRepository.findActiveByClienteEmail(EMAIL)).thenReturn(List.of(visita));
             when(mesaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
             when(comandaRepository.findAllItemsActivosByVisita(VISITA_ID)).thenReturn(List.of());
             when(notificacionRepository.findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
@@ -188,7 +190,7 @@ class VisitaEstadoServiceTest {
 
             EstadoVisitaResponse res = visitaEstadoService.obtenerEstadoVisitaActiva(EMAIL);
 
-            assertThat(res.getTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+            assertThat(res.getTotalPreorden()).isEqualByComparingTo(BigDecimal.ZERO);
         }
     }
 }
