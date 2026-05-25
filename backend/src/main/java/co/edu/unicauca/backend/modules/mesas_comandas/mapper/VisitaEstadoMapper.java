@@ -5,7 +5,12 @@ import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaRes
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
+import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.shared.dto.ResumenFinanciero;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
+import co.edu.unicauca.backend.shared.util.ResumenFinancieroCalculator;
 import org.springframework.stereotype.Component;
 
 import java.math.BigDecimal;
@@ -52,6 +57,7 @@ public class VisitaEstadoMapper {
      * @param visita              visita activa
      * @param mesaIdentificador   etiqueta de la mesa; {@code null} si no hay mesa asignada
      * @param items               lista de ítems ya mapeados
+     * @param abonos              abonos de la reserva de la visita; vacío si es walk-in o sin abonos
      * @param asistenciaActiva    notificación activa, o empty si no hay solicitud pendiente
      * @return DTO completo del estado de la visita
      */
@@ -59,22 +65,52 @@ public class VisitaEstadoMapper {
             Visita visita,
             String mesaIdentificador,
             List<ItemVisitaResponse> items,
+            List<Abono> abonos,
             Optional<Notificacion> asistenciaActiva) {
 
-        BigDecimal total = items.stream()
+        // Total de la pre-orden = suma de subtotales de los ítems mostrados
+        BigDecimal totalPreorden = items.stream()
                 .map(ItemVisitaResponse::getSubtotal)
                 .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        ResumenFinanciero resumen = ResumenFinancieroCalculator.calcular(
+                totalPreorden, valorDecoracion(visita), anticipos(abonos), devoluciones(abonos));
 
         return EstadoVisitaResponse.builder()
                 .visitaId(visita.getVisitaId())
                 .mesaIdentificador(mesaIdentificador)
                 .visitaCerrada(visita.getVisitaFechaHoraFin() != null)
                 .items(items)
-                .total(total)
+                .totalPreorden(resumen.totalPreorden())
+                .valorDecoracion(resumen.valorDecoracion())
+                .totalAPagar(resumen.totalAPagar())
+                .montoAbonado(resumen.montoAbonado())
+                .saldoPendiente(resumen.saldoPendiente())
                 .asistenciaSolicitada(asistenciaActiva.isPresent())
                 .notificacionAsistenciaId(
                         asistenciaActiva.map(Notificacion::getNotificacionId).orElse(null))
                 .build();
+    }
+
+    /** Costo de la decoración de la reserva de la visita; {@code null} si no aplica. */
+    private BigDecimal valorDecoracion(Visita visita) {
+        if (visita.getReserva() != null && visita.getReserva().getDecoracion() != null) {
+            Decoracion d = visita.getReserva().getDecoracion();
+            return d.getDecoracionCostoAdicional();
+        }
+        return null;
+    }
+
+    /** Suma de abonos de tipo ANTICIPO. */
+    private BigDecimal anticipos(List<Abono> abonos) {
+        return abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.ANTICIPO)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+    }
+
+    /** Suma de abonos de tipo DEVOLUCION. */
+    private BigDecimal devoluciones(List<Abono> abonos) {
+        return abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.DEVOLUCION)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
     }
 
     /**

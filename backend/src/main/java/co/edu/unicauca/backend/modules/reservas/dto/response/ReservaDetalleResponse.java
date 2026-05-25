@@ -18,11 +18,16 @@ import java.util.List;
  *   <li>{@code zonaId} y {@code zonaNombre} — si el cliente no seleccionó zona.</li>
  *   <li>{@code decoracionId} y {@code decoracionNombre} — si la reserva no incluyó decoración.</li>
  *   <li>{@code notas} — si no se registraron observaciones especiales.</li>
- *   <li>{@code preOrdenItems} y {@code preOrdenTotal} — si la reserva no tiene pre-orden.</li>
+ *   <li>{@code preOrdenItems} — si la reserva no tiene pre-orden.</li>
  *   <li>{@code valorDecoracion} — si la reserva no tiene decoración o esta no tiene costo.</li>
- *   <li>{@code total} — si no hay pre-orden ni decoración con costo.</li>
- *   <li>{@code abonos} y {@code totalAbonado} — si no se registraron anticipos.</li>
+ *   <li>{@code abonos} — si no se registraron anticipos.</li>
  * </ul>
+ *
+ * <p>Importes siempre presentes: {@code totalPreorden}, {@code totalAPagar} y
+ * {@code montoAbonado} (neto). El saldo se expone de forma direccional según el estado:
+ * {@code saldoPendiente} (lo que falta por pagar) solo en reservas activas
+ * ({@code PENDIENTE}/{@code CONFIRMADA}); {@code pendientePorDevolver} (neto a reembolsar)
+ * solo en {@code CANCELADA}/{@code DEVUELTA}. Ambos se omiten en {@code ATENDIDA}/{@code INASISTENCIA}.
  */
 @Getter
 @Builder
@@ -72,10 +77,10 @@ public class ReservaDetalleResponse {
     private final List<PreOrdenItemResponse> preOrdenItems;
 
     /**
-     * Suma de precio × cantidad de todos los ítems de la pre-orden;
-     * {@code null} si no hay pre-orden.
+     * Total de la pre-orden (suma de precio × cantidad de todos los ítems);
+     * {@code 0} si no hay pre-orden.
      */
-    private final BigDecimal preOrdenTotal;
+    private final BigDecimal totalPreorden;
 
     /**
      * Costo adicional cobrado por la decoración seleccionada;
@@ -84,11 +89,9 @@ public class ReservaDetalleResponse {
     private final BigDecimal valorDecoracion;
 
     /**
-     * Importe total de la reserva, calculado como la suma del total de la pre-orden
-     * más el costo de decoración; {@code null} únicamente cuando no existe pre-orden
-     * ni decoración con costo.
+     * Total a pagar de la reserva ({@code totalPreorden + valorDecoracion}).
      */
-    private final BigDecimal total;
+    private final BigDecimal totalAPagar;
 
     /**
      * Historial de abonos y devoluciones registrados para esta reserva;
@@ -97,10 +100,27 @@ public class ReservaDetalleResponse {
     private final List<AbonoItemResponse> abonos;
 
     /**
-     * Suma de todos los abonos registrados (anticipos y devoluciones);
-     * {@code null} si no se registró ningún abono.
+     * Monto neto abonado ({@code anticipos − devoluciones}); {@code 0} si no hubo abonos.
      */
-    private final BigDecimal totalAbonado;
+    private final BigDecimal montoAbonado;
+
+    /**
+     * Saldo que el cliente aún debe pagar ({@code max(totalAPagar − montoAbonado, 0)}).
+     * Presente solo en reservas activas ({@code PENDIENTE}/{@code CONFIRMADA});
+     * {@code null} (omitido) en estados terminales.
+     *
+     * <p>Nombre y semántica alineados con {@link ResumenPagoResponse}.
+     */
+    private final BigDecimal saldoPendiente;
+
+    /**
+     * Monto que el restaurante debe devolver al cliente (igual al neto {@code montoAbonado}).
+     * Presente solo cuando la reserva está {@code CANCELADA} o {@code DEVUELTA}
+     * (en esta última será {@code 0} tras un reembolso total); {@code null} en otros estados.
+     *
+     * <p>Nombre y semántica alineados con {@link ResumenPagoResponse}.
+     */
+    private final BigDecimal pendientePorDevolver;
 
     /** Observaciones o peticiones especiales del cliente; {@code null} si no hay notas. */
     private final String notas;

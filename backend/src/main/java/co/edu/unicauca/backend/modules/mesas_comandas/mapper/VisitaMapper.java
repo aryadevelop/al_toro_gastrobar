@@ -10,6 +10,10 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.reservas.dto.response.AbonoItemResponse;
+import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.shared.dto.ResumenFinanciero;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
+import co.edu.unicauca.backend.shared.util.ResumenFinancieroCalculator;
 import org.springframework.stereotype.Component;
 import java.math.BigDecimal;
 import java.time.format.DateTimeFormatter;
@@ -113,6 +117,25 @@ public class VisitaMapper {
                 .orElse(visita.getReserva() != null && visita.getReserva().getZona() != null
                         ? visita.getReserva().getZona().getZonaNombre() : null);
 
+        // Resumen financiero (mismos campos que la cuenta del cajero) calculado vía helper compartido
+        BigDecimal totalPreorden = itemsComanda.stream()
+                .map(i -> i.getComandaItemPrecio().multiply(BigDecimal.valueOf(i.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        List<Abono> abonos = abonosOpt.orElse(List.of());
+        BigDecimal anticipos = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.ANTICIPO)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal devoluciones = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.DEVOLUCION)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        ResumenFinanciero resumen =
+                ResumenFinancieroCalculator.calcular(totalPreorden, valorDecoracion(visita), anticipos, devoluciones);
+
+        // Total a pagar y saldo: en visitas CERRADAS se alinean con la Venta (refleja el descuento
+        // aplicado en caja); en visitas abiertas se usa el cálculo en vivo (sin descuento aún).
+        BigDecimal totalAPagar = ventaOpt.map(Venta::getVentaTotal).orElse(resumen.totalAPagar());
+        BigDecimal saldoPendiente = ventaOpt.isPresent()
+                ? totalAPagar.subtract(resumen.montoAbonado())
+                : resumen.saldoPendiente();
+
         return VisitaDetalleResponse.builder()
                 .visitaId(visita.getVisitaId())
                 .reservaId(visita.getReserva() != null ? visita.getReserva().getReservaId() : null)
@@ -131,7 +154,21 @@ public class VisitaMapper {
                 .subtotalCuenta(ventaOpt.map(Venta::getVentaSubtotal).orElse(null))
                 .descuentoCuenta(ventaOpt.map(Venta::getVentaDescuento).orElse(null))
                 .totalCuenta(ventaOpt.map(Venta::getVentaTotal).orElse(null))
+                .totalPreorden(resumen.totalPreorden())
+                .valorDecoracion(resumen.valorDecoracion())
+                .totalAPagar(totalAPagar)
+                .montoAbonado(resumen.montoAbonado())
+                .saldoPendiente(saldoPendiente)
                 .build();
+    }
+
+    /** Costo de la decoración de la reserva de la visita; {@code null} si no aplica. */
+    private BigDecimal valorDecoracion(Visita visita) {
+        if (visita.getReserva() != null && visita.getReserva().getDecoracion() != null) {
+            Decoracion d = visita.getReserva().getDecoracion();
+            return d.getDecoracionCostoAdicional();
+        }
+        return null;
     }
 
     /**

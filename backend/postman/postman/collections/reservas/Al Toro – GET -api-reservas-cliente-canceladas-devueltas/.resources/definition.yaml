@@ -39,7 +39,7 @@ description: |-
   Mismos que `ReservaDetalleResponse`: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`,
   `estado` (siempre `CANCELADA` o `DEVUELTA`), `tipo`. Opcionales (omitidos por
   `@JsonInclude(NON_NULL)`): `zonaNombre`, `decoracionNombre`, `notas`, `preOrdenItems`,
-  `preOrdenTotal`, `abonos`, `totalAbonado`.
+  `totalPreorden`, `abonos`, `montoAbonado (neto)`.
 
   ## Matriz de casos
 

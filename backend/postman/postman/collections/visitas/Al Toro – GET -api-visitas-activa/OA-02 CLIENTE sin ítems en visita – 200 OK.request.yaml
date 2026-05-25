@@ -42,7 +42,7 @@ scripts:
       pm.test('La respuesta tiene estructura correcta de items[]', function () {
         const body = pm.response.json();
         pm.expect(body.data).to.have.property('items').that.is.an('array');
-        pm.expect(body.data).to.have.property('total');
+        pm.expect(body.data).to.have.property('totalPreorden');
         pm.expect(body.data).to.have.property('visitaCerrada').that.is.false;
       });
     language: text/javascript

@@ -7,8 +7,12 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
+import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.shared.enums.CategoriaProducto;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
@@ -154,12 +158,12 @@ class VisitaEstadoMapperTest {
     @DisplayName("toEstadoVisitaResponse → visita con fechaHoraFin → visitaCerrada=true")
     void toEstadoVisitaResponse_visitaCerrada_true() {
         EstadoVisitaResponse resp = mapper.toEstadoVisitaResponse(
-                visitaCerrada(), "M1", List.of(), Optional.empty());
+                visitaCerrada(), "M1", List.of(), List.of(), Optional.empty());
 
         assertThat(resp.isVisitaCerrada()).isTrue();
         assertThat(resp.getVisitaId()).isEqualTo(11L);
         assertThat(resp.getMesaIdentificador()).isEqualTo("M1");
-        assertThat(resp.getTotal()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(resp.isAsistenciaSolicitada()).isFalse();
         assertThat(resp.getNotificacionAsistenciaId()).isNull();
     }
@@ -168,7 +172,7 @@ class VisitaEstadoMapperTest {
     @DisplayName("toEstadoVisitaResponse → visita sin fechaHoraFin → visitaCerrada=false")
     void toEstadoVisitaResponse_visitaAbierta_false() {
         EstadoVisitaResponse resp = mapper.toEstadoVisitaResponse(
-                visitaAbierta(), null, List.of(), Optional.empty());
+                visitaAbierta(), null, List.of(), List.of(), Optional.empty());
 
         assertThat(resp.isVisitaCerrada()).isFalse();
         assertThat(resp.getMesaIdentificador()).isNull();
@@ -186,10 +190,54 @@ class VisitaEstadoMapperTest {
                 .build();
 
         EstadoVisitaResponse resp = mapper.toEstadoVisitaResponse(
-                visitaAbierta(), "M2", List.of(item), Optional.of(notif));
+                visitaAbierta(), "M2", List.of(item), List.of(), Optional.of(notif));
 
         assertThat(resp.isAsistenciaSolicitada()).isTrue();
         assertThat(resp.getNotificacionAsistenciaId()).isEqualTo(99L);
-        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("7000"));
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo(new BigDecimal("7000"));
+    }
+
+    // ---------- toEstadoVisitaResponse: resumen financiero ----------
+
+    @Test
+    @DisplayName("toEstadoVisitaResponse → con reserva, decoración con costo y abonos → resumen financiero")
+    void toEstadoVisitaResponse_resumenFinanciero() {
+        Decoracion deco = Decoracion.builder().decoracionCostoAdicional(new BigDecimal("15000")).build();
+        Reserva reserva = Reserva.builder().reservaId(2L).decoracion(deco).build();
+        Visita visita = Visita.builder().visitaId(10L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 5, 11, 19, 0))
+                .reserva(reserva).build();
+        ItemVisitaResponse item = ItemVisitaResponse.builder()
+                .comandaItemId(1L).subtotal(new BigDecimal("50000")).build();
+        Abono anticipo = Abono.builder().abonoMonto(new BigDecimal("30000")).abonoTipo(TipoAbono.ANTICIPO).build();
+        Abono devol = Abono.builder().abonoMonto(new BigDecimal("5000")).abonoTipo(TipoAbono.DEVOLUCION).build();
+
+        EstadoVisitaResponse resp = mapper.toEstadoVisitaResponse(
+                visita, "M1", List.of(item), List.of(anticipo, devol), Optional.empty());
+
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo("50000");
+        assertThat(resp.getValorDecoracion()).isEqualByComparingTo("15000");
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo("65000");
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo("25000"); // 30000 − 5000
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo("40000"); // 65000 − 25000
+    }
+
+    @Test
+    @DisplayName("toEstadoVisitaResponse → con reserva sin decoración → valorDecoracion null, totalAPagar = preorden")
+    void toEstadoVisitaResponse_reservaSinDecoracion() {
+        Reserva reserva = Reserva.builder().reservaId(2L).build(); // sin decoración
+        Visita visita = Visita.builder().visitaId(10L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 5, 11, 19, 0))
+                .reserva(reserva).build();
+        ItemVisitaResponse item = ItemVisitaResponse.builder()
+                .comandaItemId(1L).subtotal(new BigDecimal("20000")).build();
+
+        EstadoVisitaResponse resp = mapper.toEstadoVisitaResponse(
+                visita, "M1", List.of(item), List.of(), Optional.empty());
+
+        assertThat(resp.getValorDecoracion()).isNull();
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo("20000");
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo("0");
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo("20000");
     }
 }

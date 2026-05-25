@@ -92,4 +92,19 @@ public class VisitaDetalleResponse {
      * {@code null} si la cuenta aún no fue cerrada.
      */
     private final BigDecimal totalCuenta;
+
+    /** Total de la pre-orden (suma de subtotales de ítems consumidos). */
+    private final BigDecimal totalPreorden;
+
+    /** Costo adicional de la decoración; {@code null} si no aplica. */
+    private final BigDecimal valorDecoracion;
+
+    /** Total a pagar ({@code totalPreorden + valorDecoracion}). */
+    private final BigDecimal totalAPagar;
+
+    /** Monto neto abonado (anticipos − devoluciones); {@code 0} si no hubo abonos. */
+    private final BigDecimal montoAbonado;
+
+    /** Saldo pendiente ({@code totalAPagar − montoAbonado}). */
+    private final BigDecimal saldoPendiente;
 }

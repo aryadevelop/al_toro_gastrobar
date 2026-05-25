@@ -27,8 +27,20 @@ public class EstadoVisitaResponse {
     /** Lista de ítems de la visita. */
     private final List<ItemVisitaResponse> items;
 
-    /** Suma de todos los subtotales; {@code BigDecimal.ZERO} si no hay ítems. */
-    private final BigDecimal total;
+    /** Total de la pre-orden (suma de subtotales de ítems activos). */
+    private final BigDecimal totalPreorden;
+
+    /** Costo adicional de la decoración; {@code null} si la visita no tiene decoración con costo. */
+    private final BigDecimal valorDecoracion;
+
+    /** Total a pagar ({@code totalPreorden + valorDecoracion}). */
+    private final BigDecimal totalAPagar;
+
+    /** Monto neto abonado (anticipos − devoluciones); {@code 0} si no hubo abonos. */
+    private final BigDecimal montoAbonado;
+
+    /** Saldo pendiente ({@code totalAPagar − montoAbonado}). */
+    private final BigDecimal saldoPendiente;
 
     /**
      * {@code true} si hay una notificación ATENCION ACTIVA para esta mesa.
