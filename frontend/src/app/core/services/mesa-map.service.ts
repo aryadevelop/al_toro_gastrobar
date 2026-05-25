@@ -55,6 +55,10 @@ export interface MesaDetalle {
   visitaId?: string;
   identificador: string;
   nombreCliente?: string;
+  clienteId?: string;
+  puntosFidelizacion?: number;
+  esCumpleanos?: boolean;
+  puedeGenerarCuenta?: boolean;
   horaLlegada?: string;
   numeroPersonas?: number;
   estado?: string;
@@ -142,6 +146,12 @@ export class MesaMapService {
             visitaId: data.visitaId ? String(data.visitaId) : undefined,
             identificador: data.identificador,
             nombreCliente: data.nombreCliente,
+            clienteId: typeof data.clienteId === 'number' ? String(data.clienteId) : undefined,
+            puntosFidelizacion:
+              typeof data.puntosFidelizacion === 'number' ? data.puntosFidelizacion : undefined,
+            esCumpleanos: typeof data.esCumpleanos === 'boolean' ? data.esCumpleanos : undefined,
+            puedeGenerarCuenta:
+              typeof data.puedeGenerarCuenta === 'boolean' ? data.puedeGenerarCuenta : undefined,
             horaLlegada: data.horaLlegada,
             numeroPersonas: data.numeroPersonas,
             estado: data.estado,

@@ -273,6 +273,10 @@ export interface BackendMesaDetalleResponse {
   visitaId?: number;
   identificador: string;
   nombreCliente?: string;
+  clienteId?: number | null;
+  puntosFidelizacion?: number | null;
+  esCumpleanos?: boolean | null;
+  puedeGenerarCuenta?: boolean | null;
   horaLlegada?: string;
   numeroPersonas?: number;
   estado?: string;
