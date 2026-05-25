@@ -4,6 +4,9 @@ import { combineLatest, map, Observable, of } from 'rxjs';
 import { API_PATHS } from '../config/api-paths';
 import {
   ApiEnvelope,
+  BackendRegistrarAbonoRequest,
+  BackendRegistrarAbonoResponse,
+  BackendResumenPagoResponse,
   BackendCancelarReservaResponse,
   BackendCrearReservaRequest,
   BackendDisponibilidadResponse,
@@ -42,6 +45,45 @@ export interface ReservationUpdateResult {
   whatsappMessage?: string;
 }
 
+export interface ReservationListCajeroItem extends Reserva {
+  rawEstado: string;
+  rawTipo?: string;
+  mostrarConfirmar: boolean;
+  mostrarAgregarAnticipo: boolean;
+  mostrarAgregarDevolucion: boolean;
+  mostrarCancelar: boolean;
+}
+
+export interface ReservationPaymentSummary {
+  reservaId: string;
+  clienteNombre: string;
+  fechaHoraLlegada: string;
+  numeroPersonas: number;
+  estado: string;
+  tipo: string;
+  totalReserva: number;
+  totalAnticipado: number;
+  totalDevuelto: number;
+  netoAbonado: number;
+  pendientePorAbonar?: number | null;
+  pendientePorDevolver?: number | null;
+}
+
+export interface RegisterAbonoPayload {
+  tipo: 'ANTICIPO' | 'DEVOLUCION';
+  monto: number;
+  metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'OTRO';
+  fechaHora: string;
+}
+
+export interface RegisterAbonoResult {
+  abonoId: string;
+  tipo: string;
+  estado: string;
+  resumen?: ReservationPaymentSummary;
+  message?: string;
+}
+
 @Injectable({ providedIn: 'root' })
 export class ReservationService {
   private readonly http = inject(HttpClient);
@@ -55,6 +97,7 @@ export class ReservationService {
           if (seen.has(item.id)) {
             return false;
           }
+
           seen.add(item.id);
           return true;
         });
@@ -119,6 +162,91 @@ export class ReservationService {
 
           return { reservas, resumenZonas };
         })
+      );
+  }
+
+  listForCajero(fecha?: string, identificador?: string): Observable<{
+    reservas: ReservationListCajeroItem[];
+    resumenZonas: Array<{ zonaId?: string; zonaNombre: string; cantidadReservas: number }>;
+  }> {
+    let params = new HttpParams();
+    if (fecha) {
+      params = params.set('fecha', fecha);
+    }
+    if (identificador) {
+      params = params.set('identificador', identificador);
+    }
+
+    return this.http
+      .get<ApiEnvelope<BackendListadoReservasResponse>>(API_PATHS.reservas.meseroConsulta, { params })
+      .pipe(
+        map((response) => {
+          const data = response.data;
+
+          const reservas = (data.reservas ?? []).map((item) => {
+            const estado = item.estado ?? '';
+            const tipo = item.tipo ?? undefined;
+
+            return {
+              id: String(item.reservaId),
+              clienteId: '',
+              guestName: item.clienteNombre ?? 'Cliente',
+              phone: item.clienteTelefono,
+              guests: item.numeroPersonas ?? 0,
+              date: fecha ?? '',
+              time: (item.horaLlegada ?? '00:00').slice(0, 5),
+              status: this.toReservationStatus(estado),
+              type: this.toReservationType(tipo),
+              decorationId: undefined,
+              decorationName: item.decoracionNombre,
+              zoneId: item.zonaId ? String(item.zonaId) : undefined,
+              zoneName: item.zonaNombre,
+              notes: undefined,
+              preorderItems: [],
+              rawEstado: estado,
+              rawTipo: tipo,
+              mostrarConfirmar: Boolean(item.mostrarConfirmar),
+              mostrarAgregarAnticipo: Boolean(item.mostrarAgregarAnticipo),
+              mostrarAgregarDevolucion: Boolean(item.mostrarAgregarDevolucion),
+              mostrarCancelar: Boolean(item.mostrarCancelar),
+            } satisfies ReservationListCajeroItem;
+          });
+
+          const resumenZonas = (data.resumenZonas ?? []).map((z) => ({
+            zonaId: z.zonaId ? String(z.zonaId) : undefined,
+            zonaNombre: z.zonaNombre,
+            cantidadReservas: z.cantidadReservas,
+          }));
+
+          return { reservas, resumenZonas };
+        })
+      );
+  }
+
+  getResumenPago(reservaId: string): Observable<ReservationPaymentSummary> {
+    return this.http
+      .get<ApiEnvelope<BackendResumenPagoResponse>>(API_PATHS.reservas.resumenPago(reservaId))
+      .pipe(map((response) => this.toResumenPago(response.data)));
+  }
+
+  registrarAbono(reservaId: string, payload: RegisterAbonoPayload): Observable<RegisterAbonoResult> {
+    const request: BackendRegistrarAbonoRequest = {
+      tipo: payload.tipo,
+      monto: payload.monto,
+      metodo: payload.metodo,
+      fechaHora: payload.fechaHora,
+    };
+
+    return this.http
+      .post<ApiEnvelope<BackendRegistrarAbonoResponse>>(API_PATHS.reservas.abonos(reservaId), request)
+      .pipe(
+        map((response) => ({
+          abonoId: String(response.data.abonoId),
+          tipo: response.data.tipo,
+          estado: response.data.estado,
+          resumen: response.data.resumen ? this.toResumenPago(response.data.resumen) : undefined,
+          message: response.message,
+        }))
       );
   }
 
@@ -376,6 +504,23 @@ export class ReservationService {
     }
 
     return undefined;
+  }
+
+  private toResumenPago(input: BackendResumenPagoResponse): ReservationPaymentSummary {
+    return {
+      reservaId: String(input.reservaId),
+      clienteNombre: input.clienteNombre,
+      fechaHoraLlegada: input.fechaHoraLlegada,
+      numeroPersonas: input.numeroPersonas,
+      estado: input.estado,
+      tipo: input.tipo,
+      totalReserva: input.totalReserva ?? 0,
+      totalAnticipado: input.totalAnticipado ?? 0,
+      totalDevuelto: input.totalDevuelto ?? 0,
+      netoAbonado: input.netoAbonado ?? 0,
+      pendientePorAbonar: input.pendientePorAbonar ?? null,
+      pendientePorDevolver: input.pendientePorDevolver ?? null,
+    };
   }
 
   private toNumberOrUndefined(value?: string): number | undefined {
