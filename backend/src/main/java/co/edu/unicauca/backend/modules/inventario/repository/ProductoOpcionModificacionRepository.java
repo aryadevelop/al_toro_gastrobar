@@ -26,7 +26,7 @@ public interface ProductoOpcionModificacionRepository
 
     /**
      * Verifica si una opción de modificación está vinculada a un producto específico.
-     * Usado para validar que las opciones enviadas en la pre-orden pertenecen al menú elegido (CA-07).
+     * Usado para validar que las opciones enviadas en la pre-orden pertenecen al menú elegido.
      */
     @Query("SELECT COUNT(pom) > 0 FROM ProductoOpcionModificacion pom " +
            "WHERE pom.producto.productoId = :productoId " +

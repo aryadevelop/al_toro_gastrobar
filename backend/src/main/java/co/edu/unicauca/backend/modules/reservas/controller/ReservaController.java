@@ -105,7 +105,7 @@ public class ReservaController {
      * <p>Reglas de negocio aplicadas:
      * <ul>
      *   <li>La reserva debe estar en estado {@code PENDIENTE} o {@code CONFIRMADA}.</li>
-     *   <li>El momento actual debe ser anterior a las 16:00 del día de la reserva (CA-01).</li>
+     *   <li>El momento actual debe ser anterior a las 16:00 del día de la reserva.</li>
      *   <li>Aplica las mismas validaciones de horario, bloqueos y disponibilidad que la creación.</li>
      * </ul>
      *
@@ -189,7 +189,7 @@ public class ReservaController {
      * <p>Solo meseros y administradores pueden ejecutar esta acción. No se requiere
      * ownership validation: cualquier mesero puede marcar inasistencia de cualquier reserva.
      *
-     * <p>Reglas de negocio (HE-03-HU-02-CA-04):
+     * <p>Reglas de negocio:
      * <ul>
      *   <li>La reserva debe estar en estado {@code CONFIRMADA}.</li>
      *   <li>Deben haber transcurrido al menos 30 minutos desde la hora de llegada programada.</li>

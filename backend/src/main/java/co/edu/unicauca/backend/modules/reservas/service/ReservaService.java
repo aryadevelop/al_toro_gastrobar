@@ -418,11 +418,11 @@ public class ReservaService {
      * <ul>
      *   <li><b>BÁSICA sin abono neto</b>: no requiere WhatsApp.</li>
      *   <li><b>BÁSICA con abono neto &gt; 0</b>: requiere WhatsApp para gestionar el
-     *       reembolso (CA-02).</li>
+     *       reembolso.</li>
      *   <li><b>ESPECIAL antes de las 16:00 del día de la reserva</b>: requiere
-     *       WhatsApp para gestionar el reembolso (CA-03).</li>
+     *       WhatsApp para gestionar el reembolso}.</li>
      *   <li><b>ESPECIAL después/igual a las 16:00 del día de la reserva</b>: sin
-     *       reembolso, no requiere WhatsApp (CA-04).</li>
+     *       reembolso, no requiere WhatsApp.</li>
      * </ul>
      *
      * <p>A diferencia de la modificación, no hay hora límite para cancelar: se puede

@@ -287,8 +287,8 @@ class ReservaConsultaControllerTest {
                     .decoracionId(2L)
                     .decoracionNombre("Romántica")
                     .modificable(true)
-                    .preOrdenTotal(BigDecimal.valueOf(120000))
-                    .totalAbonado(BigDecimal.valueOf(50000))
+                    .totalPreorden(BigDecimal.valueOf(120000))
+                    .montoAbonado(BigDecimal.valueOf(50000))
                     .clienteTelefono("+573001234567")
                     .build();
 

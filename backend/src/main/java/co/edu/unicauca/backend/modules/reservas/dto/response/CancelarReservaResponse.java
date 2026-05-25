@@ -33,7 +33,7 @@ public class CancelarReservaResponse {
 
     /**
      * {@code true} si el cliente debe ser redirigido al chat de WhatsApp
-     * para gestionar el reembolso del abono (CA-02 y CA-03).
+     * para gestionar el reembolso del abono.
      */
     private boolean requiereWhatsApp;
 

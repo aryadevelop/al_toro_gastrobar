@@ -562,7 +562,7 @@ JOIN Producto p ON p.producto_nombre = r.producto_nombre;
 
 -- =====================================================
 -- 9. CATEGORÍA Y PRODUCTOS MENÚ ESPECIAL ALTERNATIVO
---    Solo disponibles cuando personas > 10 (CA-05).
+--    Solo disponibles cuando personas > 10.
 --    Cada variante es un producto independiente con precio fijo.
 --    El cliente elige UNO y luego selecciona el tipo de jugo
 --    mediante checkboxes (opcion_modificacion).
@@ -635,7 +635,7 @@ FROM CategoriaCarta c WHERE c.categoria_nombre = 'MENÚS ESPECIALES';
 -- =====================================================
 -- 10. OPCIONES DE MODIFICACIÓN
 --     Cada tipo_componente agrupa una selección en el
---     formulario de pre-orden (CA-07):
+--     formulario de pre-orden
 --       SALSA_PROTEINA_1 → salsa de la 1ª proteína (menús doble proteína)
 --       SALSA_PROTEINA_2 → salsa de la 2ª proteína (menús doble proteína)
 --       ARROZ            → tipo de arroz (sólo Menú 8a, que incluye arroz)

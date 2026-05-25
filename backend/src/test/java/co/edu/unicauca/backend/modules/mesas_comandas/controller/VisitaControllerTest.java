@@ -6,10 +6,12 @@ import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.EstadoVisitaR
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ItemVisitaResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaDetalleResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.VisitaResumenResponse;
+import co.edu.unicauca.backend.modules.mesas_comandas.service.CuentaAjusteService;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.VisitaEstadoService;
 import co.edu.unicauca.backend.modules.mesas_comandas.service.VisitaService;
 import co.edu.unicauca.backend.modules.notificaciones.dto.response.NotificacionAsistenciaResponse;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionService;
+import co.edu.unicauca.backend.modules.pagos_caja.dto.response.CuentaPreliminarResponse;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import org.junit.jupiter.api.DisplayName;
@@ -26,6 +28,7 @@ import org.springframework.security.core.userdetails.UserDetailsService;
 import org.springframework.security.test.context.support.WithMockUser;
 import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -36,9 +39,11 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.csrf;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.patch;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -64,6 +69,7 @@ class VisitaControllerTest {
     @MockitoBean VisitaService visitaService;
     @MockitoBean VisitaEstadoService visitaEstadoService;
     @MockitoBean NotificacionService notificacionService;
+    @MockitoBean CuentaAjusteService cuentaAjusteService;
     @MockitoBean JwtTokenProvider jwtTokenProvider;
     @MockitoBean UserDetailsService userDetailsService;
     @MockitoBean SesionRepository sesionRepository;
@@ -150,7 +156,7 @@ class VisitaControllerTest {
                             .comandaItemId(1L).nombreProducto("Bandeja").cantidad(1)
                             .estadoItem("En preparación").precioUnitario(new BigDecimal("18000"))
                             .subtotal(new BigDecimal("18000")).build()))
-                    .total(new BigDecimal("18000"))
+                    .totalPreorden(new BigDecimal("18000"))
                     .asistenciaSolicitada(false)
                     .build();
 
@@ -161,7 +167,7 @@ class VisitaControllerTest {
                     .andExpect(jsonPath("$.success").value(true))
                     .andExpect(jsonPath("$.data.visitaId").value(10))
                     .andExpect(jsonPath("$.data.items[0].estadoItem").value("En preparación"))
-                    .andExpect(jsonPath("$.data.total").value(18000));
+                    .andExpect(jsonPath("$.data.totalPreorden").value(18000));
         }
 
         @Test
@@ -170,7 +176,7 @@ class VisitaControllerTest {
         void mesero_conEmail_retorna200() throws Exception {
             EstadoVisitaResponse res = EstadoVisitaResponse.builder()
                     .visitaId(10L).visitaCerrada(false)
-                    .items(List.of()).total(BigDecimal.ZERO).asistenciaSolicitada(false)
+                    .items(List.of()).totalPreorden(BigDecimal.ZERO).asistenciaSolicitada(false)
                     .build();
 
             when(visitaEstadoService.obtenerEstadoVisitaActiva("cliente@altoro.com")).thenReturn(res);
@@ -229,6 +235,58 @@ class VisitaControllerTest {
 
             mockMvc.perform(post("/api/visitas/10/asistencia").with(csrf()))
                     .andExpect(status().isConflict());
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /api/visitas/{id}/cliente")
+    class AsignarCliente {
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO con clienteId → 200 OK")
+        void cajero_conCliente_retorna200() throws Exception {
+            mockMvc.perform(patch("/api/visitas/5/cliente").param("clienteId", "9").with(csrf()))
+                    .andExpect(status().isOk());
+            verify(visitaService).asignarCliente(5L, 9L);
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO sin clienteId → 200 OK invitado")
+        void cajero_sinCliente_invitado() throws Exception {
+            mockMvc.perform(patch("/api/visitas/5/cliente").with(csrf()))
+                    .andExpect(status().isOk());
+            verify(visitaService).asignarCliente(5L, null);
+        }
+    }
+
+    @Nested
+    @DisplayName("PATCH /api/visitas/{id}/items")
+    class AjustarItems {
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO con ajuste válido → 200 OK con cuenta")
+        void cajero_ajusteValido_retorna200() throws Exception {
+            when(cuentaAjusteService.ajustarItems(eq(5L), any()))
+                    .thenReturn(CuentaPreliminarResponse.builder().visitaId(5L).build());
+            String body = "{\"items\":[{\"comandaItemId\":1,\"cantidad\":3}],\"eliminados\":[]}";
+
+            mockMvc.perform(patch("/api/visitas/5/items").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.visitaId").value(5));
+        }
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("cantidad fuera de rango (>250) → 422 (validación)")
+        void cantidadInvalida_retorna422() throws Exception {
+            String body = "{\"items\":[{\"comandaItemId\":1,\"cantidad\":300}]}";
+            mockMvc.perform(patch("/api/visitas/5/items").with(csrf())
+                            .contentType(MediaType.APPLICATION_JSON).content(body))
+                    .andExpect(status().isUnprocessableEntity());
         }
     }
 }

@@ -4,7 +4,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 /**
- * Respuesta al atender una notificación de tipo {@code CAMBIO} (CA-06).
+ * Respuesta al atender una notificación de tipo {@code CAMBIO}.
  *
  * <p>Devuelve el identificador de la comanda que el mesero debe cargar
  * en modo edición tras aceptar la solicitud de cambio del cliente.
