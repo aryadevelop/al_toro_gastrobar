@@ -2,8 +2,8 @@ $kind: http-request
 name: 30-08 Resumen Pago – CAJERO
 description: |-
   Consulta el resumen de pago de una reserva como CAJERO.
-  Devuelve totales: totalReserva, totalAnticipado, totalDevuelto, netoAbonado,
-  pendientePorAbonar, pendientePorDevolver.
+  Devuelve totales: totalAPagar, totalAnticipado, totalDevuelto, montoAbonado,
+  saldoPendiente, pendientePorDevolver.
   Cambiar tmpReservaId al ID de la reserva a consultar.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/resumen-pago"
 method: GET

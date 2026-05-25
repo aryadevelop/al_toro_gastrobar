@@ -105,13 +105,13 @@ class AbonoMapperTest {
         assertThat(resp.getEstado()).isEqualTo("CONFIRMADA");
         assertThat(resp.getTipo()).isEqualTo("ESPECIAL");
         // Importes calculados
-        assertThat(resp.getTotalReserva()).isEqualByComparingTo(new BigDecimal("200000.00"));
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(new BigDecimal("200000.00"));
         assertThat(resp.getTotalAnticipado()).isEqualByComparingTo(new BigDecimal("80000.00"));
         assertThat(resp.getTotalDevuelto()).isEqualByComparingTo(new BigDecimal("20000.00"));
         // neto = 80000 - 20000 = 60000
-        assertThat(resp.getNetoAbonado()).isEqualByComparingTo(new BigDecimal("60000.00"));
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(new BigDecimal("60000.00"));
         // CONFIRMADA: pendienteAbonar = 200000 - 60000 = 140000; pendienteDevolver omitido
-        assertThat(resp.getPendientePorAbonar()).isEqualByComparingTo(new BigDecimal("140000.00"));
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo(new BigDecimal("140000.00"));
         assertThat(resp.getPendientePorDevolver()).isNull();
     }
 
@@ -128,8 +128,8 @@ class AbonoMapperTest {
         ResumenPagoResponse resp = mapper.toResumenPago(reserva, totalReserva, totalAnticipado, totalDevuelto);
 
         // Then — pendiente nunca es negativo; pendienteDevolver omitido
-        assertThat(resp.getNetoAbonado()).isEqualByComparingTo(new BigDecimal("120000.00"));
-        assertThat(resp.getPendientePorAbonar()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(new BigDecimal("120000.00"));
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(resp.getPendientePorDevolver()).isNull();
     }
 
@@ -155,9 +155,9 @@ class AbonoMapperTest {
         ResumenPagoResponse resp = mapper.toResumenPago(reserva, totalReserva, totalAnticipado, totalDevuelto);
 
         // Then — neto = 50000; CANCELADA: pendienteDevolver == neto, pendienteAbonar omitido
-        assertThat(resp.getNetoAbonado()).isEqualByComparingTo(new BigDecimal("50000.00"));
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(new BigDecimal("50000.00"));
         assertThat(resp.getPendientePorDevolver()).isEqualByComparingTo(new BigDecimal("50000.00"));
-        assertThat(resp.getPendientePorAbonar()).isNull();
+        assertThat(resp.getSaldoPendiente()).isNull();
     }
 
     @Test
@@ -182,9 +182,9 @@ class AbonoMapperTest {
         ResumenPagoResponse resp = mapper.toResumenPago(reserva, totalReserva, totalAnticipado, totalDevuelto);
 
         // Then — neto = 0; DEVUELTA: pendienteDevolver == 0, pendienteAbonar omitido
-        assertThat(resp.getNetoAbonado()).isEqualByComparingTo(BigDecimal.ZERO);
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(BigDecimal.ZERO);
         assertThat(resp.getPendientePorDevolver()).isEqualByComparingTo(BigDecimal.ZERO);
-        assertThat(resp.getPendientePorAbonar()).isNull();
+        assertThat(resp.getSaldoPendiente()).isNull();
     }
 
     @Test
@@ -207,7 +207,7 @@ class AbonoMapperTest {
                 BigDecimal.ZERO, BigDecimal.ZERO);
 
         // Then — estado no aplicable: ambos campos pendientes omitidos
-        assertThat(resp.getPendientePorAbonar()).isNull();
+        assertThat(resp.getSaldoPendiente()).isNull();
         assertThat(resp.getPendientePorDevolver()).isNull();
     }
 
@@ -224,7 +224,7 @@ class AbonoMapperTest {
         ResumenPagoResponse resumen = ResumenPagoResponse.builder()
                 .reservaId(10L)
                 .estado("CONFIRMADA")
-                .netoAbonado(new BigDecimal("50000.00"))
+                .montoAbonado(new BigDecimal("50000.00"))
                 .build();
 
         // When

@@ -13,8 +13,8 @@ description: |-
 
   **Respuesta 200:** `ApiResponse<ResumenPagoResponse>` con
   `data = { reservaId, clienteNombre, fechaHoraLlegada, numeroPersonas, estado, tipo,
-  totalReserva, totalAnticipado, totalDevuelto, netoAbonado,
-  pendientePorAbonar, pendientePorDevolver }`.
+  totalAPagar, totalAnticipado, totalDevuelto, montoAbonado,
+  saldoPendiente, pendientePorDevolver }`.
 
   **Errores:**
   - 404 (ENT-001): reserva inexistente.

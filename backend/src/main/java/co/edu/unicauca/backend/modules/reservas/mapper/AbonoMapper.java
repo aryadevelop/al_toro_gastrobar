@@ -52,15 +52,15 @@ public class AbonoMapper {
     /**
      * Construye el resumen financiero de una reserva a partir de los totales calculados.
      *
-     * <p>Calcula {@code netoAbonado = totalAnticipado - totalDevuelto}.
+     * <p>Calcula {@code montoAbonado = totalAnticipado - totalDevuelto}.
      * Los campos de saldo pendiente se incluyen condicionalmente según el estado de la reserva:
      * <ul>
-     *   <li>{@code CONFIRMADA} — {@code pendientePorAbonar = max(totalReserva − neto, 0)};
+     *   <li>{@code CONFIRMADA} — {@code saldoPendiente = max(totalAPagar − neto, 0)};
      *       {@code pendientePorDevolver} es {@code null} (se omite en el JSON).</li>
      *   <li>{@code CANCELADA} — {@code pendientePorDevolver = neto};
-     *       {@code pendientePorAbonar} es {@code null}.</li>
+     *       {@code saldoPendiente} es {@code null}.</li>
      *   <li>{@code DEVUELTA} — {@code pendientePorDevolver = neto} (será 0 tras reembolso total);
-     *       {@code pendientePorAbonar} es {@code null}.</li>
+     *       {@code saldoPendiente} es {@code null}.</li>
      *   <li>Cualquier otro estado — ambos campos son {@code null}.</li>
      * </ul>
      *
@@ -91,11 +91,11 @@ public class AbonoMapper {
                 .numeroPersonas(reserva.getReservaNumeroPersonas())
                 .estado(reserva.getReservaEstado().name())
                 .tipo(reserva.getReservaTipo().name())
-                .totalReserva(totalReserva)
+                .totalAPagar(totalReserva)
                 .totalAnticipado(totalAnticipado)
                 .totalDevuelto(totalDevuelto)
-                .netoAbonado(neto)
-                .pendientePorAbonar(pendienteAbonar)
+                .montoAbonado(neto)
+                .saldoPendiente(pendienteAbonar)
                 .pendientePorDevolver(pendienteDevolver)
                 .build();
     }

@@ -1,7 +1,7 @@
 $kind: http-request
 name: AB-16 Anticipo excede pendiente máximo – 409 Conflict
 description: |
-  Un anticipo no puede exceder el pendiente máximo (totalReserva - totalAnticipado).
+  Un anticipo no puede exceder el pendiente máximo (totalAPagar - totalAnticipado).
   El beforeRequest: (1) cliente crea reserva ESPECIAL, (2) CAJERO la confirma.
   El POST intenta registrar un anticipo de 999_999_999 COP, monto que excede con
   certeza el total de cualquier reserva, sin necesidad de abonar nada previamente.
