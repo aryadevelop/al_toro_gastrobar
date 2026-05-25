@@ -9,7 +9,6 @@ import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.AutoConfigureMockMvc;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
 import org.springframework.core.annotation.Order;
@@ -40,9 +39,9 @@ class EmpleadoControllerTest {
     @Autowired private MockMvc mockMvc;
 
     @MockitoBean private EmpleadoService empleadoService;
-    @MockBean private JwtTokenProvider jwtTokenProvider;
-    @MockBean private UserDetailsService userDetailsService;
-    @MockBean private SesionRepository sesionRepository;
+    @MockitoBean private JwtTokenProvider jwtTokenProvider;
+    @MockitoBean private UserDetailsService userDetailsService;
+    @MockitoBean private SesionRepository sesionRepository;
 
     static class PermissiveSecurityConfig {
         @Bean

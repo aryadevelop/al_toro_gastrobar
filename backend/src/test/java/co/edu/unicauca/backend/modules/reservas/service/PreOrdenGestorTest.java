@@ -591,7 +591,7 @@ class PreOrdenGestorTest {
             preOrdenGestor.eliminarPreOrdenExistente(1L);
 
             verify(comandaMenuModificacionRepository, never()).deleteByComandaItem_ComandaItemId(any());
-            verify(comandaItemRepository, never()).deleteAll(any(List.class));
+            verify(comandaItemRepository, never()).deleteAll(any());
             verify(comandaRepository, never()).delete(any());
         }
 

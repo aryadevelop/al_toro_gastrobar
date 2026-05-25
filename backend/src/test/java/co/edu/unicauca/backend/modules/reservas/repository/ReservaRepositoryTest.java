@@ -178,7 +178,7 @@ class ReservaRepositoryTest {
         @DisplayName("No cuenta la reserva excluida")
         void noContaLaReservaExcluida() {
             Reserva r1 = reserva(EstadoReserva.CONFIRMADA, 5, BASE);
-            Reserva r2 = reserva(EstadoReserva.CONFIRMADA, 3, BASE.plusHours(1));
+            reserva(EstadoReserva.CONFIRMADA, 3, BASE.plusHours(1));
 
             int sum = reservaRepo.sumPersonasByZonaEnDiaExcluyendo(
                     zona.getZonaId(), BASE.minusHours(1), BASE.plusHours(2), ACTIVOS, r1.getReservaId());

@@ -131,6 +131,7 @@ class NotificacionTest {
 
     @Test
     @DisplayName("equals() con tipo incompatible → retorna false")
+    @SuppressWarnings("unlikely-arg-type")
     void equals_tipoIncompatible_retornaFalse() {
         Notificacion notif = Notificacion.builder().notificacionId(1L).build();
         assertThat(notif.equals("texto")).isFalse();

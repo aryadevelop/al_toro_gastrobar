@@ -3,7 +3,6 @@ package co.edu.unicauca.backend.modules.inventario.entity;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 
-import java.lang.reflect.Field;
 import java.math.BigDecimal;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -196,25 +195,5 @@ class RecetaTest {
         Receta.RecetaId id2 = new Receta.RecetaId(1L, 2L);
 
         assertThat(id1.hashCode()).isEqualTo(id2.hashCode());
-    }
-
-    private void setPrivateField(Object target, String fieldName, Object value) throws Exception {
-        Class<?> clazz = target.getClass();
-        Field field = null;
-
-        while (clazz != null && field == null) {
-            try {
-                field = clazz.getDeclaredField(fieldName);
-            } catch (NoSuchFieldException e) {
-                clazz = clazz.getSuperclass();
-            }
-        }
-
-        if (field == null) {
-            throw new NoSuchFieldException("Field " + fieldName + " not found in class hierarchy");
-        }
-
-        field.setAccessible(true);
-        field.set(target, value);
     }
 }
