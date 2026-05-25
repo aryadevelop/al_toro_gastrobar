@@ -62,6 +62,8 @@ export interface BackendReservaDetalle {
   clienteTelefono?: string;
   preOrdenItems?: BackendPreOrdenItem[];
   preOrdenTotal?: number;
+  valorDecoracion?: number;
+  total?: number;
   abonos?: BackendAbonoItem[];
   totalAbonado?: number;
 }
@@ -77,6 +79,40 @@ export interface BackendReservaConsultaItem {
   clienteTelefono?: string;
   estado?: string;
   mostrarBotonInasistencia?: boolean;
+  tipo?: string;
+  mostrarConfirmar?: boolean;
+  mostrarAgregarAnticipo?: boolean;
+  mostrarAgregarDevolucion?: boolean;
+  mostrarCancelar?: boolean;
+}
+
+export interface BackendResumenPagoResponse {
+  reservaId: number;
+  clienteNombre: string;
+  fechaHoraLlegada: string;
+  numeroPersonas: number;
+  estado: string;
+  tipo: string;
+  totalReserva: number;
+  totalAnticipado: number;
+  totalDevuelto: number;
+  netoAbonado: number;
+  pendientePorAbonar?: number | null;
+  pendientePorDevolver?: number | null;
+}
+
+export interface BackendRegistrarAbonoRequest {
+  tipo: 'ANTICIPO' | 'DEVOLUCION';
+  monto: number;
+  metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA' | 'OTRO';
+  fechaHora: string;
+}
+
+export interface BackendRegistrarAbonoResponse {
+  abonoId: number;
+  tipo: string;
+  estado: string;
+  resumen?: BackendResumenPagoResponse | null;
 }
 
 export interface BackendMarcarInasistenciaResponse {
