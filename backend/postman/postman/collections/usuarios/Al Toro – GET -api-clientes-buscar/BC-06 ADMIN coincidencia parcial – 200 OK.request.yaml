@@ -1,0 +1,36 @@
+$kind: http-request
+name: BC-06 ADMIN coincidencia parcial – 200 OK
+url: "{{baseUrl}}/api/clientes/buscar?correo=a"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+queryParams:
+  correo: "a"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailAdmin'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('ADMIN busca → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('data es un array', function () {
+        pm.expect(pm.response.json().data).to.be.an('array');
+      });
+    language: text/javascript
+order: 6000

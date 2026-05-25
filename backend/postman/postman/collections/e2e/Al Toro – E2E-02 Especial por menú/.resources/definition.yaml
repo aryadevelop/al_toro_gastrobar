@@ -1,0 +1,42 @@
+$kind: collection
+name: Al Toro – E2E-02 Especial por menú
+description: |-
+  **Escenario E2E-02** · Reserva ESPECIAL **por menú** + agregar ítems de carta EN LA VISITA + anticipo + descuento.
+  TR=ESPECIAL · OE=menú · PO=menú especial · AV=**sí** · CF=confirmar · AB=**anticipo 20000** ·
+  BR=precargado (par COCINA+BARRA) · DE=con descuento · MP=TARJETA · PU=cliente(+1).
+
+  **Pre-condición:** la reserva ESPECIAL **por menú** fechada HOY **18:00** PENDIENTE está sembrada en
+  `V3__dev_data.sql` (par menú `E2E-02-MENU`: COCINA 33000 + BARRA bebida 0; `totalAPagar=33000`).
+  Como es por menú, NO trae decoración (`decoracionNombre` ausente/null). Si ya fue consumida,
+  re-sembrar con `docker compose down -v && docker compose up --build`.
+  ⚠️ Requiere ventana de atención 17:00–22:00 (la asignación de mesa valida `LocalTime.now()`).
+
+  **Aserción clave:** los ítems de carta agregados en la visita aparecen JUNTO al par de menú especial
+  en la cuenta, con sus subtotales sumados al total (el menú no fusiona ni oculta la carta).
+
+  **Reglas de dominio ejercidas:**
+  - Reserva por menú → ESPECIAL sin decoración; confirmar PENDIENTE→CONFIRMADA.
+  - Anticipo `{monto,metodo,tipo:ANTICIPO,fechaHora}`; ANTICIPO ≤ totalAPagar.
+  - El borrador precargado trae el par menú (cocina precio completo + barra bebida precio 0).
+  - El menú especial y los ítems de carta agregados conviven en la cuenta (no se fusionan).
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | CAJERO | Descubre reserva 18:00 PENDIENTE ESPECIAL por menú | sin decoración; captura `tmpReservaId` |
+  | 110 | CAJERO | Confirmar | estado CONFIRMADA |
+  | 120 | CAJERO | Anticipo 20000 (TARJETA) | 201 success |
+  | 130 | MESERO | Asignar mesa (reserva) | 201; captura `tmpVisitaId` |
+  | 140 | MESERO | Obtener borrador (par menú precargado) | par menú; bebida precio 0; captura `tmpComandaCocinaId`, `tmpComandaBarraId` |
+  | 150 | MESERO | Agregar 1 plato de carta (Hamburguesa 36) al borrador | 200 |
+  | 160 | MESERO | Enviar comanda COCINA | 200 |
+  | 170 | MESERO | Enviar comanda BARRA | 200 |
+  | 180 | COCINERO | Iniciar COCINA | EN_PREPARACION |
+  | 190 | COCINERO | Marcar listo COCINA | LISTO |
+  | 200 | BARTENDER | Iniciar BARRA | EN_PREPARACION |
+  | 210 | BARTENDER | Marcar listo BARRA | LISTO |
+  | 220 | CAJERO | Cuenta preliminar | menú + carta conviven; carta agregada presente |
+  | 230 | CAJERO | Cerrar con descuento 5000 (TARJETA) | 201 |
+
+  **Login autónomo por rol** en cada `beforeRequest` (emails de entorno + `passwordValida`).
+  Roles: emailCajero, emailMesero, emailCocinero, emailBartender. NO usa CLIENTE (reserva sembrada de paola).

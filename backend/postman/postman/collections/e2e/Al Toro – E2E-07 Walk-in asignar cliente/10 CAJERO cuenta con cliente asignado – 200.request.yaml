@@ -1,0 +1,39 @@
+$kind: http-request
+name: 10 CAJERO consulta cuenta (cliente asignado) – 200 OK
+description: Tras asignar, la cuenta refleja el `clienteId` (antes null, ahora = `tmpClienteId`).
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La cuenta ahora tiene el cliente asignado', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.clienteId, 'clienteId poblado')
+          .to.eql(Number(pm.environment.get('tmpClienteId')));
+      });
+    language: text/javascript
+order: 190

@@ -1,0 +1,55 @@
+$kind: http-request
+name: 05 MESERO obtiene borrador con par menú precargado – 200 OK
+description: |-
+  El borrador de la visita debe venir PRECARGADO con el par de menú especial (una línea COCINA con
+  precio completo + una línea BARRA con la bebida a precio 0, ambas con el mismo `menuGrupo`).
+  Captura `tmpComandaCocinaId` y `tmpComandaBarraId` para enviar y producir ambas estaciones.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId={{tmpVisitaId}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El borrador trae el par de menú (cocina + barra) y dos comandas', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaCocinaId, 'comandaCocinaId').to.be.a('number');
+        pm.expect(data.comandaBarraId, 'comandaBarraId').to.be.a('number');
+        pm.environment.set('tmpComandaCocinaId', data.comandaCocinaId);
+        pm.environment.set('tmpComandaBarraId', data.comandaBarraId);
+
+        // La línea COCINA del menú: plato con menuGrupo poblado y precio completo (≈33000).
+        const platoMenu = (data.platos || []).find(p => p.menuGrupo);
+        pm.expect(platoMenu, 'plato del menú especial (con menuGrupo)').to.be.an('object');
+        pm.expect(Number(platoMenu.precioUnitario), 'precio del plato de menú').to.be.above(0);
+
+        // La línea BARRA del menú: bebida del mismo menuGrupo a precio 0.
+        const bebidaMenu = (data.bebidas || []).find(b => b.menuGrupo === platoMenu.menuGrupo);
+        // VERIFICAR EN VIVO: la bebida del par de menú debe venir con precioUnitario 0 y mismo menuGrupo.
+        pm.expect(bebidaMenu, 'bebida del menú especial (mismo menuGrupo)').to.be.an('object');
+        pm.expect(Number(bebidaMenu.precioUnitario), 'bebida de menú a precio 0').to.eql(0);
+      });
+    language: text/javascript
+order: 140

@@ -1,0 +1,37 @@
+$kind: http-request
+name: 06 MESERO atiende el CAMBIO – 200 OK
+description: |-
+  El mesero atiende la notificación CAMBIO (CA-06); la notificación pasa ACTIVA → ATENDIDA y devuelve
+  el comandaId para volver a editar el borrador.
+  // VERIFICAR EN VIVO: status 200 y que el rol MESERO esté autorizado en atender-cambio (CAJERO o MESERO).
+url: "{{baseUrl}}/api/notificaciones/{{tmpNotifCambioId}}/atender-cambio"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema atiende el cambio (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 150

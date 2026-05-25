@@ -1,0 +1,53 @@
+$kind: http-request
+name: 14 CAJERO consulta cuenta posterior – B cambió, A intacta – 200 OK
+description: |-
+  Tras el ajuste de precio sobre la línea B, la cuenta debe reflejar: el `precioUnitario` de B cambió
+  a 30000 (y su subtotal), mientras la línea base A conserva su precio y subtotal originales
+  (`tmpPrecioBaseAntes` / `tmpSubtotalBaseAntes`). Prueba la independencia por `comandaItemId`.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const data = pm.response.json().data;
+      const hamburguesas = (data.items || []).filter(i => i.nombreProducto && i.nombreProducto.includes('Hamburguesa'));
+      const base = hamburguesas.find(h => h.esModificado === false);
+      const mod  = hamburguesas.find(h => h.esModificado === true);
+
+      pm.test('La línea B (modificada) cambió su precio a 30000', function () {
+        pm.expect(mod, 'línea modificada').to.exist;
+        pm.expect(Number(mod.precioUnitario)).to.eql(30000);
+      });
+
+      pm.test('La línea A (base) NO cambió (precio y subtotal originales)', function () {
+        pm.expect(base, 'línea base').to.exist;
+        pm.expect(Number(base.precioUnitario)).to.eql(Number(pm.environment.get('tmpPrecioBaseAntes')));
+        pm.expect(Number(base.subtotal)).to.eql(Number(pm.environment.get('tmpSubtotalBaseAntes')));
+      });
+    language: text/javascript
+order: 230

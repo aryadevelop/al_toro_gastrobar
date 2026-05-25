@@ -1,0 +1,37 @@
+$kind: http-request
+name: BC-05 CAJERO sin coincidencias – 200 OK lista vacia
+description: El fragmento "zzzzzz" no coincide con ningún cliente. Verifica 200 y data = [].
+url: "{{baseUrl}}/api/clientes/buscar?correo=zzzzzz"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  correo: "zzzzzz"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Sin coincidencias → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('data es un array vacío', function () {
+        pm.expect(pm.response.json().data).to.be.an('array').that.is.empty;
+      });
+    language: text/javascript
+order: 5000

@@ -19,7 +19,10 @@ import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Component;
 
+import co.edu.unicauca.backend.shared.dto.ResumenFinanciero;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.TipoAbono;
+import co.edu.unicauca.backend.shared.util.ResumenFinancieroCalculator;
 
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
@@ -167,11 +170,11 @@ public class ReservaMapper {
         List<PreOrdenItemResponse> preOrdenItems = preOrden.isEmpty() ? null
                 : construirItemsPreOrden(preOrden);
 
-        BigDecimal preOrdenTotal = preOrden.isEmpty() ? null :
-                preOrden.stream()
-                        .map(d -> d.getComandaItemPrecio()
-                                .multiply(BigDecimal.valueOf(d.getComandaItemCantidad())))
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Total de la pre-orden (0 si no hay pre-orden).
+        BigDecimal totalPreorden = preOrden.stream()
+                .map(d -> d.getComandaItemPrecio()
+                        .multiply(BigDecimal.valueOf(d.getComandaItemCantidad())))
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
 
         // Costo adicional de la decoración seleccionada; null si no aplica o no tiene costo.
         BigDecimal valorDecoracion = (reserva.getDecoracion() != null
@@ -179,21 +182,30 @@ public class ReservaMapper {
                 ? reserva.getDecoracion().getDecoracionCostoAdicional()
                 : null;
 
-        // Total = preOrdenTotal + valorDecoracion; null solo cuando ambos son null.
-        BigDecimal baseProductos = preOrdenTotal != null ? preOrdenTotal : BigDecimal.ZERO;
-        BigDecimal baseDeco = valorDecoracion != null ? valorDecoracion : BigDecimal.ZERO;
-        BigDecimal total = (preOrdenTotal == null && valorDecoracion == null)
-                ? null
-                : baseProductos.add(baseDeco);
-
         // Si no hay abonos, se dejan los campos relacionados como null para omitirlos en la respuesta.
         List<AbonoItemResponse> abonosDto = abonos.isEmpty() ? null
                 : construirAbonosDto(abonos);
 
-        BigDecimal totalAbonado = abonos.isEmpty() ? null :
-                abonos.stream()
-                        .map(Abono::getAbonoMonto)
-                        .reduce(BigDecimal.ZERO, BigDecimal::add);
+        // Importes derivados (total a pagar, neto abonado, saldo) vía helper compartido
+        BigDecimal anticipos = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.ANTICIPO)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal devoluciones = abonos.stream().filter(a -> a.getAbonoTipo() == TipoAbono.DEVOLUCION)
+                .map(Abono::getAbonoMonto).reduce(BigDecimal.ZERO, BigDecimal::add);
+        ResumenFinanciero resumen =
+                ResumenFinancieroCalculator.calcular(totalPreorden, valorDecoracion, anticipos, devoluciones);
+
+        // Saldo direccional según el estado (alineado con ResumenPagoResponse):
+        // - activa (PENDIENTE/CONFIRMADA): saldoPendiente = lo que falta por pagar (>= 0).
+        // - reembolso (CANCELADA/DEVUELTA): pendientePorDevolver = neto a devolver.
+        // - terminal sin reembolso (ATENDIDA/INASISTENCIA): ambos null (se omiten).
+        EstadoReserva estadoReserva = reserva.getReservaEstado();
+        boolean reservaActiva = estadoReserva == EstadoReserva.PENDIENTE
+                || estadoReserva == EstadoReserva.CONFIRMADA;
+        boolean reservaConReembolso = estadoReserva == EstadoReserva.CANCELADA
+                || estadoReserva == EstadoReserva.DEVUELTA;
+        BigDecimal saldoPendiente = reservaActiva
+                ? resumen.saldoPendiente().max(BigDecimal.ZERO) : null;
+        BigDecimal pendientePorDevolver = reservaConReembolso ? resumen.montoAbonado() : null;
 
         return ReservaDetalleResponse.builder()
                 .reservaId(reserva.getReservaId())
@@ -211,11 +223,13 @@ public class ReservaMapper {
                 .notas(reserva.getReservaNotas())
                 .clienteTelefono(reserva.getCliente() != null ? reserva.getCliente().getClienteTelefono() : null)
                 .preOrdenItems(preOrdenItems)
-                .preOrdenTotal(preOrdenTotal)
-                .valorDecoracion(valorDecoracion)
-                .total(total)
+                .totalPreorden(resumen.totalPreorden())
+                .valorDecoracion(resumen.valorDecoracion())
+                .totalAPagar(resumen.totalAPagar())
                 .abonos(abonosDto)
-                .totalAbonado(totalAbonado)
+                .montoAbonado(resumen.montoAbonado())
+                .saldoPendiente(saldoPendiente)
+                .pendientePorDevolver(pendientePorDevolver)
                 .modificable(esModificable(reserva))
                 .build();
     }

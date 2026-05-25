@@ -49,7 +49,7 @@ scripts:
           if (!err && res && res.code === 200) {
             const segunda = res.json().data;
             pm.expect(segunda.visitaId).to.equal(primera.visitaId);
-            pm.expect(segunda.total).to.equal(primera.total);
+            pm.expect(segunda.totalPreorden).to.equal(primera.totalPreorden);
             pm.expect(segunda.items.length).to.equal(primera.items.length);
           } else {
             pm.expect.fail('Segunda llamada falló: ' + (res && res.code));

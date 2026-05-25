@@ -1,0 +1,45 @@
+$kind: http-request
+name: 10 CAJERO consulta la cuenta preliminar – 200 OK
+description: La cuenta refleja el cliente (clienteId poblado) y el total a pagar. Captura `tmpTotalAPagar`.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La cuenta tiene cliente asociado y total a pagar', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.clienteId, 'clienteId').to.eql(Number(pm.environment.get('tmpClienteId')));
+        pm.expect(Number(data.totalAPagar)).to.be.above(0);
+        pm.environment.set('tmpTotalAPagar', data.totalAPagar);
+      });
+      pm.test('La cuenta NO contiene el ítem sin stock (145)', function () {
+        const data = pm.response.json().data;
+        const item145 = (data.items || []).find(i => i.nombreProducto === 'PA-HE-04-Sin-Stock');
+        pm.expect(item145, 'ítem sin stock fuera de la cuenta').to.be.undefined;
+      });
+    language: text/javascript
+order: 190

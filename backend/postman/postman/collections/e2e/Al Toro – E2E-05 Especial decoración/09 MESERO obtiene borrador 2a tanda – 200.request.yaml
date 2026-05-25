@@ -1,0 +1,43 @@
+$kind: http-request
+name: 09 MESERO obtiene el borrador de la 2ª tanda – 200 OK
+description: |-
+  Captura `tmpComandaCocinaId2` (la NUEVA comanda COCINA del borrador con la 2ª tanda), distinta de `tmpComandaCocinaId`.
+  // VERIFICAR EN VIVO: que `comandaCocinaId` aquí sea distinto al de la 1ª comanda (ya en producción).
+url: "{{baseUrl}}/api/comandas/borrador?visitaId={{tmpVisitaId}}"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El borrador de la 2ª tanda tiene una comanda COCINA nueva', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaCocinaId, 'comandaCocinaId2').to.be.a('number');
+        pm.expect(data.comandaCocinaId, 'debe ser distinto a la 1ª comanda')
+          .to.not.eql(Number(pm.environment.get('tmpComandaCocinaId')));
+        pm.environment.set('tmpComandaCocinaId2', data.comandaCocinaId);
+      });
+    language: text/javascript
+order: 180

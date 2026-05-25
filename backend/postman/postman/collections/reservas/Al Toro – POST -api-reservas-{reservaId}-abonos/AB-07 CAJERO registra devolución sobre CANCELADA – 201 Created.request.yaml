@@ -155,9 +155,9 @@ scripts:
       pm.test('AB-07: resumen.pendientePorDevolver presente (reserva CANCELADA con devolución parcial)', function () {
         const resumen = pm.response.json().data.resumen;
         // Reserva CANCELADA (anticipo 5000, devolución parcial 3000 → pendientePorDevolver=2000):
-        // pendientePorDevolver presente (> 0), pendientePorAbonar ausente
+        // pendientePorDevolver presente (> 0), saldoPendiente ausente
         pm.expect(resumen.pendientePorDevolver).to.be.a('number');
-        pm.expect(resumen).to.not.have.property('pendientePorAbonar');
+        pm.expect(resumen).to.not.have.property('saldoPendiente');
       });
       // Reserva ya está CANCELADA (estado terminal) — no requiere cleanup adicional.
       pm.environment.unset('tmpReservaIdAB07');

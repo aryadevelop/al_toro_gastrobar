@@ -12,8 +12,8 @@ description: |-
   **Campos de la respuesta `ReservaDetalleResponse`:**
   - Siempre presentes: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`, `clienteTelefono`
   - Opcionales: `zonaNombre`, `decoracionNombre`, `notas`, `clienteNombre`
-  - Opcionales pre-orden: `preOrdenItems` (con `modificaciones` para menús especiales), `preOrdenTotal`
-  - Opcionales abonos: `abonos`, `totalAbonado`
+  - Opcionales pre-orden: `preOrdenItems` (con `modificaciones` para menús especiales), `totalPreorden`
+  - Opcionales abonos: `abonos`, `montoAbonado (neto)`
 
   **Independencia de los casos:**
   Cada request se autoabastece mediante login autónomo. El hook de colección gestiona tokens de MESERO y ADMIN.

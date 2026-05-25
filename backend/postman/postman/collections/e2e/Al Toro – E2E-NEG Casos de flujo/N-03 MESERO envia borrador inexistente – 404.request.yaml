@@ -1,0 +1,44 @@
+$kind: http-request
+name: N-03 MESERO envía borrador inexistente – 404 Not Found
+description: |-
+  Enviar a producción una comanda/borrador que no existe (id 999999) → 404 ENT-001.
+  Caso autosuficiente: solo requiere token MESERO (sin estado previo). Coincide con la colección
+  por-endpoint CD5-03.
+url: "{{baseUrl}}/api/comandas/borrador/999999/enviar"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('N-03: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Borrador inexistente → 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('code = ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 300

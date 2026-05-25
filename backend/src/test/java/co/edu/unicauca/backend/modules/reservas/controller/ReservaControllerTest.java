@@ -43,7 +43,6 @@ import java.util.List;
 import java.util.Map;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.when;
@@ -331,7 +330,7 @@ class ReservaControllerTest {
 
         @Test
         @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
-        @DisplayName("CA-01: BASICA sin abono → 200 OK, requiereWhatsApp=false")
+        @DisplayName("BASICA sin abono → 200 OK, requiereWhatsApp=false")
         void basicaSinAbono_200SinWhatsApp() throws Exception {
             when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
                     .thenReturn(responseBasicaSinWa());
@@ -348,7 +347,7 @@ class ReservaControllerTest {
 
         @Test
         @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
-        @DisplayName("CA-02: BASICA con abono → 200 OK, requiereWhatsApp=true con mensaje")
+        @DisplayName("BASICA con abono → 200 OK, requiereWhatsApp=true con mensaje")
         void basicaConAbono_200ConWhatsApp() throws Exception {
             when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
                     .thenReturn(responseBasicaConWa());
@@ -361,7 +360,7 @@ class ReservaControllerTest {
 
         @Test
         @WithMockUser(username = "cliente@test.com", roles = "CLIENTE")
-        @DisplayName("CA-04: ESPECIAL después 16h → 200 OK, requiereWhatsApp=false")
+        @DisplayName("ESPECIAL después 16h → 200 OK, requiereWhatsApp=false")
         void especialDespues16h_200SinWhatsApp() throws Exception {
             when(reservaService.cancelarReserva(RESERVA_ID, "cliente@test.com"))
                     .thenReturn(responseEspecialSinWa());
@@ -780,7 +779,7 @@ class ReservaControllerTest {
                     .estado("CONFIRMADA")
                     .tipo("ESPECIAL")
                     .totalAnticipado(new BigDecimal("50000.00"))
-                    .netoAbonado(new BigDecimal("50000.00"))
+                    .montoAbonado(new BigDecimal("50000.00"))
                     .build();
         }
 

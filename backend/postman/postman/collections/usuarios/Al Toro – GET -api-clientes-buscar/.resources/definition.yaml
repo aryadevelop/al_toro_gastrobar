@@ -1,0 +1,28 @@
+$kind: collection
+name: Al Toro – GET /api/clientes/buscar
+description: |-
+  # GET /api/clientes/buscar?correo={fragmento}
+
+  Busca clientes por coincidencia parcial de correo (insensible a mayúsculas y espacios
+  extremos), para que el cajero relacione la cuenta de una mesa con un cliente (CA-02).
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")`.
+  - CAJERO/ADMIN: 200.
+  - MESERO/CLIENTE/COCINERO: 403.
+  - Sin token: 401.
+
+  **Respuesta 200:** `ApiResponse<List<ClienteBusquedaResponse>>` con
+  `data = [{ clienteId, nombre, email, puntosAcumulados }]`. Lista vacía si no hay coincidencias.
+
+  ## Independencia de datos
+  Todos los tests son de solo lectura y repetibles sin reseed. El fragmento "a" coincide con
+  varios clientes seed; "zzzzzz" no coincide con ninguno.
+
+  | ID    | Escenario                          | HTTP |
+  |-------|------------------------------------|------|
+  | BC-01 | Sin token                          | 401  |
+  | BC-02 | MESERO sin permiso                 | 403  |
+  | BC-03 | CLIENTE sin permiso                | 403  |
+  | BC-04 | CAJERO coincidencia parcial        | 200  |
+  | BC-05 | CAJERO sin coincidencias (vacío)   | 200  |
+  | BC-06 | ADMIN coincidencia parcial         | 200  |

@@ -46,8 +46,8 @@ scripts:
         pm.expect(body.data).to.have.property('mesaIdentificador');
         pm.expect(body.data).to.have.property('items').that.is.an('array');
         pm.expect(body.data.items.length).to.be.greaterThan(0);
-        pm.expect(body.data).to.have.property('total');
-        pm.expect(body.data.total).to.be.greaterThan(0);
+        pm.expect(body.data).to.have.property('totalPreorden');
+        pm.expect(body.data.totalPreorden).to.be.greaterThan(0);
         pm.expect(body.data).to.have.property('asistenciaSolicitada');
       });
     language: text/javascript

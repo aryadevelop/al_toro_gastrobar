@@ -1,0 +1,48 @@
+$kind: http-request
+name: CU-04 CAJERO cuenta valida – 200 OK
+description: Verifica 200 y los invariantes de la cuenta sobre la visita seed 1.
+url: "{{baseUrl}}/api/ventas/1/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO obtiene la cuenta → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      const d = pm.response.json().data;
+      pm.test('estructura básica presente', function () {
+        pm.expect(d).to.have.property('visitaId');
+        pm.expect(d).to.have.property('totalPreorden');
+        pm.expect(d).to.have.property('totalAPagar');
+        pm.expect(d).to.have.property('saldoPendiente');
+        pm.expect(d.items).to.be.an('array');
+      });
+      pm.test('totalPreorden == suma de subtotales de items', function () {
+        const suma = d.items.reduce((acc, it) => acc + Number(it.subtotal), 0);
+        pm.expect(Number(d.totalPreorden)).to.be.closeTo(suma, 0.001);
+      });
+      pm.test('saldoPendiente == totalAPagar - montoAbonado', function () {
+        const abonado = d.montoAbonado != null ? Number(d.montoAbonado) : 0;
+        pm.expect(Number(d.saldoPendiente)).to.be.closeTo(Number(d.totalAPagar) - abonado, 0.001);
+      });
+    language: text/javascript
+order: 4000

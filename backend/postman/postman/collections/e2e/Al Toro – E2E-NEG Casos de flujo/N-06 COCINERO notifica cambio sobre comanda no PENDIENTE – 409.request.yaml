@@ -1,0 +1,102 @@
+$kind: http-request
+name: N-06 COCINERO notifica cambio sobre comanda no PENDIENTE – 409 Conflict
+description: |-
+  `POST /api/notificaciones/cambio` solo procede sobre comandas PENDIENTE (sin CAMBIO activo).
+  El beforeRequest crea un walk-in, arma y envía una comanda de cocina y la INICIA (queda
+  EN_PREPARACION). La request principal pide CAMBIO sobre esa comanda no PENDIENTE → 409 NEG-002.
+  Coincide con la colección por-endpoint POST /api/notificaciones/cambio AC-07.
+  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
+  // VERIFICAR EN VIVO: setup pesado (walk-in→armar→enviar→iniciar); `iniciar` descuenta inventario.
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "comandaId": {{tmpNegComandaCambioId}}
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const ident = 'N06-' + (Date.now() % 1000000);
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-06: login MESERO falló', e1, r1 && r1.code); return; }
+        const meseroToken = r1.json().accessToken;
+        const meseroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + meseroToken };
+
+        pm.sendRequest({
+          url: baseUrl + '/api/mesas', method: 'POST', header: meseroHdr,
+          body: { mode: 'raw', raw: JSON.stringify({
+            mesaIdentificador: ident, zonaId: 3, numeroPersonas: 2, reservaId: null
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-06: walk-in falló', e2, r2 && r2.code); return; }
+          const visitaId = r2.json().data.visitaId;
+
+          pm.sendRequest({
+            url: baseUrl + '/api/comandas/borrador/items', method: 'POST', header: meseroHdr,
+            body: { mode: 'raw', raw: JSON.stringify({ visitaId: visitaId, productoId: 36, cantidad: 1 }) }
+          }, (e3, r3) => {
+            if (e3 || !r3 || r3.code !== 200) { console.warn('N-06: agregar ítem falló', e3, r3 && r3.code); return; }
+            const comandaCocinaId = r3.json().data.comandaCocinaId;
+
+            pm.sendRequest({
+              url: baseUrl + '/api/comandas/borrador/' + comandaCocinaId + '/enviar',
+              method: 'POST', header: { 'Authorization': 'Bearer ' + meseroToken }
+            }, (e4, r4) => {
+              if (e4 || !r4 || r4.code !== 200) { console.warn('N-06: enviar falló', e4, r4 && r4.code); return; }
+
+              // login COCINERO + iniciar (EN_PREPARACION) → ya no es PENDIENTE
+              pm.sendRequest({
+                url: baseUrl + '/api/auth/login', method: 'POST',
+                header: { 'Content-Type': 'application/json' },
+                body: { mode: 'raw', raw: JSON.stringify({
+                  email: pm.environment.get('emailCocinero'),
+                  password: pm.environment.get('passwordValida'),
+                  forceSessionOverride: true
+                })}
+              }, (e5, r5) => {
+                if (e5 || !r5 || r5.code !== 200) { console.warn('N-06: login COCINERO falló', e5, r5 && r5.code); return; }
+                const cocineroToken = r5.json().accessToken;
+                pm.environment.set('cocineroToken', cocineroToken);
+
+                pm.sendRequest({
+                  url: baseUrl + '/api/comandas/produccion/' + comandaCocinaId + '/iniciar',
+                  method: 'POST', header: { 'Authorization': 'Bearer ' + cocineroToken }
+                }, (e6, r6) => {
+                  if (e6 || !r6 || r6.code !== 200) { console.warn('N-06: iniciar falló', e6, r6 && r6.code); return; }
+                  pm.environment.set('tmpNegComandaCambioId', comandaCocinaId);
+                  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + cocineroToken });
+                });
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Cambio sobre comanda no PENDIENTE → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-002 (estado inválido)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+      });
+      pm.environment.unset('tmpNegComandaCambioId');
+    language: text/javascript
+order: 600

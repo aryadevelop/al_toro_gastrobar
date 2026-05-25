@@ -1,0 +1,38 @@
+$kind: http-request
+name: 16 CAJERO canjea los puntos del cliente (reset) – 200 OK
+description: |-
+  El cajero canjea los puntos canjeables del cliente antes de cerrar (los reduce/resetea).
+  // VERIFICAR EN VIVO: payload del canje. El endpoint usa query param emailEmpleado; sin body.
+  // Si el cliente tiene 0 puntos canjeables, el canje falla (422) → asegurar que paola tenga puntos
+  // (seed) o que escenarios previos hayan acumulado +1 sin canjear.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema canjea los puntos (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 250

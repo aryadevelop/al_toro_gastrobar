@@ -91,6 +91,43 @@ public class VisitaService {
     }
 
     /**
+     * Relaciona la cuenta de una visita con un cliente, o la marca como invitado.
+     *
+     * <p>Flujo:
+     * <ol>
+     *   <li>Bloquea la visita (mutex del cierre) y valida que exista y esté activa.</li>
+     *   <li>Si {@code clienteId} es {@code null}: deja la visita como invitad.</li>
+     *   <li>Si no: carga el cliente y lo asocia.</li>
+     * </ol>
+     *
+     * @param visitaId  identificador de la visita
+     * @param clienteId identificador del cliente, o {@code null} para invitado
+     * @throws ResourceNotFoundException si la visita o el cliente no existen
+     * @throws BusinessException         si la visita ya está cerrada
+     */
+    @Transactional
+    public void asignarCliente(Long visitaId, Long clienteId) {
+        // Lock pesimista: serializa con ajuste de ítems y registro de pago de la misma visita
+        Visita visita = visitaRepository.findByIdForUpdate(visitaId)
+                .orElseThrow(() -> new ResourceNotFoundException("Visita", visitaId));
+        // No se puede modificar una visita cuya cuenta ya fue cerrada
+        if (visita.getVisitaFechaHoraFin() != null) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "La visita ya está cerrada.", HttpStatus.CONFLICT);
+        }
+        if (clienteId == null) {
+            // Continuar como invitado → sin cliente asociado
+            visita.setCliente(null);
+        } else {
+            // Asociar el cliente seleccionado
+            Cliente cliente = clienteRepository.findById(clienteId)
+                    .orElseThrow(() -> new ResourceNotFoundException("Cliente", clienteId));
+            visita.setCliente(cliente);
+        }
+        visitaRepository.save(visita);
+    }
+
+    /**
      * Devuelve el detalle completo de una visita.
      *
      * <p>Si la visita proviene de una reserva, devuelve zona, decoración, notas, comanda, abonos y total.

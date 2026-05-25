@@ -1,0 +1,45 @@
+$kind: http-request
+name: 14 CLIENTE consulta visita activa (decoración) – 200 OK
+description: |-
+  El cliente (paola) consulta su visita activa. Como la reserva es ESPECIAL por decoración (Bodas Premium),
+  `valorDecoracion` viene presente y `totalAPagar = totalPreorden + valorDecoracion`, aunque NO haya menú especial.
+  El total acumula ambas tandas (Hamburguesa + Picanha).
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo CLIENTE (dueño de la reserva, hardcodeado)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('valorDecoracion está presente y suma al totalAPagar', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.items, 'items (ambas tandas)').to.be.an('array').with.lengthOf.at.least(2);
+        pm.expect(Number(data.valorDecoracion), 'valorDecoracion').to.be.above(0);
+        const esperado = Number(data.totalPreorden) + Number(data.valorDecoracion);
+        pm.expect(Number(data.totalAPagar)).to.eql(esperado);
+      });
+    language: text/javascript
+order: 230

@@ -1,0 +1,54 @@
+$kind: http-request
+name: 03 CAJERO registrar anticipo 40000 (TARJETA) – 200 OK
+description: |-
+  Registra un ANTICIPO de 40000 sobre la reserva CONFIRMADA. El payload incluye `fechaHora`
+  (obligatorio), generado dinámicamente en el pre-request. El anticipo debe ser ≤ totalAPagar (60000).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "monto": 40000,
+      "metodo": "TARJETA",
+      "tipo": "ANTICIPO",
+      "fechaHora": "{{tmpFechaHora}}"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // fechaHora = ahora − 60s en formato yyyy-MM-dd'T'HH:mm:ss (sin zona).
+      // El margen evita el rechazo por "fechaHora futura" (400) ante desfase de reloj.
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date(Date.now() - 60000);
+      pm.environment.set('tmpFechaHora',
+        `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema acepta el anticipo (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 120

@@ -30,6 +30,7 @@ import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
 import org.springframework.http.HttpStatus;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -359,6 +360,67 @@ class VisitaServiceTest {
                     any(),
                     any()
             );
+        }
+    }
+
+    @Nested
+    @DisplayName("asignarCliente")
+    class AsignarCliente {
+
+        @Test
+        @DisplayName("clienteId válido → asigna el cliente y guarda")
+        void clienteValido_asigna() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID).build();
+            Cliente cliente = Cliente.builder().usuarioId(9L).build();
+            when(visitaRepository.findByIdForUpdate(VISITA_ID)).thenReturn(Optional.of(visita));
+            when(clienteRepository.findById(9L)).thenReturn(Optional.of(cliente));
+
+            visitaService.asignarCliente(VISITA_ID, 9L);
+
+            assertThat(visita.getCliente()).isEqualTo(cliente);
+            verify(visitaRepository).save(visita);
+        }
+
+        @Test
+        @DisplayName("clienteId null → invitado (cliente queda null)")
+        void clienteNull_invitado() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID)
+                    .cliente(Cliente.builder().usuarioId(1L).build()).build();
+            when(visitaRepository.findByIdForUpdate(VISITA_ID)).thenReturn(Optional.of(visita));
+
+            visitaService.asignarCliente(VISITA_ID, null);
+
+            assertThat(visita.getCliente()).isNull();
+            verify(clienteRepository, never()).findById(anyLong());
+            verify(visitaRepository).save(visita);
+        }
+
+        @Test
+        @DisplayName("visita inexistente → ResourceNotFoundException")
+        void visitaInexistente_lanza() {
+            when(visitaRepository.findByIdForUpdate(VISITA_ID)).thenReturn(Optional.empty());
+            assertThatThrownBy(() -> visitaService.asignarCliente(VISITA_ID, 9L))
+                    .isInstanceOf(ResourceNotFoundException.class);
+        }
+
+        @Test
+        @DisplayName("visita ya cerrada → BusinessException")
+        void visitaCerrada_lanza() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID)
+                    .visitaFechaHoraFin(LocalDateTime.now()).build();
+            when(visitaRepository.findByIdForUpdate(VISITA_ID)).thenReturn(Optional.of(visita));
+            assertThatThrownBy(() -> visitaService.asignarCliente(VISITA_ID, 9L))
+                    .isInstanceOf(BusinessException.class);
+        }
+
+        @Test
+        @DisplayName("clienteId inexistente → ResourceNotFoundException")
+        void clienteInexistente_lanza() {
+            Visita visita = Visita.builder().visitaId(VISITA_ID).build();
+            when(visitaRepository.findByIdForUpdate(VISITA_ID)).thenReturn(Optional.of(visita));
+            when(clienteRepository.findById(9L)).thenReturn(Optional.empty());
+            assertThatThrownBy(() -> visitaService.asignarCliente(VISITA_ID, 9L))
+                    .isInstanceOf(ResourceNotFoundException.class);
         }
     }
 }

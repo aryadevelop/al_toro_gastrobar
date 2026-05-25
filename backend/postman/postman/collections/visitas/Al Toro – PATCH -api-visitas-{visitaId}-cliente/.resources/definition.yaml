@@ -1,0 +1,29 @@
+$kind: collection
+name: Al Toro – PATCH /api/visitas/{visitaId}/cliente
+description: |-
+  # PATCH /api/visitas/{visitaId}/cliente?clienteId={id}
+
+  Relaciona la cuenta de la visita con un cliente (CA-02) o la marca como invitado cuando
+  se omite `clienteId` (CA-04).
+
+  **Control de acceso:** `@PreAuthorize("hasRole('CAJERO')")`. Otros roles → 403; sin token → 401.
+
+  **Reglas de negocio:**
+  - Visita inexistente → 404 (ENT-001)
+  - clienteId inexistente → 404 (ENT-001)
+  - Visita ya cerrada → 409 (NEG-002)
+
+  ## Dependencia de datos (seed)
+  Los casos 200 usan una visita ABIERTA (default: 15, ATENDIDA en V3 dev data). El caso 409
+  usa la visita CERRADA 1. Si la visita 15 se cierra (p.ej. por un test de pago), re-seed:
+  `docker compose down -v && docker compose up --build`.
+
+  | ID    | Escenario                       | HTTP |
+  |-------|---------------------------------|------|
+  | AC-01 | Sin token                       | 401  |
+  | AC-02 | MESERO sin permiso              | 403  |
+  | AC-03 | CAJERO asigna cliente           | 200  |
+  | AC-04 | CAJERO continuar como invitado  | 200  |
+  | AC-05 | Visita inexistente              | 404  |
+  | AC-06 | clienteId inexistente           | 404  |
+  | AC-07 | Visita ya cerrada               | 409  |

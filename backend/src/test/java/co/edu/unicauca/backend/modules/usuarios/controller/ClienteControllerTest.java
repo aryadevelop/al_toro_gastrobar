@@ -2,7 +2,9 @@ package co.edu.unicauca.backend.modules.usuarios.controller;
 
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
+import co.edu.unicauca.backend.modules.usuarios.dto.response.ClienteBusquedaResponse;
 import co.edu.unicauca.backend.modules.usuarios.dto.response.ClientePuntosResponse;
+import co.edu.unicauca.backend.modules.usuarios.service.ClienteBusquedaService;
 import co.edu.unicauca.backend.modules.usuarios.service.PuntosService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -20,8 +22,11 @@ import org.springframework.security.web.SecurityFilterChain;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import java.util.List;
+
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -47,6 +52,7 @@ class ClienteControllerTest {
     @Autowired MockMvc mockMvc;
 
     @MockitoBean PuntosService puntosService;
+    @MockitoBean ClienteBusquedaService clienteBusquedaService;
     @MockitoBean JwtTokenProvider jwtTokenProvider;
     @MockitoBean UserDetailsService userDetailsService;
     @MockitoBean SesionRepository sesionRepository;
@@ -112,6 +118,24 @@ class ClienteControllerTest {
                             .param("emailEmpleado", "cajero@altoro.com"))
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data.puntosActuales").value(0));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/clientes/buscar")
+    class BuscarClientes {
+
+        @Test
+        @WithMockUser(username = "cajero@altoro.com", roles = "CAJERO")
+        @DisplayName("CAJERO con correo → 200 OK con lista")
+        void cajero_correoValido_retorna200() throws Exception {
+            when(clienteBusquedaService.buscarPorEmail("ana"))
+                    .thenReturn(List.of(ClienteBusquedaResponse.builder().clienteId(1L).nombre("Ana").build()));
+
+            mockMvc.perform(get("/api/clientes/buscar").param("correo", "ana"))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].clienteId").value(1));
+            verify(clienteBusquedaService).buscarPorEmail("ana");
         }
     }
 }

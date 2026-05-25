@@ -12,6 +12,7 @@ import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.test.context.TestPropertySource;
 
 import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -24,6 +25,7 @@ import static org.assertj.core.api.Assertions.assertThat;
         "spring.datasource.username=sa",
         "spring.datasource.password=",
         "spring.jpa.hibernate.ddl-auto=create-drop",
+        "spring.jpa.database-platform=org.hibernate.dialect.H2Dialect",
         "spring.flyway.enabled=false"
 })
 class ClienteRepositoryTest {
@@ -67,6 +69,51 @@ class ClienteRepositoryTest {
             Optional<Cliente> result = clienteRepo.findByUsuario_UsuarioEmail("noexiste@altoro.com");
 
             assertThat(result).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("findByUsuario_UsuarioEmailContainingIgnoreCase")
+    class BusquedaParcial {
+
+        @Test
+        @DisplayName("Fragmento parcial case-insensitive → coincidencias")
+        void fragmentoParcial_retornaCoincidencias() {
+            crearCliente("ana.perez@mail.com");
+            crearCliente("otro@mail.com");
+
+            List<Cliente> result = clienteRepo
+                    .findByUsuario_UsuarioEmailContainingIgnoreCase("ANA.PE");
+
+            assertThat(result).hasSize(1);
+            assertThat(result.get(0).getUsuario().getUsuarioEmail()).isEqualTo("ana.perez@mail.com");
+        }
+
+        @Test
+        @DisplayName("Sin coincidencias → lista vacía")
+        void sinCoincidencias_retornaVacia() {
+            crearCliente("ana@mail.com");
+
+            assertThat(clienteRepo.findByUsuario_UsuarioEmailContainingIgnoreCase("zzz")).isEmpty();
+        }
+    }
+
+    @Nested
+    @DisplayName("findByIdForUpdate")
+    class FindByIdForUpdate {
+
+        @Test
+        @DisplayName("Cliente existente → presente")
+        void existente_loRetorna() {
+            Cliente c = crearCliente("lock@mail.com");
+
+            assertThat(clienteRepo.findByIdForUpdate(c.getUsuarioId())).isPresent();
+        }
+
+        @Test
+        @DisplayName("Id inexistente → vacío")
+        void inexistente_retornaVacio() {
+            assertThat(clienteRepo.findByIdForUpdate(999999L)).isEmpty();
         }
     }
 }

@@ -3,12 +3,12 @@ name: RE-01 CLIENTE consulta detalle de reserva propia con pre-orden – 200 OK 
 description: |-
   **Criterio de Aceptación:** HE-02-HU-03-CA-07 (detalle reserva con pre-orden)
   **Objetivo:** Verificar que el detalle de una reserva propia incluye los ítems de pre-orden
-  (`preOrdenItems` con `productoNombre`, `cantidad`, `precioUnitario`) y el `preOrdenTotal`.
+  (`preOrdenItems` con `productoNombre`, `cantidad`, `precioUnitario`) y el `totalPreorden`.
   **Pre-condición:** Ninguna externa. El pre-request hace login autónomo, crea la reserva con
   pre-orden y captura el `reservaId` resultante en `tmpReservaId`. El afterResponse cancela
   la reserva para evitar acumulación de datos.
   **Resultado esperado:** 200 OK · campos base presentes · `preOrdenItems` array no vacío con
-  los campos esperados · `preOrdenTotal` > 0 · variable temporal limpiada al final.
+  los campos esperados · `totalPreorden` > 0 · variable temporal limpiada al final.
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
 method: GET
 headers:
@@ -81,8 +81,11 @@ scripts:
         pm.expect(items[0]).to.have.property('cantidad');
         pm.expect(items[0]).to.have.property('precioUnitario');
       });
-      pm.test('preOrdenTotal está presente y es mayor a 0', function () {
-        pm.expect(pm.response.json().data.preOrdenTotal).to.be.above(0);
+      pm.test('Importes canónicos presentes y consistentes', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.totalPreorden)).to.be.above(0);
+        pm.expect(Number(data.totalAPagar)).to.be.at.least(Number(data.totalPreorden));
+        pm.expect(Number(data.saldoPendiente)).to.equal(Number(data.totalAPagar) - Number(data.montoAbonado));
       });
 
       const reservaId = pm.environment.get('tmpReservaId');

@@ -1,264 +1,253 @@
 package co.edu.unicauca.backend.modules.pagos_caja.service;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Visita;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
+import co.edu.unicauca.backend.modules.notificaciones.dto.ws.CuentaCerradaWsMessage;
+import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
 import co.edu.unicauca.backend.modules.pagos_caja.dto.request.CerrarCuentaRequest;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.pagos_caja.repository.VentaRepository;
+import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.modules.usuarios.entity.Empleado;
+import co.edu.unicauca.backend.modules.usuarios.repository.ClienteRepository;
 import co.edu.unicauca.backend.modules.usuarios.repository.EmpleadoRepository;
+import co.edu.unicauca.backend.shared.enums.EstadoComanda;
+import co.edu.unicauca.backend.shared.enums.EstadoMesa;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
+import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
-import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.http.HttpStatus;
+import org.mockito.junit.jupiter.MockitoSettings;
+import org.mockito.quality.Strictness;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
+import java.util.List;
 import java.util.Optional;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.Mockito.mock;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
-/**
- * Tests unitarios de {@link VentaService}.
- *
- * <p>Cubre el método {@link VentaService#cerrarCuenta}:
- * <ul>
- *   <li>Validaciones de existencia de visita, venta previa y cajero.</li>
- *   <li>Persistencia correcta de la venta con todos sus campos.</li>
- *   <li>Regla de negocio: incremento de puntos del cliente al cerrar cuenta.</li>
- * </ul>
- */
 @ExtendWith(MockitoExtension.class)
+@MockitoSettings(strictness = Strictness.LENIENT)
+@DisplayName("VentaService")
 class VentaServiceTest {
 
-    @Mock
-    VisitaRepository visitaRepository;
+    @Mock VisitaRepository visitaRepository;
+    @Mock VentaRepository ventaRepository;
+    @Mock EmpleadoRepository empleadoRepository;
+    @Mock ClienteRepository clienteRepository;
+    @Mock MesaRepository mesaRepository;
+    @Mock ComandaRepository comandaRepository;
+    @Mock NotificacionWsPublisher wsPublisher;
+    @Mock MesaWsPublisher mesaWsPublisher;
+    @InjectMocks VentaService ventaService;
 
-    @Mock
-    VentaRepository ventaRepository;
-
-    @Mock
-    EmpleadoRepository empleadoRepository;
-
-    @Mock
-    NotificacionWsPublisher wsPublisher;
-
-    @InjectMocks
-    VentaService ventaService;
-
-    // ── Helpers ───────────────────────────────────────────────────────────────
-
-    private static final String EMAIL_CAJERO = "cajero@altoro.com";
-    private static final Long VISITA_ID = 1L;
-
-    private CerrarCuentaRequest requestBase() {
+    private CerrarCuentaRequest req(BigDecimal descuento) {
         return CerrarCuentaRequest.builder()
-                .visitaId(VISITA_ID)
-                .emailCajero(EMAIL_CAJERO)
-                .subtotal(new BigDecimal("50.00"))
-                .descuento(new BigDecimal("5.00"))
-                .total(new BigDecimal("45.00"))
-                .metodo(MetodoPago.EFECTIVO)
-                .build();
+                .emailCajero("cajero@altoro.com").visitaId(5L)
+                .descuento(descuento).metodo(MetodoPago.EFECTIVO).build();
     }
 
-    private Empleado cajeroTest() {
-        return Empleado.builder()
-                .usuarioId(10L)
-                .empleadoNombre("Cajero Test")
-                .empleadoTelefono("3009876543")
-                .empleadoFechaIngreso(LocalDate.now())
-                .build();
+    @BeforeEach
+    void base() {
+        when(empleadoRepository.findByUsuario_UsuarioEmail("cajero@altoro.com"))
+                .thenReturn(Optional.of(Empleado.builder().build()));
+        when(ventaRepository.findByVisita_VisitaId(5L)).thenReturn(Optional.empty());
+        // Ítems activos suman 100.00 (precio 100 × cantidad 1); el de precio null (bebida de menú) aporta 0
+        when(comandaRepository.findAllItemsActivosByVisita(5L)).thenReturn(List.of(
+                ComandaItem.builder().comandaItemPrecio(new BigDecimal("100.00")).comandaItemCantidad(1).build(),
+                ComandaItem.builder().comandaItemPrecio(null).comandaItemCantidad(2).build()));
+        when(comandaRepository.findByVisita_VisitaId(5L)).thenReturn(List.of());
+        when(mesaRepository.findById(5L)).thenReturn(Optional.empty());
     }
 
-    private Cliente clienteConPuntos(int puntos, int acumulados) {
-        return Cliente.builder()
-                .usuarioId(20L)
-                .clienteNombre("Cliente Test")
-                .clienteTelefono("3001234567")
-                .clientePuntos(puntos)
-                .clientePuntosAcumulados(acumulados)
-                .clienteAceptaTerminos(true)
-                .clienteFechaAceptacion(LocalDateTime.now())
-                .build();
+    @Test
+    @DisplayName("visita inexistente → ResourceNotFoundException")
+    void visitaInexistente_lanza() {
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com"))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 
-    // ── Validaciones de existencia ────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("Validaciones de entidades requeridas")
-    class ValidacionesExistencia {
-
-        @Test
-        @DisplayName("Visita no existe → ResourceNotFoundException")
-        void visitaNoExiste_lanzaResourceNotFoundException() {
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
-
-        @Test
-        @DisplayName("Cuenta ya cerrada para esa visita → BusinessException 409 CONFLICT")
-        void cuentaYaCerrada_lanzaBusinessException() {
-            Visita visita = mock(Visita.class);
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID))
-                    .thenReturn(Optional.of(mock(Venta.class)));
-
-            assertThatThrownBy(() -> ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO))
-                    .isInstanceOf(BusinessException.class)
-                    .satisfies(ex ->
-                            assertThat(((BusinessException) ex).getStatus())
-                                    .isEqualTo(HttpStatus.CONFLICT));
-        }
-
-        @Test
-        @DisplayName("Cajero no existe → ResourceNotFoundException")
-        void cajeroNoExiste_lanzaResourceNotFoundException() {
-            Visita visita = mock(Visita.class);
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.empty());
-
-            assertThatThrownBy(() -> ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO))
-                    .isInstanceOf(ResourceNotFoundException.class);
-        }
+    @Test
+    @DisplayName("cuenta ya cerrada → INVALID_STATE")
+    void cuentaYaCerrada_lanza() {
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(Visita.builder().visitaId(5L).build()));
+        when(ventaRepository.findByVisita_VisitaId(5L)).thenReturn(Optional.of(Venta.builder().build()));
+        assertThatThrownBy(() -> ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com"))
+                .isInstanceOf(BusinessException.class);
     }
 
-    // ── Lógica de puntos ──────────────────────────────────────────────────────
-
-    @Nested
-    @DisplayName("Regla de negocio: puntos del cliente")
-    class PuntosCliente {
-
-        @Test
-        @DisplayName("Cliente con 3 puntos actuales y 5 acumulados → pasa a 4 y 6")
-        void cerrarCuentaConCliente_incrementaAmbosPuntos() {
-            Cliente cliente = clienteConPuntos(3, 5);
-            Visita visita = mock(Visita.class);
-            when(visita.getCliente()).thenReturn(cliente);
-
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.of(cajeroTest()));
-
-            ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO);
-
-            assertThat(cliente.getClientePuntos()).isEqualTo(4);
-            assertThat(cliente.getClientePuntosAcumulados()).isEqualTo(6);
-        }
-
-        @Test
-        @DisplayName("Visita sin cliente (walk-in anónimo) → no lanza NPE ni modifica puntos")
-        void cerrarCuentaSinCliente_noCambiaPuntos() {
-            Visita visita = mock(Visita.class);
-            when(visita.getCliente()).thenReturn(null);
-
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.of(cajeroTest()));
-
-            // No debe lanzar ninguna excepción
-            ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO);
-        }
-
-        @Test
-        @DisplayName("Cliente con 0 puntos → después de cerrar cuenta tiene 1 punto")
-        void puntosInicianEnCero_incrementaA1() {
-            Cliente cliente = clienteConPuntos(0, 0);
-            Visita visita = mock(Visita.class);
-            when(visita.getCliente()).thenReturn(cliente);
-
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.of(cajeroTest()));
-
-            ventaService.cerrarCuenta(requestBase(), EMAIL_CAJERO);
-
-            assertThat(cliente.getClientePuntos()).isEqualTo(1);
-            assertThat(cliente.getClientePuntosAcumulados()).isEqualTo(1);
-        }
+    @Test
+    @DisplayName("descuento mayor al total → BUSINESS_ERROR")
+    void descuentoMayorTotal_lanza() {
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(Visita.builder().visitaId(5L).build()));
+        assertThatThrownBy(() -> ventaService.cerrarCuenta(req(new BigDecimal("150.00")), "cajero@altoro.com"))
+                .isInstanceOf(BusinessException.class);
     }
 
-    // ── Persistencia de la venta ──────────────────────────────────────────────
+    @Test
+    @DisplayName("recompute con decoración: subtotal = ítems + decoración; total = subtotal − descuento")
+    void recomputeConDecoracion() {
+        Decoracion deco = Decoracion.builder().decoracionCostoAdicional(new BigDecimal("20.00")).build();
+        Reserva reserva = Reserva.builder().reservaId(2L).decoracion(deco).build();
+        Cliente cliente = Cliente.builder().usuarioId(7L).clientePuntos(0).clientePuntosAcumulados(0).build();
+        Visita visita = Visita.builder().visitaId(5L).reserva(reserva).cliente(cliente).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(clienteRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(cliente));
 
-    @Nested
-    @DisplayName("Persistencia correcta de la entidad Venta")
-    class PersistenciaVenta {
+        ventaService.cerrarCuenta(req(new BigDecimal("30.00")), "cajero@altoro.com");
 
-        @Test
-        @DisplayName("Venta guardada contiene subtotal, total, metodo, cajero y visita correctos")
-        void ventaPersistidaConCamposCorrectos() {
-            Visita visita = mock(Visita.class);
-            when(visita.getCliente()).thenReturn(null);
-            Empleado cajero = cajeroTest();
+        ArgumentCaptor<Venta> cap = ArgumentCaptor.forClass(Venta.class);
+        verify(ventaRepository).save(cap.capture());
+        assertThat(cap.getValue().getVentaSubtotal()).isEqualByComparingTo("120.00");
+        assertThat(cap.getValue().getVentaDescuento()).isEqualByComparingTo("30.00");
+        assertThat(cap.getValue().getVentaTotal()).isEqualByComparingTo("90.00");
+    }
 
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.of(cajero));
+    @Test
+    @DisplayName("cliente presente → +1 punto con lock y visita cerrada")
+    void clientePresente_incrementaPuntos() {
+        Cliente cliente = Cliente.builder().usuarioId(7L).clientePuntos(4).clientePuntosAcumulados(10).build();
+        Visita visita = Visita.builder().visitaId(5L).cliente(cliente).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(clienteRepository.findByIdForUpdate(7L)).thenReturn(Optional.of(cliente));
 
-            CerrarCuentaRequest request = requestBase();
-            ventaService.cerrarCuenta(request, EMAIL_CAJERO);
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
 
-            ArgumentCaptor<Venta> captor = ArgumentCaptor.forClass(Venta.class);
-            verify(ventaRepository).save(captor.capture());
+        assertThat(cliente.getClientePuntos()).isEqualTo(5);
+        assertThat(cliente.getClientePuntosAcumulados()).isEqualTo(11);
+        assertThat(visita.getVisitaFechaHoraFin()).isNotNull();
+        verify(clienteRepository).findByIdForUpdate(7L);
+    }
 
-            Venta ventaGuardada = captor.getValue();
-            assertThat(ventaGuardada.getVentaSubtotal()).isEqualByComparingTo(new BigDecimal("50.00"));
-            assertThat(ventaGuardada.getVentaTotal()).isEqualByComparingTo(new BigDecimal("45.00"));
-            assertThat(ventaGuardada.getVentaMetodo()).isEqualTo(MetodoPago.EFECTIVO);
-            assertThat(ventaGuardada.getCajero()).isEqualTo(cajero);
-            assertThat(ventaGuardada.getVisita()).isEqualTo(visita);
-        }
+    @Test
+    @DisplayName("invitado (cliente null) → no incrementa puntos, puntosActuales null en WS")
+    void invitado_noIncrementaPuntos() {
+        Visita visita = Visita.builder().visitaId(5L).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
 
-        @Test
-        @DisplayName("Descuento null en request → venta guardada con ventaDescuento == 0")
-        void descuentoNullSeAsume0() {
-            Visita visita = mock(Visita.class);
-            when(visita.getCliente()).thenReturn(null);
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
 
-            when(visitaRepository.findById(VISITA_ID)).thenReturn(Optional.of(visita));
-            when(ventaRepository.findByVisita_VisitaId(VISITA_ID)).thenReturn(Optional.empty());
-            when(empleadoRepository.findByUsuario_UsuarioEmail(EMAIL_CAJERO))
-                    .thenReturn(Optional.of(cajeroTest()));
+        verify(clienteRepository, never()).findByIdForUpdate(anyLong());
+        ArgumentCaptor<CuentaCerradaWsMessage> cap = ArgumentCaptor.forClass(CuentaCerradaWsMessage.class);
+        verify(wsPublisher).publicarCuentaCerrada(eq(5L), cap.capture());
+        assertThat(cap.getValue().getPuntosActuales()).isNull();
+    }
 
-            CerrarCuentaRequest requestSinDescuento = CerrarCuentaRequest.builder()
-                    .visitaId(VISITA_ID)
-                    .emailCajero(EMAIL_CAJERO)
-                    .subtotal(new BigDecimal("30.00"))
-                    .descuento(null)
-                    .total(new BigDecimal("30.00"))
-                    .metodo(MetodoPago.TARJETA)
-                    .build();
+    @Test
+    @DisplayName("mesa pasa a CERRADA y se publica al mapa")
+    void cierraMesaYPublicaMapa() {
+        Visita visita = Visita.builder().visitaId(5L).build();
+        Mesa mesa = Mesa.builder().visitaId(5L).mesaEstado(EstadoMesa.ATENDIDA).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(mesaRepository.findById(5L)).thenReturn(Optional.of(mesa));
 
-            ventaService.cerrarCuenta(requestSinDescuento, EMAIL_CAJERO);
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
 
-            ArgumentCaptor<Venta> captor = ArgumentCaptor.forClass(Venta.class);
-            verify(ventaRepository).save(captor.capture());
+        assertThat(mesa.getMesaEstado()).isEqualTo(EstadoMesa.CERRADA);
+        verify(mesaRepository).save(mesa);
+        verify(mesaWsPublisher).publicarActualizacionMesa(5L, MesaWsPublisher.TipoEventoMesa.CERRAR);
+    }
 
-            assertThat(captor.getValue().getVentaDescuento())
-                    .isEqualByComparingTo(BigDecimal.ZERO);
-        }
+    @Test
+    @DisplayName("comandas no completadas pasan a COMPLETADO; las ya completadas no se re-guardan")
+    void completaComandasPendientes() {
+        Visita visita = Visita.builder().visitaId(5L).build();
+        Comanda pendiente = Comanda.builder().comandaId(1L).comandaEstado(EstadoComanda.LISTO).build();
+        Comanda completada = Comanda.builder().comandaId(2L).comandaEstado(EstadoComanda.COMPLETADO).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(comandaRepository.findByVisita_VisitaId(5L)).thenReturn(List.of(pendiente, completada));
+
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
+
+        assertThat(pendiente.getComandaEstado()).isEqualTo(EstadoComanda.COMPLETADO);
+        verify(comandaRepository).save(pendiente);
+        verify(comandaRepository, never()).save(completada);
+    }
+
+    @Test
+    @DisplayName("descuento null → asume 0")
+    void descuentoNull_asumeCero() {
+        Visita visita = Visita.builder().visitaId(5L).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+
+        ventaService.cerrarCuenta(req(null), "cajero@altoro.com");
+
+        ArgumentCaptor<Venta> cap = ArgumentCaptor.forClass(Venta.class);
+        verify(ventaRepository).save(cap.capture());
+        assertThat(cap.getValue().getVentaDescuento()).isEqualByComparingTo("0.00");
+        assertThat(cap.getValue().getVentaTotal()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("reserva sin decoración → subtotal = solo ítems")
+    void reservaSinDecoracion_subtotalSinDeco() {
+        Reserva reserva = Reserva.builder().reservaId(2L).build(); // decoración null
+        Visita visita = Visita.builder().visitaId(5L).reserva(reserva).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
+
+        ArgumentCaptor<Venta> cap = ArgumentCaptor.forClass(Venta.class);
+        verify(ventaRepository).save(cap.capture());
+        assertThat(cap.getValue().getVentaSubtotal()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("reserva con decoración sin costo → subtotal = solo ítems")
+    void reservaDecoracionSinCosto_subtotalSinDeco() {
+        Decoracion deco = Decoracion.builder().decoracionCostoAdicional(null).build();
+        Reserva reserva = Reserva.builder().reservaId(2L).decoracion(deco).build();
+        Visita visita = Visita.builder().visitaId(5L).reserva(reserva).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+
+        ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com");
+
+        ArgumentCaptor<Venta> cap = ArgumentCaptor.forClass(Venta.class);
+        verify(ventaRepository).save(cap.capture());
+        assertThat(cap.getValue().getVentaSubtotal()).isEqualByComparingTo("100.00");
+    }
+
+    @Test
+    @DisplayName("cajero inexistente → ResourceNotFoundException")
+    void cajeroInexistente_lanza() {
+        Visita visita = Visita.builder().visitaId(5L).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(empleadoRepository.findByUsuario_UsuarioEmail("cajero@altoro.com")).thenReturn(Optional.empty());
+        assertThatThrownBy(() -> ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com"))
+                .isInstanceOf(ResourceNotFoundException.class);
+    }
+
+    @Test
+    @DisplayName("cliente de la visita no recuperable bajo lock → ResourceNotFoundException")
+    void clienteNoLockeable_lanza() {
+        Cliente cliente = Cliente.builder().usuarioId(7L).clientePuntos(0).clientePuntosAcumulados(0).build();
+        Visita visita = Visita.builder().visitaId(5L).cliente(cliente).build();
+        when(visitaRepository.findByIdForUpdate(5L)).thenReturn(Optional.of(visita));
+        when(clienteRepository.findByIdForUpdate(7L)).thenReturn(Optional.empty());
+
+        assertThatThrownBy(() -> ventaService.cerrarCuenta(req(BigDecimal.ZERO), "cajero@altoro.com"))
+                .isInstanceOf(ResourceNotFoundException.class);
     }
 }

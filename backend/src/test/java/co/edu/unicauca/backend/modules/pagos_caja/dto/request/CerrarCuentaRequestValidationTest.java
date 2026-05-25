@@ -28,10 +28,15 @@ class CerrarCuentaRequestValidationTest {
         return CerrarCuentaRequest.builder()
                 .emailCajero("cajero@altoro.com")
                 .visitaId(1L)
-                .subtotal(new BigDecimal("50.00"))
-                .total(new BigDecimal("50.00"))
+                .descuento(new BigDecimal("5.00"))
                 .metodo(MetodoPago.EFECTIVO)
                 .build();
+    }
+
+    private Set<String> camposConViolacion(CerrarCuentaRequest r) {
+        return validator.validate(r).stream()
+                .map(v -> v.getPropertyPath().toString())
+                .collect(Collectors.toSet());
     }
 
     @Nested
@@ -42,36 +47,16 @@ class CerrarCuentaRequestValidationTest {
         @DisplayName("Email cajero null → violación @NotNull")
         void emailNull_violaNotNull() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero(null)
-                    .visitaId(1L)
-                    .subtotal(new BigDecimal("50.00"))
-                    .total(new BigDecimal("50.00"))
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("emailCajero");
+                    .emailCajero(null).visitaId(1L).metodo(MetodoPago.EFECTIVO).build();
+            assertThat(camposConViolacion(r)).contains("emailCajero");
         }
 
         @Test
         @DisplayName("Email cajero inválido → violación @Email")
         void emailInvalido_violaEmail() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("no-es-email")
-                    .visitaId(1L)
-                    .subtotal(new BigDecimal("50.00"))
-                    .total(new BigDecimal("50.00"))
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("emailCajero");
+                    .emailCajero("no-es-email").visitaId(1L).metodo(MetodoPago.EFECTIVO).build();
+            assertThat(camposConViolacion(r)).contains("emailCajero");
         }
     }
 
@@ -83,82 +68,31 @@ class CerrarCuentaRequestValidationTest {
         @DisplayName("VisitaId null → violación @NotNull")
         void visitaIdNull_violaNotNull() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("cajero@altoro.com")
-                    .visitaId(null)
-                    .subtotal(new BigDecimal("50.00"))
-                    .total(new BigDecimal("50.00"))
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("visitaId");
+                    .emailCajero("cajero@altoro.com").visitaId(null).metodo(MetodoPago.EFECTIVO).build();
+            assertThat(camposConViolacion(r)).contains("visitaId");
         }
     }
 
     @Nested
-    @DisplayName("subtotal")
-    class SubtotalField {
+    @DisplayName("descuento")
+    class DescuentoField {
 
         @Test
-        @DisplayName("Subtotal null → violación @NotNull")
-        void subtotalNull_violaNotNull() {
+        @DisplayName("Descuento negativo → violación @DecimalMin")
+        void descuentoNegativo_violaDecimalMin() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("cajero@altoro.com")
-                    .visitaId(1L)
-                    .subtotal(null)
-                    .total(new BigDecimal("50.00"))
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("subtotal");
+                    .emailCajero("cajero@altoro.com").visitaId(1L)
+                    .descuento(new BigDecimal("-1.00")).metodo(MetodoPago.EFECTIVO).build();
+            assertThat(camposConViolacion(r)).contains("descuento");
         }
 
         @Test
-        @DisplayName("Subtotal negativo → violación @DecimalMin")
-        void subtotalNegativo_violaDecimalMin() {
+        @DisplayName("Descuento null → válido (se asume 0)")
+        void descuentoNull_esValido() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("cajero@altoro.com")
-                    .visitaId(1L)
-                    .subtotal(new BigDecimal("-1.00"))
-                    .total(new BigDecimal("50.00"))
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("subtotal");
-        }
-    }
-
-    @Nested
-    @DisplayName("total")
-    class TotalField {
-
-        @Test
-        @DisplayName("Total null → violación @NotNull")
-        void totalNull_violaNotNull() {
-            CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("cajero@altoro.com")
-                    .visitaId(1L)
-                    .subtotal(new BigDecimal("50.00"))
-                    .total(null)
-                    .metodo(MetodoPago.EFECTIVO)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("total");
+                    .emailCajero("cajero@altoro.com").visitaId(1L)
+                    .descuento(null).metodo(MetodoPago.EFECTIVO).build();
+            assertThat(camposConViolacion(r)).doesNotContain("descuento");
         }
     }
 
@@ -170,18 +104,8 @@ class CerrarCuentaRequestValidationTest {
         @DisplayName("Método null → violación @NotNull")
         void metodoNull_violaNotNull() {
             CerrarCuentaRequest r = CerrarCuentaRequest.builder()
-                    .emailCajero("cajero@altoro.com")
-                    .visitaId(1L)
-                    .subtotal(new BigDecimal("50.00"))
-                    .total(new BigDecimal("50.00"))
-                    .metodo(null)
-                    .build();
-
-            Set<String> campos = validator.validate(r).stream()
-                    .map(v -> v.getPropertyPath().toString())
-                    .collect(Collectors.toSet());
-
-            assertThat(campos).contains("metodo");
+                    .emailCajero("cajero@altoro.com").visitaId(1L).metodo(null).build();
+            assertThat(camposConViolacion(r)).contains("metodo");
         }
     }
 
@@ -189,7 +113,6 @@ class CerrarCuentaRequestValidationTest {
     @DisplayName("Request válido → sin violaciones")
     void requestValido_sinViolaciones() {
         Set<ConstraintViolation<CerrarCuentaRequest>> violations = validator.validate(requestValido());
-
         assertThat(violations).isEmpty();
     }
 }

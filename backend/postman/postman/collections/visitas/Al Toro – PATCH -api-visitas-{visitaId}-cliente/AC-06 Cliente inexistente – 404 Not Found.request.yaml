@@ -1,0 +1,37 @@
+$kind: http-request
+name: AC-06 Cliente inexistente – 404 Not Found
+description: Visita abierta válida (15) pero clienteId inexistente → 404.
+url: "{{baseUrl}}/api/visitas/15/cliente?clienteId=999999"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  clienteId: "999999"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Cliente inexistente → 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('code = ENT-001', function () {
+        pm.expect(pm.response.json().code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 6000

@@ -1,0 +1,37 @@
+$kind: http-request
+name: AC-07 Visita ya cerrada – 409 Conflict
+description: La visita 1 ya tiene venta (cerrada). No se puede reasignar cliente → 409 NEG-002.
+url: "{{baseUrl}}/api/visitas/1/cliente?clienteId=11"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  clienteId: "11"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Visita cerrada → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-002', function () {
+        pm.expect(pm.response.json().code).to.equal('NEG-002');
+      });
+    language: text/javascript
+order: 7000

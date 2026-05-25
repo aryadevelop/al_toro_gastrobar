@@ -1,0 +1,33 @@
+$kind: http-request
+name: 50-04 Buscar cliente por correo – CAJERO
+description: Busca clientes por coincidencia parcial de correo para relacionarlos con la cuenta (CA-02).
+url: "{{baseUrl}}/api/clientes/buscar?correo=andres"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 5040

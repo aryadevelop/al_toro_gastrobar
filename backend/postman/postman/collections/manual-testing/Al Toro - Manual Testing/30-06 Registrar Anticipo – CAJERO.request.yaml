@@ -3,7 +3,7 @@ name: 30-06 Registrar Anticipo – CAJERO
 description: |-
   Registra un anticipo sobre una reserva ESPECIAL CONFIRMADA como CAJERO.
   Cambiar tmpReservaId al ID de la reserva a abonar (debe existir en estado CONFIRMADA).
-  El monto no puede superar el pendiente máximo (totalReserva - totalAnticipado).
+  El monto no puede superar el pendiente máximo (totalAPagar - totalAnticipado).
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/abonos"
 method: POST
 headers:

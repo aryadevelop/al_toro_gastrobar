@@ -11,6 +11,8 @@ import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.notificaciones.entity.Notificacion;
 import co.edu.unicauca.backend.modules.notificaciones.repository.NotificacionRepository;
+import co.edu.unicauca.backend.modules.pagos_caja.entity.Abono;
+import co.edu.unicauca.backend.modules.pagos_caja.repository.AbonoRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoNotificacion;
 import co.edu.unicauca.backend.shared.enums.TipoNotificacion;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
@@ -40,6 +42,7 @@ public class VisitaEstadoService {
     private final MesaRepository mesaRepository;
     private final ComandaRepository comandaRepository;
     private final NotificacionRepository notificacionRepository;
+    private final AbonoRepository abonoRepository;
     private final VisitaEstadoMapper visitaEstadoMapper;
 
     /**
@@ -61,8 +64,9 @@ public class VisitaEstadoService {
     @Transactional(readOnly = true)
     public EstadoVisitaResponse obtenerEstadoVisitaActiva(String emailCliente) {
 
-        // Busca la visita activa del cliente (sin fecha de fin)
-        Visita visita = visitaRepository.findActiveByClienteEmail(emailCliente)
+        // Busca la visita activa del cliente (sin fecha de fin). Si hubiera más de una
+        // (visita previa sin cerrar), se toma la más reciente para no fallar con 500.
+        Visita visita = visitaRepository.findActiveByClienteEmail(emailCliente).stream().findFirst()
                 .orElseThrow(() -> new BusinessException(
                         ErrorCode.BUSINESS_ERROR,
                         "No tienes una visita activa en este momento.",
@@ -83,6 +87,11 @@ public class VisitaEstadoService {
                 .findFirstByMesa_VisitaIdAndNotificacionTipoAndNotificacionEstado(
                         visitaId, TipoNotificacion.ATENCION, EstadoNotificacion.ACTIVA);
 
-        return visitaEstadoMapper.toEstadoVisitaResponse(visita, mesaIdentificador, items, asistenciaActiva);
+        // Abonos solo si la visita proviene de una reserva; permiten calcular monto abonado y saldo
+        List<Abono> abonos = (visita.getReserva() != null)
+                ? abonoRepository.findByReserva_ReservaIdOrderByAbonoFechaHoraAsc(visita.getReserva().getReservaId())
+                : List.of();
+
+        return visitaEstadoMapper.toEstadoVisitaResponse(visita, mesaIdentificador, items, abonos, asistenciaActiva);
     }
 }

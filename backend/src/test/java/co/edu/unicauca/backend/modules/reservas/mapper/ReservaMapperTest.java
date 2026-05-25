@@ -522,8 +522,9 @@ class ReservaMapperTest {
                 List.of(item1, item2), List.of(abono1, abono2));
 
         // Totales calculados
-        assertThat(resp.getPreOrdenTotal()).isEqualByComparingTo(new BigDecimal("25000"));
-        assertThat(resp.getTotalAbonado()).isEqualByComparingTo(new BigDecimal("50000"));
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo(new BigDecimal("25000"));
+        // montoAbonado es NETO: anticipo 30000 − devolución 20000 = 10000
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(new BigDecimal("10000"));
 
         // Items delegados al preOrdenMapper
         assertThat(resp.getPreOrdenItems()).hasSize(1);
@@ -542,6 +543,50 @@ class ReservaMapperTest {
 
         // Decoración presente
         assertThat(resp.getDecoracionNombre()).isEqualTo("Velas");
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → CANCELADA: saldoPendiente omitido y pendientePorDevolver = neto")
+    void toDetalleResponse_cancelada_pendientePorDevolver() {
+        ComandaItem item = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item.getComandaItemPrecio()).thenReturn(new BigDecimal("60000"));
+        when(item.getComandaItemCantidad()).thenReturn(1);
+        when(preOrdenMapper.toDetalleResponse(List.of(item))).thenReturn(List.of());
+        Abono anticipo = Abono.builder().abonoId(1L).abonoMonto(new BigDecimal("40000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 1, 1, 10, 0))
+                .abonoMetodo(MetodoPago.TARJETA).abonoTipo(TipoAbono.ANTICIPO).build();
+        Abono devolucion = Abono.builder().abonoId(2L).abonoMonto(new BigDecimal("15000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 1, 2, 10, 0))
+                .abonoMetodo(MetodoPago.TARJETA).abonoTipo(TipoAbono.DEVOLUCION).build();
+        Reserva reserva = reservaBase();
+        reserva.setReservaEstado(EstadoReserva.CANCELADA);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of(anticipo, devolucion));
+
+        // neto = 40000 − 15000 = 25000; CANCELADA → se omite saldoPendiente y se devuelve el neto
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(new BigDecimal("25000"));
+        assertThat(resp.getSaldoPendiente()).isNull();
+        assertThat(resp.getPendientePorDevolver()).isEqualByComparingTo(new BigDecimal("25000"));
+    }
+
+    @Test
+    @DisplayName("toDetalleResponse → CONFIRMADA: saldoPendiente presente y pendientePorDevolver null")
+    void toDetalleResponse_confirmada_saldoPendiente() {
+        ComandaItem item = mock(ComandaItem.class, withSettings().strictness(Strictness.LENIENT));
+        when(item.getComandaItemPrecio()).thenReturn(new BigDecimal("60000"));
+        when(item.getComandaItemCantidad()).thenReturn(1);
+        when(preOrdenMapper.toDetalleResponse(List.of(item))).thenReturn(List.of());
+        Abono anticipo = Abono.builder().abonoId(1L).abonoMonto(new BigDecimal("40000"))
+                .abonoFechaHora(LocalDateTime.of(2026, 1, 1, 10, 0))
+                .abonoMetodo(MetodoPago.TARJETA).abonoTipo(TipoAbono.ANTICIPO).build();
+        Reserva reserva = reservaBase();
+        reserva.setReservaEstado(EstadoReserva.CONFIRMADA);
+
+        ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of(anticipo));
+
+        // CONFIRMADA → saldoPendiente = 60000 − 40000 = 20000; sin reembolso
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo(new BigDecimal("20000"));
+        assertThat(resp.getPendientePorDevolver()).isNull();
     }
 
     @Test
@@ -578,7 +623,7 @@ class ReservaMapperTest {
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
 
         assertThat(resp.getValorDecoracion()).isEqualByComparingTo(new BigDecimal("5000"));
-        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("15000"));
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(new BigDecimal("15000"));
     }
 
     @Test
@@ -595,7 +640,7 @@ class ReservaMapperTest {
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
 
         assertThat(resp.getValorDecoracion()).isNull();
-        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("6000"));
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(new BigDecimal("6000"));
     }
 
     @Test
@@ -619,18 +664,21 @@ class ReservaMapperTest {
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(item), List.of());
 
         assertThat(resp.getValorDecoracion()).isNull();
-        assertThat(resp.getTotal()).isEqualByComparingTo(new BigDecimal("8000"));
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(new BigDecimal("8000"));
     }
 
     @Test
-    @DisplayName("toDetalleResponse → sin pre-orden ni decoración: total es null")
-    void toDetalleResponse_sinPreOrdenSinDecoracion_totalNull() {
+    @DisplayName("toDetalleResponse → sin pre-orden ni decoración: totalAPagar es 0")
+    void toDetalleResponse_sinPreOrdenSinDecoracion_totalCero() {
         Reserva reserva = reservaBase();
 
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
 
         assertThat(resp.getValorDecoracion()).isNull();
-        assertThat(resp.getTotal()).isNull();
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo("0");
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo("0");
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo("0");
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo("0");
     }
 
     @Test
@@ -649,7 +697,7 @@ class ReservaMapperTest {
         ReservaDetalleResponse resp = mapper.toDetalleResponse(reserva, List.of(), List.of());
 
         assertThat(resp.getValorDecoracion()).isEqualByComparingTo("5000");
-        assertThat(resp.getTotal()).isEqualByComparingTo("5000");
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo("5000");
     }
 
     @Test
@@ -666,7 +714,7 @@ class ReservaMapperTest {
 
         ReservaDetalleResponse resp = mapper.toResumen(reserva);
 
-        assertThat(resp.getTotal()).isNull();
+        assertThat(resp.getTotalAPagar()).isNull();
         assertThat(resp.getValorDecoracion()).isNull();
     }
 }

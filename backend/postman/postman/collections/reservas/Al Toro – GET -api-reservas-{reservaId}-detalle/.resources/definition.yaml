@@ -18,8 +18,8 @@ description: |-
   **Campos de la respuesta `ReservaDetalleResponse`:**
   - Siempre presentes: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`
   - Opcionales (omitidos por `@JsonInclude(NON_NULL)` si no aplican): `zonaNombre`, `decoracionNombre`, `notas`
-  - Opcionales pre-orden: `preOrdenItems` (lista con `comandaItemId`, `productoId`, `productoNombre`, `cantidad`, `precioUnitario`, `descripcion`, `modificaciones`), `preOrdenTotal`
-  - Opcionales abonos: `abonos` (lista con `abonoId`, `monto`, `fechaHora`, `metodo`, `tipo`), `totalAbonado`
+  - Opcionales pre-orden: `preOrdenItems` (lista con `comandaItemId`, `productoId`, `productoNombre`, `cantidad`, `precioUnitario`, `descripcion`, `modificaciones`), `totalPreorden`
+  - Opcionales abonos: `abonos` (lista con `abonoId`, `monto`, `fechaHora`, `metodo`, `tipo`), `montoAbonado (neto)`
 
   **Independencia de los casos:**
   Cada request se autoabastece. El pre-request del request crea (vía `POST /api/reservas`)

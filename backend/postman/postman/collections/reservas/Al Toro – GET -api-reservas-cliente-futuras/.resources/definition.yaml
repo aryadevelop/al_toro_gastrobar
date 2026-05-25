@@ -36,8 +36,8 @@ description: |-
 
   `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado` (`PENDIENTE|CONFIRMADA`),
   `tipo` (`BASICA|ESPECIAL`). Opcionales (omitidos por `@JsonInclude(NON_NULL)`):
-  `zonaNombre`, `decoracionNombre`, `notas`, `preOrdenItems`, `preOrdenTotal`,
-  `abonos`, `totalAbonado`.
+  `zonaNombre`, `decoracionNombre`, `notas`, `preOrdenItems`, `totalPreorden`,
+  `abonos`, `montoAbonado (neto)`.
 
   ## Matriz de casos
 

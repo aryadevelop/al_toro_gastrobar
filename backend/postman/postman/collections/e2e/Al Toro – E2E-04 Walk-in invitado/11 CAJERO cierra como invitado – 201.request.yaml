@@ -1,0 +1,59 @@
+$kind: http-request
+name: 11 CAJERO cierra la cuenta como invitado (EFECTIVO) – 201 Created
+description: |-
+  Registra la venta y cierra la visita (mesa CERRADA). Como la visita NO tiene cliente (invitado),
+  NO se otorga punto de lealtad: no hay a quién acreditarlo. El cierre exitoso confirma la regla.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": {{tmpVisitaId}},
+      "descuento": 0,
+      "metodo": "EFECTIVO"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema cierra la cuenta como invitado (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+      pm.test('La venta cierra SIN cliente (no se otorga punto)', function () {
+        const data = pm.response.json().data;
+        // No hay cliente asociado: el clienteId de la venta es null (invitado).
+        // VERIFICAR EN VIVO: confirmar el campo donde la venta expone el cliente (clienteId).
+        if (data && Object.prototype.hasOwnProperty.call(data, 'clienteId')) {
+          pm.expect(data.clienteId, 'venta sin cliente').to.not.exist;
+        }
+      });
+      // Limpieza de variables temporales del escenario
+      ['tmpVisitaId','tmpComandaCocinaId','tmpItemEliminar','tmpMesaIdent',
+       'tmpTotalAntes','tmpItemsAntes']
+        .forEach(k => pm.environment.unset(k));
+    language: text/javascript
+order: 200

@@ -776,3 +776,83 @@ FROM (VALUES
     (40::bigint, 'MI-FIFO-Total')
 ) AS v(comanda_id, nombre)
 JOIN restaurante.Producto p ON p.producto_nombre = v.nombre;
+
+
+-- =====================================================
+-- E2E (pruebas de integración por rol) — Reservas ESPECIAL "del día"
+--
+-- POR QUÉ AQUÍ: una reserva ESPECIAL no puede crearse por API para hoy
+-- (ReservaService exige anticipación → 422), pero la asignación de mesa exige
+-- una reserva CONFIRMADA del día. Al sembrarlas en V3 con CURRENT_DATE, cada
+-- `docker compose down -v && up` las recrea fechadas HOY, sin script manual.
+--
+-- Cliente: paola.rojas@gmail.com (sin visita activa; GET /visitas/activa por token
+-- exige exactamente una). Hora ÚNICA por escenario = discriminador para Postman
+-- (GET /api/reservas/mesero/consulta expone horaLlegada pero no la pre-orden):
+--   E2E-02 → 18:00 (menú) · E2E-06 → 19:00 (menú+carta)
+--   E2E-05 → 20:00 (decoración) · E2E-08 → 21:00 (decoración, abonos)
+--
+-- NOTA: los escenarios ESPECIAL CONSUMEN su reserva (confirmar→...→cerrar/cancelar).
+-- Para re-sembrar (volver a tener reservas PENDIENTE del día), reiniciar la BD:
+--   docker compose down -v && docker compose up --build
+-- (el seed vive solo en esta migración; no hay scripts manuales separados).
+-- =====================================================
+
+-- E2E-02 · ESPECIAL POR MENÚ (18:00) — par COCINA (precio completo) + BARRA (bebida 0)
+WITH r AS (
+    INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada,
+                         reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+    SELECT u.usuario_id, NULL, NULL, CURRENT_DATE + INTERVAL '18 hours', 2,
+           'E2E-02 seed: especial por menú', 'PENDIENTE', 'ESPECIAL', NOW()
+    FROM Usuario u WHERE u.usuario_email = 'paola.rojas@gmail.com'
+    RETURNING reserva_id
+),
+cc AS (INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_estado)
+       SELECT NULL, reserva_id, 'COCINA', 'PRE_RESERVA' FROM r RETURNING comanda_id),
+cb AS (INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_estado)
+       SELECT NULL, reserva_id, 'BARRA', 'PRE_RESERVA' FROM r RETURNING comanda_id),
+im AS (INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+       SELECT cc.comanda_id, p.producto_id, 1, p.producto_precio, NULL, 'E2E-02-MENU'
+       FROM cc, Producto p WHERE p.producto_nombre = 'HU05-Menu-Especial' RETURNING comanda_id)
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+SELECT cb.comanda_id, b.producto_id, 1, 0, NULL, 'E2E-02-MENU'
+FROM cb, Producto b WHERE b.producto_nombre = 'Jugo de Maracuyá';
+
+-- E2E-06 · ESPECIAL POR MENÚ + carta (19:00)
+WITH r AS (
+    INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada,
+                         reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+    SELECT u.usuario_id, NULL, NULL, CURRENT_DATE + INTERVAL '19 hours', 4,
+           'E2E-06 seed: especial por menú + carta', 'PENDIENTE', 'ESPECIAL', NOW()
+    FROM Usuario u WHERE u.usuario_email = 'paola.rojas@gmail.com'
+    RETURNING reserva_id
+),
+cc AS (INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_estado)
+       SELECT NULL, reserva_id, 'COCINA', 'PRE_RESERVA' FROM r RETURNING comanda_id),
+cb AS (INSERT INTO Comanda (visita_id, reserva_id, comanda_estacion, comanda_estado)
+       SELECT NULL, reserva_id, 'BARRA', 'PRE_RESERVA' FROM r RETURNING comanda_id),
+im AS (INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+       SELECT cc.comanda_id, p.producto_id, 1, p.producto_precio, NULL, 'E2E-06-MENU'
+       FROM cc, Producto p WHERE p.producto_nombre = 'HU05-Menu-Especial' RETURNING comanda_id AS cocina_id),
+ib AS (INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+       SELECT cb.comanda_id, b.producto_id, 1, 0, NULL, 'E2E-06-MENU'
+       FROM cb, Producto b WHERE b.producto_nombre = 'Jugo de Maracuyá' RETURNING comanda_id)
+INSERT INTO Comanda_Item (comanda_id, producto_id, comanda_item_cantidad, comanda_item_precio, comanda_item_descripcion, comanda_item_menu_grupo)
+SELECT im.cocina_id, p.producto_id, 1, p.producto_precio, NULL, NULL
+FROM im, Producto p WHERE p.producto_nombre = 'HU05-Stock-Bajo';
+
+-- E2E-05 · ESPECIAL POR DECORACIÓN (20:00), sin pre-orden
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada,
+                     reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, d.decoracion_id, CURRENT_DATE + INTERVAL '20 hours', 4,
+       'E2E-05 seed: especial por decoración', 'PENDIENTE', 'ESPECIAL', NOW()
+FROM Usuario u, Decoracion d
+WHERE u.usuario_email = 'paola.rojas@gmail.com' AND d.decoracion_nombre = 'Bodas Premium';
+
+-- E2E-08 · ESPECIAL POR DECORACIÓN (21:00), sin pre-orden (abonos)
+INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada,
+                     reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
+SELECT u.usuario_id, NULL, d.decoracion_id, CURRENT_DATE + INTERVAL '21 hours', 2,
+       'E2E-08 seed: especial por decoración (abonos)', 'PENDIENTE', 'ESPECIAL', NOW()
+FROM Usuario u, Decoracion d
+WHERE u.usuario_email = 'paola.rojas@gmail.com' AND d.decoracion_nombre = 'Bodas Premium';

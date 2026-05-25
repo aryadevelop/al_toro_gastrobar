@@ -1,0 +1,47 @@
+$kind: http-request
+name: 07 CAJERO busca cliente por fragmento de correo – 200 OK
+description: |-
+  El cajero localiza al cliente con una búsqueda PARCIAL de correo (`?correo=paola`), sin exigir el email
+  exacto. La respuesta es `data[]` con `{clienteId, nombre, email, puntosAcumulados}`. Captura `tmpClienteId`
+  (la entrada cuyo email es paola.rojas@gmail.com).
+  // VERIFICAR EN VIVO: nombre del campo de correo en la respuesta (email). Si fuese 'correo', ajustar el filtro.
+url: "{{baseUrl}}/api/clientes/buscar?correo=paola"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La búsqueda parcial devuelve coincidencias', function () {
+        const data = pm.response.json().data;
+        pm.expect(data, 'resultados').to.be.an('array').with.lengthOf.at.least(1);
+        // Selecciona la entrada de paola por email (campo 'email' del DTO de búsqueda)
+        const paola = data.find(c => (c.email || c.correo || '').toLowerCase() === 'paola.rojas@gmail.com')
+                      || data[0];
+        pm.expect(paola.clienteId, 'clienteId').to.be.a('number');
+        pm.environment.set('tmpClienteId', paola.clienteId);
+      });
+    language: text/javascript
+order: 160

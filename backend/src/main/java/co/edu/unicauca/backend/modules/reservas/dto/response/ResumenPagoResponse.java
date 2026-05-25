@@ -39,10 +39,12 @@ public class ResumenPagoResponse {
     private final String tipo;
 
     /**
-     * Importe total de la reserva, calculado como pre-orden más decoración;
+     * Importe total a pagar de la reserva, calculado como pre-orden más decoración;
      * {@code BigDecimal.ZERO} cuando no existe pre-orden ni decoración con costo.
+     *
+     * <p>Nombre canónico compartido con {@code ReservaDetalleResponse} y {@code EstadoVisitaResponse}.
      */
-    private final BigDecimal totalReserva;
+    private final BigDecimal totalAPagar;
 
     /**
      * Suma acumulada de todos los anticipos registrados para esta reserva;
@@ -59,18 +61,22 @@ public class ResumenPagoResponse {
     /**
      * Diferencia neta entre anticipos y devoluciones ({@code totalAnticipado - totalDevuelto});
      * {@code BigDecimal.ZERO} cuando no existen movimientos.
+     *
+     * <p>Nombre canónico compartido con {@code ReservaDetalleResponse} y {@code EstadoVisitaResponse}.
      */
-    private final BigDecimal netoAbonado;
+    private final BigDecimal montoAbonado;
 
     /**
-     * Saldo que el cliente aún debe anticipar ({@code max(totalReserva − netoAbonado, 0)}).
+     * Saldo que el cliente aún debe anticipar ({@code max(totalAPagar − montoAbonado, 0)}).
      * Presente únicamente cuando el estado de la reserva es {@code CONFIRMADA};
      * {@code null} en cualquier otro estado (se omite del JSON).
+     *
+     * <p>Nombre canónico compartido con {@code ReservaDetalleResponse} y {@code EstadoVisitaResponse}.
      */
-    private final BigDecimal pendientePorAbonar;
+    private final BigDecimal saldoPendiente;
 
     /**
-     * Monto que el restaurante aún debe devolver al cliente (igual a {@code netoAbonado}).
+     * Monto que el restaurante aún debe devolver al cliente (igual a {@code montoAbonado}).
      * Presente únicamente cuando el estado de la reserva es {@code CANCELADA} o {@code DEVUELTA}
      * (en este último caso será {@code BigDecimal.ZERO} tras un reembolso total);
      * {@code null} en cualquier otro estado (se omite del JSON).

@@ -113,12 +113,12 @@ scripts:
       pm.test('RP-06: data contiene campos de resumen pago', function () {
         const data = pm.response.json().data;
         pm.expect(data.clienteNombre).to.be.a('string').and.not.empty;
-        pm.expect(data.totalReserva).to.be.a('number');
+        pm.expect(data.totalAPagar).to.be.a('number');
         pm.expect(data.totalAnticipado).to.be.a('number');
         pm.expect(data.totalDevuelto).to.be.a('number');
-        pm.expect(data.netoAbonado).to.be.a('number');
-        // Reserva CONFIRMADA: pendientePorAbonar presente, pendientePorDevolver ausente
-        pm.expect(data.pendientePorAbonar).to.be.a('number');
+        pm.expect(data.montoAbonado).to.be.a('number');
+        // Reserva CONFIRMADA: saldoPendiente presente, pendientePorDevolver ausente
+        pm.expect(data.saldoPendiente).to.be.a('number');
         pm.expect(data).to.not.have.property('pendientePorDevolver');
       });
 

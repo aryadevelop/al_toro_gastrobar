@@ -2,13 +2,13 @@ $kind: http-request
 name: RE-02 CLIENTE consulta detalle de reserva propia básica sin pre-orden ni abonos – 200 OK
 description: |-
   **Criterio de Aceptación:** HE-02-HU-03-CA-07 (omisión de campos opcionales por `@JsonInclude(NON_NULL)`)
-  **Objetivo:** Verificar que `preOrdenItems`, `preOrdenTotal`, `abonos` y `totalAbonado`
+  **Objetivo:** Verificar que `preOrdenItems`, `totalPreorden`, `abonos` y `montoAbonado`
   son omitidos del JSON cuando la reserva no tiene pre-orden ni abonos asociados.
   **Pre-condición:** Ninguna externa. El pre-request hace login autónomo, crea una reserva
   básica sin pre-orden y captura el `reservaId` en `tmpReservaId`. El afterResponse cancela
   la reserva para evitar acumulación de datos.
   **Resultado esperado:** 200 OK · `reservaId`, `estado`, `numeroPersonas` presentes ·
-  `preOrdenItems`, `preOrdenTotal`, `abonos`, `totalAbonado` ausentes (undefined).
+  `preOrdenItems`, `totalPreorden`, `abonos`, `montoAbonado` ausentes (undefined).
 url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
 method: GET
 headers:
@@ -71,12 +71,17 @@ scripts:
         pm.expect(data.estado).to.exist;
         pm.expect(data.numeroPersonas).to.exist;
       });
-      pm.test('Los campos opcionales de pre-orden y abonos están omitidos', function () {
+      pm.test('Las listas opcionales (pre-orden, abonos) están omitidas', function () {
         const data = pm.response.json().data;
         pm.expect(data.preOrdenItems).to.be.undefined;
-        pm.expect(data.preOrdenTotal).to.be.undefined;
         pm.expect(data.abonos).to.be.undefined;
-        pm.expect(data.totalAbonado).to.be.undefined;
+      });
+      pm.test('Los importes canónicos están presentes (0 en básica sin pre-orden ni abonos)', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.totalPreorden)).to.equal(0);
+        pm.expect(Number(data.totalAPagar)).to.equal(0);
+        pm.expect(Number(data.montoAbonado)).to.equal(0);
+        pm.expect(Number(data.saldoPendiente)).to.equal(0);
       });
 
       const reservaId = pm.environment.get('tmpReservaId');

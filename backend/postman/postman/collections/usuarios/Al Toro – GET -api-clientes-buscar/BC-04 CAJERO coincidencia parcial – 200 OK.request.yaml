@@ -1,0 +1,45 @@
+$kind: http-request
+name: BC-04 CAJERO coincidencia parcial – 200 OK
+description: El fragmento "a" coincide con varios clientes seed. Verifica 200 y estructura de cada item.
+url: "{{baseUrl}}/api/clientes/buscar?correo=a"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  correo: "a"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO busca → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      const body = pm.response.json();
+      pm.test('data es un array no vacío', function () {
+        pm.expect(body.data).to.be.an('array').that.is.not.empty;
+      });
+      pm.test('cada item tiene clienteId, nombre, email, puntosAcumulados', function () {
+        const it = body.data[0];
+        pm.expect(it).to.have.property('clienteId');
+        pm.expect(it).to.have.property('nombre');
+        pm.expect(it).to.have.property('email');
+        pm.expect(it).to.have.property('puntosAcumulados');
+      });
+    language: text/javascript
+order: 4000

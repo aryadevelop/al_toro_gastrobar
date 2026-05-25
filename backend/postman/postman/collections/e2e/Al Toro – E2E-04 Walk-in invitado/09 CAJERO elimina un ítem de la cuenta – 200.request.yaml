@@ -1,0 +1,46 @@
+$kind: http-request
+name: 09 CAJERO elimina un ítem de la cuenta – 200 OK
+description: |-
+  Ajuste de cierre: el cajero elimina un ítem de la cuenta por su `comandaItemId` (capturado del borrador).
+  En el cierre (`PATCH /visitas/{id}/items`) cada línea se elimina por su propio `comandaItemId` (independiente).
+  // VERIFICAR EN VIVO: el `comandaItemId` capturado del borrador (platos[0]) debe seguir siendo válido
+  // en la cuenta tras enviar a producción. Si el id cambia al enviar, capturar el id desde la cuenta (paso 08).
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaId}}/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "items": [],
+      "eliminados": [{{tmpItemEliminar}}]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema elimina el ítem de la cuenta (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 180

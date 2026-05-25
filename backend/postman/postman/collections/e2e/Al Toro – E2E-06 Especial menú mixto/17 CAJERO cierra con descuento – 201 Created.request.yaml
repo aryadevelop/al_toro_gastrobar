@@ -1,0 +1,47 @@
+$kind: http-request
+name: 17 CAJERO cierra la cuenta (EFECTIVO, descuento 5000) – 201 Created
+description: |-
+  Registra la venta y cierra la visita (mesa CERRADA; +1 punto de lealtad al cliente de la reserva).
+  El total se recalcula en el servidor; el cajero envía descuento (5000) y método (EFECTIVO).
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": {{tmpVisitaId}},
+      "descuento": 5000,
+      "metodo": "EFECTIVO"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema cierra la cuenta (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 260

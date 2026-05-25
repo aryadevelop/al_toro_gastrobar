@@ -1,6 +1,6 @@
 $kind: http-request
 name: 60-01 Cerrar Cuenta – CAJERO
-description: Registrar venta y cerrar cuenta de una visita (incluye todos los campos del DTO)
+description: Registrar venta y cerrar cuenta de una visita. El total se recalcula en el servidor; el cajero solo envía descuento y método.
 url: "{{baseUrl}}/api/ventas"
 method: POST
 headers:
@@ -11,10 +11,8 @@ body:
   content: |-
     {
       "emailCajero": "cajero1@altoro.com",
-      "visitaId": 1,
-      "subtotal": 85000.00,
+      "visitaId": 13,
       "descuento": 5000.00,
-      "total": 80000.00,
       "metodo": "EFECTIVO"
     }
 scripts:
@@ -29,7 +27,7 @@ scripts:
           mode: 'raw',
           raw: JSON.stringify({
             email: 'cajero1@altoro.com',
-            password: 'password123',
+            password: 'Al.Toro2026!',
             forceSessionOverride: true
           })
         }

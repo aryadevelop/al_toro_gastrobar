@@ -133,10 +133,10 @@ scripts:
       pm.test('AB-06: data.resumen presente', function () {
         pm.expect(pm.response.json().data.resumen).to.be.an('object');
       });
-      pm.test('AB-06: resumen.pendientePorAbonar presente (reserva CONFIRMADA)', function () {
+      pm.test('AB-06: resumen.saldoPendiente presente (reserva CONFIRMADA)', function () {
         const resumen = pm.response.json().data.resumen;
-        // Reserva CONFIRMADA: pendientePorAbonar presente, pendientePorDevolver ausente
-        pm.expect(resumen.pendientePorAbonar).to.be.a('number');
+        // Reserva CONFIRMADA: saldoPendiente presente, pendientePorDevolver ausente
+        pm.expect(resumen.saldoPendiente).to.be.a('number');
         pm.expect(resumen).to.not.have.property('pendientePorDevolver');
       });
 

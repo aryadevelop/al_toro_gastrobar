@@ -111,7 +111,7 @@ class VisitaMapperTest {
     }
 
     @Test
-    @DisplayName("toDetalle → con venta → totalCuenta presente")
+    @DisplayName("toDetalle → con venta → totalCuenta presente y totalAPagar alineado con la Venta")
     void toDetalle_conVenta_totalCuentaPresente() {
         Venta venta = Venta.builder()
                 .ventaSubtotal(BigDecimal.valueOf(80000))
@@ -125,6 +125,30 @@ class VisitaMapperTest {
 
         assertThat(resp.getTotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(75000));
         assertThat(resp.getSubtotalCuenta()).isEqualByComparingTo(BigDecimal.valueOf(80000));
+        // Visita cerrada: totalAPagar = ventaTotal (con descuento), no el cálculo en vivo (0 sin ítems)
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(BigDecimal.valueOf(75000));
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo(BigDecimal.valueOf(75000));
+    }
+
+    @Test
+    @DisplayName("toDetalle → visita cerrada con abonos → saldoPendiente = ventaTotal − montoAbonado")
+    void toDetalle_conVentaYAbonos_saldoNetoVenta() {
+        Venta venta = Venta.builder()
+                .ventaSubtotal(BigDecimal.valueOf(80000))
+                .ventaDescuento(BigDecimal.valueOf(5000))
+                .ventaTotal(BigDecimal.valueOf(75000))
+                .ventaMetodo(MetodoPago.TARJETA)
+                .build();
+        Abono anticipo = Abono.builder().abonoId(1L).abonoMonto(BigDecimal.valueOf(20000))
+                .abonoTipo(TipoAbono.ANTICIPO).abonoMetodo(MetodoPago.EFECTIVO)
+                .abonoFechaHora(LocalDateTime.of(2026, 4, 1, 10, 0)).build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visitaBase(), List.of(), Optional.of(List.of(anticipo)), Optional.of(venta), Optional.empty());
+
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo(BigDecimal.valueOf(75000));
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo(BigDecimal.valueOf(20000));
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo(BigDecimal.valueOf(55000)); // 75000 − 20000
     }
 
     @Test
@@ -276,6 +300,36 @@ class VisitaMapperTest {
         assertThat(resp.getZonaNombre()).isEqualTo("VIP");
         assertThat(resp.getDecoracionNombre()).isEqualTo("Aniversario");
         assertThat(resp.getReservaId()).isEqualTo(7L);
+    }
+
+    @Test
+    @DisplayName("toDetalle → reserva con decoración con costo y abonos → resumen financiero")
+    void toDetalle_resumenFinanciero() {
+        Decoracion deco = Decoracion.builder().decoracionNombre("Globos")
+                .decoracionCostoAdicional(new BigDecimal("15000")).build();
+        Reserva reserva = Reserva.builder().reservaId(7L).decoracion(deco).build();
+        Visita visita = Visita.builder().visitaId(1L)
+                .visitaFechaHoraInicio(LocalDateTime.of(2026, 4, 1, 19, 0))
+                .reserva(reserva).build();
+        Producto p = Producto.builder().productoNombre("Paella")
+                .productoCategoria(CategoriaProducto.PLATO).build();
+        ComandaItem item = ComandaItem.builder().comandaItemId(1L).producto(p)
+                .comandaItemPrecio(new BigDecimal("50000")).comandaItemCantidad(1).build();
+        Abono anticipo = Abono.builder().abonoId(1L).abonoMonto(new BigDecimal("30000"))
+                .abonoTipo(TipoAbono.ANTICIPO).abonoMetodo(MetodoPago.EFECTIVO)
+                .abonoFechaHora(LocalDateTime.of(2026, 4, 1, 10, 0)).build();
+        Abono devol = Abono.builder().abonoId(2L).abonoMonto(new BigDecimal("5000"))
+                .abonoTipo(TipoAbono.DEVOLUCION).abonoMetodo(MetodoPago.EFECTIVO)
+                .abonoFechaHora(LocalDateTime.of(2026, 4, 1, 11, 0)).build();
+
+        VisitaDetalleResponse resp = mapper.toDetalle(
+                visita, List.of(item), Optional.of(List.of(anticipo, devol)), Optional.empty(), Optional.empty());
+
+        assertThat(resp.getTotalPreorden()).isEqualByComparingTo("50000");
+        assertThat(resp.getValorDecoracion()).isEqualByComparingTo("15000");
+        assertThat(resp.getTotalAPagar()).isEqualByComparingTo("65000");
+        assertThat(resp.getMontoAbonado()).isEqualByComparingTo("25000");
+        assertThat(resp.getSaldoPendiente()).isEqualByComparingTo("40000");
     }
 
     @Test

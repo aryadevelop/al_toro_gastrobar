@@ -50,8 +50,7 @@ class VentaControllerTest {
         return Map.of(
                 "emailCajero", "cajero@altoro.com",
                 "visitaId", 1L,
-                "subtotal", new BigDecimal("100.00"),
-                "total", new BigDecimal("100.00"),
+                "descuento", new BigDecimal("5.00"),
                 "metodo", MetodoPago.EFECTIVO.name());
     }
 
@@ -72,13 +71,12 @@ class VentaControllerTest {
         }
 
         @Test
-        @DisplayName("Subtotal null → 422 Unprocessable Entity")
-        void subtotalNull_retorna422() throws Exception {
+        @DisplayName("Método null → 422 Unprocessable Entity")
+        void metodoNull_retorna422() throws Exception {
             Map<String, Object> body = Map.of(
                     "emailCajero", "cajero@altoro.com",
                     "visitaId", 1L,
-                    "total", new BigDecimal("100.00"),
-                    "metodo", MetodoPago.EFECTIVO.name());
+                    "descuento", new BigDecimal("5.00"));
 
             mockMvc.perform(post("/api/ventas")
                             .contentType(MediaType.APPLICATION_JSON)
@@ -92,8 +90,7 @@ class VentaControllerTest {
         void visitaIdNull_retorna422() throws Exception {
             Map<String, Object> body = Map.of(
                     "emailCajero", "cajero@altoro.com",
-                    "subtotal", new BigDecimal("100.00"),
-                    "total", new BigDecimal("100.00"),
+                    "descuento", new BigDecimal("5.00"),
                     "metodo", MetodoPago.EFECTIVO.name());
 
             mockMvc.perform(post("/api/ventas")

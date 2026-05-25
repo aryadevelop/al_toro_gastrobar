@@ -1,0 +1,37 @@
+$kind: http-request
+name: AC-03 CAJERO asigna cliente – 200 OK
+description: Asigna el cliente 11 a la visita abierta 15. No cierra la visita; repetible.
+url: "{{baseUrl}}/api/visitas/15/cliente?clienteId=11"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  clienteId: "11"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO asigna cliente → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('respuesta success=true', function () {
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+    language: text/javascript
+order: 3000

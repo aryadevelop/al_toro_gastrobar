@@ -320,9 +320,9 @@ class ReservaConsultaServiceTest {
                 .decoracionNombre("Romántica")
                 .clienteTelefono("3201234567")
                 .preOrdenItems(List.of(preOrdenItem1, preOrdenItem2))
-                .preOrdenTotal(new BigDecimal("46000"))
+                .totalPreorden(new BigDecimal("46000"))
                 .abonos(List.of(abonoItem))
-                .totalAbonado(new BigDecimal("50000"))
+                .montoAbonado(new BigDecimal("50000"))
                 .modificable(true)
                 .build();
 
@@ -352,10 +352,10 @@ class ReservaConsultaServiceTest {
         assertThat(response.getClienteTelefono()).isEqualTo("3201234567");
 
         assertThat(response.getPreOrdenItems()).isNotEmpty();
-        assertThat(response.getPreOrdenTotal()).isNotNull();
+        assertThat(response.getTotalPreorden()).isNotNull();
 
         assertThat(response.getAbonos()).isNotEmpty();
-        assertThat(response.getTotalAbonado()).isEqualTo(new BigDecimal("50000"));
+        assertThat(response.getMontoAbonado()).isEqualTo(new BigDecimal("50000"));
     }
 
     @Test

@@ -50,10 +50,10 @@ import static org.mockito.Mockito.*;
  *
  * <p>Cubre los cuatro criterios de aceptación de la HU-05:
  * <ul>
- *   <li>CA-01: BASICA sin abono → no WhatsApp.</li>
- *   <li>CA-02: BASICA con abono → WhatsApp para reembolso.</li>
- *   <li>CA-03: ESPECIAL antes 16:00 del día de la reserva → WhatsApp para reembolso.</li>
- *   <li>CA-04: ESPECIAL después 16:00 del día de la reserva → no WhatsApp.</li>
+ *   <li>BASICA sin abono → no WhatsApp.</li>
+ *   <li>BASICA con abono → WhatsApp para reembolso.</li>
+ *   <li>ESPECIAL antes 16:00 del día de la reserva → WhatsApp para reembolso.</li>
+ *   <li>ESPECIAL después 16:00 del día de la reserva → no WhatsApp.</li>
  * </ul>
  * Además cubre los errores esperados: 404, 403 (ownership) y 422 (estado no cancelable).
  */
@@ -190,10 +190,10 @@ class ReservaServiceCancelarTest {
         }
     }
 
-    // ── CA-01: BASICA sin abono ───────────────────────────────────────────────
+    // ── BASICA sin abono ───────────────────────────────────────────────
 
     @Nested
-    @DisplayName("CA-01: BASICA sin abono → CANCELADA sin WhatsApp")
+    @DisplayName("BASICA sin abono → CANCELADA sin WhatsApp")
     class BasicaSinAbono {
 
         private Reserva reserva;
@@ -269,10 +269,10 @@ class ReservaServiceCancelarTest {
         }
     }
 
-    // ── CA-02: BASICA con abono ───────────────────────────────────────────────
+    // ── BASICA con abono ───────────────────────────────────────────────
 
     @Nested
-    @DisplayName("CA-02: BASICA con abono → CANCELADA con WhatsApp de reembolso")
+    @DisplayName("BASICA con abono → CANCELADA con WhatsApp de reembolso")
     class BasicaConAbono {
 
         private static final String MSG = "Comunícate para gestionar el reembolso de tu abono.";
@@ -322,10 +322,10 @@ class ReservaServiceCancelarTest {
         }
     }
 
-    // ── CA-03: ESPECIAL antes 16:00 ──────────────────────────────────────────
+    // ── ESPECIAL antes 16:00 ──────────────────────────────────────────
 
     @Nested
-    @DisplayName("CA-03: ESPECIAL antes 16:00 del día de la reserva → CANCELADA con WhatsApp")
+    @DisplayName("ESPECIAL antes 16:00 del día de la reserva → CANCELADA con WhatsApp")
     class EspecialAntes16h {
 
         private static final String MSG = "Comunícate para gestionar el reembolso de tu abono.";
@@ -374,10 +374,10 @@ class ReservaServiceCancelarTest {
         }
     }
 
-    // ── CA-04: ESPECIAL después/igual 16:00 ──────────────────────────────────
+    // ── ESPECIAL después/igual 16:00 ──────────────────────────────────
 
     @Nested
-    @DisplayName("CA-04: ESPECIAL después 16:00 del día de la reserva → CANCELADA sin WhatsApp")
+    @DisplayName("ESPECIAL después 16:00 del día de la reserva → CANCELADA sin WhatsApp")
     class EspecialDespues16h {
 
         private Reserva reserva;
