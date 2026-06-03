@@ -8,6 +8,7 @@ package co.edu.unicauca.backend.shared.enums;
  *
  * <ul>
  *   <li>{@code EFECTIVO} — pago en moneda física.</li>
+ *   <li>{@code NEQUI} — pago vía Nequi.</li>
  *   <li>{@code TARJETA} — pago con tarjeta débito o crédito.</li>
  *   <li>{@code TRANSFERENCIA} — pago por transferencia bancaria.</li>
  *   <li>{@code OTRO} — cualquier otro medio de pago no listado.</li>
@@ -15,6 +16,7 @@ package co.edu.unicauca.backend.shared.enums;
  */
 public enum MetodoPago {
     EFECTIVO("Efectivo"),
+    NEQUI("Nequi"),
     TARJETA("Tarjeta"),
     TRANSFERENCIA("Transferencia"),
     OTRO("Otro");
