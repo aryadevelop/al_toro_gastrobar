@@ -88,5 +88,16 @@ export const API_PATHS = {
     },
     ventas: {
         detalle: (visitaId: string | number) => `${API}/ventas/${visitaId}/detalle`,
+        cuenta: (visitaId: string | number) => `${API}/ventas/${visitaId}/cuenta`,
+        cerrar: `${API}/ventas`,
+    },
+    visitasAcciones: {
+        asignarCliente: (visitaId: string | number) => `${API}/visitas/${visitaId}/cliente`,
+        ajustarItems: (visitaId: string | number) => `${API}/visitas/${visitaId}/items`,
+    },
+    clientesPuntos: {
+        buscar: `${API}/clientes/buscar`,
+        puntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/puntos`,
+        canjearPuntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/canje-puntos`,
     },
 } as const;
