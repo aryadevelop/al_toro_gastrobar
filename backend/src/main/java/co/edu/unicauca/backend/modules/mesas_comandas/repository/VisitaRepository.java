@@ -68,4 +68,6 @@ public interface VisitaRepository extends JpaRepository<Visita, Long> {
     @Query("SELECT v FROM Visita v WHERE v.visitaId = :id")
     Optional<Visita> findByIdForUpdate(@Param("id") Long id);
 
+    long countByVisitaFechaHoraFinIsNull();
+
 }

@@ -5,9 +5,14 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Mesa;
 import co.edu.unicauca.backend.modules.pagos_caja.entity.Venta;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.ClienteVentaResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.DashboardDiarioResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.ItemVentaResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.MenuEspecialVentaResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.MesaVentaResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.MetodoPagoIngresoResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.PedidoListoResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.TipoVentaIngresoResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.TopProductoResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.ServicioAdicionalResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaDetalleResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaListadoItemResponse;
@@ -15,11 +20,19 @@ import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.Vent
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.ComandaItemDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.MesaDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.VentaDetalleAdminRepository;
+import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
+import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
+import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
+import co.edu.unicauca.backend.shared.enums.RolEstado;
+import co.edu.unicauca.backend.shared.enums.RolNombre;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
@@ -37,7 +50,9 @@ import java.time.LocalTime;
 import java.time.format.DateTimeParseException;
 import java.util.Arrays;
 import java.util.Collections;
+import java.util.EnumMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
 
@@ -51,6 +66,11 @@ public class VentaDetalleAdminService {
     private final VentaDetalleAdminRepository ventaRepository;
     private final MesaDetalleAdminRepository mesaRepository;
     private final ComandaItemDetalleAdminRepository itemRepository;
+    private final ReservaRepository reservaRepository;
+    private final VisitaRepository visitaRepository;
+    private final ComandaRepository comandaRepository;
+    private final SesionRepository sesionRepository;
+    private final UsuarioRolRepository usuarioRolRepository;
 
     @Transactional(readOnly = true)
     public VentaDetalleResponse obtenerDetalle(Long visitaId) {
@@ -152,6 +172,123 @@ public class VentaDetalleAdminService {
                 .build();
     }
 
+    @Transactional(readOnly = true)
+    public DashboardDiarioResponse obtenerDashboardDiario(String fecha) {
+        LocalDate targetDate = fecha == null || fecha.isBlank()
+                ? LocalDate.now()
+                : parseFecha(fecha, "fecha");
+        validateFechaIsNotFuture(targetDate);
+
+        LocalDateTime inicio = targetDate.atStartOfDay();
+        LocalDateTime fin = targetDate.atTime(LocalTime.MAX);
+
+        List<Venta> ventasRaw = ventaRepository.buscarVentasPorFiltros(null, inicio, fin, null);
+        List<Venta> ventas = ventasRaw == null ? Collections.emptyList() : ventasRaw;
+
+        BigDecimal totalIngresos = ventas.stream()
+                .map(venta -> venta != null && venta.getVentaTotal() != null ? venta.getVentaTotal() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        List<MetodoPagoIngresoResponse> ingresosPorMetodoPago = calcularIngresosPorMetodoPago(ventas);
+
+        List<Long> visitasMenuEspecial = itemRepository.findVisitasConMenuEspecialEnVentasDelDia(inicio, fin);
+        BigDecimal totalMenuEspecial = ventas.stream()
+                .filter(v -> v != null && v.getVisita() != null && visitasMenuEspecial.contains(v.getVisitaId()))
+                .map(v -> v.getVentaTotal() != null ? v.getVentaTotal() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+        BigDecimal totalCarta = totalIngresos.subtract(totalMenuEspecial);
+
+        List<TipoVentaIngresoResponse> ingresosPorTipoVenta = List.of(
+                TipoVentaIngresoResponse.builder()
+                        .tipoVenta("MENU_ESPECIAL")
+                        .total(totalMenuEspecial)
+                        .build(),
+                TipoVentaIngresoResponse.builder()
+                        .tipoVenta("CARTA")
+                        .total(totalCarta)
+                        .build()
+        );
+
+        List<Object[]> topProductosRaw = itemRepository.findTopProductosVendidosEnVentasDelDia(inicio, fin, org.springframework.data.domain.PageRequest.of(0, 3));
+        List<TopProductoResponse> productosMasVendidos = topProductosRaw.stream()
+                .map(row -> TopProductoResponse.builder()
+                        .nombre(row[0] != null ? row[0].toString() : null)
+                        .cantidadVendida(row[1] != null ? ((Number) row[1]).longValue() : 0L)
+                        .build())
+                .collect(Collectors.toList());
+
+        List<co.edu.unicauca.backend.modules.reservas.entity.Reserva> reservasActivas = reservaRepository.findReservasActivasDelDia(
+                inicio, fin, List.of(EstadoReserva.CONFIRMADA, EstadoReserva.PENDIENTE));
+        long reservasActivasHoy = reservasActivas.size();
+        long personasReservadasHoy = reservasActivas.stream()
+                .map(reserva -> reserva.getReservaNumeroPersonas() != null ? reserva.getReservaNumeroPersonas() : 0)
+                .mapToLong(Integer::longValue)
+                .sum();
+
+        long visitasActivasHoy = visitaRepository.countByVisitaFechaHoraFinIsNull();
+        long pedidosListos = comandaRepository.countByComandaEstadoAndVisita_VisitaFechaHoraFinIsNull(co.edu.unicauca.backend.shared.enums.EstadoComanda.LISTO);
+        List<Comanda> pedidosListosDetalle = comandaRepository.findTop5ByComandaEstadoAndVisita_VisitaFechaHoraFinIsNull(
+                co.edu.unicauca.backend.shared.enums.EstadoComanda.LISTO,
+                org.springframework.data.domain.PageRequest.of(0, 5));
+
+        long meserosConVisitaActiva = visitasActivasHoy;
+        Long bartendersConSesionActiva = sesionRepository.countActiveSessionsByRoleAndDate(RolNombre.BARTENDER, inicio, fin);
+        Long cocinerosRegistradosActivos = sesionRepository.countActiveSessionsByRoleAndDate(RolNombre.COCINERO, inicio, fin);
+
+        List<PedidoListoResponse> pedidosListosDto = pedidosListosDetalle.stream()
+                .map(comanda -> PedidoListoResponse.builder()
+                        .comandaId(comanda.getComandaId())
+                        .visitaId(comanda.getVisita() != null ? comanda.getVisita().getVisitaId() : null)
+                        .estacion(comanda.getComandaEstacion() != null ? comanda.getComandaEstacion().name() : null)
+                        .fechaHoraListo(comanda.getComandaFechaHoraListo())
+                        .build())
+                .collect(Collectors.toList());
+
+        return DashboardDiarioResponse.builder()
+                .fecha(targetDate)
+                .totalVentasCerradas((long) ventas.size())
+                .totalIngresos(totalIngresos)
+                .ingresosPorMetodoPago(ingresosPorMetodoPago)
+                .ingresosPorTipoVenta(ingresosPorTipoVenta)
+                .productosMasVendidos(productosMasVendidos)
+                .reservasActivasHoy(reservasActivasHoy)
+                .personasReservadasHoy(personasReservadasHoy)
+                .visitasActivas(visitasActivasHoy)
+                .pedidosListos(pedidosListos)
+                .pedidosListosDetalle(pedidosListosDto)
+                .meserosConVisitaActiva(meserosConVisitaActiva)
+                .bartendersConSesionActiva(bartendersConSesionActiva != null ? bartendersConSesionActiva : 0L)
+                .cocinerosRegistradosActivos(cocinerosRegistradosActivos)
+                .build();
+    }
+
+    private void validateFechaIsNotFuture(LocalDate fecha) {
+        if (fecha.isAfter(LocalDate.now())) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "No es posible consultar el dashboard en una fecha futura",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private List<MetodoPagoIngresoResponse> calcularIngresosPorMetodoPago(List<Venta> ventas) {
+        Map<MetodoPago, BigDecimal> totalesPorMetodo = new EnumMap<>(MetodoPago.class);
+        for (Venta venta : ventas) {
+            MetodoPago metodo = venta != null ? venta.getVentaMetodo() : null;
+            if (metodo == null || metodo == MetodoPago.NEQUI) {
+                metodo = MetodoPago.OTRO;
+            }
+            BigDecimal total = venta != null && venta.getVentaTotal() != null ? venta.getVentaTotal() : BigDecimal.ZERO;
+            totalesPorMetodo.merge(metodo, total, BigDecimal::add);
+        }
+
+        return List.of(MetodoPago.EFECTIVO, MetodoPago.TARJETA, MetodoPago.TRANSFERENCIA, MetodoPago.OTRO).stream()
+                .map(metodo -> MetodoPagoIngresoResponse.builder()
+                        .metodoPago(metodo.name())
+                        .total(totalesPorMetodo.getOrDefault(metodo, BigDecimal.ZERO))
+                        .build())
+                .collect(Collectors.toList());
+    }
+
     private Long parseVentaId(String ventaId) {
         if (ventaId == null || ventaId.isBlank()) {
             return null;
@@ -184,12 +321,22 @@ public class VentaDetalleAdminService {
             return null;
         }
         String normalized = metodoPago.trim();
-        return Arrays.stream(MetodoPago.values())
+        MetodoPago metodo = Arrays.stream(MetodoPago.values())
                 .filter(m -> m.name().equalsIgnoreCase(normalized) || m.getDescripcion().equalsIgnoreCase(normalized))
                 .findFirst()
                 .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
                         "Método de pago inválido: " + metodoPago,
                         HttpStatus.BAD_REQUEST));
+
+        if (metodo != MetodoPago.EFECTIVO
+                && metodo != MetodoPago.TARJETA
+                && metodo != MetodoPago.TRANSFERENCIA
+                && metodo != MetodoPago.OTRO) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Método de pago inválido: " + metodoPago,
+                    HttpStatus.BAD_REQUEST);
+        }
+        return metodo;
     }
 
     private void validateFechaRange(LocalDate desde, LocalDate hasta) {

@@ -55,6 +55,8 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UsuarioR
      */
     boolean existsByUsuarioIdAndRolNombreAndRolEstado(Long usuarioId, RolNombre rolNombre, RolEstado rolEstado);
 
+    long countByRolNombreAndRolEstado(RolNombre rolNombre, RolEstado rolEstado);
+
     /**
      * Actualiza el estado de todos los roles de un usuario.
      *

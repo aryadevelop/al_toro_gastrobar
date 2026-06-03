@@ -33,7 +33,17 @@ public interface VentaDetalleAdminRepository extends JpaRepository<Venta, Long> 
             WHERE (COALESCE(:ventaId, v.visitaId) = v.visitaId)
               AND (COALESCE(:desde, v.ventaFechaHora) <= v.ventaFechaHora)
               AND (COALESCE(:hasta, v.ventaFechaHora) >= v.ventaFechaHora)
-              AND (COALESCE(:metodoPago, v.ventaMetodo) = v.ventaMetodo)
+              AND (
+                    :metodoPago IS NULL
+                    OR ( :metodoPago = co.edu.unicauca.backend.shared.enums.MetodoPago.OTRO
+                         AND (v.ventaMetodo IS NULL OR v.ventaMetodo NOT IN (
+                                co.edu.unicauca.backend.shared.enums.MetodoPago.EFECTIVO,
+                                co.edu.unicauca.backend.shared.enums.MetodoPago.TARJETA,
+                                co.edu.unicauca.backend.shared.enums.MetodoPago.TRANSFERENCIA
+                            ))
+                       )
+                    OR v.ventaMetodo = :metodoPago
+                  )
             ORDER BY v.ventaFechaHora ASC
             """)
     List<Venta> buscarVentasPorFiltros(@Param("ventaId") Long ventaId,

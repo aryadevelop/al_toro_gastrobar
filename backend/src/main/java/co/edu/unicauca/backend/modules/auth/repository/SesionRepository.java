@@ -1,10 +1,12 @@
 package co.edu.unicauca.backend.modules.auth.repository;
 
 import co.edu.unicauca.backend.modules.auth.entity.Sesion;
+import co.edu.unicauca.backend.shared.enums.RolNombre;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 
+import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Optional;
 
@@ -36,6 +38,23 @@ public interface SesionRepository extends JpaRepository<Sesion, Long> {
     @Modifying
     @Query("UPDATE Sesion s SET s.sesionActiva = false WHERE s.usuario.usuarioId = :usuarioId AND s.sesionActiva = true")
     int deactivateActiveSessionsByUsuarioId(Long usuarioId);
+
+    @Query("SELECT COUNT(DISTINCT s.usuario.usuarioId) FROM Sesion s " +
+           "JOIN co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol ur " +
+           "ON s.usuario.usuarioId = ur.usuarioId " +
+           "WHERE s.sesionActiva = true " +
+           "AND ur.rolNombre = :rolNombre " +
+           "AND ur.rolEstado = co.edu.unicauca.backend.shared.enums.RolEstado.ACTIVO")
+    Long countActiveSessionsByRole(RolNombre rolNombre);
+
+    @Query("SELECT COUNT(DISTINCT s.usuario.usuarioId) FROM Sesion s " +
+           "JOIN co.edu.unicauca.backend.modules.usuarios.entity.UsuarioRol ur " +
+           "ON s.usuario.usuarioId = ur.usuarioId " +
+           "WHERE s.sesionActiva = true " +
+           "AND ur.rolNombre = :rolNombre " +
+           "AND ur.rolEstado = co.edu.unicauca.backend.shared.enums.RolEstado.ACTIVO " +
+           "AND s.sesionFechaCreacion BETWEEN :desde AND :hasta")
+    Long countActiveSessionsByRoleAndDate(RolNombre rolNombre, LocalDateTime desde, LocalDateTime hasta);
 
     /**
      * Busca una sesión activa por su access token.
