@@ -556,3 +556,76 @@ export interface BackendProductoBusqueda {
   productoPrecio: number;
   productoCategoria: string;
 }
+
+/* ── Cuenta de mesa / Pago y cierre (pagos_caja) ── */
+
+export interface BackendCuentaItemResponse {
+  comandaItemId: number;
+  nombreProducto: string;
+  categoriaProducto: string; // "PLATO" | "BEBIDA" | "OTRO"
+  cantidad: number;
+  precioUnitario: number;
+  subtotal: number;
+  descripcion?: string | null;
+  esModificado: boolean;
+  menuGrupo?: string | null;
+  esMenuEspecial: boolean;
+}
+
+export interface BackendAbonoItemCuenta {
+  abonoId: number;
+  monto: number;
+  fechaHora: string;
+  metodo: string;
+  tipo: string;
+}
+
+export interface BackendCuentaPreliminarResponse {
+  visitaId: number;
+  clienteId?: number | null;
+  clienteNombre?: string | null;
+  clienteEmail?: string | null;
+  puntosCanjeables?: number | null;
+  puntosAcumulados?: number | null;
+  fechaHoraLlegada?: string | null;
+  meseroNombre?: string | null;
+  mesaIdentificador?: string | null;
+  items: BackendCuentaItemResponse[];
+  decoracionNombre?: string | null;
+  valorDecoracion?: number | null;
+  totalPreorden: number;
+  totalAPagar: number;
+  anticipos?: BackendAbonoItemCuenta[] | null;
+  montoAbonado?: number | null;
+  saldoPendiente?: number | null;
+}
+
+export interface BackendClienteBuscarResponse {
+  clienteId: number;
+  nombre: string;
+  email: string;
+  telefono: string;
+}
+
+export interface BackendClientePuntosResponse {
+  puntosActuales: number;
+  puntosAcumulados: number;
+}
+
+export interface BackendItemAjuste {
+  comandaItemId: number;
+  cantidad: number;
+  precio?: number | null;
+}
+
+export interface BackendAjustarItemsRequest {
+  items?: BackendItemAjuste[] | null;
+  eliminados?: number[] | null;
+}
+
+export interface BackendCerrarCuentaRequest {
+  emailCajero: string;
+  visitaId: number;
+  descuento?: number | null;
+  metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
+}
