@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.shared.exception;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.jsonwebtoken.JwtException;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
@@ -106,6 +107,16 @@ public class GlobalExceptionHandler {
                 .body(ApiResponse.error(
                         ErrorCode.INVALID_CREDENTIALS.getCode(),
                         ErrorCode.INVALID_CREDENTIALS.getMessage()));
+    }
+
+    @ExceptionHandler(DataAccessException.class)
+    ResponseEntity<ApiResponse<Void>> handleDataAccess(DataAccessException ex) {
+        log.error("Error de acceso a datos: {}", ex.getMessage(), ex);
+        return ResponseEntity
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error(
+                        ErrorCode.INTERNAL_ERROR.getCode(),
+                        "Error al consultar los datos. Intenta nuevamente."));
     }
 
     /**

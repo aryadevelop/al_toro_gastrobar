@@ -10,6 +10,8 @@ import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.Menu
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.MesaVentaResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.ServicioAdicionalResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaDetalleResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaListadoItemResponse;
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaListadoResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.ComandaItemDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.MesaDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.VentaDetalleAdminRepository;
@@ -17,12 +19,23 @@ import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
 import co.edu.unicauca.backend.modules.reservas.entity.Reserva;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
+import co.edu.unicauca.backend.shared.enums.MetodoPago;
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.dao.DataAccessException;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.LocalTime;
+import java.time.format.DateTimeParseException;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -30,6 +43,7 @@ import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class VentaDetalleAdminService {
 
     private static final String ALERTA_RESERVA_CANCELADA = "Esta venta esta asociada a una reserva cancelada. Verificar con administracion";
@@ -85,6 +99,129 @@ public class VentaDetalleAdminService {
                 .metodoPago(venta.getVentaMetodo())
                 .estadoReserva(obtenerEstadoReserva(reserva))
                 .alertaReservaCancelada(obtenerAlertaReservaCancelada(reserva))
+                .build();
+    }
+
+    @Transactional(readOnly = true)
+    public VentaListadoResponse listarVentas(String ventaId,
+                                             String desdeFecha,
+                                             String hastaFecha,
+                                             String metodoPago) {
+        Long ventaIdNumeric = parseVentaId(ventaId);
+        LocalDate desde = parseFecha(desdeFecha, "desdeFecha");
+        LocalDate hasta = parseFecha(hastaFecha, "hastaFecha");
+        validateFechaRange(desde, hasta);
+        MetodoPago metodoPagoEnum = parseMetodoPago(metodoPago);
+
+        if (ventaIdNumeric == null && desde == null && hasta == null && metodoPagoEnum == null) {
+            LocalDate hoy = LocalDate.now();
+            desde = hoy;
+            hasta = hoy;
+        }
+
+        LocalDateTime desdeDateTime = desde != null ? desde.atStartOfDay() : null;
+        LocalDateTime hastaDateTime = hasta != null ? hasta.atTime(LocalTime.MAX) : null;
+
+        List<Venta> ventas;
+        try {
+            ventas = ventaRepository.buscarVentasPorFiltros(
+                    ventaIdNumeric, desdeDateTime, hastaDateTime, metodoPagoEnum);
+        } catch (DataAccessException ex) {
+            log.error("Error al consultar las ventas: ventaId={}, desde={}, hasta={}, metodoPago={}",
+                    ventaId, desdeDateTime, hastaDateTime, metodoPagoEnum, ex);
+            throw new BusinessException(ErrorCode.INTERNAL_ERROR,
+                    "Error al consultar las ventas. Intenta nuevamente.",
+                    HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+
+        if (ventas == null) {
+            ventas = Collections.emptyList();
+        }
+
+        List<VentaListadoItemResponse> items = ventas.stream()
+                .map(this::mapearVentaListado)
+                .collect(Collectors.toList());
+
+        BigDecimal totalPeriodo = ventas.stream()
+                .map(venta -> venta != null && venta.getVentaTotal() != null ? venta.getVentaTotal() : BigDecimal.ZERO)
+                .reduce(BigDecimal.ZERO, BigDecimal::add);
+
+        return VentaListadoResponse.builder()
+                .ventas(items)
+                .totalPeriodo(totalPeriodo)
+                .build();
+    }
+
+    private Long parseVentaId(String ventaId) {
+        if (ventaId == null || ventaId.isBlank()) {
+            return null;
+        }
+        String raw = ventaId.trim();
+        if (!raw.toUpperCase().matches("^(VENTA-)?\\d+$")) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Caracteres no permitidos en la búsqueda", HttpStatus.BAD_REQUEST);
+        }
+        String digits = raw.toUpperCase().startsWith("VENTA-") ? raw.substring(6) : raw;
+        return Long.valueOf(digits);
+    }
+
+    private LocalDate parseFecha(String fecha, String fieldName) {
+        if (fecha == null || fecha.isBlank()) {
+            return null;
+        }
+        String normalized = fecha.trim();
+        try {
+            return LocalDate.parse(normalized);
+        } catch (DateTimeParseException ex) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "Fecha inválida para '" + fieldName + "'. Use el formato YYYY-MM-DD.",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private MetodoPago parseMetodoPago(String metodoPago) {
+        if (metodoPago == null || metodoPago.isBlank()) {
+            return null;
+        }
+        String normalized = metodoPago.trim();
+        return Arrays.stream(MetodoPago.values())
+                .filter(m -> m.name().equalsIgnoreCase(normalized) || m.getDescripcion().equalsIgnoreCase(normalized))
+                .findFirst()
+                .orElseThrow(() -> new BusinessException(ErrorCode.VALIDATION_ERROR,
+                        "Método de pago inválido: " + metodoPago,
+                        HttpStatus.BAD_REQUEST));
+    }
+
+    private void validateFechaRange(LocalDate desde, LocalDate hasta) {
+        LocalDate hoy = LocalDate.now();
+        if (hasta != null && hasta.isAfter(hoy)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "No es posible consultar ventas en fechas futuras",
+                    HttpStatus.BAD_REQUEST);
+        }
+        if (desde != null && hasta != null && desde.isAfter(hasta)) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "La fecha 'desdeFecha' no puede ser mayor a 'hastaFecha'.",
+                    HttpStatus.BAD_REQUEST);
+        }
+    }
+
+    private VentaListadoItemResponse mapearVentaListado(Venta venta) {
+        String clienteNombre = "Cliente ocasional";
+        if (venta != null && venta.getVisita() != null && venta.getVisita().getCliente() != null) {
+            String nombre = venta.getVisita().getCliente().getClienteNombre();
+            if (nombre != null && !nombre.isBlank()) {
+                clienteNombre = nombre;
+            }
+        }
+        return VentaListadoItemResponse.builder()
+                .ventaId(venta != null ? venta.getVisitaId() : null)
+                .fechaHora(venta != null ? venta.getVentaFechaHora() : null)
+                .subtotal(venta != null && venta.getVentaSubtotal() != null ? venta.getVentaSubtotal() : BigDecimal.ZERO)
+                .descuento(venta != null && venta.getVentaDescuento() != null ? venta.getVentaDescuento() : BigDecimal.ZERO)
+                .total(venta != null && venta.getVentaTotal() != null ? venta.getVentaTotal() : BigDecimal.ZERO)
+                .metodoPago(venta != null && venta.getVentaMetodo() != null ? venta.getVentaMetodo().name() : null)
+                .clienteNombre(clienteNombre)
                 .build();
     }
 
