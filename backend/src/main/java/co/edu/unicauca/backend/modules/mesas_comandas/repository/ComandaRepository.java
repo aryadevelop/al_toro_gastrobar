@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.mesas_comandas.entity.ComandaItem;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import jakarta.persistence.LockModeType;
+import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
@@ -110,6 +111,18 @@ public interface ComandaRepository extends JpaRepository<Comanda, Long> {
      * Hasta dos por visita en BORRADOR (una por estación).
      */
     List<Comanda> findByVisita_VisitaIdAndComandaEstado(Long visitaId, EstadoComanda estado);
+
+    long countByComandaEstadoAndVisita_VisitaFechaHoraFinIsNull(EstadoComanda estado);
+
+    @Query("""
+        SELECT c FROM Comanda c
+        JOIN FETCH c.visita v
+        WHERE c.comandaEstado = :estado
+        AND v.visitaFechaHoraFin IS NULL
+        ORDER BY c.comandaFechaHoraListo ASC
+        """)
+    List<Comanda> findTop5ByComandaEstadoAndVisita_VisitaFechaHoraFinIsNull(@Param("estado") EstadoComanda estado,
+                                                                          Pageable pageable);
 
     /**
      * Recupera las comandas de una estación cuyo estado pertenece al conjunto

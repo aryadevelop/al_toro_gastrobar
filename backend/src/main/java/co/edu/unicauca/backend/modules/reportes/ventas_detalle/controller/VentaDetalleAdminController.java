@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reportes.ventas_detalle.controller;
 
 
+import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.DashboardDiarioResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaDetalleResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.dto.response.VentaListadoResponse;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.service.VentaDetalleAdminService;
@@ -45,6 +46,15 @@ public class VentaDetalleAdminController {
             String message = generarMensajeSinResultados(ventaId, desdeFecha, hastaFecha, metodoPago);
             return ResponseEntity.ok(ApiResponse.ok(message, response));
         }
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @GetMapping("/dashboard")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Resumen diario del dashboard administrativo")
+    public ResponseEntity<ApiResponse<DashboardDiarioResponse>> obtenerDashboardDiario(
+            @RequestParam(value = "fecha", required = false) String fecha) {
+        DashboardDiarioResponse response = detalleService.obtenerDashboardDiario(fecha);
         return ResponseEntity.ok(ApiResponse.ok(response));
     }
 
