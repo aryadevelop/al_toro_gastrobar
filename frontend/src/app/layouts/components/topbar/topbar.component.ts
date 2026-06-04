@@ -19,6 +19,10 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
       <button type="button" class="btn-secondary" (click)="onLogout()">Cerrar sesión</button>
     </header>
 
+    <article class="topbar-flash card" *ngIf="flashMessage()">
+      <p>{{ flashMessage() }}</p>
+    </article>
+
     <app-confirm-dialog
       [open]="showUnsavedDialog()"
       title="Cambios sin guardar"
@@ -44,12 +48,23 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
 export class TopbarComponent {
   readonly showLogoutDialog = signal(false);
   readonly showUnsavedDialog = signal(false);
+  readonly flashMessage = signal('');
+  private flashTimer: ReturnType<typeof setTimeout> | null = null;
 
   constructor(
     public readonly authService: AuthService,
     private readonly router: Router,
     private readonly pendingChangesService: PendingProfileChangesService
-  ) {}
+  ) {
+    const flash = sessionStorage.getItem('flash_message');
+    if (flash) {
+      this.flashMessage.set(flash);
+      sessionStorage.removeItem('flash_message');
+      this.flashTimer = setTimeout(() => {
+        this.flashMessage.set('');
+      }, 5000);
+    }
+  }
 
   get isClienteRole(): boolean {
     return this.authService.currentUser()?.role === 'CLIENTE';

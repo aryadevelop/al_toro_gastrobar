@@ -1,5 +1,6 @@
 ﻿import {
   Comanda,
+  AdminDashboardData,
   DashboardMetric,
   Decoracion,
   Insumo,
@@ -175,3 +176,126 @@ export const MOCK_DASHBOARD_METRICS: DashboardMetric[] = [
   { id: 'dm-2', label: 'Reservas activas', value: 24, trend: 2, tone: 'neutral' },
   { id: 'dm-3', label: 'Comandas pendientes', value: 7, trend: -1, tone: 'danger' }
 ];
+
+export const MOCK_ADMIN_DASHBOARD: AdminDashboardData = {
+  fecha: '2026-06-03',
+  ventasDelDia: {
+    totalVentas: 4250,
+    reservasConcretadas: 18,
+  },
+  ventasPorMetodo: [
+    { metodo: 'CASH', total: 1200 },
+    { metodo: 'CARD', total: 1900 },
+    { metodo: 'TRANSFER', total: 1150 },
+  ],
+  ventasPorZona: [
+    { zona: 'Terraza', total: 1450 },
+    { zona: 'Salon principal', total: 2200 },
+    { zona: 'Barra', total: 600 },
+  ],
+  topPlatos: [
+    { nombre: 'Bife Ancho', cantidad: 12, total: 540 },
+    { nombre: 'Limonada', cantidad: 20, total: 90 },
+    { nombre: 'Ensalada criolla', cantidad: 9, total: 180 },
+  ],
+  menuEspecialVsCarta: {
+    menuEspecial: 980,
+    carta: 3270,
+  },
+  variacionVsAyer: 15,
+  rendimientoMeseros: [
+    { mesero: 'Laura Morales', mesasAtendidas: 6, totalFacturado: 980, promedioPorMesa: 163, mesasActivas: 2 },
+    { mesero: 'Diego Rojas', mesasAtendidas: 5, totalFacturado: 820, promedioPorMesa: 164, mesasActivas: 1 },
+    { mesero: 'Camila Ortega', mesasAtendidas: 7, totalFacturado: 1110, promedioPorMesa: 159, mesasActivas: 3 },
+  ],
+  pedidosProduccion: {
+    totalActivos: 8,
+    promedioMinutos: 18,
+    pedidos: [
+      {
+        id: 'p-100',
+        cliente: 'Mario Gomez',
+        mesa: 'M12',
+        minutosTranscurridos: 12,
+        items: ['Bife Ancho', 'Papas rusticas'],
+      },
+      {
+        id: 'p-101',
+        cliente: 'Sofia Alvarez',
+        mesa: 'M05',
+        minutosTranscurridos: 19,
+        items: ['Menu especial', 'Vino tinto'],
+      },
+      {
+        id: 'p-102',
+        cliente: 'Carlos Ruiz',
+        mesa: 'M03',
+        minutosTranscurridos: 24,
+        items: ['Lomo al trapo', 'Ensalada'],
+      },
+      {
+        id: 'p-103',
+        cliente: 'Ana Perez',
+        mesa: 'M08',
+        minutosTranscurridos: 9,
+        items: ['Limonada', 'Chorizo criollo'],
+      },
+      {
+        id: 'p-104',
+        cliente: 'Pedro Ortiz',
+        mesa: 'M10',
+        minutosTranscurridos: 28,
+        items: ['Menu especial', 'Postre de la casa'],
+      },
+    ],
+  },
+  pedidosListos: [
+    {
+      id: 'l-200',
+      cliente: 'Valentina Pardo',
+      mesa: 'M04',
+      items: ['Costillas BBQ', 'Agua con gas'],
+    },
+    {
+      id: 'l-201',
+      cliente: 'Felipe Torres',
+      mesa: 'M09',
+      items: ['Menu especial', 'Cafe americano'],
+    },
+  ],
+  personalTurno: {
+    resumen: 'Personal hoy: 8 meseros, 3 cocineros, 2 bartenders',
+    grupos: [
+      {
+        rol: 'Meseros',
+        total: 8,
+        personal: [
+          { nombre: 'Laura Morales', rol: 'MESERO', mesasActivas: 2 },
+          { nombre: 'Diego Rojas', rol: 'MESERO', mesasActivas: 1 },
+          { nombre: 'Camila Ortega', rol: 'MESERO', mesasActivas: 3 },
+        ],
+      },
+      {
+        rol: 'Cocineros',
+        total: 3,
+        personal: [
+          { nombre: 'Ramon Arias', rol: 'COCINERO' },
+          { nombre: 'Luis Campos', rol: 'COCINERO' },
+          { nombre: 'Marta Rios', rol: 'COCINERO' },
+        ],
+      },
+      {
+        rol: 'Bartenders',
+        total: 2,
+        personal: [
+          { nombre: 'Nicolas Franco', rol: 'BARTENDER' },
+          { nombre: 'Juliana Gil', rol: 'BARTENDER' },
+        ],
+      },
+    ],
+  },
+  ocupacion: {
+    ocupadas: 12,
+    reservasPendientes: 5,
+  },
+};

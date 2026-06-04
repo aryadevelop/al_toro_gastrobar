@@ -17,5 +17,6 @@ export const roleGuard: CanActivateFn = (route) => {
     return true;
   }
 
-  return router.createUrlTree(['/app/dashboard']);
+  sessionStorage.setItem('flash_message', 'No tienes permisos para acceder a esta sección');
+  return router.createUrlTree([authService.getLandingRouteForRole(userRole)]);
 };
