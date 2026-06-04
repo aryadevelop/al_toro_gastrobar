@@ -151,6 +151,98 @@ export interface DashboardMetric {
   tone?: 'neutral' | 'success' | 'danger';
 }
 
+export interface AdminDashboardVentaResumen {
+  totalVentas: number;
+  reservasConcretadas: number;
+}
+
+export interface AdminDashboardMetodoPago {
+  metodo: 'CASH' | 'CARD' | 'TRANSFER';
+  total: number;
+}
+
+export interface AdminDashboardZonaVenta {
+  zona: string;
+  total: number;
+}
+
+export interface AdminDashboardTopPlato {
+  nombre: string;
+  cantidad: number;
+  total: number;
+}
+
+export interface AdminDashboardMenuResumen {
+  menuEspecial: number;
+  carta: number;
+}
+
+export interface AdminDashboardMeseroRendimiento {
+  mesero: string;
+  mesasAtendidas: number;
+  totalFacturado: number;
+  promedioPorMesa: number;
+  mesasActivas: number;
+}
+
+export interface AdminDashboardPedidoProduccion {
+  id: string;
+  cliente: string;
+  mesa: string;
+  minutosTranscurridos: number;
+  items: string[];
+}
+
+export interface AdminDashboardPedidosProduccion {
+  totalActivos: number;
+  promedioMinutos: number;
+  pedidos: AdminDashboardPedidoProduccion[];
+}
+
+export interface AdminDashboardPedidoListo {
+  id: string;
+  cliente: string;
+  mesa: string;
+  items: string[];
+}
+
+export interface AdminDashboardPersonalItem {
+  nombre: string;
+  rol: string;
+  mesasActivas?: number;
+}
+
+export interface AdminDashboardPersonalGrupo {
+  rol: string;
+  total: number;
+  personal: AdminDashboardPersonalItem[];
+}
+
+export interface AdminDashboardPersonalResumen {
+  resumen: string;
+  grupos: AdminDashboardPersonalGrupo[];
+}
+
+export interface AdminDashboardOcupacion {
+  ocupadas: number;
+  reservasPendientes: number;
+}
+
+export interface AdminDashboardData {
+  fecha: string;
+  ventasDelDia: AdminDashboardVentaResumen;
+  ventasPorMetodo: AdminDashboardMetodoPago[];
+  ventasPorZona: AdminDashboardZonaVenta[];
+  topPlatos: AdminDashboardTopPlato[];
+  menuEspecialVsCarta: AdminDashboardMenuResumen;
+  variacionVsAyer: number;
+  rendimientoMeseros: AdminDashboardMeseroRendimiento[];
+  pedidosProduccion: AdminDashboardPedidosProduccion;
+  pedidosListos: AdminDashboardPedidoListo[];
+  personalTurno: AdminDashboardPersonalResumen;
+  ocupacion: AdminDashboardOcupacion;
+}
+
 export interface SearchFilter {
   key: string;
   label: string;
