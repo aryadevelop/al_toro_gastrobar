@@ -216,8 +216,9 @@ export class VentasListPageComponent implements OnInit {
     const baseVentas = [...this.ventas()];
     let results = this.filterByDate(baseVentas, this.filtersForm.getRawValue());
 
-    if (filters.metodoPago) {
-      results = results.filter((venta) => this.matchesPaymentMethod(venta, filters.metodoPago));
+    const metodoPago = filters.metodoPago;
+    if (metodoPago !== '') {
+      results = results.filter((venta) => this.matchesPaymentMethod(venta, metodoPago));
     }
 
     const ventaId = filters.ventaId.trim();
@@ -309,12 +310,7 @@ export class VentasListPageComponent implements OnInit {
   }
 
   private matchesPaymentMethod(venta: Venta, method: 'CASH' | 'TRANSFER' | 'CARD'): boolean {
-    return (venta.payments ?? []).some((payment) => {
-      if (method === 'TRANSFER') {
-        return payment.method === 'TRANSFER' || payment.method === 'NEQUI';
-      }
-      return payment.method === method;
-    });
+    return (venta.payments ?? []).some((payment) => payment.method === method);
   }
 
   private sortResults(results: Venta[], chronological: boolean): Venta[] {
