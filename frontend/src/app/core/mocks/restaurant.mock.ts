@@ -81,19 +81,70 @@ export const MOCK_INSUMOS: Insumo[] = [
 
 export const MOCK_VENTAS: Venta[] = [
   {
-    id: 'v-1',
+    id: 'VENTA-1001',
     clienteId: 'u-2',
     comandaId: 'c-500',
     total: 56.5,
     paid: true,
-    createdAt: '2026-04-04T21:00:00Z',
+    createdAt: '2026-06-03T13:25:00Z',
     payments: [
       {
         id: 'pay-1',
-        saleId: 'v-1',
+        saleId: 'VENTA-1001',
         method: 'CARD',
         amount: 56.5,
-        paidAt: '2026-04-04T21:05:00Z'
+        paidAt: '2026-06-03T13:27:00Z'
+      }
+    ]
+  },
+  {
+    id: 'VENTA-1002',
+    clienteId: 'u-5',
+    comandaId: 'c-510',
+    total: 72.0,
+    paid: true,
+    createdAt: '2026-06-02T20:10:00Z',
+    payments: [
+      {
+        id: 'pay-2',
+        saleId: 'VENTA-1002',
+        method: 'CASH',
+        amount: 72.0,
+        paidAt: '2026-06-02T20:12:00Z'
+      }
+    ]
+  },
+  {
+    id: 'VENTA-1003',
+    clienteId: 'u-7',
+    comandaId: 'c-520',
+    total: 134.4,
+    paid: true,
+    createdAt: '2026-05-28T18:40:00Z',
+    payments: [
+      {
+        id: 'pay-3',
+        saleId: 'VENTA-1003',
+        method: 'TRANSFER',
+        amount: 134.4,
+        paidAt: '2026-05-28T18:42:00Z'
+      }
+    ]
+  },
+  {
+    id: 'VENTA-1004',
+    clienteId: 'u-2',
+    comandaId: 'c-521',
+    total: 45.0,
+    paid: true,
+    createdAt: '2026-05-28T12:15:00Z',
+    payments: [
+      {
+        id: 'pay-4',
+        saleId: 'VENTA-1004',
+        method: 'CASH',
+        amount: 45.0,
+        paidAt: '2026-05-28T12:16:00Z'
       }
     ]
   }
