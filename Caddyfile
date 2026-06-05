@@ -1,0 +1,31 @@
+# El valor {$SITE_ADDRESS} viene de .env.prod.
+#   - Local/pruebas: SITE_ADDRESS=:80   (sin TLS)
+#   - Producción:    SITE_ADDRESS=altoro.tudominio.com   (TLS automático Let's Encrypt)
+{$SITE_ADDRESS} {
+    encode gzip
+
+    # API REST → backend
+    handle /api/* {
+        reverse_proxy api:8080
+    }
+
+    # WebSocket STOMP → backend (Caddy reenvía Upgrade automáticamente)
+    handle /ws/* {
+        reverse_proxy api:8080
+    }
+
+    # Imágenes estáticas del catálogo base (seed) servidas por Spring Boot
+    handle /images/* {
+        reverse_proxy api:8080
+    }
+
+    # Imágenes subidas por el ADMIN (volumen externo al JAR)
+    handle /uploads/* {
+        reverse_proxy api:8080
+    }
+
+    # Resto → SPA Angular (servicio frontend del equipo de frontend)
+    handle {
+        reverse_proxy frontend:80
+    }
+}

@@ -20,7 +20,7 @@ services:
       SPRING_PROFILES_ACTIVE: dev
       # Secret fijo solo para dev; nunca usar en prod
       JWT_SECRET: ${JWT_SECRET:-altoro-dev-only-secret-not-for-prod}
-      JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1800000}
       # Mailtrap: intercepta emails en dev sin enviarlos realmente
       MAIL_HOST:     ${MAIL_HOST:-smtp.mailtrap.io}
       MAIL_PORT:     ${MAIL_PORT:-587}
