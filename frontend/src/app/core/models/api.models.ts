@@ -629,3 +629,21 @@ export interface BackendCerrarCuentaRequest {
   descuento?: number | null;
   metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
 }
+
+/* ── Inventario (Producción) ── */
+
+export interface BackendInventarioItemBusqueda {
+  productoId: number;
+  nombre: string;
+  unidadMedida: string;
+  stockActual: number;
+}
+
+export interface BackendAjusteInventarioRequest {
+  productoId: number;
+  tipoMovimiento: 'INGRESO' | 'EGRESO';
+  cantidad: number;
+  proveedor?: string;
+  numeroFactura?: string;
+  observaciones?: string;
+}

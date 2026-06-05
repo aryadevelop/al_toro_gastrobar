@@ -1,0 +1,206 @@
+.form-card {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-group {
+  margin-bottom: 1.5rem;
+
+  label {
+    display: block;
+    margin-bottom: 0.5rem;
+    font-weight: 500;
+    color: var(--color-text-primary);
+
+    .required {
+      color: var(--color-danger);
+    }
+  }
+
+  .form-control {
+    width: 100%;
+    padding: 0.75rem 1rem;
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    background-color: var(--color-bg-surface);
+    color: var(--color-text-primary);
+    transition: border-color 0.2s, box-shadow 0.2s;
+
+    &:focus {
+      outline: none;
+      border-color: var(--color-primary);
+      box-shadow: 0 0 0 3px rgba(var(--color-primary-rgb), 0.15);
+    }
+    
+    &:disabled {
+      background-color: var(--color-bg-muted);
+      cursor: not-allowed;
+    }
+  }
+
+  textarea.form-control {
+    resize: vertical;
+  }
+}
+
+.form-row.two-cols {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 1.5rem;
+
+  @media (max-width: 600px) {
+    grid-template-columns: 1fr;
+    gap: 0;
+  }
+}
+
+.input-group {
+  display: flex;
+  
+  .form-control {
+    border-top-right-radius: 0;
+    border-bottom-right-radius: 0;
+  }
+  
+  .input-group-text {
+    display: flex;
+    align-items: center;
+    padding: 0 1rem;
+    background-color: var(--color-bg-muted);
+    border: 1px solid var(--color-border);
+    border-left: none;
+    border-top-right-radius: 8px;
+    border-bottom-right-radius: 8px;
+    color: var(--color-text-secondary);
+    font-size: 0.875rem;
+    font-weight: 500;
+  }
+}
+
+/* Autocomplete Styles */
+.autocomplete-container {
+  position: relative;
+  
+  .input-wrapper {
+    position: relative;
+    
+    .spinner {
+      position: absolute;
+      right: 1rem;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 1rem;
+      height: 1rem;
+      border: 2px solid var(--color-border);
+      border-top-color: var(--color-primary);
+      border-radius: 50%;
+      animation: spin 1s linear infinite;
+    }
+  }
+
+  .autocomplete-dropdown {
+    position: absolute;
+    top: calc(100% + 4px);
+    left: 0;
+    right: 0;
+    background: var(--color-bg-surface);
+    border: 1px solid var(--color-border);
+    border-radius: 8px;
+    box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    max-height: 250px;
+    overflow-y: auto;
+    z-index: 1000;
+    list-style: none;
+    padding: 0;
+    margin: 0;
+
+    li {
+      padding: 0.75rem 1rem;
+      cursor: pointer;
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      border-bottom: 1px solid var(--color-border-light);
+
+      &:last-child {
+        border-bottom: none;
+      }
+
+      &:hover {
+        background-color: var(--color-bg-hover);
+      }
+
+      .item-name {
+        font-weight: 500;
+        color: var(--color-text-primary);
+      }
+
+      .item-stock {
+        font-size: 0.85rem;
+        color: var(--color-text-secondary);
+        background: var(--color-bg-muted);
+        padding: 0.25rem 0.5rem;
+        border-radius: 4px;
+      }
+    }
+
+    &.empty {
+      padding: 1rem;
+      color: var(--color-text-secondary);
+      text-align: center;
+      font-style: italic;
+    }
+  }
+}
+
+.selected-product-info {
+  background-color: rgba(var(--color-primary-rgb), 0.05);
+  border: 1px solid rgba(var(--color-primary-rgb), 0.2);
+  border-radius: 8px;
+  padding: 1rem;
+  margin-bottom: 1.5rem;
+
+  .info-row {
+    display: flex;
+    margin-bottom: 0.5rem;
+
+    &:last-child {
+      margin-bottom: 0;
+    }
+
+    .label {
+      width: 160px;
+      color: var(--color-text-secondary);
+      font-size: 0.875rem;
+    }
+
+    .value {
+      color: var(--color-text-primary);
+      font-weight: 500;
+      
+      &.font-weight-bold {
+        font-weight: 700;
+        color: var(--color-primary);
+      }
+    }
+  }
+}
+
+.form-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 1rem;
+  margin-top: 2rem;
+  padding-top: 1.5rem;
+  border-top: 1px solid var(--color-border);
+
+  .btn {
+    padding: 0.75rem 1.5rem;
+    font-weight: 500;
+    min-width: 120px;
+  }
+}
+
+@keyframes spin {
+  to { transform: translateY(-50%) rotate(360deg); }
+}

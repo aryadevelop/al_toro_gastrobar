@@ -1,0 +1,99 @@
+<section class="page-grid">
+  <app-page-header title="Ajuste de Inventario" subtitle="Registrar ingresos o egresos manuales"></app-page-header>
+  
+  <article class="card form-card">
+    <form [formGroup]="ajusteForm" (ngSubmit)="guardar()">
+      
+      <!-- Búsqueda de producto -->
+      <div class="form-group autocomplete-container">
+        <label for="productoBusqueda">Buscador de producto o insumo <span class="required">*</span></label>
+        <div class="input-wrapper">
+          <input 
+            type="text" 
+            id="productoBusqueda"
+            class="form-control"
+            formControlName="productoBusqueda"
+            placeholder="Escriba para buscar..."
+            autocomplete="off"
+            (focus)="onSearchFocus()"
+            (blur)="onSearchBlur()"
+          >
+          <span class="spinner" *ngIf="isSearching"></span>
+        </div>
+        
+        <!-- Dropdown de resultados -->
+        <ul class="autocomplete-dropdown" *ngIf="showDropdown && searchResults.length > 0">
+          <li *ngFor="let item of searchResults" (mousedown)="selectProduct(item)">
+            <div class="item-name">{{ item.nombre }}</div>
+            <div class="item-stock">Stock: {{ item.stockActual }} {{ item.unidadMedida }}</div>
+          </li>
+        </ul>
+        <div class="autocomplete-dropdown empty" *ngIf="showDropdown && searchResults.length === 0 && !isSearching && ajusteForm.get('productoBusqueda')?.value?.length >= 2">
+          No se encontraron productos.
+        </div>
+      </div>
+
+      <!-- Información del producto seleccionado (Solo lectura visual) -->
+      <div class="selected-product-info" *ngIf="selectedProduct">
+        <div class="info-row">
+          <span class="label">Producto seleccionado:</span>
+          <span class="value">{{ selectedProduct.nombre }}</span>
+        </div>
+        <div class="info-row">
+          <span class="label">Stock actual:</span>
+          <span class="value font-weight-bold">{{ selectedProduct.stockActual }} {{ selectedProduct.unidadMedida }}</span>
+        </div>
+      </div>
+
+      <div class="form-row two-cols">
+        <!-- Tipo de movimiento -->
+        <div class="form-group">
+          <label for="tipoMovimiento">Tipo de Movimiento <span class="required">*</span></label>
+          <select id="tipoMovimiento" class="form-control" formControlName="tipoMovimiento">
+            <option [ngValue]="null" disabled>Seleccione...</option>
+            <option value="INGRESO">Ingreso</option>
+            <option value="EGRESO">Egreso</option>
+          </select>
+        </div>
+
+        <!-- Cantidad -->
+        <div class="form-group">
+          <label for="cantidad">Cantidad a modificar <span class="required">*</span></label>
+          <div class="input-group">
+            <input type="number" id="cantidad" class="form-control" formControlName="cantidad" min="0.01" step="0.01">
+            <span class="input-group-text" *ngIf="selectedProduct">{{ selectedProduct.unidadMedida }}</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="form-row two-cols">
+        <!-- Proveedor -->
+        <div class="form-group">
+          <label for="proveedor">Proveedor</label>
+          <input type="text" id="proveedor" class="form-control" formControlName="proveedor" placeholder="Opcional">
+        </div>
+
+        <!-- Número factura -->
+        <div class="form-group">
+          <label for="numeroFactura">Número de Factura</label>
+          <input type="text" id="numeroFactura" class="form-control" formControlName="numeroFactura" placeholder="Opcional">
+        </div>
+      </div>
+
+      <!-- Observaciones -->
+      <div class="form-group">
+        <label for="observaciones">Observaciones</label>
+        <textarea id="observaciones" class="form-control" formControlName="observaciones" rows="3" placeholder="Detalles adicionales..."></textarea>
+      </div>
+
+      <!-- Acciones -->
+      <div class="form-actions">
+        <button type="button" class="btn btn-outline" (click)="cancelar()" [disabled]="isSaving">Cancelar</button>
+        <button type="submit" class="btn btn-primary" [disabled]="isSaving">
+          <span *ngIf="!isSaving">Guardar Ajuste</span>
+          <span *ngIf="isSaving">Guardando...</span>
+        </button>
+      </div>
+    </form>
+  </article>
+</section>
