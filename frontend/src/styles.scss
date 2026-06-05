@@ -1,4 +1,4 @@
-﻿:root {
+:root {
   --bg: #ffffff;
   --surface: #f1dfcd;
   --surface-alt: #c8a27f;
@@ -257,4 +257,38 @@ a:hover {
     font-size: 0.8rem;
   }
 }
+
+/* ═══════════════════════════════════════════════════
+   IMPRESIÓN TÉRMICA GLOBAL
+   ═══════════════════════════════════════════════════ */
+@media print {
+  /* Cuando la clase is-printing-ticket está activa, ocultar todo excepto app-root */
+  body.is-printing-ticket > *:not(app-root) {
+    display: none !important;
+  }
+  
+  /* Ocultar la estructura del layout (sidebars, cabeceras) */
+  body.is-printing-ticket app-app-layout .desktop-sidebar,
+  body.is-printing-ticket app-app-layout app-mobile-header,
+  body.is-printing-ticket app-app-layout .mobile-menu,
+  body.is-printing-ticket app-app-layout app-topbar {
+    display: none !important;
+  }
+  
+  /* Ocultar los modales y wrappers dentro de app-comandas-board-page */
+  body.is-printing-ticket app-comandas-board-page .board-wrapper,
+  body.is-printing-ticket app-comandas-board-page .detalle-overlay,
+  body.is-printing-ticket app-comandas-board-page app-page-header {
+    display: none !important;
+  }
+  
+  body.is-printing-ticket app-comandas-board-page .thermal-print-area {
+    display: block !important;
+    position: fixed !important;
+    left: 0 !important;
+    top: 0 !important;
+    z-index: 999999 !important;
+  }
+}
+
 

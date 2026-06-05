@@ -290,7 +290,7 @@ interface DraftItem {
       <app-confirm-dialog
         [open]="showCancelDialog()"
         title="Cancelar edición"
-        message="¿Cancelar la edición? Se perderán las comandas no enviadas a producción"
+        message="¿Cancelar la edición? Los cambios no guardados se perderán."
         cancelLabel="No, seguir editando"
         confirmLabel="Sí, cancelar"
         (cancel)="showCancelDialog.set(false)"
@@ -921,9 +921,9 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
             this.fetchItemsProduccion(visitaId);
           }
           this.actionTone.set('success');
-          this.actionMessage.set('Comanda enviada a cocina.');
+          this.actionMessage.set('Comanda enviada a producción. Impresión realizada en cocina/barra.');
         },
-        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos enviar la comanda a cocina.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'Error de impresión en cocina. Verifique la impresora.'),
       });
   }
 
@@ -944,9 +944,9 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
             this.fetchItemsProduccion(visitaId);
           }
           this.actionTone.set('success');
-          this.actionMessage.set('Comanda enviada a barra.');
+          this.actionMessage.set('Comanda enviada a producción. Impresión realizada en cocina/barra.');
         },
-        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'No pudimos enviar la comanda a barra.'),
+        error: (error) => this.handleActionError(this.extractErrorMessage(error) || 'Error de impresión en barra. Verifique la impresora.'),
       });
   }
 

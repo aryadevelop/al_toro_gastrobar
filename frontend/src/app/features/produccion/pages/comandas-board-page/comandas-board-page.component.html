@@ -149,11 +149,11 @@
       <div class="column-header listo-header">
         <!-- [CAMBIADO] Ícono de columna eliminado: el color verde ya identifica el estado -->
         <h2>Listas</h2>
-        <span class="column-badge">{{ tablero.listos.length }}</span>
+        <span class="column-badge">{{ listosAgrupadosData.length }}</span>
       </div>
 
       <div class="column-body">
-        <div *ngFor="let comanda of tablero.listos; trackBy: trackByComandaId" class="comanda-card card">
+        <div *ngFor="let comanda of listosAgrupadosData; trackBy: trackByGrupo" class="comanda-card card">
           <div class="comanda-card__header">
             <!-- [CAMBIADO] Eliminado 🍽️ redundante -->
             <span class="comanda-mesa">{{ comanda.mesaIdentificador }}</span>
@@ -192,7 +192,7 @@
           </div>
         </div>
 
-        <div *ngIf="tablero.listos.length === 0" class="column-empty">
+        <div *ngIf="listosAgrupadosData.length === 0" class="column-empty">
           <!-- [CAMBIADO] Ícono de columna vacía eliminado -->
           <p>No hay comandas listas</p>
         </div>
@@ -314,7 +314,67 @@
     </div>
 
     <div class="detalle-panel__footer">
+      <button class="btn-primary btn-block" style="margin-bottom: 0.5rem" (click)="imprimirComanda(detalleData, true)">🖨️ Reimprimir comanda</button>
       <button class="btn-secondary btn-block" (click)="cerrarDetalle()">Cerrar</button>
     </div>
   </aside>
+</div>
+
+<!-- ═══════════════════════════════════════════════════
+     SECCIÓN OCULTA PARA IMPRESIÓN TÉRMICA
+     ═══════════════════════════════════════════════════ -->
+<div class="thermal-print-area" *ngIf="printData">
+  <div class="thermal-ticket">
+    <div class="ticket-header">
+      <h3>TORITO GASTROBAR</h3>
+      <p class="ticket-type" *ngIf="!isReimpresion">COMANDA - {{ printData.estacion }}</p>
+      <p class="ticket-type text-bold" *ngIf="isReimpresion">*** REIMPRESIÓN ***</p>
+      <p class="ticket-type text-bold" *ngIf="printIsAdicion">*** ADICIÓN ***</p>
+      <p>Comanda #{{ printData.comandaId }}</p>
+      <p>Mesa: {{ printData.mesaIdentificador }}</p>
+      <p>Mesero: {{ printData.meseroNombre }}</p>
+      <p>Fecha: {{ printData.createdAt | date:'short' }}</p>
+    </div>
+
+    <div class="ticket-items" *ngIf="printData.platos?.length">
+      <div class="ticket-item" *ngFor="let item of printData.platos">
+        <span class="qty">{{ item.cantidad }}x</span>
+        <div class="item-desc">
+          <span>{{ item.productoNombre }}</span>
+          <span class="mod" *ngIf="item.descripcion">- {{ item.descripcion }}</span>
+          <span class="mod" *ngFor="let mod of item.modificacionesMenu">- {{ mod }}</span>
+        </div>
+      </div>
+    </div>
+    
+    <div class="ticket-items" *ngIf="printData.bebidas?.length">
+      <div class="ticket-item" *ngFor="let item of printData.bebidas">
+        <span class="qty">{{ item.cantidad }}x</span>
+        <div class="item-desc">
+          <span>{{ item.productoNombre }}</span>
+          <span class="mod" *ngIf="item.descripcion">- {{ item.descripcion }}</span>
+          <span class="mod" *ngFor="let mod of item.modificacionesMenu">- {{ mod }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticket-items" *ngIf="printData.otros?.length">
+      <div class="ticket-item" *ngFor="let item of printData.otros">
+        <span class="qty">{{ item.cantidad }}x</span>
+        <div class="item-desc">
+          <span>{{ item.productoNombre }}</span>
+          <span class="mod" *ngIf="item.descripcion">- {{ item.descripcion }}</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="ticket-notes" *ngIf="printData.notas">
+      <p>-- NOTAS --</p>
+      <p>{{ printData.notas }}</p>
+    </div>
+
+    <div class="ticket-footer">
+      <p>--- FIN ---</p>
+    </div>
+  </div>
 </div>
