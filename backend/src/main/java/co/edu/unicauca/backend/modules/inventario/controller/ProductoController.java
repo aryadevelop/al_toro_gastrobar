@@ -3,6 +3,7 @@ package co.edu.unicauca.backend.modules.inventario.controller;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -69,6 +70,29 @@ public class ProductoController {
     @Operation(summary = "Obtener menús especiales con opciones de modificación")
     public ResponseEntity<ApiResponse<List<MenuEspecialResponse>>> obtenerMenusEspeciales() {
         return ResponseEntity.ok(ApiResponse.ok(productoService.obtenerMenusEspeciales()));
+    }
+
+    /**
+     * Lista todos los productos registrados en inventario.
+     *
+     * <p>Permite filtrar por categoría de carta y por coincidencia parcial en el nombre.
+     * Si la categoría no existe, se devuelve un error de negocio con mensaje descriptivo.
+     *
+     * @param categoria nombre de categoría de carta
+     * @param q         fragmento de nombre a buscar
+     * @return lista de productos de inventario para administración
+     */
+    @GetMapping
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Listar productos de inventario",
+               description = "Retorna el listado de productos registrados en el inventario de la carta, con filtros opcionales por categoría y por nombre.")
+    public ResponseEntity<ApiResponse<List<ProductoInventarioResponse>>> listarProductosInventario(
+            @Parameter(description = "Nombre de la categoría de carta para filtrar")
+            @RequestParam(value = "categoria", required = false) String categoria,
+            @Parameter(description = "Fragmento del nombre del producto para buscar")
+            @RequestParam(value = "q", required = false) String q) {
+
+        return ResponseEntity.ok(ApiResponse.ok(productoService.listarProductosInventario(categoria, q)));
     }
 
     /**

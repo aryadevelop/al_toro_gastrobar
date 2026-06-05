@@ -7,9 +7,11 @@ import co.edu.unicauca.backend.modules.inventario.dto.response.OpcionModificacio
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBebidaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoCartaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import java.math.BigDecimal;
 
 import org.springframework.stereotype.Component;
 
@@ -102,11 +104,32 @@ public class ProductoMapper {
      * @return DTO con los campos de búsqueda
      */
     public ProductoBusquedaResponse toBusquedaResponse(Producto p) {
+        return toBusquedaResponse(p, p.getStockActual());
+    }
+
+    public ProductoBusquedaResponse toBusquedaResponse(Producto p, BigDecimal stockActual) {
         return ProductoBusquedaResponse.builder()
                 .productoId(p.getProductoId())
                 .productoNombre(p.getProductoNombre())
                 .productoPrecio(p.getProductoPrecio())
+                .stockActual(stockActual)
+                .productoEstado(p.getProductoEstado().name())
                 .productoCategoria(p.getProductoCategoria().name())
+                .build();
+    }
+
+    public ProductoInventarioResponse toInventarioResponse(Producto p) {
+        return toInventarioResponse(p, p.getStockActual());
+    }
+
+    public ProductoInventarioResponse toInventarioResponse(Producto p, BigDecimal stockActual) {
+        return ProductoInventarioResponse.builder()
+                .productoId(p.getProductoId())
+                .productoNombre(p.getProductoNombre())
+                .categoriaNombre(p.getCategoriaCarta().getCategoriaNombre())
+                .productoPrecio(p.getProductoPrecio())
+                .stockActual(stockActual)
+                .productoEstado(p.getProductoEstado().name())
                 .build();
     }
 

@@ -3,18 +3,28 @@ package co.edu.unicauca.backend.modules.inventario.service;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Receta;
 import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
+import co.edu.unicauca.backend.modules.inventario.repository.CategoriaCartaRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.RecetaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
+import co.edu.unicauca.backend.shared.enums.TipoProducto;
+import co.edu.unicauca.backend.shared.exception.BusinessException;
+import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -42,7 +52,10 @@ import java.util.stream.Collectors;
 public class ProductoService {
 
     private final ProductoRepository productoRepository;
+    private final CategoriaCartaRepository categoriaCartaRepository;
     private final ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
+    private final RecetaRepository recetaRepository;
+    private final ComandaItemRepository comandaItemRepository;
     private final ProductoMapper productoMapper;
     private final MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
 
@@ -109,6 +122,64 @@ public class ProductoService {
     }
 
     /**
+     * Lista los productos del inventario con los campos usados por administración.
+     *
+     * <p>Incluye productos activos e inactivos, y permite filtrar por categoría de carta
+     * y por coincidencia parcial en el nombre.
+     *
+     * @param categoria nombre de la categoría de carta; no se filtra si es nulo o vacío
+     * @param q         fragmento de nombre; no se filtra si es nulo o vacío
+     * @return lista de productos de inventario ordenada por categoría y nombre
+     */
+    @Transactional(readOnly = true)
+    public List<ProductoInventarioResponse> listarProductosInventario(String categoria, String q) {
+        Integer categoriaId = null;
+        if (categoria != null && !categoria.isBlank()) {
+            CategoriaCarta categoriaCarta = categoriaCartaRepository
+                    .findByCategoriaNombreIgnoreCase(categoria.trim())
+                    .orElseThrow(() -> new BusinessException(
+                            ErrorCode.ENTITY_NOT_FOUND,
+                            "No existe la categoría '" + categoria.trim() + "'."));
+            categoriaId = categoriaCarta.getCategoriacartaId();
+        }
+
+        String nombre = (q == null || q.isBlank()) ? null : q.trim();
+        return productoRepository.buscarPorCategoriaYNombre(categoriaId, nombre).stream()
+                .map(producto -> productoMapper.toInventarioResponse(producto, obtenerStockInventario(producto)))
+                .collect(Collectors.toList());
+    }
+
+    private BigDecimal obtenerStockInventario(Producto producto) {
+        if (producto.getStockActual() != null) {
+            return producto.getStockActual().stripTrailingZeros();
+        }
+
+        if (producto.getProductoTipo() != TipoProducto.PREPARACION) {
+            return null;
+        }
+
+        List<Receta> recetas = recetaRepository.findByProductoIdFetchInsumo(producto.getProductoId());
+        if (recetas.isEmpty()) {
+            return null;
+        }
+
+        int maxUnidades = recetas.stream()
+                .mapToInt(receta -> {
+                    BigDecimal comprometido = comandaItemRepository
+                            .sumCantidadInsumoComprometida(receta.getInsumo().getInsumoId());
+                    BigDecimal disponible = receta.getInsumo().getInsumoStockActual().subtract(comprometido);
+                    if (disponible.compareTo(BigDecimal.ZERO) <= 0) {
+                        return 0;
+                    }
+                    return disponible.divide(receta.getRecetaCantidad(), 0, RoundingMode.FLOOR).intValue();
+                })
+                .min()
+                .orElse(0);
+
+        return BigDecimal.valueOf(maxUnidades);
+    }
+
+    /**
      * Busca productos del catálogo por coincidencia parcial en el nombre,
      * excluyendo menús especiales y productos inactivos.
      *
@@ -122,7 +193,7 @@ public class ProductoService {
         }
         return productoRepository.buscarPorNombreSinMenu(q.trim(), EstadoGenerico.ACTIVO.name())
                 .stream()
-                .map(productoMapper::toBusquedaResponse)
+                .map(producto -> productoMapper.toBusquedaResponse(producto, obtenerStockInventario(producto)))
                 .collect(Collectors.toList());
     }
 }

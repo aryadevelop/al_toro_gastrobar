@@ -66,6 +66,24 @@ public interface ProductoRepository extends JpaRepository<Producto, Long> {
     List<Producto> buscarPorNombreSinMenu(@Param("nombre") String nombre,
                                           @Param("estado") String estado);
 
+    /**
+     * Lista todos los productos por categoría de carta y coincidencia parcial de nombre.
+     *
+     * <p>Incluye productos activos e inactivos y no filtra por {@code menuEspecial}.
+     *
+     * @param categoriaId identificador de categoría de carta, o {@code null} para no filtrar
+     * @param nombre      fragmento de nombre a buscar; {@code null} para no filtrar
+     * @return productos coincidentes ordenados por orden de categoría y nombre
+     */
+    @Query(value = """
+            SELECT p.* FROM restaurante.Producto p
+            JOIN restaurante.Categoriacarta c ON p.categoriacarta_id = c.categoriacarta_id
+            WHERE (:categoriaId IS NULL OR p.categoriacarta_id = :categoriaId)
+            AND (:nombre IS NULL OR unaccent(lower(p.producto_nombre)) LIKE '%' || unaccent(lower(trim(:nombre))) || '%')
+            ORDER BY c.orden ASC, p.producto_nombre ASC
+            """, nativeQuery = true)
+    List<Producto> buscarPorCategoriaYNombre(@Param("categoriaId") Integer categoriaId,
+                                             @Param("nombre") String nombre);
 
     /**
      * Búsqueda parcial accent-insensitive por nombre para el formulario de ajuste
