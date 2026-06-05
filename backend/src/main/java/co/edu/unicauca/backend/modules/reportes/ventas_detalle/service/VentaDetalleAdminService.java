@@ -21,7 +21,6 @@ import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.Comand
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.MesaDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.reportes.ventas_detalle.repository.VentaDetalleAdminRepository;
 import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
-import co.edu.unicauca.backend.modules.auth.repository.UsuarioRolRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.entity.Comanda;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.VisitaRepository;
@@ -31,7 +30,6 @@ import co.edu.unicauca.backend.modules.reservas.repository.ReservaRepository;
 import co.edu.unicauca.backend.modules.usuarios.entity.Cliente;
 import co.edu.unicauca.backend.shared.enums.EstadoReserva;
 import co.edu.unicauca.backend.shared.enums.MetodoPago;
-import co.edu.unicauca.backend.shared.enums.RolEstado;
 import co.edu.unicauca.backend.shared.enums.RolNombre;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
@@ -70,7 +68,6 @@ public class VentaDetalleAdminService {
     private final VisitaRepository visitaRepository;
     private final ComandaRepository comandaRepository;
     private final SesionRepository sesionRepository;
-    private final UsuarioRolRepository usuarioRolRepository;
 
     @Transactional(readOnly = true)
     public VentaDetalleResponse obtenerDetalle(Long visitaId) {
