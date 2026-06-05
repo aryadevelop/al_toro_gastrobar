@@ -1,10 +1,9 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-11 CAJERO cierra cuenta sin método de pago – 422 Unprocessable Entity
 description: |-
   El método de pago es obligatorio al cerrar (`@NotNull` → 422, CA-13). Se incluye aquí por ser
   una regla de cierre. El beforeRequest crea un walk-in con un ítem y deja la visita abierta; la
   request principal cierra sin el campo "metodo". Coincide con la colección por-endpoint VE-04.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
 url: "{{baseUrl}}/api/ventas"
 method: POST
 headers:

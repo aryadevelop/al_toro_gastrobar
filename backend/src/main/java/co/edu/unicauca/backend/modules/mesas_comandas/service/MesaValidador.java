@@ -39,10 +39,10 @@ public class MesaValidador {
     private final ReservaRepository reservaRepository;
 
     /** Hora de apertura del restaurante. */
-    private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
+    private static final LocalTime HORA_APERTURA = LocalTime.of(0, 0);
 
     /** Hora de cierre del restaurante. */
-    private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(23, 59);
 
     /**
      * Valida que el identificador de mesa no esté duplicado en el día actual.
@@ -110,7 +110,7 @@ public class MesaValidador {
      *   <li>Fecha de llegada debe ser hoy</li>
      * </ul>
      *
-     * <p><b>NOTA:</b> La validación de horario (17:00-22:00) se hace
+     * <p><b>NOTA:</b> La validación de horario (00:00-23:59) se hace
      * mediante {@link #validarHorarioAtencion()} tanto para walk-in como reservas.
      *
      * @param reservaId ID de la reserva

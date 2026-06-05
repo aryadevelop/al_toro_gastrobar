@@ -1,9 +1,8 @@
-$kind: http-request
+﻿$kind: http-request
 name: 01 MESERO asigna mesa walk-in (sin reserva) – 201 Created
 description: |-
   El mesero asigna una mesa SIN reserva (`reservaId=null` → walk-in), creando la Visita con
   borrador vacío y sin cliente (invitado). El identificador de mesa se genera dinámico. Captura `tmpVisitaId`.
-  ⚠️ Requiere ventana 17:00–22:00 (valida `LocalTime.now()`).
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

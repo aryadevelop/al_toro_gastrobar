@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-05 COCINERO inicia una comanda ya EN_PREPARACION – 409 Conflict
 description: |-
   Iniciar solo aplica a comandas PENDIENTE. El beforeRequest crea un walk-in, arma y envía una
   comanda de cocina, y la INICIA una vez (PENDIENTE → EN_PREPARACION). La request principal vuelve
   a llamar `/iniciar` sobre la misma comanda → 409 NEG-002 ("Comanda no PENDIENTE"). Coincide con
   la colección por-endpoint de producción AC-08.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
   ⚠️ `iniciar` descuenta inventario; correr muchas veces puede agotar stock del producto 36.
 url: "{{baseUrl}}/api/comandas/produccion/{{tmpNegComandaEnPrepId}}/iniciar"
 method: POST

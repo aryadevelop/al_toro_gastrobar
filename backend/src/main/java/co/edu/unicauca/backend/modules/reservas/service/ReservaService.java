@@ -84,8 +84,8 @@ public class ReservaService {
     private static final String MSG_DISPONIBILIDAD_CAMBIO = "Lo sentimos, la disponibilidad cambió. Por favor revise nuevamente.";
     private static final String MSG_FUERA_HORARIO = "Lo sentimos, no hay disponibilidad para la fecha y hora seleccionada. " + "Por favor elija otra fecha u hora.";
     private static final String MSG_ANTICIPACION_MINIMA = "La reserva debe realizarse con al menos un día de anticipación.";
-    private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
-    private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
+    private static final LocalTime HORA_APERTURA = LocalTime.of(0, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(23, 59);
     private static final LocalTime HORA_LIMITE_MENU_ESPECIAL = LocalTime.of(23, 0);
     private static final LocalTime HORA_LIMITE_ESTANDAR = LocalTime.of(16, 0);
 

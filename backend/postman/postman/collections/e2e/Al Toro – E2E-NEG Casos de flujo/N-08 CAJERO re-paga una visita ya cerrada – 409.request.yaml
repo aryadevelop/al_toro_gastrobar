@@ -1,10 +1,9 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-08 CAJERO re-paga una visita ya cerrada – 409 Conflict
 description: |-
   Cerrar una visita que ya tiene venta (re-pago) → 409 NEG-002 (idempotencia). El beforeRequest
   crea un walk-in con un ítem, lo cierra correctamente como CAJERO, y la request principal intenta
   cerrar la MISMA visita de nuevo. Coincide con la colección por-endpoint VE-08.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
   // VERIFICAR EN VIVO: setup pesado (walk-in→armar→cerrar) antes del re-pago.
 url: "{{baseUrl}}/api/ventas"
 method: POST

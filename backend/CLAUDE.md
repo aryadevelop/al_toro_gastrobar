@@ -146,7 +146,6 @@ de `productoId`/`insumoId` viaja con valor; cualquier pantalla que muestre stock
 
 ## Business Rules
 
-- **Horario reservas:** 17:00–22:00
 - **Cutoff modificación:** BASICA 13:00, ESPECIAL 23:00 (día previo)
 - **WhatsApp flag:** true para BASICA→ESPECIAL o cambio de abono neto
 - **Cancelación:** sin restricción horaria; `requiereWhatsApp=true` si requiere reembolso

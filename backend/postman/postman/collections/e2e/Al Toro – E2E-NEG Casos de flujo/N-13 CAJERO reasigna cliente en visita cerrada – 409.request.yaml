@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-13 CAJERO reasigna cliente en una visita ya cerrada – 409 Conflict
 description: |-
   `PATCH /api/visitas/{id}/cliente` sobre una visita cerrada → 409 NEG-002 (no se puede reasignar
   cliente tras el cierre). El beforeRequest crea un walk-in con un ítem, lo cierra como CAJERO, y la
   request principal intenta asignar un cliente. Coincide con la colección por-endpoint
   PATCH /api/visitas/{visitaId}/cliente AC-07.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
   // VERIFICAR EN VIVO: setup pesado (walk-in→armar→cerrar) antes de la reasignación. El clienteId
   // del query param (11) debe corresponder a un cliente existente del seed.
 url: "{{baseUrl}}/api/visitas/{{tmpNegVisitaClienteId}}/cliente?clienteId=11"

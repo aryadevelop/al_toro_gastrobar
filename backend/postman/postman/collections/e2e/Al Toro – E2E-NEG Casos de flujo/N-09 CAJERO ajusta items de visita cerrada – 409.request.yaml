@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-09 CAJERO ajusta ítems de una visita ya cerrada – 409 Conflict
 description: |-
   `PATCH /api/visitas/{id}/items` sobre una visita cerrada → 409 NEG-002 (el lock detecta el estado
   antes de tocar ítems). El beforeRequest crea un walk-in con un ítem, lo cierra, captura un
   comandaItemId real de la cuenta y la request principal intenta ajustar su cantidad. Coincide con
   la colección por-endpoint AJ-05.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
   // VERIFICAR EN VIVO: setup pesado (walk-in→armar→cerrar→leer cuenta) antes del ajuste.
 url: "{{baseUrl}}/api/visitas/{{tmpNegVisitaItemsId}}/items"
 method: PATCH

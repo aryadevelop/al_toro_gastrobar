@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-04 COCINERO marca listo una comanda PENDIENTE (sin iniciar) – 409 Conflict
 description: |-
   Una comanda solo puede marcarse LISTO desde EN_PREPARACION. El beforeRequest crea un walk-in,
   arma una comanda de cocina y la ENVÍA (queda PENDIENTE), pero NO la inicia. El COCINERO intenta
   `/listo` directamente → 409 NEG-002 ("Comanda no EN_PREPARACION"). Coincide con la colección
   por-endpoint de producción AC-07.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
 url: "{{baseUrl}}/api/comandas/produccion/{{tmpNegComandaPendienteId}}/listo"
 method: POST
 headers:

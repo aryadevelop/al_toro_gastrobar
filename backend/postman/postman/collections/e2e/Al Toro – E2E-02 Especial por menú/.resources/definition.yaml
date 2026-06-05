@@ -1,4 +1,4 @@
-$kind: collection
+﻿$kind: collection
 name: Al Toro – E2E-02 Especial por menú
 description: |-
   **Escenario E2E-02** · Reserva ESPECIAL **por menú** + agregar ítems de carta EN LA VISITA + anticipo + descuento.
@@ -9,7 +9,6 @@ description: |-
   `V3__dev_data.sql` (par menú `E2E-02-MENU`: COCINA 33000 + BARRA bebida 0; `totalAPagar=33000`).
   Como es por menú, NO trae decoración (`decoracionNombre` ausente/null). Si ya fue consumida,
   re-sembrar con `docker compose down -v && docker compose up --build`.
-  ⚠️ Requiere ventana de atención 17:00–22:00 (la asignación de mesa valida `LocalTime.now()`).
 
   **Aserción clave:** los ítems de carta agregados en la visita aparecen JUNTO al par de menú especial
   en la cuenta, con sus subtotales sumados al total (el menú no fusiona ni oculta la carta).
