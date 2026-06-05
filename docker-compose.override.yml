@@ -3,11 +3,10 @@
 # Uso: docker compose up
 # ============================================================
 services:
-
   postgres:
     # Puerto expuesto para conectar con clientes locales
     ports:
-      - "5432:5432"
+      - "5433:5432"
 
   rabbitmq:
     # AMQP expuesto para clientes locales; consola web en http://localhost:15672
@@ -22,8 +21,8 @@ services:
       JWT_SECRET: ${JWT_SECRET:-altoro-dev-only-secret-not-for-prod}
       JWT_EXPIRATION: ${JWT_EXPIRATION:-86400000}
       # Mailtrap: intercepta emails en dev sin enviarlos realmente
-      MAIL_HOST:     ${MAIL_HOST:-smtp.mailtrap.io}
-      MAIL_PORT:     ${MAIL_PORT:-587}
+      MAIL_HOST: ${MAIL_HOST:-smtp.mailtrap.io}
+      MAIL_PORT: ${MAIL_PORT:-587}
       MAIL_USERNAME: ${MAIL_USERNAME:-tu_usuario_mailtrap}
       MAIL_PASSWORD: ${MAIL_PASSWORD:-tu_password_mailtrap}
       CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost:4200,http://localhost:80}
