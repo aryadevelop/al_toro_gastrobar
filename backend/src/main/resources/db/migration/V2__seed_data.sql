@@ -42,26 +42,25 @@ INSERT INTO CategoriaCarta (categoria_nombre, orden, activo) VALUES
 -- 2. ZONA
 -- =====================================================
 INSERT INTO Zona (zona_nombre, zona_capacidad_personas, zona_imagen_url) VALUES
-('Salón Principal',  60, 'https://picsum.photos/seed/zona-salon/360/220'),
-('Terraza',          30, 'https://picsum.photos/seed/zona-terraza/360/220'),
-('VIP',              16, 'https://picsum.photos/seed/zona-vip/360/220'),
-('Barra',            10, 'https://picsum.photos/seed/zona-barra/360/220'),
-('Jardín',           20, 'https://picsum.photos/seed/zona-jardin/360/220'),
-('Sala Privada',     12, 'https://picsum.photos/seed/zona-privada/360/220'),
-('Zona Romántica',    6, 'https://picsum.photos/seed/zona-romantica/360/220');
+('Salón Principal',  60, '/uploads/zonas/salon.png'),
+('Terraza',          30, '/uploads/zonas/terraza.png'),
+('VIP',              16, '/uploads/zonas/vip.png'),
+('Barra',            10, '/uploads/zonas/barra.png'),
+('Jardín',           20, '/uploads/zonas/jardin.png'),
+('Sala Privada',     12, '/uploads/zonas/privada.png'),
+('Zona Romántica',    6, '/uploads/zonas/romantica.png');
 
 -- =====================================================
 -- 3. DECORACION
 -- =====================================================
 INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url) VALUES
-('Velas Románticas',        'ACTIVO',   25000.00, 'https://picsum.photos/seed/decor-velas/360/220'),
-('Cumpleaños Premium',      'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-cumple/360/220'),
-('Decoración Empresarial',  'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-empresa/360/220'),
-('Mesa Temática Toro',      'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-toro/360/220'),
-('Minimalista Elegante',    'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-minimal/360/220'),
-('Globos y Flores',         'ACTIVO',   NULL,        'https://picsum.photos/seed/decor-globos/360/220'),
-('Rústica Vintage',         'INACTIVO', NULL,        'https://picsum.photos/seed/decor-rustica/360/220'),
-('Test Zona Fija',          'ACTIVO',   NULL,        NULL);
+('Velas Románticas',        'ACTIVO',   25000.00, '/uploads/decoraciones/velas.png'),
+('Cumpleaños Premium',      'ACTIVO',   NULL,     '/uploads/decoraciones/cumple.png'),
+('Decoración Empresarial',  'ACTIVO',   NULL,     '/uploads/decoraciones/empresarial.png'),
+('Mesa Temática Toro',      'ACTIVO',   NULL,     '/uploads/decoraciones/toro.png'),
+('Minimalista Elegante',    'ACTIVO',   NULL,     '/uploads/decoraciones/minimal.png'),
+('Globos y Flores',         'ACTIVO',   NULL,     '/uploads/decoraciones/globos.png'),
+('Rústica Vintage',         'INACTIVO', NULL,     '/uploads/decoraciones/rustica.png');
 
 -- =====================================================
 -- 4. DECORACION_ZONA
@@ -71,98 +70,97 @@ INSERT INTO Decoracion_Zona (decoracion_id, zona_id) VALUES
 (2, 3),(2, 6),
 (3, 1),(3, 2),(3, 3),(3, 6),
 (4, 3),(4, 6),
-(5, 1),(5, 2),
-(8, 4);
+(5, 1),(5, 2);
 
 -- =====================================================
 -- 5. INSUMO
 -- =====================================================
 INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_estado) VALUES
 -- Carnes
-('Punta de Anca',        'KG',     18.500, 'ACTIVO'),
-('Lomo Fino de Res',     'KG',     12.000, 'ACTIVO'),
-('Churrasco',            'KG',     20.000, 'ACTIVO'),
-('Pechuga de Pollo',     'KG',     25.000, 'ACTIVO'),
-('Lomo de Cerdo',        'KG',     15.000, 'ACTIVO'),
-('Costilla de Cerdo',    'KG',     22.000, 'ACTIVO'),
-('Carne de Hamburguesa', 'KG',     30.000, 'ACTIVO'),
-('Tocineta',             'KG',      8.000, 'ACTIVO'),
-('Chorizo',              'KG',     10.000, 'ACTIVO'),
-('Salchicha Americana',  'KG',      5.000, 'ACTIVO'),
+('Punta de Anca',        'KG',     0, 'ACTIVO'),
+('Lomo Fino de Res',     'KG',     0, 'ACTIVO'),
+('Churrasco',            'KG',     0, 'ACTIVO'),
+('Pechuga de Pollo',     'KG',     0, 'ACTIVO'),
+('Lomo de Cerdo',        'KG',     0, 'ACTIVO'),
+('Costilla de Cerdo',    'KG',     0, 'ACTIVO'),
+('Carne de Hamburguesa', 'KG',     0, 'ACTIVO'),
+('Tocineta',             'KG',     0, 'ACTIVO'),
+('Chorizo',              'KG',     0, 'ACTIVO'),
+('Salchicha Americana',  'KG',     0, 'ACTIVO'),
 -- Mariscos
-('Camarón',              'KG',     12.000, 'ACTIVO'),
-('Calamar Anillo',       'KG',      8.000, 'ACTIVO'),
-('Salmón',               'KG',     10.000, 'ACTIVO'),
-('Langostino',           'KG',      6.000, 'ACTIVO'),
-('Pulpo',                'KG',      4.000, 'ACTIVO'),
-('Almejas',              'KG',      3.000, 'ACTIVO'),
-('Mejillones',           'KG',      3.500, 'ACTIVO'),
-('Palmito de Cangrejo',  'KG',      2.000, 'ACTIVO'),
-('Pescado Blanco',       'KG',      8.000, 'ACTIVO'),
+('Camarón',              'KG',     0, 'ACTIVO'),
+('Calamar Anillo',       'KG',     0, 'ACTIVO'),
+('Salmón',               'KG',     0, 'ACTIVO'),
+('Langostino',           'KG',     0, 'ACTIVO'),
+('Pulpo',                'KG',     0, 'ACTIVO'),
+('Almejas',              'KG',     0, 'ACTIVO'),
+('Mejillones',           'KG',     0, 'ACTIVO'),
+('Palmito de Cangrejo',  'KG',     0, 'ACTIVO'),
+('Pescado Blanco',       'KG',     0, 'ACTIVO'),
 -- Vegetales y frescos
-('Plátano Verde',        'KG',     20.000, 'ACTIVO'),
-('Papa Francesa',        'KG',     40.000, 'ACTIVO'),
-('Papa Criolla',         'KG',     25.000, 'ACTIVO'),
-('Espárragos',           'KG',      5.000, 'ACTIVO'),
-('Aguacate',             'UNIDAD',  50,    'ACTIVO'),
-('Tomate Cherry',        'KG',      8.000, 'ACTIVO'),
-('Lechuga',              'KG',      6.000, 'ACTIVO'),
-('Cebolla Morada',       'KG',      5.000, 'ACTIVO'),
-('Maíz Tierno',          'KG',     10.000, 'ACTIVO'),
-('Jalapeños',            'KG',      2.000, 'ACTIVO'),
-('Frijol Refrito',       'KG',      5.000, 'ACTIVO'),
+('Plátano Verde',        'KG',     0, 'ACTIVO'),
+('Papa Francesa',        'KG',     0, 'ACTIVO'),
+('Papa Criolla',         'KG',     0, 'ACTIVO'),
+('Espárragos',           'KG',     0, 'ACTIVO'),
+('Aguacate',             'UNIDAD', 0, 'ACTIVO'),
+('Tomate Cherry',        'KG',     0, 'ACTIVO'),
+('Lechuga',              'KG',     0, 'ACTIVO'),
+('Cebolla Morada',       'KG',     0, 'ACTIVO'),
+('Maíz Tierno',          'KG',     0, 'ACTIVO'),
+('Jalapeños',            'KG',     0, 'ACTIVO'),
+('Frijol Refrito',       'KG',     0, 'ACTIVO'),
 -- Pasta y arroces
-('Fettuccine',           'KG',      8.000, 'ACTIVO'),
-('Spaghetti',            'KG',      8.000, 'ACTIVO'),
-('Arroz de Risotto',     'KG',      5.000, 'ACTIVO'),
+('Fettuccine',           'KG',     0, 'ACTIVO'),
+('Spaghetti',            'KG',     0, 'ACTIVO'),
+('Arroz de Risotto',     'KG',     0, 'ACTIVO'),
 -- Lácteos y salsas
-('Queso Doble Crema',    'KG',     10.000, 'ACTIVO'),
-('Queso Parmesano',      'KG',      3.000, 'ACTIVO'),
-('Crema de Coco',        'L',       4.000, 'ACTIVO'),
-('Guacamole',            'KG',      6.000, 'ACTIVO'),
-('Salsa Criolla',        'KG',      8.000, 'ACTIVO'),
-('Salsa BBQ',            'KG',      5.000, 'ACTIVO'),
-('Salsa Champiñones',    'KG',      4.000, 'ACTIVO'),
-('Salsa Pomodoro',       'KG',      6.000, 'ACTIVO'),
-('Salsa Alfredo',        'KG',      3.000, 'ACTIVO'),
-('Salsa Hawaiana',       'KG',      3.000, 'ACTIVO'),
-('Chimichurri',          'KG',      4.000, 'ACTIVO'),
-('Salsa Strogonoff',     'KG',      3.000, 'ACTIVO'),
-('Salsa Demiglace',      'KG',      2.000, 'ACTIVO'),
-('Salsa Caribeña',       'KG',      4.000, 'ACTIVO'),
+('Queso Doble Crema',    'KG',     0, 'ACTIVO'),
+('Queso Parmesano',      'KG',     0, 'ACTIVO'),
+('Crema de Coco',        'L',      0, 'ACTIVO'),
+('Guacamole',            'KG',     0, 'ACTIVO'),
+('Salsa Criolla',        'KG',     0, 'ACTIVO'),
+('Salsa BBQ',            'KG',     0, 'ACTIVO'),
+('Salsa Champiñones',    'KG',     0, 'ACTIVO'),
+('Salsa Pomodoro',       'KG',     0, 'ACTIVO'),
+('Salsa Alfredo',        'KG',     0, 'ACTIVO'),
+('Salsa Hawaiana',       'KG',     0, 'ACTIVO'),
+('Chimichurri',          'KG',     0, 'ACTIVO'),
+('Salsa Strogonoff',     'KG',     0, 'ACTIVO'),
+('Salsa Demiglace',      'KG',     0, 'ACTIVO'),
+('Salsa Caribeña',       'KG',     0, 'ACTIVO'),
 -- Licores (insumos para coctelería)
-('Ron',                  'ML',  15000,     'ACTIVO'),
-('Vodka',                'ML',  12000,     'ACTIVO'),
-('Gin',                  'ML',  10000,     'ACTIVO'),
-('Tequila',              'ML',   8000,     'ACTIVO'),
-('Triple Sec',           'ML',   5000,     'ACTIVO'),
-('Aguardiente',          'ML',   6000,     'ACTIVO'),
-('Campari',              'ML',   3000,     'ACTIVO'),
-('Vermouth',             'ML',   3000,     'ACTIVO'),
-('Curaçao',              'ML',   4000,     'ACTIVO'),
-('Brandy',               'ML',   2000,     'ACTIVO'),
-('Granadina',            'ML',   3000,     'ACTIVO'),
-('Ginger Beer',          'ML',   8000,     'ACTIVO'),
-('Agua Tónica',          'ML',   8000,     'ACTIVO'),
-('Sirope de Maracuyá',   'ML',   3000,     'ACTIVO'),
-('Sirope Frutos Rojos',  'ML',   2000,     'ACTIVO'),
-('Sirope Manzana',       'ML',   2000,     'ACTIVO'),
+('Ron',                  'ML',     0, 'ACTIVO'),
+('Vodka',                'ML',     0, 'ACTIVO'),
+('Gin',                  'ML',     0, 'ACTIVO'),
+('Tequila',              'ML',     0, 'ACTIVO'),
+('Triple Sec',           'ML',     0, 'ACTIVO'),
+('Aguardiente',          'ML',     0, 'ACTIVO'),
+('Campari',              'ML',     0, 'ACTIVO'),
+('Vermouth',             'ML',     0, 'ACTIVO'),
+('Curaçao',              'ML',     0, 'ACTIVO'),
+('Brandy',               'ML',     0, 'ACTIVO'),
+('Granadina',            'ML',     0, 'ACTIVO'),
+('Ginger Beer',          'ML',     0, 'ACTIVO'),
+('Agua Tónica',          'ML',     0, 'ACTIVO'),
+('Sirope de Maracuyá',   'ML',     0, 'ACTIVO'),
+('Sirope Frutos Rojos',  'ML',     0, 'ACTIVO'),
+('Sirope Manzana',       'ML',     0, 'ACTIVO'),
 -- Frutas para cócteles y jugos
-('Limón',                'KG',      8.000, 'ACTIVO'),
-('Hierbabuena',          'KG',      1.000, 'ACTIVO'),
-('Lulo',                 'KG',      4.000, 'ACTIVO'),
-('Fresa',                'KG',      3.000, 'ACTIVO'),
-('Maracuyá',             'KG',      4.000, 'ACTIVO'),
-('Piña',                 'KG',      6.000, 'ACTIVO'),
-('Mango',                'KG',      4.000, 'ACTIVO'),
+('Limón',                'KG',     0, 'ACTIVO'),
+('Hierbabuena',          'KG',     0, 'ACTIVO'),
+('Lulo',                 'KG',     0, 'ACTIVO'),
+('Fresa',                'KG',     0, 'ACTIVO'),
+('Maracuyá',             'KG',     0, 'ACTIVO'),
+('Piña',                 'KG',     0, 'ACTIVO'),
+('Mango',                'KG',     0, 'ACTIVO'),
 -- Otros
-('Tajín',                'KG',      1.000, 'ACTIVO'),
-('Nachos',               'KG',      5.000, 'ACTIVO'),
-('Pan',                  'UNIDAD',  80,    'ACTIVO'),
-('Vino Blanco Cocina',   'ML',   5000,     'ACTIVO'),
-('Leche Tigre',          'ML',   2000,     'ACTIVO'),
-('Suero Costeño',        'KG',      3.000, 'ACTIVO'),
-('Aceitunas',            'KG',      1.500, 'ACTIVO');
+('Tajín',                'KG',     0, 'ACTIVO'),
+('Nachos',               'KG',     0, 'ACTIVO'),
+('Pan',                  'UNIDAD', 0, 'ACTIVO'),
+('Vino Blanco Cocina',   'ML',     0, 'ACTIVO'),
+('Leche Tigre',          'ML',     0, 'ACTIVO'),
+('Suero Costeño',        'KG',     0, 'ACTIVO'),
+('Aceitunas',            'KG',     0, 'ACTIVO');
 
 -- =====================================================
 -- 8. INSUMOS SEMIELABORADOS
@@ -172,15 +170,15 @@ INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_es
 --    ingresa directamente cuántas porciones/kg preparó.
 -- =====================================================
 INSERT INTO Insumo (insumo_nombre, insumo_unidad, insumo_stock_actual, insumo_estado, tipo_insumo) VALUES
-('Salsa de uchuvas',        'KG',     3.000, 'ACTIVO', 'SEMIELABORADO'),
-('Salsa de vino tinto',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
-('Arroz granjero',          'KG',    10.000, 'ACTIVO', 'SEMIELABORADO'),
-('Tostones preparados',     'UNIDAD', 80,    'ACTIVO', 'SEMIELABORADO'),
-('Chips de plátano listos', 'KG',     4.000, 'ACTIVO', 'SEMIELABORADO'),
-('Puré de papa casero',     'KG',     6.000, 'ACTIVO', 'SEMIELABORADO'),
-('Salsa de ajo casera',     'KG',     2.000, 'ACTIVO', 'SEMIELABORADO'),
-('Hogao casero',            'KG',     5.000, 'ACTIVO', 'SEMIELABORADO'),
-('Crema de aguacate',       'KG',     3.000, 'ACTIVO', 'SEMIELABORADO');
+('Salsa de uchuvas',        'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de vino tinto',     'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Arroz granjero',          'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Tostones preparados',     'UNIDAD', 0, 'ACTIVO', 'SEMIELABORADO'),
+('Chips de plátano listos', 'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Puré de papa casero',     'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Salsa de ajo casera',     'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Hogao casero',            'KG',     0, 'ACTIVO', 'SEMIELABORADO'),
+('Crema de aguacate',       'KG',     0, 'ACTIVO', 'SEMIELABORADO');
 -- =====================================================
 -- 6. PRODUCTO
 -- =====================================================
@@ -311,51 +309,51 @@ INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, 
 
 -- TEQUILA (cat 16) → IDs 80-86  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(16, 'Herradura Reposado', 'ACTIVO', 380000, 'VENTA_DIRECTA', 'BEBIDA', 5),
-(16, '1800 Reposado',      'ACTIVO', 350000, 'VENTA_DIRECTA', 'BEBIDA', 4),
-(16, '1800 Añejo',         'ACTIVO', 380000, 'VENTA_DIRECTA', 'BEBIDA', 3),
-(16, '1800 Cristalino',    'ACTIVO', 450000, 'VENTA_DIRECTA', 'BEBIDA', 2),
-(16, 'Jose Cuervo',        'ACTIVO', 140000, 'VENTA_DIRECTA', 'BEBIDA', 8),
-(16, 'Patrón Reposado',    'ACTIVO', 480000, 'VENTA_DIRECTA', 'BEBIDA', 3),
-(16, 'Don Julio 70',       'ACTIVO', 350000, 'VENTA_DIRECTA', 'BEBIDA', 4);
+(16, 'Herradura Reposado', 'ACTIVO', 380000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, '1800 Reposado',      'ACTIVO', 350000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, '1800 Añejo',         'ACTIVO', 380000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, '1800 Cristalino',    'ACTIVO', 450000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, 'Jose Cuervo',        'ACTIVO', 140000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, 'Patrón Reposado',    'ACTIVO', 480000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(16, 'Don Julio 70',       'ACTIVO', 350000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- WHISKY (cat 17) → IDs 87-90  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(17, 'Duggans Dew',      'ACTIVO',  90000, 'VENTA_DIRECTA', 'BEBIDA', 6),
-(17, 'Old Parr 12 Años', 'ACTIVO', 250000, 'VENTA_DIRECTA', 'BEBIDA', 4),
-(17, 'Red Label Rojo',   'ACTIVO', 130000, 'VENTA_DIRECTA', 'BEBIDA', 7),
-(17, 'Chivas Regal 12',  'ACTIVO', 230000, 'VENTA_DIRECTA', 'BEBIDA', 3);
+(17, 'Duggans Dew',      'ACTIVO',  90000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(17, 'Old Parr 12 Años', 'ACTIVO', 250000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(17, 'Red Label Rojo',   'ACTIVO', 130000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(17, 'Chivas Regal 12',  'ACTIVO', 230000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- RON (cat 18) → IDs 91-93  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(18, 'Viejo Caldas 8 Años',  'ACTIVO', 160000, 'VENTA_DIRECTA', 'BEBIDA', 5),
-(18, 'Viejo Caldas 15 Años', 'ACTIVO', 220000, 'VENTA_DIRECTA', 'BEBIDA', 3),
-(18, 'Zacapa',               'ACTIVO', 220000, 'VENTA_DIRECTA', 'BEBIDA', 4);
+(18, 'Viejo Caldas 8 Años',  'ACTIVO', 160000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(18, 'Viejo Caldas 15 Años', 'ACTIVO', 220000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(18, 'Zacapa',               'ACTIVO', 220000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- VINO TINTO (cat 19) → IDs 94-99  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(19, 'Rosaleda',                 'ACTIVO',  40000, 'VENTA_DIRECTA', 'BEBIDA', 10),
-(19, 'Gato Negro Tinto',         'ACTIVO',  65000, 'VENTA_DIRECTA', 'BEBIDA',  8),
-(19, 'Finca Las Moras Malbec',   'ACTIVO',  88000, 'VENTA_DIRECTA', 'BEBIDA',  6),
-(19, 'Sangue de Boi',            'ACTIVO',  55000, 'VENTA_DIRECTA', 'BEBIDA',  7),
-(19, 'Frontera',                 'ACTIVO',  88000, 'VENTA_DIRECTA', 'BEBIDA',  5),
-(19, 'Tocornal',                 'ACTIVO',  70000, 'VENTA_DIRECTA', 'BEBIDA',  6);
+(19, 'Rosaleda',                 'ACTIVO',  40000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(19, 'Gato Negro Tinto',         'ACTIVO',  65000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(19, 'Finca Las Moras Malbec',   'ACTIVO',  88000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(19, 'Sangue de Boi',            'ACTIVO',  55000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(19, 'Frontera',                 'ACTIVO',  88000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(19, 'Tocornal',                 'ACTIVO',  70000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- VINO ESPUMOSO (cat 20) → ID 100  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(20, 'Lambrusco Reggiano', 'ACTIVO', 65000, 'VENTA_DIRECTA', 'BEBIDA', 8);
+(20, 'Lambrusco Reggiano', 'ACTIVO', 65000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- VINO DULCE (cat 21) → IDs 101-103  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(21, 'Café',                  'ACTIVO', 40000, 'VENTA_DIRECTA', 'BEBIDA', 6),
-(21, 'Avocado Casa Grajales', 'ACTIVO', 55000, 'VENTA_DIRECTA', 'BEBIDA', 5),
-(21, 'Gato Negro Semi Sweet', 'ACTIVO', 60000, 'VENTA_DIRECTA', 'BEBIDA', 4);
+(21, 'Café',                  'ACTIVO', 40000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(21, 'Avocado Casa Grajales', 'ACTIVO', 55000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(21, 'Gato Negro Semi Sweet', 'ACTIVO', 60000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- OTRAS BEBIDAS (cat 22) → IDs 104-106  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(22, 'Coca-Cola',       'ACTIVO', 6000, 'VENTA_DIRECTA', 'BEBIDA', 48),
-(22, 'Botella de Agua', 'ACTIVO', 4000, 'VENTA_DIRECTA', 'BEBIDA', 60),
-(22, 'Bretaña',         'ACTIVO', 5000, 'VENTA_DIRECTA', 'BEBIDA', 36);
+(22, 'Coca-Cola',       'ACTIVO', 6000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(22, 'Botella de Agua', 'ACTIVO', 4000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(22, 'Bretaña',         'ACTIVO', 5000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- JUGOS NATURALES (cat 23) → IDs 107-112
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, menu_especial) VALUES
@@ -383,19 +381,19 @@ INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_descripcion, 
 
 -- CERVEZA (cat 26) → IDs 122-128  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(26, 'Corona',          'ACTIVO', 10000, 'VENTA_DIRECTA', 'BEBIDA', 24),
-(26, 'Coronita',        'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 36),
-(26, 'Stella Artois',   'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 18),
-(26, 'Aguila Light',    'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
-(26, 'Aguila Original', 'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 48),
-(26, 'Club Colombia',   'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 30),
-(26, 'Smirnoff',        'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 20);
+(26, 'Corona',          'ACTIVO', 10000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Coronita',        'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Stella Artois',   'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Aguila Light',    'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Aguila Original', 'ACTIVO',  5000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Club Colombia',   'ACTIVO',  6000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(26, 'Smirnoff',        'ACTIVO', 12000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- ADICIONES MICHELADA (cat 27) → IDs 129-131  [VENTA_DIRECTA con stock]
 INSERT INTO Producto (categoriacarta_id, producto_nombre, producto_estado, producto_precio, producto_tipo, producto_categoria, stock_actual) VALUES
-(27, 'Adición Michelada', 'ACTIVO', 3000, 'VENTA_DIRECTA', 'BEBIDA', 50),
-(27, 'Adición Chelada',   'ACTIVO', 2000, 'VENTA_DIRECTA', 'BEBIDA', 50),
-(27, 'Zumo de Limón',     'ACTIVO', 1000, 'VENTA_DIRECTA', 'BEBIDA', 50);
+(27, 'Adición Michelada', 'ACTIVO', 3000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(27, 'Adición Chelada',   'ACTIVO', 2000, 'VENTA_DIRECTA', 'BEBIDA', 0),
+(27, 'Zumo de Limón',     'ACTIVO', 1000, 'VENTA_DIRECTA', 'BEBIDA', 0);
 
 -- =====================================================
 -- 7. RECETA

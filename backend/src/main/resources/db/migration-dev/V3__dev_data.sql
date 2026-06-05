@@ -125,6 +125,142 @@ INSERT INTO Sesion (usuario_id, sesion_token, sesion_refresh_token, sesion_fecha
 (15, 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.cliente015', 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.refresh.cliente015', NOW() - INTERVAL '1 day',     FALSE);
 
 -- =====================================================
+-- STOCKS DE DESARROLLO
+-- =====================================================
+
+UPDATE Insumo SET insumo_stock_actual = CASE insumo_nombre
+    WHEN 'Punta de Anca'           THEN 18.500
+    WHEN 'Lomo Fino de Res'        THEN 12.000
+    WHEN 'Churrasco'               THEN 20.000
+    WHEN 'Pechuga de Pollo'        THEN 25.000
+    WHEN 'Lomo de Cerdo'           THEN 15.000
+    WHEN 'Costilla de Cerdo'       THEN 22.000
+    WHEN 'Carne de Hamburguesa'    THEN 30.000
+    WHEN 'Tocineta'                THEN  8.000
+    WHEN 'Chorizo'                 THEN 10.000
+    WHEN 'Salchicha Americana'     THEN  5.000
+    WHEN 'Camarón'                 THEN 12.000
+    WHEN 'Calamar Anillo'          THEN  8.000
+    WHEN 'Salmón'                  THEN 10.000
+    WHEN 'Langostino'              THEN  6.000
+    WHEN 'Pulpo'                   THEN  4.000
+    WHEN 'Almejas'                 THEN  3.000
+    WHEN 'Mejillones'              THEN  3.500
+    WHEN 'Palmito de Cangrejo'     THEN  2.000
+    WHEN 'Pescado Blanco'          THEN  8.000
+    WHEN 'Plátano Verde'           THEN 20.000
+    WHEN 'Papa Francesa'           THEN 40.000
+    WHEN 'Papa Criolla'            THEN 25.000
+    WHEN 'Espárragos'              THEN  5.000
+    WHEN 'Aguacate'                THEN 50.000
+    WHEN 'Tomate Cherry'           THEN  8.000
+    WHEN 'Lechuga'                 THEN  6.000
+    WHEN 'Cebolla Morada'          THEN  5.000
+    WHEN 'Maíz Tierno'             THEN 10.000
+    WHEN 'Jalapeños'               THEN  2.000
+    WHEN 'Frijol Refrito'          THEN  5.000
+    WHEN 'Fettuccine'              THEN  8.000
+    WHEN 'Spaghetti'               THEN  8.000
+    WHEN 'Arroz de Risotto'        THEN  5.000
+    WHEN 'Queso Doble Crema'       THEN 10.000
+    WHEN 'Queso Parmesano'         THEN  3.000
+    WHEN 'Crema de Coco'           THEN  4.000
+    WHEN 'Guacamole'               THEN  6.000
+    WHEN 'Salsa Criolla'           THEN  8.000
+    WHEN 'Salsa BBQ'               THEN  5.000
+    WHEN 'Salsa Champiñones'       THEN  4.000
+    WHEN 'Salsa Pomodoro'          THEN  6.000
+    WHEN 'Salsa Alfredo'           THEN  3.000
+    WHEN 'Salsa Hawaiana'          THEN  3.000
+    WHEN 'Chimichurri'             THEN  4.000
+    WHEN 'Salsa Strogonoff'        THEN  3.000
+    WHEN 'Salsa Demiglace'         THEN  2.000
+    WHEN 'Salsa Caribeña'          THEN  4.000
+    WHEN 'Ron'                     THEN 15000.000
+    WHEN 'Vodka'                   THEN 12000.000
+    WHEN 'Gin'                     THEN 10000.000
+    WHEN 'Tequila'                 THEN  8000.000
+    WHEN 'Triple Sec'              THEN  5000.000
+    WHEN 'Aguardiente'             THEN  6000.000
+    WHEN 'Campari'                 THEN  3000.000
+    WHEN 'Vermouth'                THEN  3000.000
+    WHEN 'Curaçao'                 THEN  4000.000
+    WHEN 'Brandy'                  THEN  2000.000
+    WHEN 'Granadina'               THEN  3000.000
+    WHEN 'Ginger Beer'             THEN  8000.000
+    WHEN 'Agua Tónica'             THEN  8000.000
+    WHEN 'Sirope de Maracuyá'      THEN  3000.000
+    WHEN 'Sirope Frutos Rojos'     THEN  2000.000
+    WHEN 'Sirope Manzana'          THEN  2000.000
+    WHEN 'Limón'                   THEN  8.000
+    WHEN 'Hierbabuena'             THEN  1.000
+    WHEN 'Lulo'                    THEN  4.000
+    WHEN 'Fresa'                   THEN  3.000
+    WHEN 'Maracuyá'                THEN  4.000
+    WHEN 'Piña'                    THEN  6.000
+    WHEN 'Mango'                   THEN  4.000
+    WHEN 'Tajín'                   THEN  1.000
+    WHEN 'Nachos'                  THEN  5.000
+    WHEN 'Pan'                     THEN 80.000
+    WHEN 'Vino Blanco Cocina'      THEN  5000.000
+    WHEN 'Leche Tigre'             THEN  2000.000
+    WHEN 'Suero Costeño'           THEN  3.000
+    WHEN 'Aceitunas'               THEN  1.500
+    WHEN 'Salsa de uchuvas'        THEN  3.000
+    WHEN 'Salsa de vino tinto'     THEN  2.000
+    WHEN 'Arroz granjero'          THEN 10.000
+    WHEN 'Tostones preparados'     THEN 80.000
+    WHEN 'Chips de plátano listos' THEN  4.000
+    WHEN 'Puré de papa casero'     THEN  6.000
+    WHEN 'Salsa de ajo casera'     THEN  2.000
+    WHEN 'Hogao casero'            THEN  5.000
+    WHEN 'Crema de aguacate'       THEN  3.000
+    ELSE insumo_stock_actual
+END;
+
+UPDATE Producto SET stock_actual = CASE producto_nombre
+    WHEN 'Herradura Reposado'     THEN  5
+    WHEN '1800 Reposado'          THEN  4
+    WHEN '1800 Añejo'             THEN  3
+    WHEN '1800 Cristalino'        THEN  2
+    WHEN 'Jose Cuervo'            THEN  8
+    WHEN 'Patrón Reposado'        THEN  3
+    WHEN 'Don Julio 70'           THEN  4
+    WHEN 'Duggans Dew'            THEN  6
+    WHEN 'Old Parr 12 Años'       THEN  4
+    WHEN 'Red Label Rojo'         THEN  7
+    WHEN 'Chivas Regal 12'        THEN  3
+    WHEN 'Viejo Caldas 8 Años'    THEN  5
+    WHEN 'Viejo Caldas 15 Años'   THEN  3
+    WHEN 'Zacapa'                 THEN  4
+    WHEN 'Rosaleda'               THEN 10
+    WHEN 'Gato Negro Tinto'       THEN  8
+    WHEN 'Finca Las Moras Malbec' THEN  6
+    WHEN 'Sangue de Boi'          THEN  7
+    WHEN 'Frontera'               THEN  5
+    WHEN 'Tocornal'               THEN  6
+    WHEN 'Lambrusco Reggiano'     THEN  8
+    WHEN 'Café'                   THEN  6
+    WHEN 'Avocado Casa Grajales'  THEN  5
+    WHEN 'Gato Negro Semi Sweet'  THEN  4
+    WHEN 'Coca-Cola'              THEN 48
+    WHEN 'Botella de Agua'        THEN 60
+    WHEN 'Bretaña'                THEN 36
+    WHEN 'Corona'                 THEN 24
+    WHEN 'Coronita'               THEN 36
+    WHEN 'Stella Artois'          THEN 18
+    WHEN 'Aguila Light'           THEN 48
+    WHEN 'Aguila Original'        THEN 48
+    WHEN 'Club Colombia'          THEN 30
+    WHEN 'Smirnoff'               THEN 20
+    WHEN 'Adición Michelada'      THEN 50
+    WHEN 'Adición Chelada'        THEN 50
+    WHEN 'Zumo de Limón'          THEN 50
+    ELSE stock_actual
+END
+WHERE producto_tipo = 'VENTA_DIRECTA';
+
+-- =====================================================
 -- 6. Reserva
 --    Decoración IDs (V2): 1=Velas Románticas, 2=Cumpleaños Premium,
 --    3=Decoración Empresarial, 4=Mesa Temática Toro, 5=Minimalista Elegante,
@@ -571,6 +707,15 @@ FROM Usuario u WHERE u.usuario_email IN ('sinpuntos@altoro.com', 'sinhistorial@a
 -- Segunda decoración con costo para test MR-13
 INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url)
 VALUES ('Bodas Premium', 'ACTIVO', 60000.00, 'https://picsum.photos/seed/decor-bodas/360/220');
+
+-- Decoración de zona fija para pruebas de asignación (era ID 8 en V2 antes de la separación dev/prod)
+INSERT INTO Decoracion (decoracion_nombre, decoracion_estado, decoracion_costo_adicional, decoracion_imagen_url)
+VALUES ('Test Zona Fija', 'ACTIVO', NULL, NULL);
+
+INSERT INTO Decoracion_Zona (decoracion_id, zona_id)
+SELECT d.decoracion_id, z.zona_id
+FROM Decoracion d, Zona z
+WHERE d.decoracion_nombre = 'Test Zona Fija' AND z.zona_nombre = 'Barra';
 
 -- Reserva CANCELADA para carlos.perez@gmail.com (test MR-08)
 INSERT INTO Reserva (cliente_id, zona_id, decoracion_id, reserva_fecha_hora_llegada, reserva_numero_personas, reserva_notas, reserva_estado, reserva_tipo, reserva_fecha_creacion)
