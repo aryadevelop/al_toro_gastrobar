@@ -76,7 +76,22 @@ services:
       api:
         condition: service_healthy
 
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: altoro_frontend
+    mem_limit: 64m
+    restart: unless-stopped
+    networks:
+      - altoro_network
+    depends_on:
+      api:
+        condition: service_healthy
+    # Sin 'ports': solo Caddy expone al exterior; lo alcanza por la red interna.
+
 volumes:
   caddy_data:
   caddy_config:
   altoro_uploads:
+
