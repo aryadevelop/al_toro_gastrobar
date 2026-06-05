@@ -1,6 +1,6 @@
 # Al Toro Gastrobar — Sistema Integral de Gestión
 
-> Sistema web multiplataforma para la gestión operativa del restaurante Al Toro Gastrobar.
+> Sistema web para la gestión operativa del restaurante Al Toro Gastrobar.
 > Desarrollado por el equipo **ARYA** — Ingeniería de Sistemas, Universidad del Cauca.
 
 ---
@@ -215,7 +215,7 @@ Los valores de prod van en `.env.prod` — usar [`.env.prod.example`](.env.prod.
 
 | Característica | `dev` | `prod` |
 |---|---|---|
-| `ddl-auto` | `validate` (Flyway) | `validate` (Flyway) |
+| `ddl-auto` | `validate` (Flyway) | `none` (Flyway) |
 | Logs SQL | sí | no |
 | Swagger UI | habilitado | deshabilitado |
 | Logs nivel root | INFO/DEBUG | WARN |
