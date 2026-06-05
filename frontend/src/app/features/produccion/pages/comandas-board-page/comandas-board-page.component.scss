@@ -715,3 +715,111 @@
     grid-template-columns: 1fr;
   }
 }
+@media print {
+  @page {
+    margin: 0;
+    size: 80mm auto;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  .thermal-print-area, .thermal-print-area * {
+    visibility: visible;
+  }
+  
+  .thermal-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 2mm 5mm 5mm 5mm;
+  }
+  
+  .thermal-ticket {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    color: #000;
+  }
+  
+  .ticket-header {
+    text-align: center;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-header h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  .ticket-header p {
+    margin: 3px 0;
+  }
+  
+  .ticket-type {
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .text-bold {
+    font-weight: bold;
+  }
+  
+  .ticket-items {
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-item {
+    display: flex;
+    margin-bottom: 6px;
+    align-items: flex-start;
+  }
+  
+  .qty {
+    width: 25px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  
+  .item-desc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .mod {
+    font-size: 11.5px;
+    padding-left: 5px;
+  }
+  
+  .ticket-notes {
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-notes p {
+    margin: 3px 0;
+  }
+  
+  .ticket-footer {
+    text-align: center;
+    margin-top: 10px;
+    padding-bottom: 20px;
+  }
+}
+
+@media screen {
+  .thermal-print-area {
+    display: none;
+  }
+}
+

@@ -51,7 +51,6 @@ interface AsignacionNavState {
               <input
                 class="input-field"
                 formControlName="mesaIdentificador"
-                maxlength="20"
                 (input)="clearFieldError('mesaIdentificador')"
               />
               <small class="field-error" *ngIf="mesaIdentificadorError()">{{ mesaIdentificadorError() }}</small>
@@ -435,7 +434,7 @@ export class LlegadaReservaPageComponent implements OnInit, OnDestroy {
 
     const control = this.asignarForm.controls.zonaId;
     if (control.touched && control.hasError('required')) {
-      return 'La zona es obligatoria';
+      return 'La zona es obligatorio';
     }
     return null;
   }
@@ -505,8 +504,8 @@ export class LlegadaReservaPageComponent implements OnInit, OnDestroy {
     }
 
     const normalized = message.toLowerCase();
-    if (normalized.includes('identificador')) {
-      this.fieldErrors.set({ ...this.fieldErrors(), mesaIdentificador: message });
+    if (normalized.includes('identificador') || normalized.includes('ocupad') || normalized.includes('exist')) {
+      this.fieldErrors.set({ ...this.fieldErrors(), mesaIdentificador: 'El identificador ingresado ya está ocupado en esta fecha. Por favor elige otro.' });
       return;
     }
 
