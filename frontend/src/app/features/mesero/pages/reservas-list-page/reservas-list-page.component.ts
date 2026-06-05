@@ -5,7 +5,7 @@ import { HttpErrorResponse } from '@angular/common/http';
 import { Router } from '@angular/router';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
 import { ReservationService, ReservationDetailData } from '../../../../core/services/reservation.service';
-import { MesaMapService, MesaZonaDisponible, MesaAsignacionPayload } from '../../../../core/services/mesa-map.service';
+import { MesaMapService } from '../../../../core/services/mesa-map.service';
 import { Subscription, catchError, finalize, of, timer } from 'rxjs';
 import { Reserva } from '../../../../core/models/domain.models';
 
@@ -32,12 +32,17 @@ interface ZonaGroup {
       <div class="search-bar">
         <input
           class="search-input input-field"
-          type="text"
-          placeholder="Buscar por identificador o fecha (YYYY-MM-DD)"
-          [(ngModel)]="searchQuery"
-          (keyup.enter)="buscar()"
+          type="date"
+          [(ngModel)]="searchDate"
+          (ngModelChange)="onDateChange()"
         />
-        <button class="btn-primary search-btn" (click)="buscar()">Buscar</button>
+        <input
+          class="search-input input-field"
+          type="text"
+          placeholder="Buscar por nombre del cliente o ID..."
+          [(ngModel)]="searchQuery"
+          (ngModelChange)="onSearchChange()"
+        />
       </div>
 
       <!-- Loading -->
@@ -58,7 +63,11 @@ interface ZonaGroup {
             <div class="reserva-card-head">
               <div>
                 <p class="reserva-name">{{ r.guestName }}</p>
-                <p class="reserva-meta">ID: R-{{ r.id }}</p>
+                <p class="reserva-meta">
+                  <span *ngIf="r.phone">Tel: {{ r.phone }}</span>
+                  <span *ngIf="r.zoneName"> | Zona: {{ r.zoneName }}</span>
+                  <span *ngIf="r.decorationName"> | Decoración: {{ r.decorationName }}</span>
+                </p>
               </div>
               <span
                 class="status-pill"
@@ -71,17 +80,14 @@ interface ZonaGroup {
               </span>
             </div>
             <div class="reserva-card-body">
-              <p>Mesa: Sin asignar mesa</p>
               <p>Hora de llegada: {{ r.time }}</p>
-              <p>Numero de personas: {{ r.guests }}</p>
+              <p>Número de personas: {{ r.guests }}</p>
             </div>
             <div class="reserva-card-actions">
               <button class="card-btn" (click)="verDetalle(r.id)">&#128065; Ver</button>
               <button
                 class="card-btn"
-                [class.card-btn-disabled]="r.status === 'PENDING'"
-                [disabled]="r.status === 'PENDING'"
-                [attr.title]="r.status === 'PENDING' ? 'La reserva no ha sido confirmada por el administrador.' : null"
+                [class.card-btn-disabled]="r.status !== 'CONFIRMED'"
                 (click)="onMarcarLlegada(r)"
               >
                 &#9881; Marcar llegada
@@ -89,7 +95,7 @@ interface ZonaGroup {
               <button
                 class="card-btn card-btn-danger"
                 *ngIf="shouldShowInasistencia(r)"
-                (click)="onMarcarInasistencia(r)"
+                (click)="onConfirmarInasistencia(r)"
               >
                 &#9888; Marcar inasistencia
               </button>
@@ -109,10 +115,10 @@ interface ZonaGroup {
           <h3>Detalle de la reserva</h3>
           <div *ngIf="detailData" class="modal-body">
             <p><strong>Cliente:</strong> {{ detailData.reservation.guestName }}</p>
-            <p *ngIf="detailData.reservation.phone"><strong>Telefono:</strong> {{ detailData.reservation.phone }}</p>
+            <p *ngIf="detailData.reservation.phone"><strong>Teléfono:</strong> {{ detailData.reservation.phone }}</p>
             <p><strong>Fecha y hora:</strong> {{ detailData.reservation.date }} {{ detailData.reservation.time }}</p>
             <p><strong>Personas:</strong> {{ detailData.reservation.guests }}</p>
-            <p *ngIf="detailData.reservation.decorationName"><strong>Decoracion:</strong> {{ detailData.reservation.decorationName }}</p>
+            <p *ngIf="detailData.reservation.decorationName"><strong>Decoración:</strong> {{ detailData.reservation.decorationName }}</p>
             <p *ngIf="detailData.reservation.zoneName"><strong>Zona:</strong> {{ detailData.reservation.zoneName }}</p>
 
             <div *ngIf="(detailData.reservation.preorderItems || []).length">
@@ -138,31 +144,19 @@ interface ZonaGroup {
         </div>
       </div>
 
-      <!-- Asignacion sub-modal -->
-      <div *ngIf="asignacionOpen" class="modal-backdrop" (click)="cancelarAsignacion()">
-        <div class="modal-card asignacion-modal" (click)="$event.stopPropagation()">
-          <h3>Asignar identificador de mesa</h3>
-          <p class="modal-subtitle">Sub-modal de asignacion para check-in o agregar mesa.</p>
-
-          <form [formGroup]="asignarForm" (ngSubmit)="submitAsignacion()">
-            <label class="field-label">
-              <span>Identificador</span>
-              <input class="input-field" formControlName="mesaIdentificador" placeholder="Ej: MESA-12" maxlength="20" />
-            </label>
-            <small class="field-error" *ngIf="asignarForm.controls.mesaIdentificador.touched && asignarForm.controls.mesaIdentificador.hasError('required')">
-              El identificador de mesa es obligatorio
-            </small>
-            <small class="field-error" *ngIf="asignacionError">{{ asignacionError }}</small>
-
-            <div class="modal-actions">
-              <button class="card-btn" type="button" (click)="cancelarAsignacion()">Cancelar</button>
-              <button class="btn-primary" type="submit" [disabled]="asignacionSaving">
-                {{ asignacionSaving ? 'Guardando...' : 'Guardar' }}
-              </button>
-            </div>
-          </form>
+      <!-- Confirmation Inasistencia modal -->
+      <div *ngIf="confirmInasistenciaOpen" class="modal-backdrop" (click)="cancelarInasistencia()">
+        <div class="modal-card" (click)="$event.stopPropagation()">
+          <h3>Confirmar Inasistencia</h3>
+          <p class="modal-body">¿Está seguro que desea cancelar la reserva de <strong>{{ inasistenciaReserva?.guestName }}</strong> por inasistencia? Esto liberará la zona y decoración asociadas.</p>
+          <div class="modal-actions">
+            <button class="card-btn" (click)="cancelarInasistencia()">Cancelar</button>
+            <button class="btn-primary card-btn-danger" (click)="ejecutarInasistencia()">Confirmar</button>
+          </div>
         </div>
       </div>
+
+
     </section>
   `,
   styles: [
@@ -258,10 +252,8 @@ interface ZonaGroup {
         white-space: nowrap;
       }
       .card-btn:hover { background: var(--surface); }
-      .card-btn.card-btn-disabled,
-      .card-btn:disabled {
+      .card-btn.card-btn-disabled {
         opacity: 0.6;
-        cursor: not-allowed;
         background: #f4f1ed;
       }
       .card-btn-danger {
@@ -336,7 +328,7 @@ interface ZonaGroup {
         font-size: 0.82rem;
         color: var(--muted);
       }
-      .modal-body p {
+      .modal-body p, .modal-body {
         margin: 0.2rem 0;
         font-size: 0.84rem;
       }
@@ -353,21 +345,7 @@ interface ZonaGroup {
         margin-top: 0.3rem;
       }
 
-      /* Asignacion modal form */
-      .asignacion-modal form {
-        display: grid;
-        gap: 0.6rem;
-      }
-      .field-label {
-        display: grid;
-        gap: 0.25rem;
-        font-size: 0.84rem;
-        font-weight: 600;
-      }
-      .field-error {
-        color: #8a2a2a;
-        font-size: 0.78rem;
-      }
+
 
       @media (max-width: 640px) {
         .search-bar { flex-direction: column; }
@@ -381,7 +359,12 @@ interface ZonaGroup {
   ],
 })
 export class ReservasListPageComponent implements OnDestroy {
+  searchDate = this.getTodayIsoDate();
   searchQuery = '';
+  
+  todasLasReservas: ReservaCard[] = [];
+  resumenZonasBase: Array<{ zonaId?: string; zonaNombre: string; cantidadReservas: number }> = [];
+  
   zonaGroups: ZonaGroup[] = [];
   loading = false;
   message = '';
@@ -395,16 +378,11 @@ export class ReservasListPageComponent implements OnDestroy {
   showDetail = false;
   detailData?: ReservationDetailData;
 
-  // Asignacion sub-modal
-  asignacionOpen = false;
-  asignacionSaving = false;
-  asignacionError = '';
-  private asignacionReserva: ReservaCard | null = null;
-  private zonas: MesaZonaDisponible[] = [];
+  // Inasistencia modal
+  confirmInasistenciaOpen = false;
+  inasistenciaReserva: ReservaCard | null = null;
 
-  readonly asignarForm = this.fb.nonNullable.group({
-    mesaIdentificador: ['', [Validators.required, Validators.maxLength(20)]],
-  });
+
 
   private pollingSub?: Subscription;
 
@@ -415,36 +393,29 @@ export class ReservasListPageComponent implements OnDestroy {
     private router: Router,
   ) {
     this.buscar();
-    this.pollingSub = timer(30000, 30000).subscribe(() => this.buscar(false));
+    this.pollingSub = timer(10000, 10000).subscribe(() => this.buscar(false));
+  }
+
+  onDateChange(): void {
+    this.buscar(true);
+  }
+
+  onSearchChange(): void {
+    this.filtrarEnMemoria();
   }
 
   buscar(showLoading = true): void {
     this.message = '';
     if (showLoading) this.loading = true;
 
-    let fechaParam: string | undefined;
-    let identificadorParam: string | undefined;
-
-    const q = this.searchQuery.trim();
-    if (q) {
-      if (/^\d{4}-\d{2}-\d{2}$/.test(q)) {
-        fechaParam = q;
-      } else if (/^\d+$/.test(q)) {
-        identificadorParam = q;
-      } else {
-        fechaParam = q;
-      }
-    }
-
-    this.reservationService.listForMesero(fechaParam, identificadorParam).pipe(
+    this.reservationService.listForMesero(this.searchDate).pipe(
       catchError((error: HttpErrorResponse) => {
-        this.zonaGroups = [];
+        this.todasLasReservas = [];
+        this.resumenZonasBase = [];
         if (error.status === 404) {
-          this.message = identificadorParam
-            ? 'No se encontraron reservas activas con ese identificador'
-            : 'No hay reservas programadas para esta fecha';
+          this.message = 'No hay reservas programadas para esta fecha';
         } else if (error.status === 401) {
-          this.message = 'Tu sesion no tiene permisos para ver reservas';
+          this.message = 'Tu sesión no tiene permisos para ver reservas';
         } else {
           this.message = 'Error cargando reservas';
         }
@@ -453,18 +424,40 @@ export class ReservasListPageComponent implements OnDestroy {
       finalize(() => { this.loading = false; })
     ).subscribe({
       next: (data) => {
-        const reservas: ReservaCard[] = data.reservas.map((r: any) => ({
+        this.todasLasReservas = data.reservas.map((r: any) => ({
           ...r,
           mostrarBotonInasistencia: r.mostrarBotonInasistencia ?? undefined,
         }));
+        this.resumenZonasBase = data.resumenZonas || [];
+        
+        this.filtrarEnMemoria();
 
-        this.zonaGroups = this.groupByZona(reservas, data.resumenZonas);
-
-        if (reservas.length === 0 && !this.message) {
+        if (this.todasLasReservas.length === 0 && !this.message) {
           this.message = 'No hay reservas programadas para esta fecha';
         }
       },
     });
+  }
+
+  private filtrarEnMemoria(): void {
+    let filtradas = this.todasLasReservas;
+    const q = this.searchQuery.trim().toLowerCase();
+    
+    if (q) {
+      filtradas = filtradas.filter(r => 
+        r.guestName?.toLowerCase().includes(q) || 
+        r.phone?.includes(q) ||
+        r.id?.includes(q)
+      );
+    }
+    
+    this.zonaGroups = this.groupByZona(filtradas, this.resumenZonasBase);
+    
+    if (this.todasLasReservas.length > 0 && filtradas.length === 0) {
+      this.message = 'No se encontraron reservas con ese nombre o identificador';
+    } else if (this.todasLasReservas.length > 0) {
+      this.message = '';
+    }
   }
 
   verDetalle(reservaId: string): void {
@@ -480,8 +473,8 @@ export class ReservasListPageComponent implements OnDestroy {
   }
 
   onMarcarLlegada(reserva: ReservaCard): void {
-    if (reserva.status === 'PENDING') {
-      this.showToast('La reserva no ha sido confirmada por el administrador. No es posible marcar llegada');
+    if (reserva.status !== 'CONFIRMED') {
+      this.showToast('La reserva no ha sido confirmada por el administrador. No es posible marcar llegada', true);
       return;
     }
 
@@ -500,7 +493,15 @@ export class ReservasListPageComponent implements OnDestroy {
           return;
         }
 
-        this.openAsignacion(reserva);
+        this.router.navigate(['/app/mesero/llegada-reserva'], {
+          state: {
+            openAsignacion: true,
+            origen: 'reservas',
+            reservaId: reserva.id,
+            numeroPersonas: reserva.guests,
+            zonaId: reserva.zoneId
+          }
+        });
       },
       error: () => {
         this.showToast('No se pudo validar la fecha de la reserva', true);
@@ -508,59 +509,32 @@ export class ReservasListPageComponent implements OnDestroy {
     });
   }
 
-  cancelarAsignacion(): void {
-    this.asignacionOpen = false;
-    this.asignacionReserva = null;
+
+
+  onConfirmarInasistencia(reserva: ReservaCard): void {
+    this.inasistenciaReserva = reserva;
+    this.confirmInasistenciaOpen = true;
   }
 
-  submitAsignacion(): void {
-    if (this.asignarForm.invalid) {
-      this.asignarForm.markAllAsTouched();
-      return;
-    }
-    const reserva = this.asignacionReserva;
-    if (!reserva) return;
-
-    const zonaId = this.resolveZonaId(reserva);
-    if (!zonaId) {
-      this.asignacionError = 'No se pudo determinar la zona para esta reserva.';
-      return;
-    }
-
-    const payload: MesaAsignacionPayload = {
-      mesaIdentificador: this.asignarForm.getRawValue().mesaIdentificador.trim(),
-      zonaId,
-      numeroPersonas: reserva.guests,
-      reservaId: reserva.id,
-    };
-
-    this.asignacionSaving = true;
-    this.asignacionError = '';
-    this.mesaService.asignarMesa(payload).subscribe({
-      next: () => {
-        this.asignacionSaving = false;
-        this.asignacionOpen = false;
-        this.asignacionReserva = null;
-        this.showToast('Mesa asignada correctamente');
-        this.buscar(false);
-      },
-      error: (err: HttpErrorResponse) => {
-        this.asignacionSaving = false;
-        const msg = (err.error as any)?.message;
-        this.asignacionError = msg || 'No se pudo asignar la mesa.';
-      },
-    });
+  cancelarInasistencia(): void {
+    this.confirmInasistenciaOpen = false;
+    this.inasistenciaReserva = null;
   }
 
-  onMarcarInasistencia(reserva: ReservaCard): void {
-    this.reservationService.marcarInasistencia(reserva.id).subscribe({
+  ejecutarInasistencia(): void {
+    if (!this.inasistenciaReserva) return;
+    
+    this.reservationService.marcarInasistencia(this.inasistenciaReserva.id).subscribe({
       next: () => {
         this.showToast('Reserva cancelada por inasistencia');
+        this.confirmInasistenciaOpen = false;
+        this.inasistenciaReserva = null;
         this.buscar(false);
       },
       error: (err: HttpErrorResponse) => {
         const msg = (err.error as any)?.message || 'No se pudo marcar inasistencia';
         this.showToast(msg, true);
+        this.confirmInasistenciaOpen = false;
       },
     });
   }
@@ -587,49 +561,55 @@ export class ReservasListPageComponent implements OnDestroy {
       }
       group.reservas.push(r);
     }
-    return Array.from(map.values()).filter(g => g.reservas.length > 0);
-  }
-
-  private cargarZonas(): void {
-    this.mesaService.getZonasDisponibles().subscribe({
-      next: (z) => { this.zonas = z; },
-      error: () => { this.zonas = []; },
+    // Update the counts based on the filtered list
+    const result = Array.from(map.values()).filter(g => g.reservas.length > 0);
+    result.forEach(g => {
+      g.cantidadReservas = g.reservas.length;
     });
+    return result;
   }
 
-  private resolveZonaId(reserva: ReservaCard): string | null {
-    if (reserva.zoneId) return reserva.zoneId;
-    if (this.zonas.length === 1) return this.zonas[0].id;
-    return this.zonas.length > 0 ? this.zonas[0].id : null;
-  }
+
 
   shouldShowInasistencia(reserva: ReservaCard): boolean {
-    if (reserva.mostrarBotonInasistencia === true) {
+    // 1. If backend explicitly says yes, show it
+    if (reserva.mostrarBotonInasistencia) {
       return true;
     }
 
+    // 2. Must be confirmed to have an absence marked
     if (reserva.status !== 'CONFIRMED') {
       return false;
     }
 
-    const date = reserva.date || this.getTodayIsoDate();
-    const time = reserva.time || '00:00';
-    const target = new Date(`${date}T${time}:00`);
-    if (Number.isNaN(target.getTime())) {
-      return false;
+    // 3. Client-side fallback check
+    const dateStr = reserva.date || this.getTodayIsoDate();
+    let timeStr = reserva.time || '00:00';
+    if (timeStr.length > 5) {
+      timeStr = timeStr.substring(0, 5);
+    }
+    
+    // Parse manually to avoid timezone weirdness
+    const parts = dateStr.split('-');
+    if (parts.length === 3) {
+      const year = parseInt(parts[0], 10);
+      const month = parseInt(parts[1], 10) - 1;
+      const day = parseInt(parts[2], 10);
+      
+      const timeParts = timeStr.split(':');
+      const hours = parseInt(timeParts[0] || '0', 10);
+      const mins = parseInt(timeParts[1] || '0', 10);
+      
+      const target = new Date(year, month, day, hours, mins, 0);
+      const minutesElapsed = (Date.now() - target.getTime()) / 60000;
+      
+      return minutesElapsed > 30;
     }
 
-    const minutesElapsed = (Date.now() - target.getTime()) / 60000;
-    return minutesElapsed > 30;
+    return false;
   }
 
-  private openAsignacion(reserva: ReservaCard): void {
-    this.asignacionReserva = reserva;
-    this.asignacionError = '';
-    this.asignarForm.reset({ mesaIdentificador: '' });
-    this.asignacionOpen = true;
-    this.cargarZonas();
-  }
+
 
   private getTodayIsoDate(): string {
     const now = new Date();

@@ -110,7 +110,7 @@ public class MesaValidador {
      *   <li>Fecha de llegada debe ser hoy</li>
      * </ul>
      *
-     * <p><b>NOTA:</b> La validación de horario (00:00-23:59) se hace
+     * <p><b>NOTA:</b> La validación de horario (17:00-22:00) se hace
      * mediante {@link #validarHorarioAtencion()} tanto para walk-in como reservas.
      *
      * @param reservaId ID de la reserva

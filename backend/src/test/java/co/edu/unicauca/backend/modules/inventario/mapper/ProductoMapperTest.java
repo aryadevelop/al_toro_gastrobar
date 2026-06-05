@@ -33,6 +33,7 @@ class ProductoMapperTest {
                 .productoNombre("Empanada")
                 .productoPrecio(BigDecimal.valueOf(5000))
                 .productoCategoria(CategoriaProducto.PLATO)
+                .productoEstado(EstadoGenerico.ACTIVO)
                 .productoDescripcion("Empanada de pipián")
                 .build();
     }
@@ -134,13 +135,15 @@ class ProductoMapperTest {
     }
 
     @Test
-    @DisplayName("toBusquedaResponse → mapea id, nombre, precio y categoría")
+    @DisplayName("toBusquedaResponse → mapea id, nombre, precio, stock, estado y categoría")
     void toBusquedaResponse_mapeaCampos() {
-        ProductoBusquedaResponse resp = mapper.toBusquedaResponse(productoBase());
+        ProductoBusquedaResponse resp = mapper.toBusquedaResponse(productoBase(), BigDecimal.valueOf(3));
 
         assertThat(resp.getProductoId()).isEqualTo(1L);
         assertThat(resp.getProductoNombre()).isEqualTo("Empanada");
         assertThat(resp.getProductoPrecio()).isEqualByComparingTo(BigDecimal.valueOf(5000));
+        assertThat(resp.getStockActual()).isEqualByComparingTo(BigDecimal.valueOf(3));
+        assertThat(resp.getProductoEstado()).isEqualTo("ACTIVO");
         assertThat(resp.getProductoCategoria()).isEqualTo(CategoriaProducto.PLATO.name());
     }
 }

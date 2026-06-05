@@ -59,40 +59,13 @@ const MAX_QTY_PER_ITEM = 250;
 const MAX_QTY_MESSAGE = 'La cantidad máxima por producto/bebida es de 250';
 const WHATSAPP_NOTE = 'Para confirmar tu reserva especial, debes abonar un valor anticipado, comunicate para definirlo';
 const DEFAULT_OPTION_IMAGE = 'https://picsum.photos/seed/altoro-option/360/220';
-// TESTING MODE — horas originales de producción:
-// const RESERVATION_HOURS = [
-//   { value: '17:00', label: '5:00 p.m.' },
-//   { value: '18:00', label: '6:00 p.m.' },
-//   { value: '19:00', label: '7:00 p.m.' },
-//   { value: '20:00', label: '8:00 p.m.' },
-//   { value: '21:00', label: '9:00 p.m.' },
-//   { value: '22:00', label: '10:00 p.m.' },
-// ] as const;
 const RESERVATION_HOURS = [
-  { value: '00:00', label: '12:00 a.m.' },
-  { value: '01:00', label: '1:00 a.m.' },
-  { value: '02:00', label: '2:00 a.m.' },
-  { value: '03:00', label: '3:00 a.m.' },
-  { value: '04:00', label: '4:00 a.m.' },
-  { value: '05:00', label: '5:00 a.m.' },
-  { value: '06:00', label: '6:00 a.m.' },
-  { value: '07:00', label: '7:00 a.m.' },
-  { value: '08:00', label: '8:00 a.m.' },
-  { value: '09:00', label: '9:00 a.m.' },
-  { value: '10:00', label: '10:00 a.m.' },
-  { value: '11:00', label: '11:00 a.m.' },
-  { value: '12:00', label: '12:00 p.m.' },
-  { value: '13:00', label: '1:00 p.m.' },
-  { value: '14:00', label: '2:00 p.m.' },
-  { value: '15:00', label: '3:00 p.m.' },
-  { value: '16:00', label: '4:00 p.m.' },
   { value: '17:00', label: '5:00 p.m.' },
   { value: '18:00', label: '6:00 p.m.' },
   { value: '19:00', label: '7:00 p.m.' },
   { value: '20:00', label: '8:00 p.m.' },
   { value: '21:00', label: '9:00 p.m.' },
   { value: '22:00', label: '10:00 p.m.' },
-  { value: '23:00', label: '11:00 p.m.' },
 ] as const;
 
 const DECORATION_OPTIONS: DecorationOption[] = [];

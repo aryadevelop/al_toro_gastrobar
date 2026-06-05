@@ -162,11 +162,13 @@ values:
     value: ''
   - key: tmpMenuCantidadAntes
     value: ''
-  - key: tmpReservaId
-    value: ''
   - key: tmpMesaIdent
     value: ''
-  - key: tmpVisitaId
+  - key: tmpFechaLlegada
     value: ''
-  - key: tmpComandaCocinaId
+  - key: tmpReservaId
+    value: ''
+  - key: tmpClienteId
+    value: ''
+  - key: tmpVisitaId
     value: ''
