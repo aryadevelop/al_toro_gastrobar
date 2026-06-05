@@ -19,6 +19,12 @@ public class ProductoBusquedaResponse {
     /** Precio unitario vigente en el catálogo. */
     private final BigDecimal productoPrecio;
 
+    /** Stock actual disponible del producto. */
+    private final BigDecimal stockActual;
+
+    /** Estado del producto, por ejemplo {@code "ACTIVO"}. */
+    private final String productoEstado;
+
     /** Categoría del producto: {@code "PLATO"} o {@code "BEBIDA"}. */
     private final String productoCategoria;
 }

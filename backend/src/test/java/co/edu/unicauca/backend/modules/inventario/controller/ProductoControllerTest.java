@@ -5,6 +5,7 @@ import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 
 import org.junit.jupiter.api.DisplayName;
@@ -99,6 +100,54 @@ class ProductoControllerTest {
     }
 
     @Nested
+    @DisplayName("GET /api/productos")
+    class ListarProductosInventario {
+
+        @Test
+        @DisplayName("Sin filtros retorna 200 con lista de productos")
+        void sinFiltros_retorna200ConLista() throws Exception {
+            ProductoInventarioResponse r = ProductoInventarioResponse.builder()
+                    .productoId(1L)
+                    .productoNombre("Empanada")
+                    .categoriaNombre("Entradas")
+                    .productoPrecio(BigDecimal.valueOf(12000))
+                    .stockActual(BigDecimal.valueOf(5))
+                    .productoEstado("ACTIVO")
+                    .build();
+            when(productoService.listarProductosInventario(null, null)).thenReturn(List.of(r));
+
+            mockMvc.perform(get("/api/productos")
+                            .with(user("admin@altoro.com").roles("ADMIN")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data").isArray())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].categoriaNombre").value("Entradas"));
+        }
+
+        @Test
+        @DisplayName("Filtra por categoria y nombre")
+        void filtraCategoriaYNombre_retorna200() throws Exception {
+            ProductoInventarioResponse r = ProductoInventarioResponse.builder()
+                    .productoId(2L)
+                    .productoNombre("Sopa")
+                    .categoriaNombre("Entradas")
+                    .productoPrecio(BigDecimal.valueOf(8500))
+                    .stockActual(BigDecimal.valueOf(0))
+                    .productoEstado("INACTIVO")
+                    .build();
+            when(productoService.listarProductosInventario("Entradas", "sop")).thenReturn(List.of(r));
+
+            mockMvc.perform(get("/api/productos")
+                            .param("categoria", "Entradas")
+                            .param("q", "sop")
+                            .with(user("admin@altoro.com").roles("ADMIN")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data[0].productoNombre").value("Sopa"))
+                    .andExpect(jsonPath("$.data[0].productoEstado").value("INACTIVO"));
+        }
+    }
+
+    @Nested
     @DisplayName("GET /api/productos/buscar")
     class BuscarProductos {
 
@@ -109,6 +158,8 @@ class ProductoControllerTest {
                     .productoId(1L)
                     .productoNombre("Empanada")
                     .productoPrecio(BigDecimal.valueOf(5000))
+                    .stockActual(BigDecimal.valueOf(5))
+                    .productoEstado("ACTIVO")
                     .productoCategoria("PLATO")
                     .build();
             when(productoService.buscarProductos("emp")).thenReturn(List.of(r));
@@ -119,7 +170,9 @@ class ProductoControllerTest {
                     .andExpect(status().isOk())
                     .andExpect(jsonPath("$.data").isArray())
                     .andExpect(jsonPath("$.data.length()").value(1))
-                    .andExpect(jsonPath("$.data[0].productoNombre").value("Empanada"));
+                    .andExpect(jsonPath("$.data[0].productoNombre").value("Empanada"))
+                    .andExpect(jsonPath("$.data[0].stockActual").value(5))
+                    .andExpect(jsonPath("$.data[0].productoEstado").value("ACTIVO"));
         }
 
         @Test

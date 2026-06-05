@@ -3,13 +3,21 @@ package co.edu.unicauca.backend.modules.inventario.service;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.CategoriaCarta;
+import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
 import co.edu.unicauca.backend.modules.inventario.entity.OpcionModificacion;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
+import co.edu.unicauca.backend.modules.inventario.entity.Receta;
 import co.edu.unicauca.backend.modules.inventario.mapper.ProductoMapper;
+import co.edu.unicauca.backend.modules.inventario.repository.CategoriaCartaRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoOpcionModificacionRepository;
 import co.edu.unicauca.backend.modules.inventario.repository.ProductoRepository;
+import co.edu.unicauca.backend.modules.inventario.repository.RecetaRepository;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
+import co.edu.unicauca.backend.shared.enums.TipoProducto;
+import java.util.Optional;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
@@ -43,7 +51,10 @@ import static org.mockito.Mockito.*;
 class ProductoServiceTest {
 
     @Mock ProductoRepository productoRepository;
+    @Mock CategoriaCartaRepository categoriaCartaRepository;
     @Mock ProductoOpcionModificacionRepository productoOpcionModificacionRepository;
+    @Mock RecetaRepository recetaRepository;
+    @Mock ComandaItemRepository comandaItemRepository;
     @Mock co.edu.unicauca.backend.modules.inventario.repository.MenuBebidaDisponibleRepository menuBebidaDisponibleRepository;
     @Mock ProductoMapper productoMapper;
 
@@ -240,6 +251,98 @@ class ProductoServiceTest {
     }
 
     // =========================================================================
+    //  listarProductosInventario
+    // =========================================================================
+
+    @Nested
+    @DisplayName("listarProductosInventario")
+    class ListarProductosInventarioTests {
+
+        @Test
+        @DisplayName("sin filtros retorna todos los productos")
+        void sinFiltros_retornaTodosLosProductos() {
+            CategoriaCarta categoria = categoriaConOrden(1, 1);
+            Producto producto = productoEnCategoria(1L, categoria);
+            ProductoInventarioResponse response = ProductoInventarioResponse.builder()
+                    .productoId(1L)
+                    .productoNombre("Producto 1")
+                    .categoriaNombre("Categoria 1")
+                    .productoPrecio(producto.getProductoPrecio())
+                    .stockActual(producto.getStockActual())
+                    .productoEstado(producto.getProductoEstado().name())
+                    .build();
+
+            when(productoRepository.buscarPorCategoriaYNombre(null, null))
+                    .thenReturn(List.of(producto));
+            when(productoMapper.toInventarioResponse(producto, producto.getStockActual()))
+                    .thenReturn(response);
+
+            List<ProductoInventarioResponse> result = productoService.listarProductosInventario(null, null);
+
+            assertThat(result).containsExactly(response);
+            verify(productoRepository).buscarPorCategoriaYNombre(null, null);
+        }
+
+        @Test
+        @DisplayName("categoria inexistente lanza excepcion de negocio")
+        void categoriaInexistente_lanzaExcepcion() {
+            when(categoriaCartaRepository.findByCategoriaNombreIgnoreCase("Bebidas"))
+                    .thenReturn(Optional.empty());
+
+            org.assertj.core.api.Assertions.assertThatThrownBy(
+                    () -> productoService.listarProductosInventario("Bebidas", null))
+                    .isInstanceOf(co.edu.unicauca.backend.shared.exception.BusinessException.class)
+                    .hasMessage("No existe la categoría 'Bebidas'.");
+        }
+
+        @Test
+        @DisplayName("producto de preparacion usa la disponibilidad de insumos si stock es null")
+        void productoPreparacion_usarDisponibilidadDeInsumos() {
+            CategoriaCarta categoria = categoriaConOrden(1, 1);
+            Producto producto = productoEnCategoria(1L, categoria);
+            producto.setStockActual(null);
+            producto.setProductoTipo(TipoProducto.PREPARACION);
+
+            Insumo insumo = Insumo.builder()
+                    .insumoId(1L)
+                    .insumoNombre("Harina")
+                    .insumoStockActual(BigDecimal.valueOf(10.000))
+                    .insumoUnidad(co.edu.unicauca.backend.shared.enums.UnidadMedida.KG)
+                    .insumoEstado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.ACTIVO)
+                    .build();
+
+            Receta receta = Receta.builder()
+                    .insumoId(insumo.getInsumoId())
+                    .productoId(producto.getProductoId())
+                    .insumo(insumo)
+                    .recetaCantidad(BigDecimal.valueOf(2.000))
+                    .build();
+
+            ProductoInventarioResponse response = ProductoInventarioResponse.builder()
+                    .productoId(1L)
+                    .productoNombre("Producto 1")
+                    .categoriaNombre("Categoria 1")
+                    .productoPrecio(producto.getProductoPrecio())
+                    .stockActual(BigDecimal.valueOf(4))
+                    .productoEstado(producto.getProductoEstado().name())
+                    .build();
+
+            when(productoRepository.buscarPorCategoriaYNombre(null, null))
+                    .thenReturn(List.of(producto));
+            when(recetaRepository.findByProductoIdFetchInsumo(producto.getProductoId()))
+                    .thenReturn(List.of(receta));
+            when(comandaItemRepository.sumCantidadInsumoComprometida(insumo.getInsumoId()))
+                    .thenReturn(BigDecimal.valueOf(2.000));
+            when(productoMapper.toInventarioResponse(producto, BigDecimal.valueOf(4)))
+                    .thenReturn(response);
+
+            List<ProductoInventarioResponse> result = productoService.listarProductosInventario(null, null);
+
+            assertThat(result).containsExactly(response);
+        }
+    }
+
+    // =========================================================================
     //  buscarProductos
     // =========================================================================
 
@@ -273,16 +376,20 @@ class ProductoServiceTest {
             ProductoBusquedaResponse r1 = mock(ProductoBusquedaResponse.class);
             ProductoBusquedaResponse r2 = mock(ProductoBusquedaResponse.class);
 
+            when(p1.getStockActual()).thenReturn(BigDecimal.valueOf(10));
+            when(p1.getProductoTipo()).thenReturn(TipoProducto.VENTA_DIRECTA);
+            when(p2.getStockActual()).thenReturn(BigDecimal.valueOf(8));
+            when(p2.getProductoTipo()).thenReturn(TipoProducto.VENTA_DIRECTA);
             when(productoRepository.buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO.name()))
                     .thenReturn(List.of(p1, p2));
-            when(productoMapper.toBusquedaResponse(p1)).thenReturn(r1);
-            when(productoMapper.toBusquedaResponse(p2)).thenReturn(r2);
+            when(productoMapper.toBusquedaResponse(eq(p1), any(BigDecimal.class))).thenReturn(r1);
+            when(productoMapper.toBusquedaResponse(eq(p2), any(BigDecimal.class))).thenReturn(r2);
 
             List<ProductoBusquedaResponse> result = productoService.buscarProductos("  emp  ");
 
             assertThat(result).containsExactly(r1, r2);
             verify(productoRepository).buscarPorNombreSinMenu("emp", EstadoGenerico.ACTIVO.name());
-            verify(productoMapper, times(2)).toBusquedaResponse(any());
+            verify(productoMapper, times(2)).toBusquedaResponse(any(Producto.class), any(BigDecimal.class));
         }
 
         @Test
