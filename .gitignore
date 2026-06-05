@@ -6,6 +6,16 @@
 .env.local
 
 # ========================
+# BACKUPS DE BASE DE DATOS
+# ========================
+/backups/
+
+# ========================
+# UPLOADS (archivos subidos por el ADMIN en dev local)
+# ========================
+/uploads/
+
+# ========================
 # JAVA
 # ========================
 *.class
