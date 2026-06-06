@@ -78,24 +78,6 @@ class RabbitMQConfigTest {
         }
 
         @Test
-        @DisplayName("RK_IMPRESION_TICKET → 'impresion.ticket'")
-        void rkImpresionTicket_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.RK_IMPRESION_TICKET).isEqualTo("impresion.ticket");
-        }
-
-        @Test
-        @DisplayName("RK_NOTIFICACION_EMAIL → 'notificacion.email'")
-        void rkNotificacionEmail_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.RK_NOTIFICACION_EMAIL).isEqualTo("notificacion.email");
-        }
-
-        @Test
-        @DisplayName("RK_NOTIFICACION_WS → 'notificacion.ws'")
-        void rkNotificacionWs_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.RK_NOTIFICACION_WS).isEqualTo("notificacion.ws");
-        }
-
-        @Test
         @DisplayName("Q_COMANDA_PRODUCCION → 'q.comanda.produccion'")
         void qComandaProduccion_tieneValorCorrecto() {
             assertThat(RabbitMQConfig.Q_COMANDA_PRODUCCION).isEqualTo("q.comanda.produccion");
@@ -179,60 +161,6 @@ class RabbitMQConfigTest {
                 assertThat(config.qComandaProduccion().isDurable()).isTrue();
             }
         }
-
-        @Nested
-        @DisplayName("qImpresionTicket")
-        class QImpresionTicket {
-
-            @Test
-            @DisplayName("Nombre → '" + RabbitMQConfig.Q_IMPRESION_TICKET + "'")
-            void nombre_correcto() {
-                Queue q = config.qImpresionTicket();
-                assertThat(q.getName()).isEqualTo(RabbitMQConfig.Q_IMPRESION_TICKET);
-            }
-
-            @Test
-            @DisplayName("Es durable")
-            void esDurable() {
-                assertThat(config.qImpresionTicket().isDurable()).isTrue();
-            }
-        }
-
-        @Nested
-        @DisplayName("qNotificacionEmail")
-        class QNotificacionEmail {
-
-            @Test
-            @DisplayName("Nombre → '" + RabbitMQConfig.Q_NOTIFICACION_EMAIL + "'")
-            void nombre_correcto() {
-                Queue q = config.qNotificacionEmail();
-                assertThat(q.getName()).isEqualTo(RabbitMQConfig.Q_NOTIFICACION_EMAIL);
-            }
-
-            @Test
-            @DisplayName("Es durable")
-            void esDurable() {
-                assertThat(config.qNotificacionEmail().isDurable()).isTrue();
-            }
-        }
-
-        @Nested
-        @DisplayName("qNotificacionWs")
-        class QNotificacionWs {
-
-            @Test
-            @DisplayName("Nombre → '" + RabbitMQConfig.Q_NOTIFICACION_WS + "'")
-            void nombre_correcto() {
-                Queue q = config.qNotificacionWs();
-                assertThat(q.getName()).isEqualTo(RabbitMQConfig.Q_NOTIFICACION_WS);
-            }
-
-            @Test
-            @DisplayName("Es durable")
-            void esDurable() {
-                assertThat(config.qNotificacionWs().isDurable()).isTrue();
-            }
-        }
     }
 
     // ── Bindings ──────────────────────────────────────────────────────────────
@@ -259,9 +187,6 @@ class RabbitMQConfigTest {
         void setUpBeans() {
             exchange = config.altoroExchange();
             qComandaProduccion = config.qComandaProduccion();
-            qImpresionTicket = config.qImpresionTicket();
-            qNotificacionEmail = config.qNotificacionEmail();
-            qNotificacionWs = config.qNotificacionWs();
         }
 
         @Test
@@ -283,48 +208,6 @@ class RabbitMQConfigTest {
         void bindingComandaProduccion_usaExchangeCorrecto() {
             Binding binding = config.bindingComandaProduccion(qComandaProduccion, exchange);
             assertThat(binding.getExchange()).isEqualTo(RabbitMQConfig.EXCHANGE);
-        }
-
-        @Test
-        @DisplayName("bindingImpresionTicket → routing key 'impresion.ticket'")
-        void bindingImpresionTicket_tieneRoutingKeyCorrecta() {
-            Binding binding = config.bindingImpresionTicket(qImpresionTicket, exchange);
-            assertThat(binding.getRoutingKey()).isEqualTo(RabbitMQConfig.RK_IMPRESION_TICKET);
-        }
-
-        @Test
-        @DisplayName("bindingImpresionTicket → destino es 'q.impresion.ticket'")
-        void bindingImpresionTicket_apuntaAColaCorrecta() {
-            Binding binding = config.bindingImpresionTicket(qImpresionTicket, exchange);
-            assertThat(binding.getDestination()).isEqualTo(RabbitMQConfig.Q_IMPRESION_TICKET);
-        }
-
-        @Test
-        @DisplayName("bindingNotificacionEmail → routing key 'notificacion.email'")
-        void bindingNotificacionEmail_tieneRoutingKeyCorrecta() {
-            Binding binding = config.bindingNotificacionEmail(qNotificacionEmail, exchange);
-            assertThat(binding.getRoutingKey()).isEqualTo(RabbitMQConfig.RK_NOTIFICACION_EMAIL);
-        }
-
-        @Test
-        @DisplayName("bindingNotificacionEmail → destino es 'q.notificacion.email'")
-        void bindingNotificacionEmail_apuntaAColaCorrecta() {
-            Binding binding = config.bindingNotificacionEmail(qNotificacionEmail, exchange);
-            assertThat(binding.getDestination()).isEqualTo(RabbitMQConfig.Q_NOTIFICACION_EMAIL);
-        }
-
-        @Test
-        @DisplayName("bindingNotificacionWs → routing key 'notificacion.ws'")
-        void bindingNotificacionWs_tieneRoutingKeyCorrecta() {
-            Binding binding = config.bindingNotificacionWs(qNotificacionWs, exchange);
-            assertThat(binding.getRoutingKey()).isEqualTo(RabbitMQConfig.RK_NOTIFICACION_WS);
-        }
-
-        @Test
-        @DisplayName("bindingNotificacionWs → destino es 'q.notificacion.ws'")
-        void bindingNotificacionWs_apuntaAColaCorrecta() {
-            Binding binding = config.bindingNotificacionWs(qNotificacionWs, exchange);
-            assertThat(binding.getDestination()).isEqualTo(RabbitMQConfig.Q_NOTIFICACION_WS);
         }
     }
 
