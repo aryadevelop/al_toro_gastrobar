@@ -1,106 +1,104 @@
 <section class="page-grid">
-  <app-page-header title="Ajuste Manual de Inventario" subtitle="Registrar ingresos o egresos por producción o compras"></app-page-header>
+  <app-page-header title="Ajustes" subtitle="Registro de ingresos y egresos de inventario"></app-page-header>
 
-  <article class="card p-4" style="max-width: 800px; margin: 0 auto;">
-    <form [formGroup]="form" (ngSubmit)="guardar()">
+  <article class="card" style="padding: 1.5rem; max-width: 760px; margin: 0 auto;">
+    <form class="form-grid form-compact" [formGroup]="form" (ngSubmit)="guardar()">
       
-      <!-- Búsqueda con Autocompletado -->
-      <div class="form-group mb-4 position-relative">
-        <label class="form-label fw-bold">Buscar producto o insumo *</label>
-        <div class="input-group">
-          <span class="input-group-text">🔍</span>
+      <!-- Buscador -->
+      <label class="position-relative" style="grid-column: 1 / -1;">
+        <span>Buscar producto o insumo <span style="color:red;">*</span></span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
           <input 
             type="text" 
-            class="form-control form-control-lg" 
+            class="input-field" 
             formControlName="search"
-            placeholder="Escribe el nombre para buscar..."
+            placeholder="Ej. Tomate, Cerveza..."
             (input)="onSearchChange($event)"
             autocomplete="off"
+            style="flex: 1;"
           >
-          <span *ngIf="isSearching" class="input-group-text">
-            <span class="spinner-border spinner-border-sm" role="status"></span>
-          </span>
+          <span *ngIf="isSearching" style="color: var(--muted); font-size: 0.9rem;">Buscando...</span>
         </div>
 
-        <!-- Autocomplete Dropdown -->
-        <ul *ngIf="showDropdown" class="list-group position-absolute w-100 mt-1 shadow" style="z-index: 1000; max-height: 250px; overflow-y: auto;">
-          <button 
-            type="button" 
-            class="list-group-item list-group-item-action d-flex justify-content-between align-items-center"
+        <ul *ngIf="showDropdown" class="autocomplete-list">
+          <li 
             *ngFor="let item of searchResults"
             (click)="seleccionarItem(item)"
           >
             <div>
-              <span class="fw-bold">{{ item.nombre }}</span>
-              <span class="badge bg-secondary ms-2">{{ item.tipo }}</span>
+              <strong>{{ item.nombre }}</strong>
+              <span class="badge" [class.badge-producto]="item.tipo === 'PRODUCTO'" [class.badge-insumo]="item.tipo === 'INSUMO'">
+                {{ item.tipo }}
+              </span>
             </div>
-            <span class="text-muted small">Stock: {{ item.stockActual }} {{ item.unidad }}</span>
-          </button>
+            <span class="muted small">Stock: {{ item.stockActual }} {{ item.unidad }}</span>
+          </li>
         </ul>
-      </div>
+      </label>
 
-      <!-- Datos del Item Seleccionado -->
-      <div *ngIf="form.get('elementoId')?.value" class="alert alert-info d-flex justify-content-between align-items-center mb-4">
+      <!-- Info item seleccionado -->
+      <div *ngIf="form.get('elementoId')?.value" class="selected-item-info" style="grid-column: 1 / -1;">
         <div>
-          <h5 class="mb-0">{{ form.get('selectedItemName')?.value }}</h5>
-          <small>Stock actual: <strong>{{ form.get('stockActual')?.value }} {{ form.get('unidad')?.value }}</strong></small>
+          <h4 style="margin: 0; color: var(--text);">{{ form.get('selectedItemName')?.value }}</h4>
+          <span style="color: var(--muted); font-size: 0.9rem;">
+            Stock disponible: <strong>{{ form.get('stockActual')?.value }} {{ form.get('unidad')?.value }}</strong>
+          </span>
         </div>
-        <span class="badge bg-primary">{{ form.get('tipoElemento')?.value }}</span>
+        <span class="badge" [class.badge-producto]="form.get('tipoElemento')?.value === 'PRODUCTO'" [class.badge-insumo]="form.get('tipoElemento')?.value === 'INSUMO'">
+          {{ form.get('tipoElemento')?.value }}
+        </span>
       </div>
 
-      <div class="row">
-        <!-- Tipo Movimiento -->
-        <div class="col-md-6 mb-3">
-          <label class="form-label fw-bold">Tipo de movimiento *</label>
-          <select class="form-select" formControlName="tipoMovimiento">
-            <option value="EGRESO">Egreso (Salida)</option>
-            <option value="INGRESO">Ingreso (Entrada)</option>
-          </select>
+      <!-- Fila: Tipo y Cantidad -->
+      <label>
+        <span>Tipo de movimiento <span style="color:red;">*</span></span>
+        <select class="input-field" formControlName="tipoMovimiento">
+          <option value="EGRESO">Egreso (Salida)</option>
+          <option value="INGRESO">Ingreso (Entrada)</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Cantidad <span style="color:red;">*</span></span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="number" class="input-field" formControlName="cantidad" min="1" placeholder="0">
+          <span style="color: var(--muted); min-width: 30px;">{{ form.get('unidad')?.value || 'und' }}</span>
         </div>
+      </label>
 
-        <!-- Cantidad -->
-        <div class="col-md-6 mb-3">
-          <label class="form-label fw-bold">Cantidad a modificar *</label>
-          <div class="input-group">
-            <input type="number" class="form-control" formControlName="cantidad" min="1" placeholder="Ej. 5">
-            <span class="input-group-text">{{ form.get('unidad')?.value || 'und' }}</span>
-          </div>
-        </div>
+      <!-- Trazabilidad Opcional -->
+      <div style="grid-column: 1 / -1; margin-top: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+        <h5 style="margin: 0; color: var(--text);">Información de trazabilidad (Opcional)</h5>
       </div>
 
-      <!-- Errores de Validación -->
-      <div *ngIf="submitErrorMsg" class="alert alert-danger py-2 mb-3">
-        ❌ {{ submitErrorMsg }}
+      <label>
+        <span>Proveedor</span>
+        <input class="input-field" type="text" formControlName="proveedor" placeholder="Nombre proveedor">
+      </label>
+
+      <label>
+        <span>Número de factura</span>
+        <input class="input-field" type="text" formControlName="numeroFactura" placeholder="Ej. FAC-1234">
+      </label>
+
+      <label style="grid-column: 1 / -1;">
+        <span>Observaciones</span>
+        <textarea class="input-field" rows="2" formControlName="observaciones" placeholder="Razón del ajuste, caducidad, etc..."></textarea>
+      </label>
+
+      <!-- Alertas -->
+      <div *ngIf="submitErrorMsg" class="alert error-alert" style="grid-column: 1 / -1;">
+        {{ submitErrorMsg }}
       </div>
-      <div *ngIf="stockErrorMsg" class="alert alert-danger py-2 mb-3">
-        ⚠️ {{ stockErrorMsg }}
+      <div *ngIf="stockErrorMsg" class="alert warn-alert" style="grid-column: 1 / -1;">
+        {{ stockErrorMsg }}
       </div>
 
-      <!-- Datos Adicionales -->
-      <h5 class="mt-3 mb-3 border-bottom pb-2">Información de trazabilidad (Opcional)</h5>
-      
-      <div class="row">
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Proveedor</label>
-          <input type="text" class="form-control" formControlName="proveedor" placeholder="Nombre de quien provee">
-        </div>
-        <div class="col-md-6 mb-3">
-          <label class="form-label">Número de factura</label>
-          <input type="text" class="form-control" formControlName="numeroFactura" placeholder="Ej. FAC-1234">
-        </div>
-      </div>
-
-      <div class="form-group mb-4">
-        <label class="form-label">Observaciones</label>
-        <textarea class="form-control" rows="3" formControlName="observaciones" placeholder="Razón del ajuste, avería, caducidad, etc..."></textarea>
-      </div>
-
-      <!-- Acciones -->
-      <div class="d-flex justify-content-end gap-3 mt-4 pt-3 border-top">
-        <button type="button" class="btn btn-secondary px-4" (click)="cancelar()" [disabled]="isSubmitting">Cancelar</button>
-        <button type="submit" class="btn btn-primary px-4" [disabled]="isSubmitting">
-          <span *ngIf="isSubmitting" class="spinner-border spinner-border-sm me-2" role="status"></span>
-          Guardar Ajuste
+      <!-- Botones -->
+      <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button type="button" class="btn-secondary" (click)="cancelar()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Ajuste' }}
         </button>
       </div>
 
