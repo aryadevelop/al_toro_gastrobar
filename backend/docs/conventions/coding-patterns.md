@@ -72,17 +72,17 @@ Map<String, List<ComandaItem>> agrupados = items.stream()
 ## DTOs
 
 **Reglas:**
-- ✅ Enums → String en DTOs (`.name()` en mappers)
-- ✅ Inmutabilidad: `@Getter` + `@Builder` + campos `final`
-- ✅ Javadoc por campo con valores posibles cuando aplique
-- ✅ Incluir `String categoriaProducto` cuando se muestran items
+- Enums → String en DTOs (`.name()` en mappers)
+- Inmutabilidad: `@Getter` + `@Builder` + campos `final`
+- Javadoc por campo con valores posibles cuando aplique
+- Incluir `String categoriaProducto` cuando se muestran items
 
 ```java
 @Getter @Builder
 public class ItemResponse {
     /** Nombre del producto */
     private final String nombreProducto;
-    /** Categoría: "PLATO", "BEBIDA", "OTRO" */
+    /** Categoría: "PLATO", "BEBIDA" */
     private final String categoriaProducto;
     private final Integer cantidad;
 }
@@ -121,12 +121,12 @@ ApiResponse.error(code, message)          // error con código + mensaje
 ## Controller Tests
 
 **Reglas:**
-- ✅ `@WebMvcTest(controllers = MiController.class)`
-- ✅ Importar `PermissiveSecurityConfig` interna
-- ✅ `@MockitoBean` para services y dependencias seguridad (Spring Boot 3.4+)
-- ✅ `@Nested` + `@DisplayName` agrupar por endpoint
-- ✅ Nombres: `condicion_resultadoEsperado()`
-- ✅ `@WithMockUser(username = "...", roles = "MESERO")`
+- `@WebMvcTest(controllers = MiController.class)`
+- Importar `PermissiveSecurityConfig` interna
+- `@MockitoBean` para services y dependencias seguridad (Spring Boot 3.4+)
+- `@Nested` + `@DisplayName` agrupar por endpoint
+- Nombres: `condicion_resultadoEsperado()`
+- `@WithMockUser(username = "...", roles = "MESERO")`
 
 **Imports correctos:**
 - `JwtTokenProvider` desde `co.edu.unicauca.backend.modules.auth.security`

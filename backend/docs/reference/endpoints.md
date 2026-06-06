@@ -4,6 +4,23 @@ Base URL: `http://localhost:8080/api`. Todas las respuestas siguen el contrato `
 
 ---
 
+## Tabla de contenidos
+
+- [Auth (`/api/auth`)](#auth-apiauth)
+- [Reservas (`/api/reservas`, `/api/reservas/mesero`)](#reservas-apireservas-apireservasmesero)
+- [Clientes (`/api/clientes`)](#clientes-apiclientes)
+- [Empleados (`/api/empleados`)](#empleados-apiempleados)
+- [Productos (`/api/productos`)](#productos-apiproductos)
+- [Inventario (`/api/inventario`)](#inventario-apiinventario)
+- [Mesas (`/api/mesas`)](#mesas-apimesas)
+- [Comandas (`/api/comandas`)](#comandas-apicomandas)
+- [Visitas (`/api/visitas`)](#visitas-apivisitas)
+- [Ventas (`/api/ventas`)](#ventas-apiventas)
+- [Notificaciones (`/api/notificaciones`)](#notificaciones-apinotificaciones)
+- [Resumen por rol](#resumen-por-rol)
+
+---
+
 ## Auth (`/api/auth`)
 
 | Method | Endpoint | Acceso | Descripción |
@@ -210,33 +227,3 @@ Base URL: `http://localhost:8080/api`. Todas las respuestas siguen el contrato `
 - `POST /api/auth/register`
 - `POST /api/auth/login`
 - `POST /api/auth/refresh`
-
----
-
-## Notas técnicas
-
-### Ownership validation
-Endpoints donde CLIENTE solo puede acceder a sus propios recursos:
-- `PUT /api/reservas/{reservaId}` — email tomado del token, no del body
-- `PATCH /api/reservas/{reservaId}/cancelar` — email tomado del token
-- `GET /api/reservas/cliente/futuras` — parámetro `emailCliente` debe coincidir con token
-- `GET /api/reservas/cliente/canceladas-devueltas` — parámetro `emailCliente` debe coincidir con token
-- `GET /api/reservas/{reservaId}/detalle` — servicio valida propiedad
-- `GET /api/visitas/cliente/historial` — parámetro `emailCliente` debe coincidir con token
-- `GET /api/visitas/cliente/{visitaId}/detalle` — servicio valida propiedad
-
-### Endpoints con comportamiento diferenciado por rol
-- `GET /api/mesas/{mesaId}/detalle` — CAJERO recibe campos extra: `clienteId`, `puntosFidelizacion`, `esCumpleanos`, `puedeGenerarCuenta`
-- `GET /api/reservas/mesero/consulta` — MESERO/ADMIN: reservas activas con indicador de inasistencia; CAJERO: todas las reservas con botones de acción
-- `GET /api/visitas/activa` — CLIENTE usa email del token; MESERO/CAJERO/ADMIN requieren parámetro `emailCliente`
-
-### Reglas de negocio
-- Cutoff de modificación de reserva: BASICA 13:00 del día previo, ESPECIAL 23:00 del día previo
-- Inasistencia: solo marcable cuando han transcurrido al menos 30 minutos desde la hora programada
-- Puntos de lealtad: +1 punto por cada venta cerrada; `clientePuntos` = canjeables, `clientePuntosAcumulados` = acumulados lifetime
-- Envío de comanda a producción valida stock disponible antes de la transición BORRADOR → PENDIENTE
-- Inicio de preparación (`/produccion/{id}/iniciar`) descuenta inventario al ejecutar la transición PENDIENTE → EN_PREPARACION
-- Solicitud de asistencia (`/visitas/{id}/asistencia`): retorna 409 si ya existe una notificación ATENCION activa para la misma mesa
-
-### Eventos WebSocket
-Ver contratos completos, tópicos y flujos en `docs/reference/websocket.md`.

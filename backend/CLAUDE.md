@@ -8,7 +8,7 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 - `docs/conventions/api-conventions.md` — Convenciones de naming y diseño de endpoints
 - `docs/conventions/coding-patterns.md` — Services, Mappers, DTOs, Tests, ApiResponse, WebSocket, Git Commits
 - `docs/conventions/postman-conventions.md` — Manual + Automated collections
-- `docs/conventions/testing.md` — JaCoCo y estrategia de cobertura
+- `docs/conventions/testing-conventions.md` — JaCoCo y estrategia de cobertura
 - `docs/conventions/postman-generation-guide.md` — Guia de generacion de colecciones Postman (estandar v2.0)
 - `docs/reference/components.md` — Diagrama C4 Nivel 3: capas por modulo y relaciones entre componentes
 - `docs/reference/endpoints.md` — Listado completo de endpoints
@@ -106,7 +106,7 @@ Todas las entidades extienden `AuditableEntity` (createdAt, updatedAt). Schema: 
 | `Visita` | `visitaFechaHoraFin` NULL = activa |
 | `Mesa` | States: `ESPERA→EN_PREPARACION→ATENDIDA→CERRADA`; PK = `visitaId` |
 | `Comanda` | Estaciones: `COCINA\|BARRA`; States: `PRE_RESERVA→PENDIENTE→EN_PREPARACION→LISTO→COMPLETADO` |
-| `Producto` | Types: `VENTA_DIRECTA\|PREPARACION`; Categories: `PLATO\|BEBIDA\|OTRO` |
+| `Producto` | Types: `VENTA_DIRECTA\|PREPARACION`; Categories: `PLATO\|BEBIDA\` |
 | `Venta` | PK=FK a `Visita`; cierra visita; +1 punto lealtad |
 | `Notificacion` | Types: `ATENCION\|PLATOS_LISTOS\|BEBIDAS_LISTAS\|CAMBIO`; States: `ACTIVA\|ATENDIDA` |
 
@@ -176,7 +176,7 @@ Base URL: `http://localhost:8080/api`. Lista completa en `docs/reference/endpoin
 - **NO logging** en services (`@Slf4j`, `log.debug()` prohibidos)
 - **Documentación obligatoria:** Javadoc (clases, métodos) + comentarios inline (`//`) en pasos no obvios
 - **Mappers:** toda transformación entity→DTO en mapper dedicado, NO builders inline en services
-- **Ordenamiento items:** SIEMPRE por categoría (PLATO→BEBIDA→OTRO) usando comparador estático, ANTES de transformar/agrupar
+- **Ordenamiento items:** SIEMPRE por categoría (PLATO→BEBIDA) usando comparador estático, ANTES de transformar/agrupar
 - **Acceso multi-rol:** seguir patrón `VisitaController` — `@PreAuthorize("hasAnyRole(...)")` + parámetro opcional `emailCliente` + ownership solo para CLIENTE
 - **Scope to the HU:** no features/helpers/abstractions no requeridas por HU actual
 - **TDD obligatorio** — cobertura mínima en `docs/testing.md`

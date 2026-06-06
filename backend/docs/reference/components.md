@@ -1,4 +1,4 @@
-# Diagrama de componentes — nivel 3 C4
+# Diagrama de componentes — Al Toro Gastrobar
 
 El backend es un monolito modularizado en Spring Boot. Cada módulo sigue el patrón `controller → service → repository → entity + DTOs + mapper` bajo el paquete `modules/`.
 
@@ -6,7 +6,7 @@ El backend es un monolito modularizado en Spring Boot. Cada módulo sigue el pat
 
 ## Tabla de contenidos
 
-- [Módulos y sus capas](#módulos-y-sus-capas)
+- [Módulos ey sus capas](#módulos-y-sus-capas)
   - [auth — Autenticación](#auth--autenticación)
   - [inventario — Productos e inventario](#inventario--productos-e-inventario)
   - [mesas_comandas — Mesas y comandas](#mesas_comandas--mesas-y-comandas)
