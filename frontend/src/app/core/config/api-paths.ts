@@ -102,5 +102,16 @@ export const API_PATHS = {
     },
     adminProductos: {
         listar: `${API}/admin/productos`,
+        validarEstado: (id: string | number) => `${API}/admin/productos/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/productos/${id}/estado`,
+    },
+    adminPreparaciones: {
+        validarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/estado`,
+        historialEstados: (id: string | number) => `${API}/admin/preparaciones/${id}/historial-estados`,
+    },
+    adminInsumos: {
+        validarEstado: (id: string | number) => `${API}/admin/insumos/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/insumos/${id}/estado`,
     },
 } as const;

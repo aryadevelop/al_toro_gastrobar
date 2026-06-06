@@ -13,4 +13,12 @@ export class ProductoAdminService {
   listarProductosVentaDirecta(): Observable<ApiEnvelope<BackendProductoAdminItem[]>> {
     return this.http.get<ApiEnvelope<BackendProductoAdminItem[]>>(API_PATHS.adminProductos.listar);
   }
+
+  validarCambioEstado(productoId: number | string): Observable<ApiEnvelope<import('../models/api.models').BackendValidacionCambioEstado>> {
+    return this.http.get<ApiEnvelope<import('../models/api.models').BackendValidacionCambioEstado>>(API_PATHS.adminProductos.validarEstado(productoId));
+  }
+
+  cambiarEstado(productoId: number | string, request: import('../models/api.models').BackendCambiarEstadoRequest): Observable<ApiEnvelope<void>> {
+    return this.http.post<ApiEnvelope<void>>(API_PATHS.adminProductos.cambiarEstado(productoId), request);
+  }
 }
