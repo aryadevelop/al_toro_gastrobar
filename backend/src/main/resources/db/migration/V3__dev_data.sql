@@ -396,9 +396,6 @@ INSERT INTO Notificacion (mesa_id, empleado_id, notificacion_estado, notificacio
 (5,  5,  'ATENDIDA', 'PLATOS_LISTOS',  NOW() - INTERVAL '10 days 6 hours'),
 (5,  9,  'ATENDIDA', 'BEBIDAS_LISTAS', NOW() - INTERVAL '10 days 7 hours'),
 -- Activas (mesas en curso)
-(10, NULL, 'ACTIVA',   'PLATOS_LISTOS',  NOW() - INTERVAL '5 minutes'),
-(10, NULL, 'ACTIVA',   'BEBIDAS_LISTAS', NOW() - INTERVAL '18 minutes'),
-(11, NULL, 'ACTIVA',   'CAMBIO',         NOW() - INTERVAL '7 minutes'),
 (12, NULL, 'ACTIVA',   'ATENCION',       NOW() - INTERVAL '2 minutes');
 
 -- =====================================================

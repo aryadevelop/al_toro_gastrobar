@@ -30,7 +30,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <button class="btn-outline" type="button" (click)="loadMapa()">Reintentar</button>
         </div>
 
-        <div class="mapa-message" *ngIf="actionMessage()" [ngClass]="actionTone()">
+        <div class="toast-bar" *ngIf="actionMessage()" [ngClass]="actionTone()">
           {{ actionMessage() }}
         </div>
 
@@ -201,24 +201,33 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         color: var(--mesa-secondary);
       }
 
-      .mapa-message {
-        margin: 0.4rem 0 0.8rem;
-        padding: 0.5rem 0.8rem;
-        border-radius: 12px;
-        font-size: 0.82rem;
+      .toast-bar {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.7rem 1.25rem;
+        border-radius: 10px;
+        font-size: 0.85rem;
         font-weight: 600;
+        z-index: 9999;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        animation: slideUp 0.3s ease-out;
       }
 
-      .mapa-message.success {
-        background: rgba(46, 125, 50, 0.12);
-        color: #2e7d32;
-        border: 1px solid rgba(46, 125, 50, 0.2);
+      @keyframes slideUp {
+        from { transform: translate(-50%, 100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
       }
 
-      .mapa-message.error {
-        background: rgba(196, 30, 58, 0.12);
-        color: #c41e3a;
-        border: 1px solid rgba(196, 30, 58, 0.2);
+      .toast-bar.success {
+        color: #fff;
+        background: #166534;
+      }
+
+      .toast-bar.error {
+        color: #fff;
+        background: #be123c;
       }
 
       .mapa-empty {
@@ -284,8 +293,8 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .mesa-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 0.75rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.8rem;
       }
 
       .mesa-card {
@@ -342,12 +351,14 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       }
 
       .mesa-status {
-        font-size: 0.72rem;
-        padding: 0.2rem 0.55rem;
+        font-size: 0.75rem;
+        padding: 0.25rem 0.6rem;
         border-radius: 999px;
-        font-weight: 600;
+        font-weight: 700;
         text-transform: uppercase;
         letter-spacing: 0.04em;
+        text-align: center;
+        white-space: nowrap;
       }
 
       .mesa-mesero {
@@ -645,6 +656,7 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   readonly selectedMesa = signal<MesaDetalle | null>(null);
   readonly actionMessage = signal('');
   readonly actionTone = signal<'success' | 'error' | ''>('');
+  private actionTimer?: ReturnType<typeof setTimeout>;
   readonly pendingNotifications = signal<Set<string>>(new Set());
 
   ngOnInit(): void {
@@ -663,6 +675,9 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   ngOnDestroy(): void {
     this.destroy$.next();
     this.destroy$.complete();
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+    }
   }
 
   loadMapa(showSpinner = true): void {
@@ -839,26 +854,24 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
     }
 
     this.setPending(notificacion.id, true);
-    this.actionMessage.set('');
-    this.actionTone.set('');
 
     switch (action) {
       case 'ATENCION':
         this.notificacionService.atenderAsistencia(notificacion.id).subscribe({
           next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Atencion registrada'),
-          error: (err) => this.handleActionError(notificacion.id, err),
+          error: (err) => this.handleActionError(err),
         });
         break;
       case 'PLATOS_LISTOS':
         this.notificacionService.servirPlatos(notificacion.id).subscribe({
           next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Platos servidos'),
-          error: (err) => this.handleActionError(notificacion.id, err),
+          error: (err) => this.handleActionError(err),
         });
         break;
       case 'BEBIDAS_LISTAS':
         this.notificacionService.servirBebidas(notificacion.id).subscribe({
           next: () => this.handleActionSuccess(mesa.id, notificacion.id, 'Bebidas servidas'),
-          error: (err) => this.handleActionError(notificacion.id, err),
+          error: (err) => this.handleActionError(err),
         });
         break;
       case 'CAMBIO':
@@ -872,7 +885,7 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
               state: { actionMessage: 'Comanda lista para modificar' },
             });
           },
-          error: (err) => this.handleActionError(notificacion.id, err),
+          error: (err) => this.handleActionError(err),
         });
         break;
     }
@@ -917,17 +930,25 @@ export class MapaMesasPageComponent implements OnInit, OnDestroy {
   }
 
   private handleActionSuccess(mesaId: string, notificacionId: string, message: string): void {
-    this.setPending(notificacionId, false);
     this.removeNotification(mesaId, notificacionId);
-    this.actionMessage.set(message);
-    this.actionTone.set('success');
+    this.showToast(message, 'success');
     this.loadMapa(false);
   }
 
-  private handleActionError(notificacionId: string, err: unknown): void {
-    this.setPending(notificacionId, false);
-    this.actionMessage.set(this.resolveErrorMessage(err));
-    this.actionTone.set('error');
+  private handleActionError(err: unknown): void {
+    this.showToast(this.resolveErrorMessage(err), 'error');
+  }
+
+  private showToast(message: string, tone: 'success' | 'error'): void {
+    this.actionMessage.set(message);
+    this.actionTone.set(tone);
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+    }
+    this.actionTimer = setTimeout(() => {
+      this.actionMessage.set('');
+      this.actionTone.set('');
+    }, 4000);
   }
 
   private removeNotification(mesaId: string, notificacionId: string): void {

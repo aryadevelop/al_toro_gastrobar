@@ -782,6 +782,13 @@ interface ItemAjusteLocal {
       }
       .btn-danger { background: #ef4444 !important; border-color: #ef4444 !important; }
       .muted { color: var(--muted); }
+
+      @media (max-width: 550px) {
+        .item-fila { display: flex; flex-wrap: wrap; justify-content: space-between; }
+        .item-info { width: 100%; margin-bottom: 0.2rem; }
+        .info-fila { flex-direction: column; align-items: flex-start; gap: 0.1rem; }
+        .info-valor { text-align: left; }
+      }
     `,
   ],
 })

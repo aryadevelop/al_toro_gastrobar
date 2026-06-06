@@ -18,6 +18,7 @@ export const API_PATHS = {
         crear: `${API}/reservas`,
         modificar: (reservaId: string | number) => `${API}/reservas/${reservaId}`,
         cancelar: (reservaId: string | number) => `${API}/reservas/${reservaId}/cancelar`,
+        confirmar: (reservaId: string | number) => `${API}/reservas/${reservaId}/confirmar`,
         abonos: (reservaId: string | number) => `${API}/reservas/${reservaId}/abonos`,
         resumenPago: (reservaId: string | number) => `${API}/reservas/${reservaId}/resumen-pago`,
         futuras: `${API}/reservas/cliente/futuras`,

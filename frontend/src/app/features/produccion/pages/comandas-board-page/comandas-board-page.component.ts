@@ -45,7 +45,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
   constructor(
     private readonly produccionService: ComandaProduccionService,
     private readonly wsService: WebSocketService
-  ) {}
+  ) { }
 
   ngOnInit(): void {
     this.cargarTablero();
@@ -126,9 +126,9 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
       this.listosAgrupadosData = [];
       return;
     }
-    
+
     const map = new Map<string, any>();
-    
+
     for (const comanda of this.tablero.listos) {
       const key = `${comanda.mesaIdentificador}-${comanda.estacion}`;
       if (!map.has(key)) {
@@ -143,18 +143,21 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
         const group = map.get(key);
         group.comandasIds.push(comanda.comandaId);
         group.totalItems += comanda.totalItems;
-        
+
         // Conservar la fecha de creación de la comanda original y la fecha "listo" más reciente
-        if (new Date(comanda.createdAt) < new Date(group.createdAt)) {
-          group.createdAt = comanda.createdAt;
+        if (comanda.createdAt) {
+          if (!group.createdAt || new Date(comanda.createdAt) < new Date(group.createdAt)) {
+            group.createdAt = comanda.createdAt;
+          }
         }
-        if (comanda.fechaHoraListo && group.fechaHoraListo &&
-            new Date(comanda.fechaHoraListo) > new Date(group.fechaHoraListo)) {
-          group.fechaHoraListo = comanda.fechaHoraListo;
+        if (comanda.fechaHoraListo) {
+          if (!group.fechaHoraListo || new Date(comanda.fechaHoraListo) > new Date(group.fechaHoraListo)) {
+            group.fechaHoraListo = comanda.fechaHoraListo;
+          }
         }
       }
     }
-    
+
     this.listosAgrupadosData = Array.from(map.values());
   }
 
@@ -166,21 +169,21 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     if (comanda.isGroup && comanda.comandasIds.length > 1) {
       const requests: Observable<BackendComandaProduccionDetalle>[] = comanda.comandasIds.map((id: number) => this.produccionService.obtenerDetalle(id));
       forkJoin(requests).subscribe({
-        next: (responses: BackendComandaProduccionDetalle[]) => {
+        next: (responses: any) => {
           const merged: any = { ...responses[0] };
           merged.comandaId = comanda.comandasIds.join(', ');
           merged.platos = [];
           merged.bebidas = [];
           merged.otros = [];
           merged.notas = [];
-          
-          responses.forEach(res => {
+
+          responses.forEach((res: any) => {
             if (res.platos) merged.platos.push(...res.platos);
             if (res.bebidas) merged.bebidas.push(...res.bebidas);
             if (res.otros) merged.otros.push(...res.otros);
             if (res.notas) merged.notas.push(res.notas);
           });
-          
+
           merged.notas = merged.notas.filter((n: string) => !!n).join(' | ');
           this.detalleData = merged;
           this.detalleCargando = false;
@@ -224,7 +227,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
         ...this.tablero.enPreparacion,
         ...this.tablero.listos
       ];
-      const isOlderExisting = allComandas.some(c => 
+      const isOlderExisting = allComandas.some(c =>
         c.mesaIdentificador === comanda.mesaIdentificador &&
         c.estacion === comanda.estacion &&
         c.comandaId !== comanda.comandaId &&
@@ -254,7 +257,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     // Si es desde la tarjeta, obtenemos el detalle para imprimir
     if (this.actionLoading[comanda.comandaId]) return;
     this.actionLoading[comanda.comandaId] = true;
-    
+
     this.produccionService.obtenerDetalle(comanda.comandaId).subscribe({
       next: (data) => {
         this.actionLoading[comanda.comandaId] = false;

@@ -61,11 +61,11 @@ export interface ReservationPaymentSummary {
   numeroPersonas: number;
   estado: string;
   tipo: string;
-  totalReserva: number;
+  totalReserva: number;        // mapped from backend totalAPagar
   totalAnticipado: number;
   totalDevuelto: number;
-  netoAbonado: number;
-  pendientePorAbonar?: number | null;
+  netoAbonado: number;         // mapped from backend montoAbonado
+  pendientePorAbonar?: number | null;  // mapped from backend saldoPendiente
   pendientePorDevolver?: number | null;
 }
 
@@ -373,6 +373,29 @@ export class ReservationService {
       );
   }
 
+  confirmar(id: string): Observable<ReservationUpdateResult> {
+    return this.http
+      .patch<ApiEnvelope<any>>(API_PATHS.reservas.confirmar(id), {})
+      .pipe(
+        map((response) => {
+          const data = response.data;
+          const reservation = this.toReserva({
+            reservaId: data.reservaId,
+            fechaHoraLlegada: data.fechaHoraLlegada,
+            numeroPersonas: data.numeroPersonas,
+            estado: data.estado,
+            tipo: data.tipo,
+          });
+
+          return {
+            reservation,
+            requiresWhatsApp: false,
+            whatsappMessage: undefined,
+          } satisfies ReservationUpdateResult;
+        })
+      );
+  }
+
   private listByEndpoint(endpoint: string): Observable<Reserva[]> {
     const email = this.authService.currentUser()?.email;
     if (!email) {
@@ -514,11 +537,11 @@ export class ReservationService {
       numeroPersonas: input.numeroPersonas,
       estado: input.estado,
       tipo: input.tipo,
-      totalReserva: input.totalReserva ?? 0,
+      totalReserva: input.totalAPagar ?? 0,           // backend usa totalAPagar
       totalAnticipado: input.totalAnticipado ?? 0,
       totalDevuelto: input.totalDevuelto ?? 0,
-      netoAbonado: input.netoAbonado ?? 0,
-      pendientePorAbonar: input.pendientePorAbonar ?? null,
+      netoAbonado: input.montoAbonado ?? 0,           // backend usa montoAbonado
+      pendientePorAbonar: input.saldoPendiente ?? null,  // backend usa saldoPendiente
       pendientePorDevolver: input.pendientePorDevolver ?? null,
     };
   }
