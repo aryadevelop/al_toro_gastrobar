@@ -1,6 +1,6 @@
 import { CommonModule, DatePipe } from '@angular/common';
 import { Component, OnDestroy, OnInit } from '@angular/core';
-import { Subscription, forkJoin } from 'rxjs';
+import { Observable, Subscription, forkJoin } from 'rxjs';
 import { ComandaProduccionService } from '../../../../core/services/comanda-produccion.service';
 import { WebSocketService } from '../../../../core/services/websocket.service';
 import {
@@ -148,7 +148,8 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
         if (new Date(comanda.createdAt) < new Date(group.createdAt)) {
           group.createdAt = comanda.createdAt;
         }
-        if (new Date(comanda.fechaHoraListo) > new Date(group.fechaHoraListo)) {
+        if (comanda.fechaHoraListo && group.fechaHoraListo &&
+            new Date(comanda.fechaHoraListo) > new Date(group.fechaHoraListo)) {
           group.fechaHoraListo = comanda.fechaHoraListo;
         }
       }
@@ -163,9 +164,9 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     this.detalleData = null;
 
     if (comanda.isGroup && comanda.comandasIds.length > 1) {
-      const requests = comanda.comandasIds.map((id: number) => this.produccionService.obtenerDetalle(id));
+      const requests: Observable<BackendComandaProduccionDetalle>[] = comanda.comandasIds.map((id: number) => this.produccionService.obtenerDetalle(id));
       forkJoin(requests).subscribe({
-        next: (responses: any[]) => {
+        next: (responses: BackendComandaProduccionDetalle[]) => {
           const merged: any = { ...responses[0] };
           merged.comandaId = comanda.comandasIds.join(', ');
           merged.platos = [];

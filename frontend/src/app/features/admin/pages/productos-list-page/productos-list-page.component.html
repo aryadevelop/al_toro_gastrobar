@@ -1,0 +1,99 @@
+<section class="page-grid">
+  <app-page-header title="Productos de Venta Directa" subtitle="Módulo de Inventario"></app-page-header>
+  
+  <article class="card p-4">
+    
+    <!-- Cargando -->
+    <div *ngIf="isLoading" class="loading-state text-center py-5">
+      <span class="spinner-border text-primary" role="status"></span>
+      <p class="mt-2 text-secondary">Cargando productos...</p>
+    </div>
+
+    <!-- Empty State (No hay NADA en DB) -->
+    <div *ngIf="!isLoading && isInitialEmptyState" class="empty-state text-center py-5">
+      <h3 class="mb-3 text-secondary">No hay productos registrados</h3>
+      <p class="mb-4 text-muted">Aún no se ha registrado ningún producto de venta directa en el sistema.</p>
+      <button class="btn btn-primary" (click)="crearPrimerProducto()">Crear primer producto</button>
+    </div>
+
+    <!-- Vista Principal -->
+    <div *ngIf="!isLoading && !isInitialEmptyState">
+      
+      <!-- Controles de Filtro y Búsqueda -->
+      <div class="controls-row mb-4">
+        
+        <!-- Búsqueda -->
+        <div class="search-group flex-grow-1">
+          <div class="input-group">
+            <input 
+              type="text" 
+              class="form-control" 
+              placeholder="Buscar por nombre..." 
+              [(ngModel)]="searchQuery"
+              (keyup)="onSearch()"
+            >
+            <button class="btn btn-outline-secondary" type="button" (click)="onClearSearch()" *ngIf="searchQuery" title="Limpiar búsqueda">
+              &times;
+            </button>
+          </div>
+        </div>
+
+        <!-- Filtro de Categoría -->
+        <div class="filter-group">
+          <select class="form-select" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+            <option value="ALL">Todas las categorías</option>
+            <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+          </select>
+        </div>
+
+        <!-- Botón Crear (Opcional si se requiere siempre accesible) -->
+        <div class="actions-group ms-auto">
+          <button class="btn btn-primary" (click)="crearPrimerProducto()">+ Crear Producto</button>
+        </div>
+      </div>
+
+      <!-- Alertas de Filtro / Búsqueda -->
+      <div *ngIf="alertMessage" class="alert mb-4" [ngClass]="{
+        'alert-warning': alertType === 'warning',
+        'alert-info': alertType === 'info',
+        'alert-danger': alertType === 'error'
+      }">
+        {{ alertMessage }}
+      </div>
+
+      <!-- Tabla de Productos -->
+      <div class="table-responsive" *ngIf="filteredProducts.length > 0">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Categoría</th>
+              <th>Precio de venta</th>
+              <th>Stock actual</th>
+              <th>Estado</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let prod of filteredProducts" [ngClass]="{'estado-inactivo': prod.estado === 'INACTIVE'}">
+              <td class="fw-bold">{{ prod.nombre }}</td>
+              <td><span class="badge bg-light text-dark">{{ prod.categoria }}</span></td>
+              <td>{{ prod.precioVenta | currency }}</td>
+              <td>{{ prod.stockActual }}</td>
+              <td>
+                <span *ngIf="prod.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
+                <span *ngIf="prod.estado === 'INACTIVE'" class="text-muted d-flex align-items-center gap-1">
+                  <!-- Icono de pausa SVG -->
+                  <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-circle-fill" viewBox="0 0 16 16">
+                    <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.25 5C5.56 5 5 5.56 5 6.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C7.5 5.56 6.94 5 6.25 5zm3.5 0c-.69 0-1.25.56-1.25 1.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C11 5.56 10.44 5 9.75 5z"/>
+                  </svg>
+                  Inactivo
+                </span>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+
+    </div>
+  </article>
+</section>
