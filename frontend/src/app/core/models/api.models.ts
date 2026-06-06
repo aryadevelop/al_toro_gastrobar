@@ -638,5 +638,59 @@ export interface BackendProductoAdminItem {
   categoria: string;
   precioVenta: number;
   stockActual: number;
-  estado: 'ACTIVE' | 'INACTIVE';
+  estado: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DISCONTINUED';
+}
+
+/* ── Gestión de Estados (Admin) ── */
+
+export interface BackendValidacionCambioEstado {
+  tieneReservasFuturas: boolean;
+  cantidadReservas: number;
+}
+
+export interface BackendPreparacionAfectada {
+  id: number;
+  nombre: string;
+  categoria: string;
+  estado: string;
+  pedidosPendientes: number;
+  otrosInsumosDescontinuados: boolean;
+}
+
+export interface BackendValidacionDescontinuarInsumo {
+  preparacionesAfectadas: BackendPreparacionAfectada[];
+}
+
+export interface BackendEstadoHistorial {
+  fechaHora: string;
+  usuario: string;
+  estadoAnterior: string;
+  estadoNuevo: string;
+  motivo?: string;
+}
+
+export interface BackendCambiarEstadoRequest {
+  nuevoEstado: string;
+  motivo?: string;
+  notificarClientes?: boolean;
+  accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
+}
+
+/* ── Movimientos de Inventario (Ingreso / Egreso) ── */
+
+export interface BackendInventarioMovimientoRequest {
+  tipoElemento: 'PRODUCTO' | 'INSUMO';
+  elementoId: number;
+  tipoMovimiento: 'INGRESO' | 'EGRESO';
+  cantidad: number;
+  observaciones?: string;
+  fecha?: string;
+}
+
+export interface BackendInventarioItemBusqueda {
+  id: number;
+  nombre: string;
+  unidad: string;
+  stockActual: number;
+  tipo: 'PRODUCTO' | 'INSUMO';
 }

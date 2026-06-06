@@ -92,4 +92,19 @@ export class WebSocketService implements OnDestroy {
       this.client = null;
     }
   }
+
+  /**
+   * Envía un mensaje a un destino STOMP.
+   */
+  sendMessage(destination: string, body: any): void {
+    const client = this.ensureConnected();
+    if (client.connected) {
+      client.publish({ destination, body: JSON.stringify(body) });
+    } else {
+      // If not connected, wait for connect to send (optional advanced logic).
+      // For now, we attempt to publish if it's connected, or we could queue it.
+      // But standard STOMP over websockets usually requires connection first.
+      console.warn('STOMP client not connected. Message not sent.');
+    }
+  }
 }
