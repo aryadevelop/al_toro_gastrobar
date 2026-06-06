@@ -93,11 +93,11 @@ export interface BackendResumenPagoResponse {
   numeroPersonas: number;
   estado: string;
   tipo: string;
-  totalReserva: number;
+  totalAPagar: number;      // valor total de la reserva (pre-orden + decoración)
   totalAnticipado: number;
   totalDevuelto: number;
-  netoAbonado: number;
-  pendientePorAbonar?: number | null;
+  montoAbonado: number;     // neto = totalAnticipado - totalDevuelto
+  saldoPendiente?: number | null;    // solo presente cuando estado=CONFIRMADA
   pendientePorDevolver?: number | null;
 }
 
