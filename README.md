@@ -12,6 +12,7 @@
 - [Variables de entorno](#variables-de-entorno)
 - [Perfiles de Spring Boot](#perfiles-de-spring-boot)
 - [Pruebas de API](#pruebas-de-api)
+- [Documentación técnica del backend](#documentación-técnica-del-backend)
 - [Flujo de trabajo Git](#flujo-de-trabajo-git)
 - [Equipo](#equipo)
 
@@ -272,6 +273,25 @@ Los archivos YAML son compatibles con Postman Desktop:
 4. Ejecutar tests individuales o runner de colección
 
 Nota: algunos tests requieren datos de seed específicos. Ejecutar `./mvnw flyway:clean flyway:migrate` desde `backend/` para resetear la BD a su estado inicial si los tests fallan por datos inconsistentes.
+
+---
+
+## Documentación técnica del backend
+
+Referencia técnica del backend ubicada en `backend/docs/reference/`:
+
+| Documento | Descripción |
+|-----------|-------------|
+| [`components.md`](backend/docs/reference/components.md) | Diagrama C4 Nivel 3: capas por módulo y relaciones entre componentes |
+| [`endpoints.md`](backend/docs/reference/endpoints.md) | 79 endpoints: verbo, ruta, roles y contrato de respuesta |
+| [`domain-model.md`](backend/docs/reference/domain-model.md) | 28 entidades en 8 módulos: campos, relaciones y enums del dominio |
+| [`database.md`](backend/docs/reference/database.md) | Esquema PostgreSQL `restaurante`: 23 tablas, índices y migraciones Flyway |
+| [`security.md`](backend/docs/reference/security.md) | JWT stateless: flujo de autenticación, roles, ownership y endpoints públicos |
+| [`messaging.md`](backend/docs/reference/messaging.md) | RabbitMQ: exchange `altoro.topic`, routing keys y contratos de mensajes |
+| [`websocket.md`](backend/docs/reference/websocket.md) | STOMP/WebSocket: tópicos `/topic/*`, contratos de eventos y flujos en tiempo real |
+| [`error-codes.md`](backend/docs/reference/error-codes.md) | Códigos `ENT-`, `AUTH-`, `NEG-`, `VAL-` con HTTP status y condición de disparo |
+| [`testing.md`](backend/docs/reference/testing.md) | Estrategia de pruebas: JaCoCo, patrones por capa y colecciones Postman |
+| [`deployment.md`](backend/docs/reference/deployment.md) | Infraestructura de producción: Docker Compose, Caddy y TLS automático |
 
 ---
 
