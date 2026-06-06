@@ -17,7 +17,7 @@ scripts:
   - type: beforeRequest
     code: |
       pm.environment.set('notificacionIdConBorrador', '16');
-      pm.environment.set('comandaIdBorradorDestino', '26');
+      pm.environment.set('comandaIdBorradorDestino', '28');
     language: text/javascript
   - type: afterResponse
     code: |-

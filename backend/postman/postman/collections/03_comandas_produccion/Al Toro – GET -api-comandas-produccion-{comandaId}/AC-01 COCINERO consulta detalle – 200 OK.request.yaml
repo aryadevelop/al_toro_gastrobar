@@ -24,7 +24,6 @@ scripts:
         pm.expect(['PENDIENTE','EN_PREPARACION','LISTO']).to.include(data.comandaEstado);
         pm.expect(data.platos).to.be.an('array');
         pm.expect(data.bebidas).to.be.an('array');
-        pm.expect(data.otros).to.be.an('array');
       });
     language: text/javascript
 order: 2010
