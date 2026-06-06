@@ -1,7 +1,15 @@
 package co.edu.unicauca.backend.modules.reservas.service;
 
+import co.edu.unicauca.backend.modules.mesas_comandas.entity.Zona;
+import co.edu.unicauca.backend.modules.mesas_comandas.repository.ZonaRepository;
+import co.edu.unicauca.backend.modules.reservas.dto.request.ActualizarDecoracionRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.CrearDecoracionRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionAdminResponse;
 import co.edu.unicauca.backend.modules.reservas.entity.Decoracion;
+import co.edu.unicauca.backend.modules.reservas.entity.DecoracionZona;
 import co.edu.unicauca.backend.modules.reservas.repository.DecoracionRepository;
+import co.edu.unicauca.backend.modules.reservas.repository.DecoracionZonaRepository;
+import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
@@ -20,26 +28,34 @@ import java.nio.file.InvalidPathException;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
+import java.util.List;
 import java.util.Locale;
 import java.util.Set;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 @Slf4j
 public class DecoracionAdminService {
 
-    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png");
+    private static final Set<String> ALLOWED_EXTENSIONS = Set.of("jpg", "jpeg", "png", "webp");
     private static final long MAX_BYTES = 5L * 1024L * 1024L;
 
     private final DecoracionRepository decoracionRepository;
+    private final DecoracionZonaRepository decoracionZonaRepository;
+    private final ZonaRepository zonaRepository;
     private final Path imagenesDirectory;
     private final String imagenesBaseUrl;
 
     public DecoracionAdminService(
             DecoracionRepository decoracionRepository,
+            DecoracionZonaRepository decoracionZonaRepository,
+            ZonaRepository zonaRepository,
             @Value("${decoracion.imagenes-dir}") String imagenesDir,
             @Value("${decoracion.imagenes-base-url:}") String imagenesBaseUrl) {
         this.decoracionRepository = decoracionRepository;
+        this.decoracionZonaRepository = decoracionZonaRepository;
+        this.zonaRepository = zonaRepository;
         Path path = Paths.get(imagenesDir);
         if (path.isAbsolute()) {
             this.imagenesDirectory = path.toAbsolutePath().normalize();
@@ -47,6 +63,100 @@ public class DecoracionAdminService {
             this.imagenesDirectory = Paths.get(".").toAbsolutePath().resolve(path).normalize();
         }
         this.imagenesBaseUrl = imagenesBaseUrl != null ? imagenesBaseUrl.trim() : "";
+    }
+
+    @Transactional
+    public List<DecoracionAdminResponse> listarDecoraciones() {
+        return decoracionRepository.findAll().stream()
+                .map(this::toAdminResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public DecoracionAdminResponse crearDecoracion(CrearDecoracionRequest request) {
+        Decoracion decoracion = Decoracion.builder()
+                .decoracionNombre(request.getDecoracionNombre().trim())
+                .decoracionEstado(EstadoGenerico.ACTIVO)
+                .decoracionCostoAdicional(request.getDecoracionCostoAdicional())
+                .build();
+
+        decoracion = decoracionRepository.save(decoracion);
+        guardarZonas(decoracion.getDecoracionId(), request.getZonaIds(), decoracion);
+        return toAdminResponse(decoracion);
+    }
+
+    @Transactional
+    public DecoracionAdminResponse actualizarDecoracion(Long decoracionId, ActualizarDecoracionRequest request) {
+        Decoracion decoracion = decoracionRepository.findById(decoracionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decoracionId));
+
+        if (StringUtils.hasText(request.getDecoracionNombre())) {
+            decoracion.setDecoracionNombre(request.getDecoracionNombre().trim());
+        }
+        if (request.getDecoracionCostoAdicional() != null) {
+            decoracion.setDecoracionCostoAdicional(request.getDecoracionCostoAdicional());
+        }
+
+        decoracion = decoracionRepository.save(decoracion);
+
+        if (request.getZonaIds() != null) {
+            decoracionZonaRepository.deleteByDecoracionId(decoracionId);
+            guardarZonas(decoracionId, request.getZonaIds(), decoracion);
+        }
+
+        return toAdminResponse(decoracion);
+    }
+
+    @Transactional
+    public void eliminarDecoracion(Long decoracionId) {
+        Decoracion decoracion = decoracionRepository.findById(decoracionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decoracionId));
+
+        borrarArchivoAnteriorSiExiste(decoracion.getDecoracionImagenUrl());
+        decoracionZonaRepository.deleteByDecoracionId(decoracionId);
+        decoracionRepository.delete(decoracion);
+    }
+
+    private void guardarZonas(Long decoracionId, List<Long> zonaIds, Decoracion decoracion) {
+        if (zonaIds == null || zonaIds.isEmpty()) {
+            return;
+        }
+
+        List<Long> uniqueZoneIds = zonaIds.stream().distinct().collect(Collectors.toList());
+        List<Zona> zonas = zonaRepository.findAllById(uniqueZoneIds);
+        if (zonas.size() != uniqueZoneIds.size()) {
+            List<Long> foundIds = zonas.stream().map(Zona::getZonaId).collect(Collectors.toList());
+            List<Long> missing = uniqueZoneIds.stream()
+                    .filter(id -> !foundIds.contains(id))
+                    .collect(Collectors.toList());
+            throw new ResourceNotFoundException("Zona", missing.get(0));
+        }
+
+        List<DecoracionZona> enlaces = zonas.stream()
+                .map(zona -> DecoracionZona.builder()
+                        .decoracionId(decoracionId)
+                        .zonaId(zona.getZonaId())
+                        .decoracion(decoracion)
+                        .zona(zona)
+                        .build())
+                .collect(Collectors.toList());
+        decoracionZonaRepository.saveAll(enlaces);
+    }
+
+    private DecoracionAdminResponse toAdminResponse(Decoracion decoracion) {
+        List<Long> zonaIds = decoracionZonaRepository.findByDecoracionId(decoracion.getDecoracionId())
+                .stream()
+                .map(DecoracionZona::getZonaId)
+                .collect(Collectors.toList());
+
+        return DecoracionAdminResponse.builder()
+                .decoracionId(decoracion.getDecoracionId())
+                .decoracionNombre(decoracion.getDecoracionNombre())
+                .decoracionEstado(decoracion.getDecoracionEstado().name())
+                .decoracionCostoAdicional(decoracion.getDecoracionCostoAdicional())
+                .decoracionImagenUrl(decoracion.getDecoracionImagenUrl())
+                .zonaIds(zonaIds)
+                .build();
     }
 
     @Transactional
@@ -64,7 +174,7 @@ public class DecoracionAdminService {
         String extension = extraerExtension(originalFilename);
         if (!ALLOWED_EXTENSIONS.contains(extension)) {
             throw new BusinessException(ErrorCode.VALIDATION_ERROR,
-                    "Solo se aceptan imágenes JPG o PNG.");
+                    "Solo se aceptan imágenes JPG, PNG o WEBP.");
         }
 
         Decoracion decoracion = decoracionRepository.findById(decoracionId)
