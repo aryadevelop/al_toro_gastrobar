@@ -30,28 +30,10 @@ public class RabbitMQConfig {
     /** Routing key publicada cuando se crea una nueva comanda. */
     public static final String RK_COMANDA_NUEVA = "comanda.nueva";
 
-    /** Routing key publicada para solicitar la impresión de un ticket. */
-    public static final String RK_IMPRESION_TICKET = "impresion.ticket";
-
-    /** Routing key publicada para enviar una notificación por correo. */
-    public static final String RK_NOTIFICACION_EMAIL = "notificacion.email";
-
-    /** Routing key publicada para emitir una notificación por WebSocket. */
-    public static final String RK_NOTIFICACION_WS = "notificacion.ws";
-
     // ── Queue names ───────────────────────────────────────────────────────────
 
     /** Cola consumida por {@code ProduccionService} para procesar nuevas comandas. */
     public static final String Q_COMANDA_PRODUCCION = "q.comanda.produccion";
-
-    /** Cola consumida por el bridge Node.js para la impresión de tickets. */
-    public static final String Q_IMPRESION_TICKET = "q.impresion.ticket";
-
-    /** Cola consumida por {@code NotificacionEmailService} para el envío de correos. */
-    public static final String Q_NOTIFICACION_EMAIL= "q.notificacion.email";
-
-    /** Cola consumida por el publicador WebSocket para notificaciones en tiempo real. */
-    public static final String Q_NOTIFICACION_WS = "q.notificacion.ws";
 
     // ── Exchange bean ─────────────────────────────────────────────────────────
 
@@ -79,36 +61,6 @@ public class RabbitMQConfig {
         return QueueBuilder.durable(Q_COMANDA_PRODUCCION).build();
     }
 
-    /**
-     * Declara la cola durable para las solicitudes de impresión de tickets.
-     *
-     * @return cola con el nombre {@value #Q_IMPRESION_TICKET}
-     */
-    @Bean
-    Queue qImpresionTicket() {
-        return QueueBuilder.durable(Q_IMPRESION_TICKET).build();
-    }
-
-    /**
-     * Declara la cola durable para el envío de notificaciones por correo electrónico.
-     *
-     * @return cola con el nombre {@value #Q_NOTIFICACION_EMAIL}
-     */
-    @Bean
-    Queue qNotificacionEmail() {
-        return QueueBuilder.durable(Q_NOTIFICACION_EMAIL).build();
-    }
-
-    /**
-     * Declara la cola durable para la emisión de notificaciones por WebSocket.
-     *
-     * @return cola con el nombre {@value #Q_NOTIFICACION_WS}
-     */
-    @Bean
-    Queue qNotificacionWs() {
-        return QueueBuilder.durable(Q_NOTIFICACION_WS).build();
-    }
-
     // ── Bindings ──────────────────────────────────────────────────────────────
 
     /**
@@ -121,44 +73,6 @@ public class RabbitMQConfig {
     @Bean
     Binding bindingComandaProduccion(Queue qComandaProduccion, TopicExchange altoroExchange) {
         return BindingBuilder.bind(qComandaProduccion).to(altoroExchange).with(RK_COMANDA_NUEVA);
-    }
-
-    /**
-     * Enlaza la cola de impresión al exchange con la routing key {@value #RK_IMPRESION_TICKET}.
-     *
-     * @param qImpresionTicket cola destino
-     * @param altoroExchange   exchange de la aplicación
-     * @return binding configurado
-     */
-    @Bean
-    Binding bindingImpresionTicket(Queue qImpresionTicket, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qImpresionTicket).to(altoroExchange).with(RK_IMPRESION_TICKET);
-    }
-
-    /**
-     * Enlaza la cola de notificaciones por email al exchange con la routing key
-     * {@value #RK_NOTIFICACION_EMAIL}.
-     *
-     * @param qNotificacionEmail cola destino
-     * @param altoroExchange     exchange de la aplicación
-     * @return binding configurado
-     */
-    @Bean
-    Binding bindingNotificacionEmail(Queue qNotificacionEmail, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qNotificacionEmail).to(altoroExchange).with(RK_NOTIFICACION_EMAIL);
-    }   
-
-    /**
-     * Enlaza la cola de notificaciones WebSocket al exchange con la routing key
-     * {@value #RK_NOTIFICACION_WS}.
-     *
-     * @param qNotificacionWs cola destino
-     * @param altoroExchange  exchange de la aplicación
-     * @return binding configurado
-     */
-    @Bean
-    Binding bindingNotificacionWs(Queue qNotificacionWs, TopicExchange altoroExchange) {
-        return BindingBuilder.bind(qNotificacionWs).to(altoroExchange).with(RK_NOTIFICACION_WS);
     }
 
     // ── Message converter & template ──────────────────────────────────────────

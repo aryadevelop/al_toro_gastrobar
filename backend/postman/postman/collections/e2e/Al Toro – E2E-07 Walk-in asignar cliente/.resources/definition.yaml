@@ -8,7 +8,7 @@ description: |-
   **Pre-condición:** NO requiere seed. La visita walk-in se crea por API (`reservaId=null`).
   **Cliente:** paola.rojas@gmail.com — se localiza por fragmento de correo (`?correo=paola`) y se
   asigna a la visita ya existente.
-  **Ventana horaria:** la asignación de mesa valida 17:00–22:00 (`LocalTime.now()`).
+  La asignación de mesa no tiene restricción horaria.
 
   **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
   | Orden | Rol | Paso | Aserción |

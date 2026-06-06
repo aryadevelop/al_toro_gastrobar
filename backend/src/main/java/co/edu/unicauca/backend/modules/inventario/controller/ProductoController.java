@@ -1,18 +1,27 @@
 package co.edu.unicauca.backend.modules.inventario.controller;
 
+import co.edu.unicauca.backend.modules.inventario.dto.request.CambioEstadoRequest;
+import co.edu.unicauca.backend.modules.inventario.dto.response.CambioEstadoImplicacionesResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.CambioEstadoResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.service.EstadoInventarioService;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
+import co.edu.unicauca.backend.shared.enums.EstadoGenerico;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import lombok.RequiredArgsConstructor;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PutMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -39,6 +48,7 @@ import java.util.List;
 public class ProductoController {
 
     private final ProductoService productoService;
+    private final EstadoInventarioService estadoInventarioService;
 
     /**
      * Retorna los productos activos de la carta, agrupados por categoría de carta.
@@ -112,5 +122,29 @@ public class ProductoController {
 
         List<ProductoBusquedaResponse> resultados = productoService.buscarProductos(q);
         return ResponseEntity.ok(ApiResponse.ok("Productos encontrados", resultados));
+    }
+
+    @GetMapping("/{productoId}/estado/implicaciones")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Evaluar implicaciones del cambio de estado de un producto")
+    public ResponseEntity<ApiResponse<CambioEstadoImplicacionesResponse>> evaluarCambioEstadoProducto(
+            @PathVariable("productoId") Long productoId,
+            @Parameter(description = "Estado al que se desea cambiar el producto")
+            @RequestParam("estado") EstadoGenerico estado) {
+
+        CambioEstadoImplicacionesResponse response = estadoInventarioService
+                .evaluarCambioEstadoProducto(productoId, estado);
+        return ResponseEntity.ok(ApiResponse.ok(response));
+    }
+
+    @PutMapping("/{productoId}/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cambiar el estado de un producto")
+    public ResponseEntity<ApiResponse<CambioEstadoResponse>> cambiarEstadoProducto(
+            @PathVariable("productoId") Long productoId,
+            @Valid @RequestBody CambioEstadoRequest request) {
+
+        CambioEstadoResponse response = estadoInventarioService.cambiarEstadoProducto(productoId, request);
+        return ResponseEntity.ok(ApiResponse.ok(response));
     }
 }

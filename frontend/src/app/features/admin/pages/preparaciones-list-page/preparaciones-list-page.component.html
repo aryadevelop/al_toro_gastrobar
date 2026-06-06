@@ -1,0 +1,94 @@
+<section class="page-grid">
+  <app-page-header title="Preparaciones" subtitle="Gestión de Preparaciones"></app-page-header>
+  
+  <article class="card p-4">
+    <div *ngIf="isLoading" class="text-center py-5">
+      <span class="spinner-border text-primary" role="status"></span>
+      <p class="mt-2 text-secondary">Cargando preparaciones...</p>
+    </div>
+
+    <div class="table-responsive" *ngIf="!isLoading && preparaciones.length > 0">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Categoría</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let prep of preparaciones" [ngClass]="{'text-muted': prep.estado === 'INACTIVE'}">
+            <td class="fw-bold">{{ prep.nombre }}</td>
+            <td><span class="badge bg-light text-dark">{{ prep.categoria }}</span></td>
+            <td>
+              <span *ngIf="prep.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
+              <span *ngIf="prep.estado === 'INACTIVE'" class="badge bg-secondary">Inactivo</span>
+            </td>
+            <td>
+              <button 
+                class="btn btn-sm" 
+                [ngClass]="prep.estado === 'ACTIVE' ? 'btn-outline-warning' : 'btn-outline-success'"
+                (click)="abrirModalEstado(prep)">
+                {{ prep.estado === 'ACTIVE' ? 'Desactivar' : 'Activar' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="!isLoading && preparaciones.length === 0" class="text-center py-5">
+      <p class="text-muted">No hay preparaciones registradas.</p>
+    </div>
+  </article>
+
+  <!-- Modal de Cambio de Estado -->
+  <app-modal-base 
+    [open]="isModalOpen" 
+    [title]="selectedPrep?.estado === 'ACTIVE' ? 'Desactivar Preparación' : 'Activar Preparación'"
+    (close)="cerrarModal()">
+    
+    <div *ngIf="isValidatingState" class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-secondary">Comprobando reservas futuras...</p>
+    </div>
+
+    <div *ngIf="!isValidatingState && selectedPrep">
+      <div *ngIf="selectedPrep.estado === 'ACTIVE'">
+        <p>
+          ¿Estás seguro de desactivar esta preparación? 
+          <strong>No estará disponible para nuevas reservas.</strong>
+        </p>
+
+        <!-- Advertencia si hay reservas futuras -->
+        <div *ngIf="validationData?.tieneReservasFuturas" class="alert alert-warning">
+          <strong>⚠️ Atención:</strong> Esta preparación está incluida en <strong>{{ validationData?.cantidadReservas }}</strong> reservas futuras. 
+          ¿Deseas notificar a los clientes sobre el cambio?
+        </div>
+      </div>
+      
+      <div *ngIf="selectedPrep.estado !== 'ACTIVE'">
+        <p>¿Estás seguro de activar esta preparación? Estará nuevamente disponible en el catálogo para nuevas reservas.</p>
+      </div>
+
+      <div class="form-group mb-3">
+        <label class="form-label">Motivo del cambio (opcional):</label>
+        <input type="text" class="form-control" [(ngModel)]="stateChangeReason" placeholder="Razón de la desactivación/activación">
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <button class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
+        
+        <ng-container *ngIf="selectedPrep.estado === 'ACTIVE' && validationData?.tieneReservasFuturas">
+          <button class="btn btn-warning" (click)="confirmarCambioEstado(false)">Desactivar sin notificar</button>
+          <button class="btn btn-danger" (click)="confirmarCambioEstado(true)">Notificar y desactivar</button>
+        </ng-container>
+
+        <ng-container *ngIf="selectedPrep.estado !== 'ACTIVE' || !validationData?.tieneReservasFuturas">
+          <button class="btn btn-primary" (click)="confirmarCambioEstado()">Confirmar</button>
+        </ng-container>
+      </div>
+    </div>
+  </app-modal-base>
+</section>

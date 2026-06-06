@@ -4,6 +4,7 @@ import co.edu.unicauca.backend.modules.auth.repository.SesionRepository;
 import co.edu.unicauca.backend.modules.auth.security.JwtTokenProvider;
 import co.edu.unicauca.backend.modules.inventario.dto.response.AjusteInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ItemAjusteInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MovimientoInventarioHistorialResponse;
 import co.edu.unicauca.backend.modules.inventario.service.MovimientoInventarioService;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
@@ -17,6 +18,7 @@ import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.List;
 
 import static org.mockito.ArgumentMatchers.any;
@@ -103,6 +105,52 @@ class MovimientoInventarioControllerTest {
                             .content("{\"productoId\":1,\"tipo\":\"EGRESO\"}")
                             .with(user("cocinero@altoro.com").roles("COCINERO")))
                     .andExpect(status().isUnprocessableEntity());
+        }
+    }
+
+    @Nested
+    @DisplayName("POST /api/inventario/movimientos/registro")
+    class RegistrarMovimiento {
+
+        @Test
+        @DisplayName("body válido con fecha → 201")
+        void bodyValidoConFecha_retorna201() throws Exception {
+            AjusteInventarioResponse resp = AjusteInventarioResponse.builder()
+                    .movimientoId(101L).stockActualizado(new BigDecimal("5")).comandasNotificadas(0).build();
+            when(movimientoService.registrarMovimiento(any(), any())).thenReturn(resp);
+
+            mockMvc.perform(post("/api/inventario/movimientos/registro")
+                            .contentType("application/json")
+                            .content("{\"productoId\":1,\"cantidad\":3.000,\"tipo\":\"INGRESO\",\"fecha\":\"2026-06-05T10:30:00\",\"observaciones\":\"Ingreso prueba\"}")
+                            .with(user("cocinero@altoro.com").roles("COCINERO")))
+                    .andExpect(status().isCreated())
+                    .andExpect(jsonPath("$.message").value("Movimiento de inventario registrado correctamente."))
+                    .andExpect(jsonPath("$.data.movimientoId").value(101));
+        }
+    }
+
+    @Nested
+    @DisplayName("GET /api/inventario/movimientos")
+    class ListarHistorico {
+
+        @Test
+        @DisplayName("retorna historial de movimientos")
+        void retornaHistorialDeMovimientos() throws Exception {
+            MovimientoInventarioHistorialResponse item = MovimientoInventarioHistorialResponse.builder()
+                    .movimientoId(55L)
+                    .tipo("INGRESO")
+                    .cantidad(new BigDecimal("3"))
+                    .movimientoFechaHora(LocalDateTime.of(2026, 6, 5, 10, 0))
+                    .observaciones("Ingreso test")
+                    .productoId(1L)
+                    .build();
+            when(movimientoService.listarMovimientosHistorico()).thenReturn(List.of(item));
+
+            mockMvc.perform(get("/api/inventario/movimientos")
+                            .with(user("cocinero@altoro.com").roles("COCINERO")))
+                    .andExpect(status().isOk())
+                    .andExpect(jsonPath("$.data.length()").value(1))
+                    .andExpect(jsonPath("$.data[0].movimientoId").value(55));
         }
     }
 }

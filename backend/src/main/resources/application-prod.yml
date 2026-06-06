@@ -44,6 +44,9 @@ management:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false  # SMTP caído no debe marcar la app como unhealthy
 
 # Swagger deshabilitado: no exponer la API publica en produccion
 springdoc:

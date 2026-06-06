@@ -102,13 +102,11 @@ class ComandaProduccionMapperTest {
         Producto plato1 = producto(1L, "Bandeja", CategoriaProducto.PLATO);
         Producto plato2 = producto(2L, "Arepa", CategoriaProducto.PLATO);
         Producto bebida = producto(3L, "Limonada", CategoriaProducto.BEBIDA);
-        Producto otro = producto(4L, "Servilletas", CategoriaProducto.OTRO);
 
         List<ComandaItem> items = List.of(
                 item(100L, plato1, 1, null),
                 item(101L, plato2, 2, null),
-                item(102L, bebida, 1, "Sin azúcar"),
-                item(103L, otro, 1, null));
+                item(102L, bebida, 1, "Sin azúcar"));
 
         ComandaProduccionDetalleResponse d = mapper.toDetalle(comanda(), mesa(), items);
 
@@ -116,8 +114,6 @@ class ComandaProduccionMapperTest {
                 .containsExactly("Arepa", "Bandeja");
         assertThat(d.getBebidas()).extracting("productoNombre")
                 .containsExactly("Limonada");
-        assertThat(d.getOtros()).extracting("productoNombre")
-                .containsExactly("Servilletas");
         assertThat(d.getBebidas().get(0).getDescripcion()).isEqualTo("Sin azúcar");
     }
 
@@ -181,6 +177,5 @@ class ComandaProduccionMapperTest {
         ComandaProduccionDetalleResponse d = mapper.toDetalle(comanda(), mesa(), List.of());
         assertThat(d.getPlatos()).isEmpty();
         assertThat(d.getBebidas()).isEmpty();
-        assertThat(d.getOtros()).isEmpty();
     }
 }

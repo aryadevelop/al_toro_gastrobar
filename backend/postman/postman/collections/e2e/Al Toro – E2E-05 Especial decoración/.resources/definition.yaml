@@ -11,7 +11,7 @@ description: |-
   re-sembrar con `docker compose down -v && docker compose up --build`.
   **Cliente:** paola.rojas@gmail.com (hardcodeado en el paso de cliente). El `clienteId` se captura
   de la cuenta del cajero (la consulta de reservas NO expone clienteId, solo clienteNombre).
-  **Ventana horaria:** la asignación de mesa valida 17:00–22:00 (`LocalTime.now()`).
+  La asignación de mesa no tiene restricción horaria.
 
   **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
   | Orden | Rol | Paso | Aserción |

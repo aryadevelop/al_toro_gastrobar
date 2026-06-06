@@ -1,7 +1,9 @@
 package co.edu.unicauca.backend.modules.inventario.mapper;
 
 import co.edu.unicauca.backend.modules.inventario.dto.response.ItemAjusteInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MovimientoInventarioHistorialResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
+import co.edu.unicauca.backend.modules.inventario.entity.MovimientoInventario;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
 import org.springframework.stereotype.Component;
 
@@ -43,6 +45,18 @@ public class MovimientoInventarioMapper {
                 .nombre(insumo.getInsumoNombre())
                 .stockActual(insumo.getInsumoStockActual())
                 .unidadMedida(insumo.getInsumoUnidad().name())
+                .build();
+    }
+
+    public MovimientoInventarioHistorialResponse toHistorialResponse(MovimientoInventario movimiento) {
+        return MovimientoInventarioHistorialResponse.builder()
+                .movimientoId(movimiento.getMovimientoId())
+                .tipo(movimiento.getMovimientoTipo().name())
+                .cantidad(movimiento.getMovimientoCantidad())
+                .movimientoFechaHora(movimiento.getMovimientoFechaHora())
+                .observaciones(movimiento.getMovimientoObservaciones())
+                .productoId(movimiento.getProducto() != null ? movimiento.getProducto().getProductoId() : null)
+                .insumoId(movimiento.getInsumo() != null ? movimiento.getInsumo().getInsumoId() : null)
                 .build();
     }
 }

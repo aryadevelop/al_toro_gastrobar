@@ -150,8 +150,6 @@ values:
     value: ''
   - key: comandaIdCompletada
     value: ''
-  - key: tmpNotificacionId
-    value: ''
   - key: tmpFechaHora
     value: ''
   - key: tmpComandaBarraId
@@ -166,9 +164,7 @@ values:
     value: ''
   - key: tmpFechaLlegada
     value: ''
-  - key: tmpReservaId
-    value: ''
   - key: tmpClienteId
     value: ''
-  - key: tmpVisitaId
+  - key: accessToken
     value: ''
