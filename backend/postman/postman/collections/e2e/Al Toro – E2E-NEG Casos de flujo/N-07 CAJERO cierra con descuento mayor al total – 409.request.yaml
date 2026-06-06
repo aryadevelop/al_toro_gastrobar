@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-07 CAJERO cierra cuenta con descuento mayor al total – 409 Conflict
 description: |-
   Un descuento superior al total de la cuenta viola la regla de cierre → 409 NEG-001. El
   beforeRequest crea un walk-in con un ítem de carta (cuenta > 0) y deja la visita abierta. La
   request principal cierra con un descuento desproporcionado. Coincide con la colección
   por-endpoint VE-06.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
 url: "{{baseUrl}}/api/ventas"
 method: POST
 headers:

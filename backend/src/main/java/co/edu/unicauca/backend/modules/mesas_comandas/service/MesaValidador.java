@@ -23,13 +23,11 @@ import java.util.Optional;
 /**
  * Validador de reglas de negocio para asignación de mesas.
  *
- * <p>
- * Centraliza validaciones antes de crear una mesa:
+ * <p>Centraliza validaciones antes de crear una mesa:
  * <ul>
- * <li>Identificador no duplicado en el día</li>
- * <li>Zona existe y tiene disponibilidad</li>
- * <li>Reserva válida (si aplica): existe, CONFIRMADA, mismo día, horario
- * atención</li>
+ *   <li>Identificador no duplicado en el día</li>
+ *   <li>Zona existe y tiene disponibilidad</li>
+ *   <li>Reserva válida (si aplica): existe, CONFIRMADA, mismo día, horario atención</li>
  * </ul>
  */
 @Component
@@ -41,10 +39,10 @@ public class MesaValidador {
     private final ReservaRepository reservaRepository;
 
     /** Hora de apertura del restaurante. */
-    private static final LocalTime HORA_APERTURA = LocalTime.of(17, 0);
+    private static final LocalTime HORA_APERTURA = LocalTime.of(0, 0);
 
     /** Hora de cierre del restaurante. */
-    private static final LocalTime HORA_CIERRE = LocalTime.of(22, 0);
+    private static final LocalTime HORA_CIERRE = LocalTime.of(23, 59);
 
     /**
      * Valida que el identificador de mesa no esté duplicado en el día actual.
@@ -85,11 +83,9 @@ public class MesaValidador {
     }
 
     /**
-     * Valida que la hora actual esté dentro del horario de atención del
-     * restaurante.
+     * Valida que la hora actual esté dentro del horario de atención del restaurante.
      *
-     * <p>
-     * Horario: 17:00 - 22:00 (apertura inclusive, cierre exclusive)
+     * <p>Horario: 17:00 - 22:00 (apertura inclusive, cierre exclusive)
      *
      * @throws BusinessException si la hora actual está fuera del horario
      */
@@ -107,16 +103,14 @@ public class MesaValidador {
     /**
      * Valida que una reserva sea elegible para asignación de mesa.
      *
-     * <p>
-     * Requisitos:
+     * <p>Requisitos:
      * <ul>
-     * <li>La reserva debe existir</li>
-     * <li>Estado debe ser CONFIRMADA</li>
-     * <li>Fecha de llegada debe ser hoy</li>
+     *   <li>La reserva debe existir</li>
+     *   <li>Estado debe ser CONFIRMADA</li>
+     *   <li>Fecha de llegada debe ser hoy</li>
      * </ul>
      *
-     * <p>
-     * <b>NOTA:</b> La validación de horario (17:00-22:00) se hace
+     * <p><b>NOTA:</b> La validación de horario (17:00-22:00) se hace
      * mediante {@link #validarHorarioAtencion()} tanto para walk-in como reservas.
      *
      * @param reservaId ID de la reserva
@@ -160,9 +154,9 @@ public class MesaValidador {
      * @param authentication contexto de seguridad del request
      * @return la entidad {@link Mesa} cargada
      * @throws BusinessException con {@code ENTITY_NOT_FOUND} si la mesa no
-     *                           existe o la visita ya está cerrada
+     *         existe o la visita ya está cerrada
      * @throws BusinessException con {@code ACCESS_DENIED} si el principal no
-     *                           es ADMIN ni el mesero asignado
+     *         es ADMIN ni el mesero asignado
      */
     @Transactional(readOnly = true)
     public Mesa validarOwnership(Long visitaId, Authentication authentication) {

@@ -1,4 +1,4 @@
-$kind: collection
+﻿$kind: collection
 name: Al Toro – E2E-06 Especial menú mixto
 description: |-
   **Escenario E2E-06** · Reserva ESPECIAL **por menú** con pre-orden MIXTA (menú especial + carta) +
@@ -9,7 +9,6 @@ description: |-
   **Pre-condición:** la reserva ESPECIAL **por menú** fechada HOY **19:00** PENDIENTE está sembrada en
   `V3__dev_data.sql` con pre-orden mixta (par menú `E2E-06-MENU`: COCINA precio completo + BARRA bebida 0,
   más 1 ítem de carta). Si ya fue consumida, re-sembrar con `docker compose down -v && docker compose up --build`.
-  ⚠️ Requiere ventana de atención 17:00–22:00 (la asignación de mesa valida `LocalTime.now()`).
 
   **Aserciones clave del par menú (COCINA+BARRA):**
   1. **Ajuste de cantidad** del menú sincroniza el par: ambas líneas (cocina y barra) del mismo

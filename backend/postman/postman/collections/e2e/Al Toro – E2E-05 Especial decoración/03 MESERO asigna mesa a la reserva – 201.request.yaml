@@ -1,9 +1,8 @@
-$kind: http-request
+﻿$kind: http-request
 name: 03 MESERO asigna mesa a la reserva (inicia visita) – 201 Created
 description: |-
   El mesero asigna mesa a la reserva CONFIRMADA, creando la Visita. Como la reserva NO tiene pre-orden,
   el borrador arranca vacío (se arma desde cero en la visita). Captura `tmpVisitaId`.
-  ⚠️ Requiere ventana 17:00–22:00.
 url: "{{baseUrl}}/api/mesas"
 method: POST
 headers:

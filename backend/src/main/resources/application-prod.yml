@@ -20,7 +20,7 @@ spring:
   # Correo: credenciales inyectadas desde variables de entorno
   mail:
     host: ${MAIL_HOST}
-    port: ${MAIL_PORT}
+    port: ${MAIL_PORT:587}
     username: ${MAIL_USERNAME}
     password: ${MAIL_PASSWORD}
 
@@ -44,6 +44,9 @@ management:
     web:
       exposure:
         include: health
+  health:
+    mail:
+      enabled: false  # SMTP caído no debe marcar la app como unhealthy
 
 # Swagger deshabilitado: no exponer la API publica en produccion
 springdoc:

@@ -14,8 +14,6 @@ import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Nested;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
-import org.junit.jupiter.params.ParameterizedTest;
-import org.junit.jupiter.params.provider.EnumSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
@@ -255,32 +253,6 @@ class ComandaBorradorValidadorTest {
 
             // Assert
             assertThat(resultado).isEqualTo(EstacionComanda.BARRA);
-        }
-
-        @Test
-        @DisplayName("OTRO debe lanzar BusinessException con NEG-001")
-        void otroDebeLanzarBusinessException() {
-            // Arrange
-            Producto producto = productoSinStock(CategoriaProducto.OTRO);
-
-            // Act & Assert
-            assertThatThrownBy(() -> validador.resolverEstacion(producto))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", "NEG-001")
-                    .hasMessageContaining("OTRO");
-        }
-
-        @ParameterizedTest(name = "Categoría no soportada: {0}")
-        @EnumSource(value = CategoriaProducto.class, names = {"OTRO"})
-        @DisplayName("Cualquier categoría no admitida debe lanzar BusinessException")
-        void categoriaNoAdmitidaDebeLanzarExcepcion(CategoriaProducto categoria) {
-            // Arrange
-            Producto producto = productoSinStock(categoria);
-
-            // Act & Assert
-            assertThatThrownBy(() -> validador.resolverEstacion(producto))
-                    .isInstanceOf(BusinessException.class)
-                    .hasFieldOrPropertyWithValue("code", "NEG-001");
         }
     }
 

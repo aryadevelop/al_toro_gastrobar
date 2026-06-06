@@ -1,11 +1,10 @@
-$kind: http-request
+﻿$kind: http-request
 name: N-06 COCINERO notifica cambio sobre comanda no PENDIENTE – 409 Conflict
 description: |-
   `POST /api/notificaciones/cambio` solo procede sobre comandas PENDIENTE (sin CAMBIO activo).
   El beforeRequest crea un walk-in, arma y envía una comanda de cocina y la INICIA (queda
   EN_PREPARACION). La request principal pide CAMBIO sobre esa comanda no PENDIENTE → 409 NEG-002.
   Coincide con la colección por-endpoint POST /api/notificaciones/cambio AC-07.
-  ⚠️ Requiere ventana 17:00–22:00 (POST /api/mesas valida LocalTime.now()).
   // VERIFICAR EN VIVO: setup pesado (walk-in→armar→enviar→iniciar); `iniciar` descuenta inventario.
 url: "{{baseUrl}}/api/notificaciones/cambio"
 method: POST

@@ -19,10 +19,6 @@ description: |-
   Respuestas de error: `{ "success": false, "code": "<CODE>", "message": "..." }`. Cada test
   asevera el status HTTP y, cuando aplica, el `code` serializado (NEG-001, NEG-002, ENT-001…).
 
-  ⚠️ VENTANA HORARIA 17:00–22:00: los negativos que asignan mesa (N-08, N-09, N-13 — arman y
-  cierran una visita walk-in) requieren correrse dentro de esa ventana, porque `POST /api/mesas`
-  valida `LocalTime.now()`. Los negativos puros de reserva/comanda/canje no dependen de la hora.
-
   ⚠️ DATOS SEMBRADOS: N-02 descubre una reserva ESPECIAL PENDIENTE sembrada en V3 (cualquier
   hora; este caso NO la confirma). N-12 usa el cliente seed `sinpuntos@altoro.com` (clienteId 23).
   Para datos frescos: `docker compose down -v && docker compose up --build`.

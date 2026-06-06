@@ -6,6 +6,7 @@ import co.edu.unicauca.backend.modules.inventario.dto.response.CategoriaCartaRes
 import co.edu.unicauca.backend.modules.inventario.dto.response.MenuEspecialResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoBusquedaResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ProductoInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.service.EstadoInventarioService;
 import co.edu.unicauca.backend.modules.inventario.service.ProductoService;
 
 import org.junit.jupiter.api.DisplayName;
@@ -38,6 +39,7 @@ class ProductoControllerTest {
     @Autowired MockMvc mockMvc;
 
     @MockitoBean ProductoService productoService;
+    @MockitoBean EstadoInventarioService estadoInventarioService;
     @MockitoBean JwtTokenProvider jwtTokenProvider;
     @MockitoBean UserDetailsService userDetailsService;
     @MockitoBean SesionRepository sesionRepository;

@@ -167,4 +167,4 @@ Sí. La descripción del commit puede ir en español, pero el tipo y el formato 
 
 ---
 
-*Última actualización: Abril 2026 — Equipo ARYA, Universidad del Cauca.*
+*Última actualización: Junio 2026 — Equipo ARYA, Universidad del Cauca.*

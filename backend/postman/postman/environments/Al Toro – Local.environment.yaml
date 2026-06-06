@@ -150,8 +150,6 @@ values:
     value: ''
   - key: comandaIdCompletada
     value: ''
-  - key: tmpNotificacionId
-    value: ''
   - key: tmpFechaHora
     value: ''
   - key: tmpComandaBarraId
@@ -161,4 +159,12 @@ values:
   - key: tmpMenuGrupo
     value: ''
   - key: tmpMenuCantidadAntes
+    value: ''
+  - key: tmpMesaIdent
+    value: ''
+  - key: tmpFechaLlegada
+    value: ''
+  - key: tmpClienteId
+    value: ''
+  - key: accessToken
     value: ''

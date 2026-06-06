@@ -12,8 +12,7 @@ package co.edu.unicauca.backend.shared.enums;
  */
 public enum CategoriaProducto {
     PLATO("Plato"),
-    BEBIDA("Bebida"),
-    OTRO("Otro");
+    BEBIDA("Bebida");
 
     private final String descripcion;
 

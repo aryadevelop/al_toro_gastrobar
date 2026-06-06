@@ -58,6 +58,17 @@ public interface UsuarioRolRepository extends JpaRepository<UsuarioRol, UsuarioR
     long countByRolNombreAndRolEstado(RolNombre rolNombre, RolEstado rolEstado);
 
     /**
+     * Verifica si existe al menos un usuario con el rol y estado indicados,
+     * sin importar a qué usuario pertenece. Usado por el bootstrap de producción
+     * para determinar si ya hay un ADMIN activo antes de crear uno nuevo.
+     *
+     * @param rolNombre nombre del rol a verificar
+     * @param rolEstado estado requerido del rol
+     * @return {@code true} si existe al menos un registro con el rol y estado; {@code false} en caso contrario
+     */
+    boolean existsByRolNombreAndRolEstado(RolNombre rolNombre, RolEstado rolEstado);
+
+    /**
      * Actualiza el estado de todos los roles de un usuario.
      *
      * @param usuarioId identificador del usuario

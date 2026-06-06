@@ -1,5 +1,9 @@
 spring:
 
+  # Dev carga el schema/catálogo base MÁS los datos de desarrollo (usuarios de prueba)
+  flyway:
+    locations: classpath:db/migration,classpath:db/migration-dev
+
   # PostgreSQL via Docker; defaults para correr la app localmente sin Docker
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/altoro_db}
@@ -28,7 +32,12 @@ spring:
     username: ${MAIL_USERNAME:tu_usuario_mailtrap}
     password: ${MAIL_PASSWORD:tu_password_mailtrap}
 
-# Secret fijo para dev; nunca usar en prod
+management:
+  health:
+    mail:
+      enabled: false  # credenciales Mailtrap son placeholder en dev; no tiene sentido verificarlas
+
+# Secret fijo para desarrollo; en producción se inyecta desde la variable de entorno JWT_SECRET
 jwt:
   secret: ${JWT_SECRET:altoro-dev-only-secret-not-for-prod}
 
@@ -42,4 +51,3 @@ logging:
     co.edu.unicauca: DEBUG
     org.springframework.security: DEBUG
     org.springframework.amqp: DEBUG
-

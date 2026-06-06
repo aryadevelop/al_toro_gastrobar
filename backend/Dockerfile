@@ -23,8 +23,11 @@ FROM eclipse-temurin:21-jre-alpine
 
 WORKDIR /app
 
-# Crear usuario no-root por seguridad.
-RUN addgroup -S altoro && adduser -S altoro -G altoro
+# Crear usuario no-root, darle ownership de /app y pre-crear el dir de uploads de prod
+# para que el volumen Docker herede los permisos correctos en el primer arranque.
+RUN addgroup -S altoro && adduser -S altoro -G altoro && \
+    mkdir -p /app/uploads /opt/altoro/uploads && \
+    chown -R altoro:altoro /app /opt/altoro/uploads
 USER altoro
 
 # Copiar solo el JAR generado en el stage anterior
@@ -34,4 +37,4 @@ COPY --from=builder /app/target/*.jar app.jar
 EXPOSE 8080
 
 # Comando de inicio.
-ENTRYPOINT ["java", "-jar", "app.jar"]
+ENTRYPOINT ["java", "-XX:MaxRAMPercentage=75.0", "-jar", "app.jar"]

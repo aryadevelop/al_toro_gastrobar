@@ -27,7 +27,7 @@ body:
 scripts:
   - type: beforeRequest
     code: |-
-      // fechaHoraLlegada = HOY 19:00 (dentro de 17:00–22:00)
+      // fechaHoraLlegada = HOY 19:00
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
       pm.environment.set('tmpFechaLlegada',

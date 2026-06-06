@@ -11,7 +11,7 @@ headers:
 scripts:
   - type: beforeRequest
     code: |-
-      // fechaHoraLlegada = HOY 19:00 (dentro de 17:00–22:00; una BÁSICA no exige anticipación)
+      // fechaHoraLlegada = HOY 19:00 (una BÁSICA no exige anticipación)
       const pad = n => String(n).padStart(2, '0');
       const d = new Date();
       const fecha = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;

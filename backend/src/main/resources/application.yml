@@ -72,8 +72,13 @@ springdoc:
 
 # Expiracion JWT comun: 30 minutos para access token; el secret lo define cada perfil
 jwt:
-  expiration: 1800000
+  expiration: ${JWT_EXPIRATION:1800000}
   refresh-expiration: 604800000
+
+# Directorio base para archivos subidos por el ADMIN (imágenes de decoraciones y zonas).
+# Dev: carpeta local ./uploads/ | Prod: volumen Docker montado en /opt/altoro/uploads
+storage:
+  upload-dir: ${UPLOAD_DIR:./uploads}
 
 decoracion:
   imagenes-dir: ${DECORACION_IMAGENES_DIR:decoracion_imagenes}
