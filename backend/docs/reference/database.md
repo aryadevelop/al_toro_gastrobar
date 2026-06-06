@@ -4,6 +4,24 @@ El backend utiliza PostgreSQL 15 con el schema `restaurante`. Las migraciones so
 
 ---
 
+## Tabla de contenidos
+
+- [Migraciones Flyway](#migraciones-flyway)
+- [Convenciones del schema](#convenciones-del-schema)
+- [Módulo Auth](#módulo-auth)
+- [Módulo Usuarios](#módulo-usuarios)
+- [Módulo Reservas](#módulo-reservas)
+- [Módulo Mesas y comandas](#módulo-mesas-y-comandas)
+- [Módulo Producción e inventario](#módulo-producción-e-inventario)
+- [Módulo Pagos y caja](#módulo-pagos-y-caja)
+- [Módulo Notificaciones](#módulo-notificaciones)
+- [Módulo Fidelización](#módulo-fidelización)
+- [Índices de rendimiento](#índices-de-rendimiento)
+- [Extensiones PostgreSQL](#extensiones-postgresql)
+- [Diagrama de relaciones](#diagrama-de-relaciones)
+
+---
+
 ## Migraciones Flyway
 
 | Archivo | Entorno | Contenido |
@@ -12,7 +30,7 @@ El backend utiliza PostgreSQL 15 con el schema `restaurante`. Las migraciones so
 | `db/migration/V2__seed_data.sql` | prod + dev | Datos de catálogo base (categorías, productos, insumos, opciones) |
 | `db/migration-dev/V3__dev_data.sql` | dev únicamente | Datos de prueba: usuarios, reservas, visitas, comandas |
 
-**Regla crítica de versiones:** NEVER crear migraciones más allá de V5. `V4` y `V5` están reservadas para seeds de tests de integración.
+**Regla crítica de versiones:** Nunca crear migraciones más allá de V5. `V4` y `V5` están reservadas para seeds de tests de integración.
 
 Resetear base de datos en desarrollo:
 
@@ -28,7 +46,7 @@ docker compose down -v && docker compose up --build
 - PK surrogate: `BIGSERIAL` para la mayoría de tablas; `SERIAL` para `CategoriaCarta`
 - Patrón PK=FK: `Cliente`, `Empleado`, `Mesa` y `Venta` usan `usuario_id` / `visita_id` como PK que también es FK a la tabla padre (patrón `@MapsId` en JPA)
 - PK compuesta: `Usuario_Rol` (`usuario_id`, `rol_nombre`), `Receta` (`insumo_id`, `producto_id`), `Decoracion_Zona` (`decoracion_id`, `zona_id`), `producto_opcion_modificacion` (`producto_id`, `opcion_id`), `menu_bebida_disponible` (`producto_menu_id`, `producto_bebida_id`)
-- Enumeraciones: implementadas como `VARCHAR` con `CHECK` constraints, no como tipos `ENUM` de PostgreSQL
+- Enumeraciones: implementadas como `VARCHAR` con `CHECK` constraints
 - Auditoría: la mayoría de tablas tienen `created_at TIMESTAMP NOT NULL DEFAULT CURRENT_TIMESTAMP` y `updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP` con trigger `actualizar_updated_at()`. Las tablas `Abono`, `Venta`, `Notificacion`, `Decoracion_Zona`, `comanda_menu_modificacion`, `menu_bebida_disponible`, `producto_opcion_modificacion` y `canje_puntos` solo tienen `created_at`
 - FKs con ON DELETE CASCADE en entidades hijo (ej. `Sesion → Usuario`); ON DELETE RESTRICT donde se requiere integridad (ej. `Reserva → Cliente`)
 
@@ -149,7 +167,7 @@ Opciones de decoración contratables para reservas especiales.
 | `decoracion_id` | `BIGSERIAL` | PK | — |
 | `decoracion_nombre` | `VARCHAR(100)` | NOT NULL | Nombre de la decoración |
 | `decoracion_estado` | `VARCHAR(20)` | NOT NULL, CHECK (`ACTIVO`, `INACTIVO`) | Controla disponibilidad para reservas |
-| `decoracion_costo_adicional` | `DECIMAL(12,2)` | CHECK (>= 0) | NULL = sin costo; valor > 0 = costo mínimo 1.00 |
+| `decoracion_costo_adicional` | `DECIMAL(12,2)` | CHECK (>= 0) | NULL = sin costo; valor >= 0 |
 | `decoracion_imagen_url` | `VARCHAR(500)` | — | URL de imagen |
 | `created_at` | `TIMESTAMP` | NOT NULL, DEFAULT CURRENT_TIMESTAMP | — |
 | `updated_at` | `TIMESTAMP` | DEFAULT CURRENT_TIMESTAMP | Actualizado por trigger |
@@ -500,7 +518,7 @@ Auditoría de canjes del programa de lealtad; registra los puntos canjeados en e
 | `canje_id` | `BIGSERIAL` | PK | — |
 | `cliente_id` | `BIGINT` | NOT NULL, FK → Cliente.usuario_id (RESTRICT) | Cliente que realizó el canje |
 | `empleado_id` | `BIGINT` | NOT NULL, FK → Empleado.usuario_id (RESTRICT) | Empleado que procesó el canje |
-| `canje_puntos_canjeados` | `INTEGER` | NOT NULL, CHECK (> 0) | Puntos que tenía el cliente al momento del canje |
+| `canje_puntos_canjeados` | `INTEGER` | NOT NULL, CHECK (> 0) | Puntos canjeados |
 | `canje_fecha_hora` | `TIMESTAMP` | NOT NULL, DEFAULT CURRENT_TIMESTAMP | Momento del canje |
 
 ---

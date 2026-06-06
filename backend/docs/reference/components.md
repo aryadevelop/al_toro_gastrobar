@@ -4,6 +4,21 @@ El backend es un monolito modularizado en Spring Boot. Cada módulo sigue el pat
 
 ---
 
+## Tabla de contenidos
+
+- [Módulos y sus capas](#módulos-y-sus-capas)
+  - [auth — Autenticación](#auth--autenticación)
+  - [inventario — Productos e inventario](#inventario--productos-e-inventario)
+  - [mesas_comandas — Mesas y comandas](#mesas_comandas--mesas-y-comandas)
+  - [notificaciones — Notificaciones](#notificaciones--notificaciones)
+  - [pagos_caja — Caja y pagos](#pagos_caja--caja-y-pagos)
+  - [reportes — Reportes administrativos](#reportes--reportes-administrativos)
+  - [reservas — Reservas](#reservas--reservas)
+  - [usuarios — Usuarios](#usuarios--usuarios)
+- [Interacciones entre módulos](#interacciones-entre-módulos)
+
+---
+
 ## Módulos y sus capas
 
 Cada módulo organiza sus clases en subcarpetas `controller/`, `service/`, `repository/`, `entity/`, `dto/` y `mapper/`.
