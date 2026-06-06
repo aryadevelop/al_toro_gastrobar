@@ -93,11 +93,11 @@ export interface BackendResumenPagoResponse {
   numeroPersonas: number;
   estado: string;
   tipo: string;
-  totalReserva: number;
+  totalAPagar: number;      // valor total de la reserva (pre-orden + decoración)
   totalAnticipado: number;
   totalDevuelto: number;
-  netoAbonado: number;
-  pendientePorAbonar?: number | null;
+  montoAbonado: number;     // neto = totalAnticipado - totalDevuelto
+  saldoPendiente?: number | null;    // solo presente cuando estado=CONFIRMADA
   pendientePorDevolver?: number | null;
 }
 
@@ -628,4 +628,50 @@ export interface BackendCerrarCuentaRequest {
   visitaId: number;
   descuento?: number | null;
   metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
+}
+
+/* ── Inventario (Admin) ── */
+
+export interface BackendProductoAdminItem {
+  productoId: number;
+  nombre: string;
+  categoria: string;
+  precioVenta: number;
+  stockActual: number;
+  estado: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DISCONTINUED';
+}
+
+/* ── Gestión de Estados (Admin) ── */
+
+export interface BackendValidacionCambioEstado {
+  tieneReservasFuturas: boolean;
+  cantidadReservas: number;
+}
+
+export interface BackendPreparacionAfectada {
+  id: number;
+  nombre: string;
+  categoria: string;
+  estado: string;
+  pedidosPendientes: number;
+  otrosInsumosDescontinuados: boolean;
+}
+
+export interface BackendValidacionDescontinuarInsumo {
+  preparacionesAfectadas: BackendPreparacionAfectada[];
+}
+
+export interface BackendEstadoHistorial {
+  fechaHora: string;
+  usuario: string;
+  estadoAnterior: string;
+  estadoNuevo: string;
+  motivo?: string;
+}
+
+export interface BackendCambiarEstadoRequest {
+  nuevoEstado: string;
+  motivo?: string;
+  notificarClientes?: boolean;
+  accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
 }

@@ -18,6 +18,7 @@ export const API_PATHS = {
         crear: `${API}/reservas`,
         modificar: (reservaId: string | number) => `${API}/reservas/${reservaId}`,
         cancelar: (reservaId: string | number) => `${API}/reservas/${reservaId}/cancelar`,
+        confirmar: (reservaId: string | number) => `${API}/reservas/${reservaId}/confirmar`,
         abonos: (reservaId: string | number) => `${API}/reservas/${reservaId}/abonos`,
         resumenPago: (reservaId: string | number) => `${API}/reservas/${reservaId}/resumen-pago`,
         futuras: `${API}/reservas/cliente/futuras`,
@@ -100,4 +101,29 @@ export const API_PATHS = {
         puntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/puntos`,
         canjearPuntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/canje-puntos`,
     },
+    adminProductos: {
+        listar: `${API}/admin/productos`,
+        validarEstado: (id: string | number) => `${API}/admin/productos/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/productos/${id}/estado`,
+    },
+    adminPreparaciones: {
+        validarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/estado`,
+        historialEstados: (id: string | number) => `${API}/admin/preparaciones/${id}/historial-estados`,
+    },
+    adminInsumos: {
+        validarEstado: (id: string | number) => `${API}/admin/insumos/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/insumos/${id}/estado`,
+    },
+    adminPreparaciones: {
+        validarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/estado`,
+        historialEstados: (id: string | number) => `${API}/admin/preparaciones/${id}/historial-estados`,
+    },
+    adminInsumos: {
+        validarEstado: (id: string | number) => `${API}/admin/insumos/${id}/validar-estado`,
+        cambiarEstado: (id: string | number) => `${API}/admin/insumos/${id}/estado`,
+    },
+    inventarioMovimientos: `${API}/inventario/movimientos`,
+    inventarioBuscar: (query: string) => `${API}/inventario/buscar?q=${query}`,
 } as const;
