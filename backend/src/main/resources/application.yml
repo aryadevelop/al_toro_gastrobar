@@ -76,5 +76,5 @@ jwt:
   refresh-expiration: 604800000
 
 decoracion:
-  imagenes-dir: ${DECORACION_IMAGENES_DIR:../decoracion_imagenes}
+  imagenes-dir: ${DECORACION_IMAGENES_DIR:decoracion_imagenes}
   imagenes-base-url: ${DECORACION_IMAGENES_BASE_URL:}
