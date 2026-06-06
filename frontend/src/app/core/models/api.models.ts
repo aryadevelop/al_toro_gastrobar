@@ -629,3 +629,14 @@ export interface BackendCerrarCuentaRequest {
   descuento?: number | null;
   metodo: 'EFECTIVO' | 'TARJETA' | 'TRANSFERENCIA';
 }
+
+/* ── Inventario (Admin) ── */
+
+export interface BackendProductoAdminItem {
+  productoId: number;
+  nombre: string;
+  categoria: string;
+  precioVenta: number;
+  stockActual: number;
+  estado: 'ACTIVE' | 'INACTIVE';
+}

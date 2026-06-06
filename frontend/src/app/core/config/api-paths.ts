@@ -100,4 +100,7 @@ export const API_PATHS = {
         puntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/puntos`,
         canjearPuntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/canje-puntos`,
     },
+    adminProductos: {
+        listar: `${API}/admin/productos`,
+    },
 } as const;

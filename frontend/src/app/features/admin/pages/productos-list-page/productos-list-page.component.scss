@@ -1,0 +1,66 @@
+.controls-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  align-items: center;
+
+  .search-group {
+    max-width: 400px;
+  }
+
+  .filter-group {
+    min-width: 250px;
+  }
+}
+
+.table {
+  th {
+    font-weight: 600;
+    color: var(--color-text-secondary);
+    border-bottom: 2px solid var(--color-border);
+  }
+
+  td {
+    vertical-align: middle;
+    color: var(--color-text-primary);
+  }
+
+  /* Requerimiento: producto con texto gris cuando está inactivo */
+  tr.estado-inactivo {
+    td {
+      color: #6c757d; /* Bootstrap text-muted equivalent */
+      
+      .badge {
+        opacity: 0.7;
+      }
+    }
+  }
+}
+
+.empty-state {
+  border: 1px dashed var(--color-border);
+  border-radius: 8px;
+  background-color: var(--color-bg-surface);
+}
+
+/* Fix para Bootstrap form-select y alert si no estuviera totalmente importado globalmente */
+.alert {
+  padding: 1rem;
+  border-radius: 0.375rem;
+  margin-bottom: 1rem;
+}
+.alert-warning {
+  color: #856404;
+  background-color: #fff3cd;
+  border: 1px solid #ffeeba;
+}
+.alert-info {
+  color: #0c5460;
+  background-color: #d1ecf1;
+  border: 1px solid #bee5eb;
+}
+.alert-danger {
+  color: #721c24;
+  background-color: #f8d7da;
+  border: 1px solid #f5c6cb;
+}
