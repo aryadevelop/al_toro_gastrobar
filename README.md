@@ -295,6 +295,20 @@ Referencia técnica del backend ubicada en `backend/docs/reference/`:
 
 ---
 
+## Documentación técnica del frontend
+
+Referencia técnica y arquitectónica del frontend ubicada en `frontend/docs/`:
+
+| Documento | Descripción |
+|-----------|-------------|
+| [`architecture.md`](frontend/docs/conventions/architecture.md) | Convenciones de arquitectura Standalone y estructura de características |
+| [`coding-patterns.md`](frontend/docs/conventions/coding-patterns.md) | Patrones de código, uso de Signals y Formularios Reactivos |
+| [`routing-and-guards.md`](frontend/docs/reference/routing-and-guards.md) | Estrategia de enrutamiento perezoso y protección de rutas por roles |
+| [`services-and-websockets.md`](frontend/docs/reference/services-and-websockets.md) | Integración HTTP, WebSockets (STOMP) y tiempo real |
+| [`deployment.md`](frontend/docs/reference/deployment.md) | Estrategia de despliegue Docker Multi-stage y Nginx SPA Fallback |
+
+---
+
 ## Flujo de trabajo Git
 
 Todas las reglas operativas de Git —nombres de ramas, formato de commits, protección de ramas y procedimiento para Pull Requests— están documentadas en:
