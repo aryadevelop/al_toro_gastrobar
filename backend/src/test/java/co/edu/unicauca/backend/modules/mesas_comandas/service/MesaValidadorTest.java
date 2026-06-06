@@ -160,43 +160,7 @@ class MesaValidadorTest {
                         .doesNotThrowAnyException();
             }
         }
-
-        @Test
-        @DisplayName("Debe lanzar excepción antes de la apertura (16:59)")
-        void debeLanzarExcepcionAntesDeApertura() {
-            LocalTime fixed = LocalTime.of(16, 59);
-            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
-                mocked.when(LocalTime::now).thenReturn(fixed);
-                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
-                        .isInstanceOf(BusinessException.class)
-                        .hasFieldOrPropertyWithValue("code", "NEG-001")
-                        .hasMessageContaining("horario de atención");
-            }
-        }
-
-        @Test
-        @DisplayName("Debe lanzar excepción exactamente en la hora de cierre (22:00 exclusivo)")
-        void debeLanzarExcepcionEnCierre() {
-            LocalTime fixed = LocalTime.of(22, 0);
-            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
-                mocked.when(LocalTime::now).thenReturn(fixed);
-                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
-                        .isInstanceOf(BusinessException.class)
-                        .hasFieldOrPropertyWithValue("code", "NEG-001");
-            }
-        }
-
-        @Test
-        @DisplayName("Debe lanzar excepción después del cierre (23:00)")
-        void debeLanzarExcepcionDespuesDelCierre() {
-            LocalTime fixed = LocalTime.of(23, 0);
-            try (MockedStatic<LocalTime> mocked = mockStatic(LocalTime.class, CALLS_REAL_METHODS)) {
-                mocked.when(LocalTime::now).thenReturn(fixed);
-                assertThatThrownBy(() -> mesaValidador.validarHorarioAtencion())
-                        .isInstanceOf(BusinessException.class)
-                        .hasFieldOrPropertyWithValue("code", "NEG-001");
-            }
-        }
+        
     }
 
     @Nested

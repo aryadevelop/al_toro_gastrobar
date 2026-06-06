@@ -82,24 +82,6 @@ class RabbitMQConfigTest {
         void qComandaProduccion_tieneValorCorrecto() {
             assertThat(RabbitMQConfig.Q_COMANDA_PRODUCCION).isEqualTo("q.comanda.produccion");
         }
-
-        @Test
-        @DisplayName("Q_IMPRESION_TICKET → 'q.impresion.ticket'")
-        void qImpresionTicket_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.Q_IMPRESION_TICKET).isEqualTo("q.impresion.ticket");
-        }
-
-        @Test
-        @DisplayName("Q_NOTIFICACION_EMAIL → 'q.notificacion.email'")
-        void qNotificacionEmail_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.Q_NOTIFICACION_EMAIL).isEqualTo("q.notificacion.email");
-        }
-
-        @Test
-        @DisplayName("Q_NOTIFICACION_WS → 'q.notificacion.ws'")
-        void qNotificacionWs_tieneValorCorrecto() {
-            assertThat(RabbitMQConfig.Q_NOTIFICACION_WS).isEqualTo("q.notificacion.ws");
-        }
     }
 
     /**

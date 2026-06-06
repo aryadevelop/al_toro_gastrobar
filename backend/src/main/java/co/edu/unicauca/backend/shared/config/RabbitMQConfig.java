@@ -35,15 +35,6 @@ public class RabbitMQConfig {
     /** Cola consumida por {@code ProduccionService} para procesar nuevas comandas. */
     public static final String Q_COMANDA_PRODUCCION = "q.comanda.produccion";
 
-    /** Cola consumida por el bridge Node.js para la impresión de tickets. */
-    public static final String Q_IMPRESION_TICKET = "q.impresion.ticket";
-
-    /** Cola consumida por {@code NotificacionEmailService} para el envío de correos. */
-    public static final String Q_NOTIFICACION_EMAIL= "q.notificacion.email";
-
-    /** Cola consumida por el publicador WebSocket para notificaciones en tiempo real. */
-    public static final String Q_NOTIFICACION_WS = "q.notificacion.ws";
-
     // ── Exchange bean ─────────────────────────────────────────────────────────
 
     /**

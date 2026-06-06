@@ -190,21 +190,19 @@ class MesaMapperTest {
     }
 
     @Test
-    @DisplayName("agruparItemsEnProduccion: respeta orden PLATO -> BEBIDA -> OTRO en resultado final")
+    @DisplayName("agruparItemsEnProduccion: respeta orden PLATO -> BEBIDA en resultado final")
     void agruparItemsEnProduccion_OrdenPorCategoria() {
         // Arrange
         ComandaItem bebida = crearItem("Limonada", null, 1, EstadoComanda.EN_PREPARACION, CategoriaProducto.BEBIDA);
-        ComandaItem otro = crearItem("Postre", null, 1, EstadoComanda.LISTO, CategoriaProducto.OTRO);
         ComandaItem plato = crearItem("Bandeja", null, 1, EstadoComanda.COMPLETADO, CategoriaProducto.PLATO);
 
         // Act
-        List<ItemComandaEnProduccionResponse> resultado = mapper.agruparItemsEnProduccion(List.of(otro, bebida, plato));
+        List<ItemComandaEnProduccionResponse> resultado = mapper.agruparItemsEnProduccion(List.of(bebida, plato));
 
-        // Assert: orden PLATO -> BEBIDA -> OTRO
-        assertThat(resultado).hasSize(3);
+        // Assert: orden PLATO -> BEBIDA
+        assertThat(resultado).hasSize(2);
         assertThat(resultado.get(0).getCategoriaProducto()).isEqualTo("PLATO");
         assertThat(resultado.get(1).getCategoriaProducto()).isEqualTo("BEBIDA");
-        assertThat(resultado.get(2).getCategoriaProducto()).isEqualTo("OTRO");
     }
 
     @Test

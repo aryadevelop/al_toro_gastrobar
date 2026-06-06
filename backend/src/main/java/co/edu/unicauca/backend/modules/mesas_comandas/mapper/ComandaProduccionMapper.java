@@ -81,7 +81,6 @@ public class ComandaProduccionMapper {
                 .notas(comanda.getComandaNotas())
                 .platos(filtrarYMapear(items, CategoriaProducto.PLATO))
                 .bebidas(filtrarYMapear(items, CategoriaProducto.BEBIDA))
-                .otros(filtrarYMapear(items, CategoriaProducto.OTRO))
                 .build();
     }
 
