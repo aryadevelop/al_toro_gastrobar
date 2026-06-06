@@ -26,4 +26,11 @@ public interface DecoracionZonaRepository extends JpaRepository<DecoracionZona, 
      * @return lista de asociaciones para la decoración indicada; vacía si no tiene zonas asignadas
      */
     List<DecoracionZona> findByDecoracionId(Long decoracionId);
+
+    /**
+     * Elimina todas las asociaciones de zonas para la decoración indicada.
+     *
+     * @param decoracionId identificador de la decoración
+     */
+    void deleteByDecoracionId(Long decoracionId);
 }
