@@ -1,6 +1,6 @@
 # Testing — estrategia y cobertura
 
-Este documento describe la estrategia de testing del backend, los comandos disponibles, el estado actual de la suite, la configuración real de cobertura JaCoCo y los patrones por tipo de test.
+Estrategia de tests, configuración de JaCoCo y patrones por tipo de componente para el backend de Al Toro Gastrobar.
 
 ---
 
@@ -18,6 +18,8 @@ Reporte de cobertura: `backend/target/site/jacoco/index.html`.
 
 ## Estado actual
 
+---
+
 Conteo de tests: ver salida de `./mvnw test`.
 
 Archivos de test por tipo (141 archivos de test activos):
@@ -34,16 +36,17 @@ Archivos de test por tipo (141 archivos de test activos):
 
 ## Cobertura mínima por capa
 
-**Sin umbrales de fallo configurados.** El `pom.xml` declara JaCoCo 0.8.12 con las fases `prepare-agent` y `report`, pero no define elementos `<rule>` ni `<limit>` con valores mínimos. El reporte se genera pero no bloquea el build por cobertura insuficiente.
+JaCoCo está configurado en `pom.xml` con los goals `prepare-agent` y `report`. No hay reglas `<rule>` ni límites `<limit>` configurados; la compilación no falla por cobertura insuficiente.
 
-Los objetivos de cobertura son referencia del equipo, no restricciones de CI:
+| Capa | Objetivo del equipo |
+|------|---------------------|
+| Service / Validador | 90% de instrucciones |
+| Controller | 80% de instrucciones |
+| Mapper | 100% de instrucciones |
+| Repository | No aplica (excluidos) |
+| Entity | No aplica (excluidos) |
 
-| Capa | Objetivo de cobertura |
-|---|---|
-| Services / Validadores | 90–95 % instrucciones |
-| Controllers | 85–90 % instrucciones |
-| Mappers | 90–95 % instrucciones |
-| Repositories | 80–90 % instrucciones |
+Nota: estos valores son objetivos de referencia del equipo, no umbrales de fallo automatizados.
 
 ---
 
@@ -57,6 +60,8 @@ Clases excluidas del reporte JaCoCo (configuradas en `pom.xml`):
 
 ## Reglas
 
+---
+
 1. Implementar tests antes del commit: ejecutar `./mvnw clean test jacoco:report` y verificar que pasa.
 2. Cubrir ramas: cada `if/else`, `switch` y `try/catch` requiere casos para todas las ramas.
 3. Cubrir edge cases: validaciones fallidas, errores de negocio, nulls y listas vacías.
@@ -67,6 +72,8 @@ Clases excluidas del reporte JaCoCo (configuradas en `pom.xml`):
 ---
 
 ## Patrones por tipo de test
+
+---
 
 ### Tests de service
 
