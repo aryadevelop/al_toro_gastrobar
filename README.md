@@ -1,7 +1,4 @@
-# Al Toro Gastrobar — Sistema integral de gestión
-
-Sistema web para la gestión operativa del restaurante Al Toro Gastrobar.
-Desarrollado por el equipo **ARYA** — Ingeniería de Sistemas, Universidad del Cauca.
+# Al Toro Gastrobar
 
 ---
 
@@ -46,7 +43,7 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 
 El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend utiliza RabbitMQ para comunicación asíncrona y WebSocket (STOMP) para actualizaciones en tiempo real. En producción, Caddy actúa como reverse proxy y sirve el frontend compilado.
 
-```
+```text
 Cliente (navegador)
   │
   ├── HTTP/JSON ──────────────▶ Caddy (reverse proxy, prod)
@@ -93,7 +90,7 @@ Cliente (navegador)
 
 ## Estructura del repositorio
 
-```
+```text
 al_toro_gastrobar/
 ├── frontend/                    # Aplicación Angular (no dockerizada)
 ├── backend/                     # API REST Spring Boot
@@ -141,7 +138,7 @@ al_toro_gastrobar/
 
 Todos los comandos se ejecutan desde la **raíz del proyecto**.
 
-**Desarrollo:**
+#### Desarrollo
 
 ```bash
 docker compose up --build
@@ -156,7 +153,7 @@ Docker fusiona `docker-compose.yml` + `docker-compose.override.yml` automáticam
 | RabbitMQ consola | http://localhost:15672 (guest / guest) |
 | PostgreSQL | localhost:5432 (altoro / altoro123) |
 
-**Producción:**
+#### Producción
 
 ```bash
 # 1. Crear el archivo de secrets a partir de la plantilla
@@ -170,7 +167,7 @@ docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.
 
 En producción: Postgres y RabbitMQ no exponen puertos al exterior. Caddy expone los puertos 80 y 443 y actúa como reverse proxy hacia la API. Swagger UI está deshabilitado. El servicio `db-backup` ejecuta backups diarios automáticos con retención de 7 días / 4 semanas / 6 meses.
 
-**Comandos útiles:**
+#### Comandos útiles
 
 ```bash
 docker compose logs -f api        # Logs de la API en tiempo real
@@ -235,7 +232,7 @@ Basadas en `.env.prod.example`. Los valores de dev se definen como defaults en `
 
 Las colecciones de pruebas están organizadas en `backend/postman/postman/` usando el formato YAML de **Postman for VS Code**.
 
-```
+```text
 backend/postman/postman/
 ├── environments/
 │   └── Al Toro – Local.environment.yaml     # Variables de entorno (baseUrl, credenciales)
@@ -254,10 +251,10 @@ backend/postman/postman/
 
 ### Características de los tests
 
-- **Autónomos**: cada test incluye script `beforeRequest` con login propio — no dependen del orden de la colección
-- **Independientes**: ejecutables en cualquier orden
-- **Auto-cleanup**: los tests que crean datos los eliminan automáticamente en `afterResponse`
-- **Aserciones completas**: validan estructura, estado HTTP, campos obligatorios y reglas de negocio
+- Autónomos: cada test incluye script `beforeRequest` con login propio — no dependen del orden de la colección
+- Independientes: ejecutables en cualquier orden
+- Auto-cleanup: los tests que crean datos los eliminan automáticamente en `afterResponse`
+- Aserciones completas: validan estructura, estado HTTP, campos obligatorios y reglas de negocio
 
 ### Desde Postman for VS Code
 
@@ -275,7 +272,7 @@ Los archivos YAML son compatibles con Postman Desktop:
 3. Seleccionar el environment **Al Toro – Local**
 4. Ejecutar tests individuales o runner de colección
 
-**Nota**: algunos tests requieren datos de seed específicos. Ejecutar `./mvnw flyway:clean flyway:migrate` desde `backend/` para resetear la BD a su estado inicial si los tests fallan por datos inconsistentes.
+Nota: algunos tests requieren datos de seed específicos. Ejecutar `./mvnw flyway:clean flyway:migrate` desde `backend/` para resetear la BD a su estado inicial si los tests fallan por datos inconsistentes.
 
 ---
 
