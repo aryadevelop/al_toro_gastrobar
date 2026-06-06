@@ -1,17 +1,165 @@
-import { Component } from '@angular/core';
+import { Component, inject, OnInit, signal } from '@angular/core';
+import { CommonModule } from '@angular/common';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+import { DecoracionAdminService } from '../../../../core/services/decoracion-admin.service';
+import { BackendDecoracionAdminResponse } from '../../../../core/models/api.models';
+import { DecoracionFormModalComponent } from '../../components/decoracion-form-modal/decoracion-form-modal.component';
 
 @Component({
   selector: 'app-decoraciones-page',
   standalone: true,
-  imports: [PageHeaderComponent],
+  imports: [CommonModule, PageHeaderComponent, DecoracionFormModalComponent],
   template: `
     <section class="page-grid">
-      <app-page-header title="DecoracionesPage" subtitle="Vista base en construccion"></app-page-header>
-      <article class="card" style="padding: 1rem;">
-        <p>Contenido inicial de decoraciones-page.</p>
-      </article>
+      <app-page-header 
+        title="Gestión de Decoraciones" 
+        subtitle="Administra las decoraciones y sus imágenes para las reservas">
+      </app-page-header>
+      
+      <div class="actions-bar">
+        <button class="btn-primary" (click)="abrirModalNueva()">Añadir decoración</button>
+      </div>
+
+      <div class="card p-3">
+        <div class="table-responsive" *ngIf="decoraciones().length > 0; else noData">
+          <table class="table">
+            <thead>
+              <tr>
+                <th>Imagen</th>
+                <th>Nombre</th>
+                <th>Costo Adicional</th>
+                <th>Estado</th>
+                <th>Acciones</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr *ngFor="let dec of decoraciones()">
+                <td>
+                  <img *ngIf="dec.decoracionImagenUrl" [src]="dec.decoracionImagenUrl" alt="Decoración" class="thumb-img">
+                  <span *ngIf="!dec.decoracionImagenUrl" class="no-img">Sin imagen</span>
+                </td>
+                <td>{{ dec.decoracionNombre }}</td>
+                <td>{{ dec.decoracionCostoAdicional !== null ? (dec.decoracionCostoAdicional | currency:'COP') : 'Gratis' }}</td>
+                <td>
+                  <span class="badge" [class.badge-success]="dec.decoracionEstado === 'ACTIVO'" [class.badge-danger]="dec.decoracionEstado !== 'ACTIVO'">
+                    {{ dec.decoracionEstado }}
+                  </span>
+                </td>
+                <td>
+                  <div class="btn-group">
+                    <button class="btn-secondary btn-sm" (click)="abrirModalEditar(dec)">Editar / Imagen</button>
+                    <button class="btn-danger btn-sm" (click)="eliminar(dec)">Eliminar</button>
+                  </div>
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+        
+        <ng-template #noData>
+          <div class="empty-state">
+            <p>No hay decoraciones configuradas en el sistema.</p>
+          </div>
+        </ng-template>
+      </div>
     </section>
-  `
+
+    <app-decoracion-form-modal
+      [isOpen]="modalAbierto()"
+      [decoracionToEdit]="decoracionEditando()"
+      (close)="cerrarModal()"
+      (saved)="cargarDecoraciones()">
+    </app-decoracion-form-modal>
+  `,
+  styles: [`
+    .actions-bar {
+      margin-bottom: 1rem;
+      display: flex;
+      justify-content: flex-end;
+    }
+    .thumb-img {
+      width: 60px;
+      height: 60px;
+      object-fit: cover;
+      border-radius: var(--radius);
+    }
+    .no-img {
+      color: var(--text-muted);
+      font-size: 0.85rem;
+      font-style: italic;
+    }
+    .btn-group {
+      display: flex;
+      gap: 0.5rem;
+    }
+    .btn-sm {
+      padding: 0.25rem 0.5rem;
+      font-size: 0.85rem;
+    }
+    .badge {
+      padding: 0.25rem 0.5rem;
+      border-radius: 12px;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .badge-success {
+      background-color: var(--success-color);
+      color: white;
+    }
+    .badge-danger {
+      background-color: var(--error-color);
+      color: white;
+    }
+    .empty-state {
+      text-align: center;
+      padding: 2rem;
+      color: var(--text-muted);
+    }
+  `]
 })
-export class DecoracionesPageComponent {}
+export class DecoracionesPageComponent implements OnInit {
+  private readonly decoracionService = inject(DecoracionAdminService);
+
+  readonly decoraciones = signal<BackendDecoracionAdminResponse[]>([]);
+  readonly modalAbierto = signal(false);
+  readonly decoracionEditando = signal<BackendDecoracionAdminResponse | null>(null);
+
+  ngOnInit(): void {
+    this.cargarDecoraciones();
+  }
+
+  cargarDecoraciones(): void {
+    this.decoracionService.listarDecoraciones().subscribe({
+      next: (res) => {
+        if (res.data) {
+          this.decoraciones.set(res.data);
+        }
+      },
+      error: (err) => console.error('Error al cargar decoraciones', err)
+    });
+  }
+
+  abrirModalNueva(): void {
+    this.decoracionEditando.set(null);
+    this.modalAbierto.set(true);
+  }
+
+  abrirModalEditar(dec: BackendDecoracionAdminResponse): void {
+    this.decoracionEditando.set(dec);
+    this.modalAbierto.set(true);
+  }
+
+  cerrarModal(): void {
+    this.modalAbierto.set(false);
+    this.decoracionEditando.set(null);
+  }
+
+  eliminar(dec: BackendDecoracionAdminResponse): void {
+    if (confirm('¿Está seguro de que desea eliminar la decoración "' + dec.decoracionNombre + '"?')) {
+      this.decoracionService.eliminarDecoracion(dec.decoracionId).subscribe({
+        next: () => this.cargarDecoraciones(),
+        error: (err) => alert(err.error?.message || 'Error al eliminar la decoración')
+      });
+    }
+  }
+}

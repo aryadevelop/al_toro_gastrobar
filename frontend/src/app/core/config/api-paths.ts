@@ -115,6 +115,14 @@ export const API_PATHS = {
         validarEstado: (id: string | number) => `${API}/admin/insumos/${id}/validar-estado`,
         cambiarEstado: (id: string | number) => `${API}/admin/insumos/${id}/estado`,
     },
+    adminDecoraciones: {
+        listar: `${API}/decoraciones`,
+        crear: `${API}/decoraciones`,
+        actualizar: (id: string | number) => `${API}/decoraciones/${id}`,
+        eliminar: (id: string | number) => `${API}/decoraciones/${id}`,
+        subirImagen: (id: string | number) => `${API}/decoraciones/${id}/imagen`,
+        eliminarImagen: (id: string | number) => `${API}/decoraciones/${id}/imagen`,
+    },
 
     inventarioMovimientos: `${API}/inventario/movimientos`,
     inventarioBuscar: (query: string) => `${API}/inventario/buscar?q=${query}`,

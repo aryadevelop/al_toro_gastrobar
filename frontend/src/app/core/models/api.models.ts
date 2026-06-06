@@ -692,3 +692,25 @@ export interface BackendInventarioMovimientoRequest {
   fecha?: string;
   observaciones?: string;
 }
+
+export interface BackendDecoracionAdminResponse {
+  decoracionId: number;
+  decoracionNombre: string;
+  decoracionEstado: string;
+  decoracionCostoAdicional?: number | null;
+  decoracionImagenUrl?: string | null;
+  zonaIds: number[];
+}
+
+export interface BackendCrearDecoracionRequest {
+  decoracionNombre: string;
+  decoracionCostoAdicional?: number | null;
+  zonaIds?: number[];
+}
+
+export interface BackendActualizarDecoracionRequest {
+  decoracionNombre: string;
+  decoracionCostoAdicional?: number | null;
+  zonaIds?: number[];
+}
+
