@@ -51,7 +51,7 @@ Cliente (navegador)
   │                                  │                  ├──▶ PostgreSQL
   │                                  │                  └──▶ RabbitMQ
   │                                  │
-  │                                  └── /* ────▶ Frontend compilado (Angular)
+  │                                  └── /* ────▶ Frontend (Angular)
   │
   └── WebSocket/STOMP ──────────▶ Backend (Spring Boot :8080)
 ```
@@ -60,16 +60,16 @@ Cliente (navegador)
 
 ## Módulos del sistema
 
-| Épica | Módulo | Actores principales |
-|-------|--------|---------------------|
-| HE-01 | Autenticación y perfiles | Todos los roles |
-| HE-02 | Reservas y consumo | Cliente |
-| HE-03 | Mesas, comandas y consulta de reservas | Mesero, Cajero |
-| HE-04 | Producción e inventario | Cocinero, Bartender, Administrador |
-| HE-05 | Pagos y caja | Cajero |
-| HE-06 | Histórico y reportes | Administrador |
-| HE-07 | Inventario y decoraciones | Administrador |
-| HE-08 | Personal y clientes | Administrador |
+| Épica | Módulo | Responsabilidad |
+|-------|--------|-----------------|
+| HE-01 | auth | Gestiona el ciclo de vida de sesiones JWT |
+| HE-02 | reservas | Gestiona el ciclo de vida completo de reservas |
+| HE-03 | mesas_comandas | Gestiona el mapa de mesas y comandas en borrador en tiempo real |
+| HE-04 | mesas_comandas | Gestiona el flujo de producción en cocina y barra |
+| HE-05 | pagos_caja | Cajero |
+| HE-06 | reportes | Administrador |
+| HE-07 | inventario | Gestiona el catálogo de productos, los movimientos manuales y cambo de estado de inventario |
+| HE-08 | usuarios | Gestiona perfiles de clientes, administración de empleados y puntos de fidelización |
 
 ---
 
@@ -90,7 +90,7 @@ Cliente (navegador)
 
 ```text
 al_toro_gastrobar/
-├── frontend/                    # Aplicación Angular (no dockerizada)
+├── frontend/                    # Aplicación Angular
 ├── backend/                     # API REST Spring Boot
 │   ├── src/
 │   │   ├── main/java/.../modules/   # Módulos de negocio
@@ -101,14 +101,14 @@ al_toro_gastrobar/
 │   ├── postman/                 # Colecciones de pruebas de API
 │   └── Dockerfile               # Imagen de producción (multi-stage, JRE 21)
 ├── docs/                        # Documentación del proyecto
-│   ├── backend/                 # Convenciones y referencia técnica
-│   ├── ops/                     # Guías operativas (despliegue, infraestructura)
-│   └── superpowers/             # Planes de implementación
+│   ├── backend/                 # Convenciones y referencia técnica del backend
+│   ├── ops/                     # Guías operativas
+│   └── frontend/                # Convenciones y referencia técnica del frontend
 ├── .github/
 │   └── workflows/
 │       ├── validar-rama.yml     # Valida nombres de rama en PRs
 │       └── ci.yml               # Pipeline de integración continua
-├── Caddyfile                    # Configuración del reverse proxy (producción)
+├── Caddyfile                    # Configuración del reverse proxy
 ├── docker-compose.yml           # Orquestación base (api, postgres, rabbitmq)
 ├── docker-compose.override.yml  # Overrides de desarrollo (puertos expuestos)
 ├── docker-compose.prod.yml      # Overrides de producción (caddy, db-backup, límites de memoria)
@@ -197,16 +197,16 @@ Basadas en `.env.prod.example`. Los valores de dev se definen como defaults en `
 | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL |
 | `RABBITMQ_USERNAME` | Usuario de RabbitMQ |
 | `RABBITMQ_PASSWORD` | Contraseña de RabbitMQ |
-| `JWT_SECRET` | Secret para firmar tokens JWT (mín. 32 chars; generar con `openssl rand -base64 48`) |
+| `JWT_SECRET` | Secret para firmar tokens JWT |
 | `JWT_EXPIRATION` | Expiración del access token en ms (default: 1800000 = 30 min) |
 | `MAIL_HOST` | Servidor SMTP |
 | `MAIL_PORT` | Puerto SMTP (default: 587) |
 | `MAIL_USERNAME` | Usuario SMTP |
 | `MAIL_PASSWORD` | Contraseña SMTP |
-| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma (ej: `https://altoro.com`) |
-| `BOOTSTRAP_ADMIN_EMAIL` | Email del administrador inicial (bootstrap automático en prod si no existe ADMIN) |
-| `BOOTSTRAP_ADMIN_PASSWORD` | Contraseña del administrador inicial (cambiar tras el primer login) |
-| `SITE_ADDRESS` | Dominio para Caddy (`":80"` en local, dominio real en prod) |
+| `CORS_ALLOWED_ORIGINS` | Orígenes permitidos separados por coma |
+| `BOOTSTRAP_ADMIN_EMAIL` | Email del administrador inicial |
+| `BOOTSTRAP_ADMIN_PASSWORD` | Contraseña del administrador inicial |
+| `SITE_ADDRESS` | Dominio para Caddy |
 | `SPRING_PROFILES_ACTIVE` | Perfil activo: `dev` o `prod` (inyectado por docker-compose) |
 
 ---
@@ -220,7 +220,6 @@ Basadas en `.env.prod.example`. Los valores de dev se definen como defaults en `
 | Swagger UI | habilitado (`/swagger-ui.html`) | deshabilitado |
 | Nivel de log root | INFO/DEBUG | WARN |
 | Mensajes de error | detallados | ocultos |
-| Correo | Mailtrap (intercepta envíos) | SMTP real |
 | WebSocket | habilitado | habilitado |
 | Actuator endpoints expuestos | `/actuator/health` | `/actuator/health` |
 
@@ -236,15 +235,17 @@ backend/postman/postman/
 │   └── Al Toro – Local.environment.yaml     # Variables de entorno (baseUrl, credenciales)
 └── collections/
     ├── 01_auth/                              # Autenticación
-    ├── 02_reservas/                          # Gestión de reservas
+    ├── 02_inventario/                        # Insumos y productos
+    ├── 03_comandas_borrador/                 # Comandas en borrador
+    ├── 03_comandas_produccion/               # Comandas de producción
     ├── 03_mesas/                             # Mesas y asistencia
-    ├── 04_comandas_produccion/               # Comandas de producción
-    ├── inventario/                           # Insumos y productos
-    ├── notificaciones/                       # Atención de notificaciones
-    ├── usuarios/                             # Clientes y puntos
-    ├── ventas/                               # Pagos y cierre de venta
-    ├── visitas/                              # Visitas activas
-    └── e2e/                                  # Flujos end-to-end
+    ├── 03_visitas/                           # Visitas activas
+    ├── 04_notificaciones/                    # Atención de notificaciones
+    ├── 05_pagos_caja/                        # Pagos y cierre de venta
+    ├── 07_reservas/                          # Gestión de reservas
+    ├── 08_usuarios/                          # Clientes y puntos
+    ├── e2e/                                  # Flujos end-to-end
+    └── manual-testing/                       # Endpoints sin automatizar
 ```
 
 ### Características de los tests
@@ -287,7 +288,7 @@ Antes de realizar el primer commit, cada miembro del equipo debe leer y seguir e
 
 | Nombre | Rol en Scrum |
 |--------|--------------|
-| Paula Andrea Muñoz Delgado | Scrum Master · Desarrollador · Analista · Tester |
+| Paula Andrea Muñoz Delgado | Scrum Master · Desarrollador · Analista |
 | Adrián Camilo Bergaño Ortega | Desarrollador |
-| Yeixón Julián Gembuel Ciclos | Tester |
-| Rubeiro Romero | Desarrollador · Analista |
+| Yeixón Julián Gembuel Ciclos | Desarrollador · Tester |
+| Rubeiro Romero | Desarrollador · Tester |
