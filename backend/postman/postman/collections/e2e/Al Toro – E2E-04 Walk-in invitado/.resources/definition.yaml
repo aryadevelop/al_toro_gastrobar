@@ -8,7 +8,7 @@ description: |-
   **Cliente:** ninguno — la visita NO tiene cliente asociado (invitado). Por eso NO se otorgan puntos al cerrar.
   **Token:** cada paso hace login autónomo e inyecta `Authorization: Bearer <token>` con
   `pm.request.headers.upsert` dentro del callback.
-  **Ventana horaria:** la asignación de mesa valida `LocalTime.now()` contra 17:00–22:00.
+  La asignación de mesa no tiene restricción horaria.
 
   **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
   | Orden | Rol | Paso | Aserción |

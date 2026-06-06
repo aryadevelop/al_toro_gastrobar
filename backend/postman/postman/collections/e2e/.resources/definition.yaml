@@ -3,14 +3,9 @@ name: e2e
 description: |-
   Pruebas de integración E2E por rol (recorridos completos cliente→mesero→producción→cajero).
 
-  Cada subcolección "Al Toro – E2E-NN" es un ESCENARIO: una secuencia ORDENADA de requests  
-  que comparten estado vía variables de entorno con prefijo `tmp\*`. A diferencia de las  
-  colecciones por-endpoint (independientes por-request), aquí el orden importa: cada request  
-  consume lo que el anterior capturó en su `afterResponse`.
+  Cada subcolección "Al Toro – E2E-NN" es una secuencia ORDENADA de requests: 
+  cada request consume lo que el anterior capturó en su `afterResponse`.
 
   Login autónomo por rol en cada request (emails de entorno: emailCliente, emailMesero,  
   emailCajero, emailCocinero, emailBartender; password `passwordValida`).
 
-  ⚠️ SEED EN V3: las reservas ESPECIAL del día (E2E-02/05/06/08) están sembradas en  
-  `V3__dev_data.sql` (cliente [paola.rojas@gmail.com](https://mailto:paola.rojas@gmail.com), fechadas HOY). Para tenerlas frescas  
-  (cada escenario consume la suya): `docker compose down -v && docker compose up --build`.

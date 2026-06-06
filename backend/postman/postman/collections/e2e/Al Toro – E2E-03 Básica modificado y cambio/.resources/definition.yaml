@@ -5,7 +5,7 @@ description: |-
   TR=BÁSICA · PO=carta + modificación libre · CB=con cambio (carta/modif.) · AJ=precio (solo línea modificada) ·
   DE=sin · PU=cliente(+1) · MP=TRANSFERENCIA.
 
-  **🔴 INVARIANTE CRÍTICO:** la pre-orden incluye el MISMO `productoId` (Hamburguesa=36) en DOS líneas:
+  **INVARIANTE CRÍTICO:** la pre-orden incluye el MISMO `productoId` (Hamburguesa=36) en DOS líneas:
   - línea A (base): cantidad 1, SIN `descripcion` → `esModificado=false`
   - línea B (modificado): cantidad 1, CON `descripcion="sin cebolla"` → `esModificado=true`
   Ambas coexisten como DOS `comandaItemId` distintos en borrador, visita y cuenta (`agruparItems`
@@ -16,7 +16,7 @@ description: |-
   **Cliente:** paola.rojas@gmail.com (hardcodeado en los pasos de cliente).
   **Token:** cada paso hace login autónomo e inyecta `Authorization: Bearer <token>` con
   `pm.request.headers.upsert` dentro del callback.
-  **Ventana horaria:** la asignación de mesa valida `LocalTime.now()` (17:00–22:00).
+  La asignación de mesa no tiene restricción horaria.
 
   **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
   | Orden | Rol | Paso | Aserción |
