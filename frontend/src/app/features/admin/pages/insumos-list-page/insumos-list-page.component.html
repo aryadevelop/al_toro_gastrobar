@@ -1,0 +1,139 @@
+<section class="page-grid">
+  <app-page-header title="Insumos" subtitle="Gestión de inventario de Insumos"></app-page-header>
+  
+  <article class="card p-4">
+    <div *ngIf="isLoading" class="text-center py-5">
+      <span class="spinner-border text-primary" role="status"></span>
+      <p class="mt-2 text-secondary">Cargando insumos...</p>
+    </div>
+
+    <div class="table-responsive" *ngIf="!isLoading && insumos.length > 0">
+      <table class="table table-hover align-middle">
+        <thead>
+          <tr>
+            <th>Nombre</th>
+            <th>Categoría</th>
+            <th>Estado</th>
+            <th>Acciones</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr *ngFor="let insumo of insumos" [ngClass]="{'text-muted': insumo.estado === 'DISCONTINUED'}">
+            <td class="fw-bold">{{ insumo.nombre }}</td>
+            <td><span class="badge bg-light text-dark">{{ insumo.categoria }}</span></td>
+            <td>
+              <span *ngIf="insumo.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
+              <span *ngIf="insumo.estado === 'DISCONTINUED'" class="badge bg-danger">Descontinuado</span>
+            </td>
+            <td>
+              <button 
+                class="btn btn-sm" 
+                [ngClass]="insumo.estado === 'ACTIVE' ? 'btn-outline-danger' : 'btn-outline-success'"
+                (click)="abrirModalEstado(insumo)">
+                {{ insumo.estado === 'ACTIVE' ? 'Descontinuar' : 'Reactivar' }}
+              </button>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+
+    <div *ngIf="!isLoading && insumos.length === 0" class="text-center py-5">
+      <p class="text-muted">No hay insumos registrados.</p>
+    </div>
+  </article>
+
+  <!-- Modal de Cambio de Estado para Insumos -->
+  <app-modal-base 
+    [open]="isModalOpen" 
+    [title]="selectedInsumo?.estado === 'ACTIVE' ? 'Descontinuar Insumo' : 'Reactivar Insumo'"
+    (close)="cerrarModal()">
+    
+    <div *ngIf="isValidatingState" class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-secondary">Analizando preparaciones afectadas...</p>
+    </div>
+
+    <div *ngIf="!isValidatingState && selectedInsumo && validationData">
+      <!-- MODO DESCONTINUAR -->
+      <ng-container *ngIf="selectedInsumo.estado === 'ACTIVE'">
+        
+        <p>El insumo <strong>{{ selectedInsumo.nombre }}</strong> será descontinuado.</p>
+        
+        <div *ngIf="validationData.preparacionesAfectadas.length > 0">
+          <p>Se usaba en <strong>{{ validationData.preparacionesAfectadas.length }}</strong> preparaciones. ¿Qué deseas hacer con ellas?</p>
+          
+          <div *ngIf="tienePedidosPendientes" class="alert alert-warning">
+            <strong>⚠️ Atención:</strong> Algunas de estas preparaciones tienen pedidos pendientes en reservas futuras. 
+            Desactivarlas afectará estas reservas.
+          </div>
+
+          <div *ngIf="tieneOtrasDescontinuadas" class="alert alert-danger">
+            <strong>⚠️ Peligro:</strong> Hay preparaciones que ya tienen otros insumos descontinuados. 
+            Se recomienda revisar la preparación completa.
+          </div>
+
+          <!-- Lista de preparaciones afectadas -->
+          <div class="table-responsive my-3" style="max-height: 200px; overflow-y: auto;">
+            <table class="table table-sm">
+              <thead>
+                <tr>
+                  <th>Preparación</th>
+                  <th>Estado</th>
+                  <th>Pedidos Pend.</th>
+                  <th>Acciones</th>
+                </tr>
+              </thead>
+              <tbody>
+                <tr *ngFor="let p of validationData.preparacionesAfectadas">
+                  <td>{{ p.nombre }}</td>
+                  <td>{{ p.estado }}</td>
+                  <td>{{ p.pedidosPendientes > 0 ? p.pedidosPendientes : '-' }}</td>
+                  <td><button class="btn btn-sm btn-link" type="button">Ver detalle</button></td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div *ngIf="validationData.preparacionesAfectadas.length === 0">
+          <p class="text-success">Este insumo no se está usando en ninguna preparación actualmente.</p>
+        </div>
+
+        <div class="d-flex flex-column gap-2 mt-4">
+          <button *ngIf="validationData.preparacionesAfectadas.length > 0" class="btn btn-danger" (click)="confirmarAccion('DESACTIVAR')">
+            Desactivar preparaciones
+          </button>
+          <button *ngIf="validationData.preparacionesAfectadas.length > 0" class="btn btn-warning" (click)="confirmarAccion('MANTENER')">
+            Mantener preparaciones (requerirá sustituir insumo)
+          </button>
+          <button *ngIf="validationData.preparacionesAfectadas.length === 0" class="btn btn-danger" (click)="confirmarAccion('DESACTIVAR')">
+            Confirmar Descontinuación
+          </button>
+          <button class="btn btn-secondary mt-2" (click)="cerrarModal()">Cancelar</button>
+        </div>
+      </ng-container>
+
+      <!-- MODO REACTIVAR -->
+      <ng-container *ngIf="selectedInsumo.estado !== 'ACTIVE'">
+        <p>Este insumo se usaba en <strong>{{ validationData.preparacionesAfectadas.length }}</strong> preparaciones afectadas. ¿Qué deseas hacer?</p>
+
+        <div *ngIf="tieneOtrasDescontinuadas" class="alert alert-warning">
+          <strong>⚠️ Atención:</strong> Algunas preparaciones aún tienen otros insumos descontinuados. 
+          No se reactivarán automáticamente. Revisa cada preparación individualmente.
+          <ul>
+            <ng-container *ngFor="let p of validationData.preparacionesAfectadas">
+              <li *ngIf="p.otrosInsumosDescontinuados">{{ p.nombre }}</li>
+            </ng-container>
+          </ul>
+        </div>
+
+        <div class="d-flex flex-column gap-2 mt-4">
+          <button class="btn btn-success" (click)="confirmarAccion('REACTIVAR')">Reactivar preparaciones</button>
+          <button class="btn btn-outline-secondary" (click)="confirmarAccion('MANTENER_INACTIVAS')">Mantener preparaciones inactivas</button>
+          <button class="btn btn-secondary mt-2" (click)="cerrarModal()">Cancelar</button>
+        </div>
+      </ng-container>
+      
+    </div>
+  </app-modal-base>
+</section>

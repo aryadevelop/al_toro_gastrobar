@@ -71,6 +71,7 @@
               <th>Precio de venta</th>
               <th>Stock actual</th>
               <th>Estado</th>
+              <th>Acciones</th>
             </tr>
           </thead>
           <tbody>
@@ -88,6 +89,15 @@
                   </svg>
                   Inactivo
                 </span>
+                <span *ngIf="prod.estado === 'SUSPENDED'" class="badge bg-warning text-dark">Suspendido</span>
+              </td>
+              <td>
+                <button 
+                  class="btn btn-sm" 
+                  [ngClass]="prod.estado === 'ACTIVE' ? 'btn-outline-warning' : 'btn-outline-success'"
+                  (click)="abrirModalEstado(prod)">
+                  {{ prod.estado === 'ACTIVE' ? 'Suspender' : 'Reactivar' }}
+                </button>
               </td>
             </tr>
           </tbody>
@@ -96,4 +106,49 @@
 
     </div>
   </article>
+
+  <!-- Modal de Cambio de Estado -->
+  <app-modal-base 
+    [open]="isModalOpen" 
+    [title]="selectedProductForStateChange?.estado === 'ACTIVE' ? 'Suspender Producto' : 'Reactivar Producto'"
+    (close)="cerrarModal()">
+    
+    <div *ngIf="isValidatingState" class="text-center py-4">
+      <div class="spinner-border text-primary" role="status"></div>
+      <p class="mt-2 text-secondary">Validando reservas...</p>
+    </div>
+
+    <div *ngIf="!isValidatingState && selectedProductForStateChange">
+      <p>
+        ¿Estás seguro de que deseas 
+        <strong>{{ selectedProductForStateChange.estado === 'ACTIVE' ? 'suspender' : 'reactivar' }}</strong> 
+        el producto "{{ selectedProductForStateChange.nombre }}"?
+      </p>
+
+      <div class="form-group mb-3">
+        <label class="form-label">Motivo del cambio (opcional):</label>
+        <input type="text" class="form-control" [(ngModel)]="stateChangeReason" placeholder="Razón de la suspensión/reactivación">
+      </div>
+
+      <!-- Advertencia si hay reservas futuras -->
+      <div *ngIf="validationData?.tieneReservasFuturas" class="alert alert-warning">
+        <strong>⚠️ Atención:</strong> Este producto está incluido en <strong>{{ validationData?.cantidadReservas }}</strong> reservas futuras. 
+        Desactivarlo afectará estas reservas. ¿Deseas notificar a los clientes sobre el cambio?
+      </div>
+
+      <div class="d-flex justify-content-end gap-2 mt-4">
+        <button class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
+        
+        <ng-container *ngIf="selectedProductForStateChange.estado === 'ACTIVE' && validationData?.tieneReservasFuturas">
+          <button class="btn btn-warning" (click)="confirmarCambioEstado(false)">Desactivar sin notificar</button>
+          <button class="btn btn-danger" (click)="confirmarCambioEstado(true)">Notificar y desactivar</button>
+        </ng-container>
+
+        <ng-container *ngIf="selectedProductForStateChange.estado !== 'ACTIVE' || !validationData?.tieneReservasFuturas">
+          <button class="btn btn-primary" (click)="confirmarCambioEstado()">Confirmar</button>
+        </ng-container>
+      </div>
+    </div>
+  </app-modal-base>
+
 </section>

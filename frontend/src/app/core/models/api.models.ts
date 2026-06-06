@@ -93,11 +93,11 @@ export interface BackendResumenPagoResponse {
   numeroPersonas: number;
   estado: string;
   tipo: string;
-  totalReserva: number;
+  totalAPagar: number;      // valor total de la reserva (pre-orden + decoración)
   totalAnticipado: number;
   totalDevuelto: number;
-  netoAbonado: number;
-  pendientePorAbonar?: number | null;
+  montoAbonado: number;     // neto = totalAnticipado - totalDevuelto
+  saldoPendiente?: number | null;    // solo presente cuando estado=CONFIRMADA
   pendientePorDevolver?: number | null;
 }
 
@@ -674,23 +674,4 @@ export interface BackendCambiarEstadoRequest {
   motivo?: string;
   notificarClientes?: boolean;
   accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
-}
-
-/* ── Movimientos de Inventario (Ingreso / Egreso) ── */
-
-export interface BackendInventarioMovimientoRequest {
-  tipoElemento: 'PRODUCTO' | 'INSUMO';
-  elementoId: number;
-  tipoMovimiento: 'INGRESO' | 'EGRESO';
-  cantidad: number;
-  observaciones?: string;
-  fecha?: string;
-}
-
-export interface BackendInventarioItemBusqueda {
-  id: number;
-  nombre: string;
-  unidad: string;
-  stockActual: number;
-  tipo: 'PRODUCTO' | 'INSUMO';
 }

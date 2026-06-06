@@ -31,7 +31,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
           <button class="btn-outline" type="button" (click)="loadMapa()">Reintentar</button>
         </div>
 
-        <div class="mapa-message" *ngIf="actionMessage()" [ngClass]="actionTone()">
+        <div class="toast-bar" *ngIf="actionMessage()" [ngClass]="actionTone()">
           {{ actionMessage() }}
         </div>
 
@@ -254,8 +254,8 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .mesa-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-        gap: 0.7rem;
+        grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+        gap: 0.8rem;
       }
 
       .mesa-card {
@@ -284,6 +284,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       .mesa-top {
         display: flex;
         justify-content: space-between;
+        align-items: flex-start;
         gap: 0.5rem;
       }
 
@@ -300,10 +301,12 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .mesa-status {
         border-radius: 999px;
-        padding: 0.15rem 0.5rem;
-        font-size: 0.72rem;
+        padding: 0.25rem 0.6rem;
+        font-size: 0.75rem;
         font-weight: 700;
         text-transform: uppercase;
+        text-align: center;
+        white-space: nowrap;
       }
 
       .state-attended .mesa-status {
@@ -410,22 +413,33 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         padding: 0.35rem 0.8rem;
       }
 
-      .mapa-message {
-        margin-bottom: 0.7rem;
-        padding: 0.5rem 0.7rem;
+      .toast-bar {
+        position: fixed;
+        bottom: 2rem;
+        left: 50%;
+        transform: translateX(-50%);
+        padding: 0.7rem 1.25rem;
         border-radius: 10px;
-        font-size: 0.8rem;
+        font-size: 0.85rem;
         font-weight: 600;
+        z-index: 9999;
+        box-shadow: 0 8px 24px rgba(0,0,0,0.2);
+        animation: slideUp 0.3s ease-out;
+      }
+      
+      @keyframes slideUp {
+        from { transform: translate(-50%, 100%); opacity: 0; }
+        to { transform: translate(-50%, 0); opacity: 1; }
       }
 
-      .mapa-message.success {
-        color: #166534;
-        background: rgba(34, 197, 94, 0.12);
+      .toast-bar.success {
+        color: #fff;
+        background: #166534;
       }
 
-      .mapa-message.error {
-        color: #be123c;
-        background: rgba(244, 63, 94, 0.13);
+      .toast-bar.error {
+        color: #fff;
+        background: #be123c;
       }
 
       .mapa-empty {
@@ -567,6 +581,7 @@ export class MapaMesasCajeroPageComponent implements OnInit, OnDestroy {
   readonly actionMessage = signal('');
   readonly actionTone = signal<'success' | 'error' | ''>('');
   readonly pendingNotifications = signal<Set<string>>(new Set());
+  private actionTimer?: ReturnType<typeof setTimeout>;
 
   ngOnInit(): void {
     this.loadMapa();
@@ -823,15 +838,25 @@ export class MapaMesasCajeroPageComponent implements OnInit, OnDestroy {
   private handleActionSuccess(mesaId: string, notificacionId: string, message: string): void {
     this.setPending(notificacionId, false);
     this.removeNotification(mesaId, notificacionId);
-    this.actionMessage.set(message);
-    this.actionTone.set('success');
+    this.showToast(message, 'success');
     this.loadMapa(false);
   }
 
   private handleActionError(notificacionId: string, err: unknown): void {
     this.setPending(notificacionId, false);
-    this.actionMessage.set(this.resolveErrorMessage(err));
-    this.actionTone.set('error');
+    this.showToast(this.resolveErrorMessage(err), 'error');
+  }
+
+  private showToast(message: string, tone: 'success' | 'error'): void {
+    this.actionMessage.set(message);
+    this.actionTone.set(tone);
+    if (this.actionTimer) {
+      clearTimeout(this.actionTimer);
+    }
+    this.actionTimer = setTimeout(() => {
+      this.actionMessage.set('');
+      this.actionTone.set('');
+    }, 4000);
   }
 
   private removeNotification(mesaId: string, notificacionId: string): void {
