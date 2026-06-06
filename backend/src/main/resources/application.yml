@@ -74,3 +74,7 @@ springdoc:
 jwt:
   expiration: 1800000
   refresh-expiration: 604800000
+
+decoracion:
+  imagenes-dir: ${DECORACION_IMAGENES_DIR:../decoracion_imagenes}
+  imagenes-base-url: ${DECORACION_IMAGENES_BASE_URL:}
