@@ -14,10 +14,18 @@ export class WebSocketService implements OnDestroy {
   private readonly subscriptions = new Map<string, Subject<unknown>>();
 
   private getWsUrl(): string {
-    const apiBase = environment.apiBaseUrl;
-    // apiBaseUrl = 'http://localhost:8080/api' -> ws://localhost:8080/ws
-    const httpBase = apiBase.replace(/\/api$/, '');
-    return httpBase.replace(/^http/, 'ws') + '/ws';
+    const apiBase = environment.apiBaseUrl;        // dev absoluto | prod relativo ('/api')
+    const httpBase = apiBase.replace(/\/api$/, ''); // quita el sufijo '/api'
+
+    // apiBaseUrl absoluto (dev): convertir el esquema http(s) -> ws(s).
+    if (/^https?:\/\//.test(httpBase)) {
+      return httpBase.replace(/^http/, 'ws') + '/ws';
+    }
+
+    // apiBaseUrl relativo (prod): construir desde el origen actual.
+    // https -> wss (obligatorio sobre TLS); http -> ws.
+    const scheme = window.location.protocol === 'https:' ? 'wss' : 'ws';
+    return `${scheme}://${window.location.host}${httpBase}/ws`;
   }
 
   private ensureConnected(): Client {

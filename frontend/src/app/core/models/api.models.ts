@@ -675,3 +675,20 @@ export interface BackendCambiarEstadoRequest {
   notificarClientes?: boolean;
   accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
 }
+
+export interface BackendInventarioItemBusqueda {
+  id: number;
+  nombre: string;
+  tipo: 'PRODUCTO' | 'INSUMO';
+  stockActual: number;
+  unidad: string;
+}
+
+export interface BackendInventarioMovimientoRequest {
+  tipoElemento: 'PRODUCTO' | 'INSUMO';
+  elementoId: number;
+  tipoMovimiento: 'INGRESO' | 'EGRESO';
+  cantidad: number;
+  fecha?: string;
+  observaciones?: string;
+}
