@@ -1,8 +1,10 @@
 package co.edu.unicauca.backend.modules.inventario.service;
 
 import co.edu.unicauca.backend.modules.inventario.dto.request.AjusteInventarioRequest;
+import co.edu.unicauca.backend.modules.inventario.dto.request.RegistroMovimientoInventarioRequest;
 import co.edu.unicauca.backend.modules.inventario.dto.response.AjusteInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ItemAjusteInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MovimientoInventarioHistorialResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
 import co.edu.unicauca.backend.modules.inventario.entity.MovimientoInventario;
 import co.edu.unicauca.backend.modules.inventario.entity.Producto;
@@ -33,12 +35,14 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
+import org.springframework.data.domain.Sort;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.LocalDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -110,6 +114,44 @@ public class MovimientoInventarioService {
      */
     @Transactional
     public AjusteInventarioResponse registrarAjuste(AjusteInventarioRequest request, Authentication auth) {
+        return registrarAjusteInterno(request, auth, null);
+    }
+
+    @Transactional
+    public AjusteInventarioResponse registrarMovimiento(RegistroMovimientoInventarioRequest request, Authentication auth) {
+        LocalDateTime fechaMovimiento = request.getFecha();
+        if (fechaMovimiento != null) {
+            LocalDateTime ahora = LocalDateTime.now();
+            if (fechaMovimiento.isAfter(ahora)) {
+                throw new BusinessException(ErrorCode.BUSINESS_ERROR,
+                        "La fecha del movimiento no puede ser futura.", HttpStatus.BAD_REQUEST);
+            }
+        }
+
+        AjusteInventarioRequest ajuste = AjusteInventarioRequest.builder()
+                .productoId(request.getProductoId())
+                .insumoId(request.getInsumoId())
+                .cantidad(request.getCantidad())
+                .tipo(request.getTipo())
+                .proveedor(request.getProveedor())
+                .numeroFactura(request.getNumeroFactura())
+                .observaciones(request.getObservaciones())
+                .build();
+
+        return registrarAjusteInterno(ajuste, auth, fechaMovimiento);
+    }
+
+    @Transactional(readOnly = true)
+    public List<MovimientoInventarioHistorialResponse> listarMovimientosHistorico() {
+        return movimientoRepository.findAll(Sort.by(Sort.Direction.DESC, "movimientoFechaHora"))
+                .stream()
+                .map(mapper::toHistorialResponse)
+                .toList();
+    }
+
+    @Transactional
+    private AjusteInventarioResponse registrarAjusteInterno(AjusteInventarioRequest request, Authentication auth,
+                                                            LocalDateTime fechaHora) {
         // Validación: debe venir exactamente un ID, de producto o de insumo
         boolean tieneProducto = request.getProductoId() != null;
         boolean tieneInsumo = request.getInsumoId() != null;
@@ -137,6 +179,9 @@ public class MovimientoInventarioService {
                 .movimientoProveedor(request.getProveedor())
                 .movimientoNumeroFactura(request.getNumeroFactura())
                 .movimientoObservaciones(request.getObservaciones());
+        if (fechaHora != null) {
+            movimiento.movimientoFechaHora(fechaHora);
+        }
 
         // Ajusta stock e identifica comandas afectadas según tipo de ítem
         if (tieneProducto) {

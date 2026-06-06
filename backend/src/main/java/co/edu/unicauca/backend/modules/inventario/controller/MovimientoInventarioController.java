@@ -14,8 +14,10 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import co.edu.unicauca.backend.modules.inventario.dto.request.AjusteInventarioRequest;
+import co.edu.unicauca.backend.modules.inventario.dto.request.RegistroMovimientoInventarioRequest;
 import co.edu.unicauca.backend.modules.inventario.dto.response.AjusteInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ItemAjusteInventarioResponse;
+import co.edu.unicauca.backend.modules.inventario.dto.response.MovimientoInventarioHistorialResponse;
 import co.edu.unicauca.backend.modules.inventario.service.MovimientoInventarioService;
 import co.edu.unicauca.backend.shared.dto.ApiResponse;
 import io.swagger.v3.oas.annotations.Operation;
@@ -72,5 +74,23 @@ public class MovimientoInventarioController {
         AjusteInventarioResponse response = movimientoService.registrarAjuste(request, auth);
         return ResponseEntity.status(HttpStatus.CREATED)
                 .body(ApiResponse.created("Ajuste de inventario registrado correctamente.", response));
+    }
+
+    @PostMapping("/movimientos/registro")
+    @PreAuthorize("hasAnyRole('PRODUCCION', 'ADMIN')")
+    @Operation(summary = "Registrar movimiento de inventario con fecha opcional")
+    public ResponseEntity<ApiResponse<AjusteInventarioResponse>> registrarMovimiento(
+            @Valid @RequestBody RegistroMovimientoInventarioRequest request,
+            Authentication auth) {
+        AjusteInventarioResponse response = movimientoService.registrarMovimiento(request, auth);
+        return ResponseEntity.status(HttpStatus.CREATED)
+                .body(ApiResponse.created("Movimiento de inventario registrado correctamente.", response));
+    }
+
+    @GetMapping("/movimientos")
+    @PreAuthorize("hasAnyRole('PRODUCCION', 'ADMIN')")
+    @Operation(summary = "Listar historial de movimientos de inventario")
+    public ResponseEntity<ApiResponse<List<MovimientoInventarioHistorialResponse>>> listarMovimientosHistorico() {
+        return ResponseEntity.ok(ApiResponse.ok(movimientoService.listarMovimientosHistorico()));
     }
 }

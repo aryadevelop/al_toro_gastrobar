@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.inventario.service;
 
 import co.edu.unicauca.backend.modules.inventario.dto.request.AjusteInventarioRequest;
+import co.edu.unicauca.backend.modules.inventario.dto.request.RegistroMovimientoInventarioRequest;
 import co.edu.unicauca.backend.modules.inventario.dto.response.AjusteInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.dto.response.ItemAjusteInventarioResponse;
 import co.edu.unicauca.backend.modules.inventario.entity.Insumo;
@@ -143,6 +144,16 @@ class MovimientoInventarioServiceTest {
     private AjusteInventarioRequest reqInsumo(Long insumoId, String cantidad, TipoMovimiento tipo) {
         return AjusteInventarioRequest.builder()
                 .insumoId(insumoId).cantidad(new BigDecimal(cantidad)).tipo(tipo).build();
+    }
+
+    private RegistroMovimientoInventarioRequest reqProductoConFecha(Long productoId, String cantidad,
+                                                                     TipoMovimiento tipo, LocalDateTime fecha) {
+        return RegistroMovimientoInventarioRequest.builder()
+                .productoId(productoId)
+                .cantidad(new BigDecimal(cantidad))
+                .tipo(tipo)
+                .fecha(fecha)
+                .build();
     }
 
     // ── buscarItemsAjuste ────────────────────────────────────────────────────
@@ -492,6 +503,72 @@ class MovimientoInventarioServiceTest {
             assertThatThrownBy(() -> service.registrarAjuste(req, auth("cocinero@test.com")))
                     .isInstanceOf(BusinessException.class)
                     .hasMessageContaining("Solo se puede ajustar");
+        }
+    }
+
+    @Nested
+    @DisplayName("registrarMovimiento – fecha opcional")
+    class RegistrarMovimientoConFecha {
+
+        @Test
+        @DisplayName("registro con fecha válida usa la fecha proporcionada")
+        void registroConFechaValida_usarFechaProporcionada() {
+            Producto p = producto(1L, BigDecimal.ZERO);
+            LocalDateTime fecha = LocalDateTime.now().minusHours(1);
+            stubActor("cocinero@test.com");
+            when(productoRepository.findByIdForUpdate(1L)).thenReturn(Optional.of(p));
+            when(productoRepository.save(any())).thenReturn(p);
+            stubMovimientoSave();
+
+            service.registrarMovimiento(reqProductoConFecha(1L, "2", TipoMovimiento.INGRESO, fecha),
+                    auth("cocinero@test.com"));
+
+            ArgumentCaptor<MovimientoInventario> captor = ArgumentCaptor.forClass(MovimientoInventario.class);
+            verify(movimientoRepository).save(captor.capture());
+            assertThat(captor.getValue().getMovimientoFechaHora()).isEqualTo(fecha);
+        }
+
+        @Test
+        @DisplayName("registro con fecha en el futuro lanza BusinessException")
+        void registroConFechaFutura_lanzaBusinessException() {
+            LocalDateTime fechaFutura = LocalDateTime.now().plusHours(1);
+            RegistroMovimientoInventarioRequest req = RegistroMovimientoInventarioRequest.builder()
+                    .productoId(1L)
+                    .cantidad(new BigDecimal("1"))
+                    .tipo(TipoMovimiento.INGRESO)
+                    .fecha(fechaFutura)
+                    .build();
+
+            assertThatThrownBy(() -> service.registrarMovimiento(req, auth("cocinero@test.com")))
+                    .isInstanceOf(BusinessException.class)
+                    .hasMessageContaining("La fecha del movimiento no puede ser futura");
+        }
+    }
+
+    @Nested
+    @DisplayName("listarMovimientosHistorico")
+    class ListarMovimientosHistorico {
+
+        @Test
+        @DisplayName("retorna movimientos ordenados por fecha descendente")
+        void retornaMovimientosOrdenadosPorFechaDescendente() {
+            MovimientoInventario m1 = MovimientoInventario.builder()
+                    .movimientoId(1L)
+                    .movimientoTipo(TipoMovimiento.INGRESO)
+                    .movimientoCantidad(new BigDecimal("1"))
+                    .movimientoFechaHora(LocalDateTime.now().minusDays(1))
+                    .build();
+            MovimientoInventario m2 = MovimientoInventario.builder()
+                    .movimientoId(2L)
+                    .movimientoTipo(TipoMovimiento.EGRESO)
+                    .movimientoCantidad(new BigDecimal("2"))
+                    .movimientoFechaHora(LocalDateTime.now())
+                    .build();
+            when(movimientoRepository.findAll(any(org.springframework.data.domain.Sort.class))).thenReturn(List.of(m2, m1));
+
+            assertThat(service.listarMovimientosHistorico())
+                    .extracting("movimientoId")
+                    .containsExactly(2L, 1L);
         }
     }
 
