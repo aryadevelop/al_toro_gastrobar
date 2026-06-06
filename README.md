@@ -1,7 +1,5 @@
 # Al Toro Gastrobar
 
----
-
 ## Tabla de contenidos
 
 - [Descripción](#descripción)
@@ -136,7 +134,7 @@ al_toro_gastrobar/
 
 ### Backend e infraestructura (Docker)
 
-Todos los comandos se ejecutan desde la **raíz del proyecto**.
+Todos los comandos se ejecutan desde la raíz del proyecto.
 
 #### Desarrollo
 
@@ -194,7 +192,7 @@ Basadas en `.env.prod.example`. Los valores de dev se definen como defaults en `
 
 | Variable | Descripción |
 |----------|-------------|
-| `POSTGRES_DB` | Nombre de la base de datos |
+| `POSTGRES_DB` | Nombre de base de datos |
 | `POSTGRES_USER` | Usuario de PostgreSQL |
 | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL |
 | `RABBITMQ_USERNAME` | Usuario de RabbitMQ |
@@ -258,7 +256,7 @@ backend/postman/postman/
 
 ### Desde Postman for VS Code
 
-1. Instalar la extensión **Postman** en VS Code
+1. Instalar la extensión Postman en VS Code
 2. Abrir la carpeta `backend/postman/postman/`
 3. Seleccionar el environment **Al Toro – Local** en la barra lateral
 4. Ejecutar tests individuales o colecciones completas desde la UI
