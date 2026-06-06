@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.ActualizarDecoracionRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.CambioEstadoDecoracionRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearDecoracionRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionAdminResponse;
 import co.edu.unicauca.backend.modules.reservas.service.DecoracionAdminService;
@@ -14,6 +15,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
@@ -85,6 +87,17 @@ public class DecoracionAdminController {
 
         DecoracionAdminResponse response = decoracionAdminService.actualizarDecoracion(decoracionId, request);
         return ResponseEntity.ok(ApiResponse.ok("Decoración actualizada correctamente", response));
+    }
+
+    @PatchMapping("/{decoracionId}/estado")
+    @PreAuthorize("hasRole('ADMIN')")
+    @Operation(summary = "Cambiar el estado activo/inactivo de una decoración")
+    public ResponseEntity<ApiResponse<DecoracionAdminResponse>> cambiarEstadoDecoracion(
+            @PathVariable Long decoracionId,
+            @Valid @RequestBody CambioEstadoDecoracionRequest request) {
+
+        DecoracionAdminResponse response = decoracionAdminService.cambiarEstadoDecoracion(decoracionId, request.getEstado());
+        return ResponseEntity.ok(ApiResponse.ok("Estado de decoración actualizado correctamente", response));
     }
 
     @DeleteMapping("/{decoracionId}")

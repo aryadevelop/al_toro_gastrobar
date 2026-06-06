@@ -108,6 +108,21 @@ public class DecoracionAdminService {
     }
 
     @Transactional
+    public DecoracionAdminResponse cambiarEstadoDecoracion(Long decoracionId, EstadoGenerico estado) {
+        Decoracion decoracion = decoracionRepository.findById(decoracionId)
+                .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decoracionId));
+
+        if (decoracion.getDecoracionEstado() == estado) {
+            throw new BusinessException(ErrorCode.VALIDATION_ERROR,
+                    "La decoración ya se encuentra en el estado solicitado.");
+        }
+
+        decoracion.setDecoracionEstado(estado);
+        decoracion = decoracionRepository.save(decoracion);
+        return toAdminResponse(decoracion);
+    }
+
+    @Transactional
     public void eliminarDecoracion(Long decoracionId) {
         Decoracion decoracion = decoracionRepository.findById(decoracionId)
                 .orElseThrow(() -> new ResourceNotFoundException("Decoracion", decoracionId));
