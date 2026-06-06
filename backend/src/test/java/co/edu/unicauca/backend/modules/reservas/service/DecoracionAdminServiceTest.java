@@ -244,6 +244,33 @@ class DecoracionAdminServiceTest {
     }
 
     @Test
+    void cambiarEstadoDecoracion_actualizaElEstado() {
+        Decoracion decoracion = new Decoracion();
+        decoracion.setDecoracionId(8L);
+        decoracion.setDecoracionEstado(EstadoGenerico.ACTIVO);
+        when(decoracionRepository.findById(8L)).thenReturn(Optional.of(decoracion));
+        when(decoracionRepository.save(any())).thenAnswer(invocation -> invocation.getArgument(0));
+        when(decoracionZonaRepository.findByDecoracionId(8L)).thenReturn(List.of());
+
+        DecoracionAdminResponse response = service.cambiarEstadoDecoracion(8L, EstadoGenerico.INACTIVO);
+
+        assertThat(response.getDecoracionEstado()).isEqualTo("INACTIVO");
+        assertThat(decoracion.getDecoracionEstado()).isEqualTo(EstadoGenerico.INACTIVO);
+    }
+
+    @Test
+    void cambiarEstadoDecoracion_mismoEstado_lanzaBusinessException() {
+        Decoracion decoracion = new Decoracion();
+        decoracion.setDecoracionId(9L);
+        decoracion.setDecoracionEstado(EstadoGenerico.INACTIVO);
+        when(decoracionRepository.findById(9L)).thenReturn(Optional.of(decoracion));
+
+        assertThatThrownBy(() -> service.cambiarEstadoDecoracion(9L, EstadoGenerico.INACTIVO))
+                .isInstanceOf(BusinessException.class)
+                .hasMessage("La decoración ya se encuentra en el estado solicitado.");
+    }
+
+    @Test
     void eliminarDecoracion_borraDecoracionYZonas() {
         Decoracion decoracion = new Decoracion();
         decoracion.setDecoracionId(7L);

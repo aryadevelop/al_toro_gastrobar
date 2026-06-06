@@ -1,6 +1,7 @@
 package co.edu.unicauca.backend.modules.reservas.controller;
 
 import co.edu.unicauca.backend.modules.reservas.dto.request.ActualizarDecoracionRequest;
+import co.edu.unicauca.backend.modules.reservas.dto.request.CambioEstadoDecoracionRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.request.CrearDecoracionRequest;
 import co.edu.unicauca.backend.modules.reservas.dto.response.DecoracionAdminResponse;
 import co.edu.unicauca.backend.modules.reservas.service.DecoracionAdminService;
@@ -150,6 +151,28 @@ class DecoracionAdminControllerTest {
                 .andExpect(status().isOk())
                 .andExpect(jsonPath("$.data.decoracionNombre").value("Terraza"))
                 .andExpect(jsonPath("$.message").value("Decoración actualizada correctamente"));
+    }
+
+    @Test
+    void cambiarEstadoDecoracion_admin_ok() throws Exception {
+        CambioEstadoDecoracionRequest request = CambioEstadoDecoracionRequest.builder()
+                .estado(co.edu.unicauca.backend.shared.enums.EstadoGenerico.INACTIVO)
+                .build();
+
+        DecoracionAdminResponse response = DecoracionAdminResponse.builder()
+                .decoracionId(3L)
+                .decoracionEstado("INACTIVO")
+                .build();
+
+        when(decoracionAdminService.cambiarEstadoDecoracion(eq(3L), any())).thenReturn(response);
+
+        mockMvc.perform(MockMvcRequestBuilders.patch("/api/decoraciones/3/estado")
+                        .contentType(MediaType.APPLICATION_JSON)
+                        .content(objectMapper.writeValueAsString(request))
+                        .with(user("admin@altoro.com").roles("ADMIN")))
+                .andExpect(status().isOk())
+                .andExpect(jsonPath("$.data.decoracionEstado").value("INACTIVO"))
+                .andExpect(jsonPath("$.message").value("Estado de decoración actualizado correctamente"));
     }
 
     @Test
