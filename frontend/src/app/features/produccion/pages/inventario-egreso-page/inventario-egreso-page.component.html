@@ -1,0 +1,107 @@
+<section class="page-grid">
+  <app-page-header title="Ajustes" subtitle="Registro de ingresos y egresos de inventario"></app-page-header>
+
+  <article class="card" style="padding: 1.5rem; max-width: 760px; margin: 0 auto;">
+    <form class="form-grid form-compact" [formGroup]="form" (ngSubmit)="guardar()">
+      
+      <!-- Buscador -->
+      <label class="position-relative" style="grid-column: 1 / -1;">
+        <span>Buscar producto o insumo <span style="color:red;">*</span></span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input 
+            type="text" 
+            class="input-field" 
+            formControlName="search"
+            placeholder="Ej. Tomate, Cerveza..."
+            (input)="onSearchChange($event)"
+            autocomplete="off"
+            style="flex: 1;"
+          >
+          <span *ngIf="isSearching" style="color: var(--muted); font-size: 0.9rem;">Buscando...</span>
+        </div>
+
+        <ul *ngIf="showDropdown" class="autocomplete-list">
+          <li 
+            *ngFor="let item of searchResults"
+            (click)="seleccionarItem(item)"
+          >
+            <div>
+              <strong>{{ item.nombre }}</strong>
+              <span class="badge" [class.badge-producto]="item.tipo === 'PRODUCTO'" [class.badge-insumo]="item.tipo === 'INSUMO'">
+                {{ item.tipo }}
+              </span>
+            </div>
+            <span class="muted small">Stock: {{ item.stockActual }} {{ item.unidad }}</span>
+          </li>
+        </ul>
+      </label>
+
+      <!-- Info item seleccionado -->
+      <div *ngIf="form.get('elementoId')?.value" class="selected-item-info" style="grid-column: 1 / -1;">
+        <div>
+          <h4 style="margin: 0; color: var(--text);">{{ form.get('selectedItemName')?.value }}</h4>
+          <span style="color: var(--muted); font-size: 0.9rem;">
+            Stock disponible: <strong>{{ form.get('stockActual')?.value }} {{ form.get('unidad')?.value }}</strong>
+          </span>
+        </div>
+        <span class="badge" [class.badge-producto]="form.get('tipoElemento')?.value === 'PRODUCTO'" [class.badge-insumo]="form.get('tipoElemento')?.value === 'INSUMO'">
+          {{ form.get('tipoElemento')?.value }}
+        </span>
+      </div>
+
+      <!-- Fila: Tipo y Cantidad -->
+      <label>
+        <span>Tipo de movimiento <span style="color:red;">*</span></span>
+        <select class="input-field" formControlName="tipoMovimiento">
+          <option value="EGRESO">Egreso (Salida)</option>
+          <option value="INGRESO">Ingreso (Entrada)</option>
+        </select>
+      </label>
+
+      <label>
+        <span>Cantidad <span style="color:red;">*</span></span>
+        <div style="display: flex; gap: 0.5rem; align-items: center;">
+          <input type="number" class="input-field" formControlName="cantidad" min="1" placeholder="0">
+          <span style="color: var(--muted); min-width: 30px;">{{ form.get('unidad')?.value || 'und' }}</span>
+        </div>
+      </label>
+
+      <!-- Trazabilidad Opcional -->
+      <div style="grid-column: 1 / -1; margin-top: 1rem; border-bottom: 1px solid rgba(0,0,0,0.1); padding-bottom: 0.5rem;">
+        <h5 style="margin: 0; color: var(--text);">Información de trazabilidad (Opcional)</h5>
+      </div>
+
+      <label>
+        <span>Proveedor</span>
+        <input class="input-field" type="text" formControlName="proveedor" placeholder="Nombre proveedor">
+      </label>
+
+      <label>
+        <span>Número de factura</span>
+        <input class="input-field" type="text" formControlName="numeroFactura" placeholder="Ej. FAC-1234">
+      </label>
+
+      <label style="grid-column: 1 / -1;">
+        <span>Observaciones</span>
+        <textarea class="input-field" rows="2" formControlName="observaciones" placeholder="Razón del ajuste, caducidad, etc..."></textarea>
+      </label>
+
+      <!-- Alertas -->
+      <div *ngIf="submitErrorMsg" class="alert error-alert" style="grid-column: 1 / -1;">
+        {{ submitErrorMsg }}
+      </div>
+      <div *ngIf="stockErrorMsg" class="alert warn-alert" style="grid-column: 1 / -1;">
+        {{ stockErrorMsg }}
+      </div>
+
+      <!-- Botones -->
+      <div style="grid-column: 1 / -1; display: flex; justify-content: flex-end; gap: 0.75rem; margin-top: 1rem;">
+        <button type="button" class="btn-secondary" (click)="cancelar()" [disabled]="isSubmitting">Cancelar</button>
+        <button type="submit" class="btn-primary" [disabled]="isSubmitting">
+          {{ isSubmitting ? 'Guardando...' : 'Guardar Ajuste' }}
+        </button>
+      </div>
+
+    </form>
+  </article>
+</section>

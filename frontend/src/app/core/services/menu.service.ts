@@ -13,6 +13,7 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Cierre Caja', path: '/app/cajero/cierre-caja', icon: 'point_of_sale', roles: ['CAJERO'] },
   { label: 'Administrador', path: '/app/admin', icon: 'shield', roles: ['ADMIN'] },
   { label: 'Historial visitas', path: '/app/admin/cliente-historial', icon: 'history', roles: ['ADMIN'] },
+  { label: 'Ajuste inventario', path: '/app/produccion/inventario-egreso', icon: 'history', roles: ['PRODUCCION'] },
   { label: 'Mi perfil', path: '/app/profile', icon: 'badge', roles: ['ADMIN', 'CLIENTE', 'MESERO', 'PRODUCCION', 'CAJERO'] }
 ];
 
