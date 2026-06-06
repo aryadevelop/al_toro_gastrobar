@@ -1,6 +1,6 @@
-# API Endpoints - Al Toro Gastrobar
+# Referencia de endpoints — Al Toro Gastrobar
 
-Base URL: `http://localhost:8080/api`
+Base URL: `http://localhost:8080/api`. Todas las respuestas siguen el contrato `ApiResponse<T>` con campos `message`, `data` y `timestamp`.
 
 ---
 
@@ -8,41 +8,64 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| POST | `/login` | **Public** | Autenticación de usuario. Retorna `accessToken` + `refreshToken`. Soporta `forceSessionOverride` para cerrar sesiones previas. |
-| POST | `/register` | **Public** | Registro de nuevo usuario. Crea `Usuario` + `Cliente` con rol `CLIENTE`. |
-| POST | `/refresh` | **Public** | Rotación de tokens. Invalida refresh token actual y retorna nuevo par de tokens. |
-| GET | `/me` | **Authenticated** | Perfil del usuario actual con todos sus roles asignados. |
-| POST | `/logout` | **Authenticated** | Cierre de sesión. Invalida todas las sesiones activas del usuario. |
+| POST | `/api/auth/register` | Público | Registrar nueva cuenta de cliente |
+| POST | `/api/auth/login` | Público | Iniciar sesión; retorna par de tokens JWT |
+| POST | `/api/auth/refresh` | Público | Rotar par de tokens con refresh token válido |
+| GET | `/api/auth/me` | Autenticado | Perfil del usuario cuya sesión está activa |
+| POST | `/api/auth/logout` | Autenticado | Invalidar todas las sesiones activas del usuario |
 
 ---
 
-## Reservas (`/api/reservas`)
+## Reservas (`/api/reservas`, `/api/reservas/mesero`)
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/disponibilidad?fechaHora=` | **CLIENTE** | Consulta zonas y decoraciones disponibles para una fecha/hora. Solo horario 17:00–22:00. Retorna capacidad disponible por zona. |
-| POST | `/` | **CLIENTE** | Crear reserva. Puede incluir pre-orden de comanda (estado `PRE_RESERVA`). Valida capacidad de zona, decoración exclusiva, y horarios. |
-| PUT | `/{reservaId}` | **CLIENTE** | Modificar reserva futura. Cutoff: 13:00 día anterior (BASICA), 23:00 día anterior (ESPECIAL). Solo `PENDIENTE`/`CONFIRMADA`. |
-| PATCH | `/{reservaId}/cancelar` | **CLIENTE / CAJERO / ADMIN** | Cancelar reserva. Sin restricción de tiempo. CLIENTE: solo sus propias reservas. CAJERO/ADMIN: cualquier reserva. Retorna flag `requiereWhatsApp` si hay abono a reembolsar. |
-| PATCH | `/{reservaId}/confirmar` | **CAJERO / ADMIN** | Confirmar una reserva `ESPECIAL PENDIENTE`. Estado pasa a `CONFIRMADA`. Emite evento WS en `/topic/reservas/cambios`. 422 si no es ESPECIAL o no está PENDIENTE. |
-| PATCH | `/{reservaId}/marcar-inasistencia` | **MESERO / ADMIN** | Marcar reserva como inasistencia tras 30 minutos de tolerancia. Solo `CONFIRMADA`. Libera zona y decoración. Cambio irreversible. |
-| GET | `/cliente/futuras?emailCliente=` | **CLIENTE** | Lista reservas futuras del cliente (`PENDIENTE`/`CONFIRMADA`) ordenadas ASC por fecha. Ownership validation. |
-| GET | `/cliente/canceladas-devueltas?emailCliente=` | **CLIENTE** | Historial de reservas canceladas (`CANCELADA`/`DEVUELTA`) del cliente. Ownership validation. |
-| GET | `/{reservaId}/detalle` | **CLIENTE / CAJERO / ADMIN** | Detalle completo de reserva: zona, decoración, pre-orden con ítems, abonos, `clienteId`. CLIENTE: ownership validation. |
-| GET | `/mesero/consulta?fecha=&identificador=` | **MESERO / CAJERO / ADMIN** | Lista reservas del día. MESERO/ADMIN: solo estados `PENDIENTE`/`CONFIRMADA`, con `mostrarBotonInasistencia`. CAJERO: todos los estados, con `tipo` y flags de acción (`mostrarConfirmar`, `mostrarAgregarAnticipo`, `mostrarAgregarDevolucion`, `mostrarCancelar`). |
-| GET | `/mesero/{reservaId}/detalle` | **MESERO / ADMIN** | Detalle completo para meseros: incluye teléfono cliente, modificaciones de pre-orden, información de contacto. |
-| POST | `/{reservaId}/abonos` | **CAJERO / ADMIN** | Registra un anticipo (reserva `CONFIRMADA`) o una devolución (reserva `CANCELADA`). Body `RegistrarAbonoRequest` { tipo (`ANTICIPO`\|`DEVOLUCION`), monto, metodo (`EFECTIVO`\|`TARJETA`\|`TRANSFERENCIA`\|`OTRO`), fechaHora }. Responde 201 con `RegistrarAbonoResponse` { abonoId, tipo, estado, resumen }. Una devolución que salda el neto pasa la reserva a `DEVUELTA`. Publica evento WS `ANTICIPO`/`DEVOLUCION` en `/topic/reservas/cambios`. Errores: 422 (Bean Validation), 400 (fecha futura o anterior a creación de reserva), 409 (estado inválido / tope de monto excedido), 404 (reserva inexistente), 401/403. |
-| GET | `/{reservaId}/resumen-pago` | **CAJERO / ADMIN** | Devuelve el resumen de pagos de la reserva (`ResumenPagoResponse`): cliente, fecha/hora, personas, estado, tipo, totalAPagar, totalAnticipado, totalDevuelto, montoAbonado, saldoPendiente, pendientePorDevolver. Errores: 404, 401/403. |
+| GET | `/api/reservas/disponibilidad` | CLIENTE | Consultar disponibilidad de zonas y decoraciones para fecha/hora |
+| POST | `/api/reservas` | CLIENTE | Crear nueva reserva con pre-orden opcional |
+| PUT | `/api/reservas/{reservaId}` | CLIENTE, ADMIN | Modificar reserva futura (cutoff BASICA 13:00, ESPECIAL 23:00) |
+| PATCH | `/api/reservas/{reservaId}/cancelar` | CLIENTE, ADMIN, CAJERO | Cancelar reserva; sin restricción horaria |
+| PATCH | `/api/reservas/{reservaId}/confirmar` | CAJERO, ADMIN | Confirmar reserva ESPECIAL pendiente |
+| PATCH | `/api/reservas/{reservaId}/marcar-inasistencia` | MESERO, ADMIN | Marcar inasistencia tras 30 min de tolerancia |
+| GET | `/api/reservas/cliente/futuras` | CLIENTE, ADMIN | Reservas futuras activas del cliente (PENDIENTE o CONFIRMADA) |
+| GET | `/api/reservas/cliente/canceladas-devueltas` | CLIENTE, ADMIN | Reservas canceladas o devueltas del cliente |
+| GET | `/api/reservas/{reservaId}/detalle` | CLIENTE, MESERO, CAJERO, ADMIN | Detalle completo de una reserva |
+| POST | `/api/reservas/{reservaId}/abonos` | CAJERO, ADMIN | Registrar anticipo o devolución sobre una reserva |
+| GET | `/api/reservas/{reservaId}/resumen-pago` | CAJERO, ADMIN | Resumen financiero de pagos de una reserva |
+| GET | `/api/reservas/mesero/consulta` | MESERO, CAJERO, ADMIN | Listar reservas del día o buscar por identificador; vista diferenciada por rol |
+| GET | `/api/reservas/mesero/{reservaId}/detalle` | MESERO, ADMIN | Detalle completo de una reserva (vista mesero) |
 
 ---
 
-## Clientes / Puntos (`/api/clientes`)
+## Clientes (`/api/clientes`)
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/me/puntos?emailCliente=` | **CLIENTE** | Consulta puntos propios: `puntosActuales` (canjeables) + `puntosAcumulados` (lifetime). Ownership validation. |
-| GET | `/{clienteId}/puntos` | **CAJERO / ADMIN** | Consulta puntos de cualquier cliente. Para verificar antes de canje. |
-| POST | `/{clienteId}/canje-puntos?emailEmpleado=` | **CAJERO** | Canjear puntos del cliente. Resetea `puntosActuales` a 0, `puntosAcumulados` no cambia. Crea registro `CanjePuntos`. |
+| GET | `/api/clientes/me` | CLIENTE | Perfil del cliente autenticado |
+| PUT | `/api/clientes/me` | CLIENTE | Actualizar datos del perfil propio |
+| POST | `/api/clientes/me/cambiar-contraseña` | CLIENTE | Cambiar contraseña del cliente autenticado |
+| GET | `/api/clientes/me/puntos` | CLIENTE | Consultar puntos de fidelización propios |
+| GET | `/api/clientes/{clienteId}/puntos` | CAJERO, ADMIN | Consultar puntos de fidelización de un cliente |
+| POST | `/api/clientes/{clienteId}/canje-puntos` | CAJERO, ADMIN | Registrar canje de puntos de fidelización |
+| GET | `/api/clientes/buscar` | CAJERO, ADMIN | Buscar clientes por email (coincidencia parcial) |
+| GET | `/api/clientes` | ADMIN | Listar clientes con filtros (visitas, fechas, estado, nombre, cumpleaños) |
+| GET | `/api/clientes/{clienteId}/ventas` | ADMIN | Historial completo de ventas por cliente |
+| GET | `/api/clientes/{clienteId}/ventas/resumen` | ADMIN | Resumen del historial de ventas del cliente |
+| GET | `/api/clientes/{clienteId}/ventas/agrupadas/anio` | ADMIN | Totales de ventas agrupadas por año |
+| GET | `/api/clientes/{clienteId}/ventas/agrupadas/mes` | ADMIN | Totales de ventas agrupadas por mes |
+| POST | `/api/clientes/{clienteId}/ventas/recordatorio` | ADMIN | Enviar recordatorio a cliente inactivo |
+| GET | `/api/clientes/buscar/nombre` | ADMIN | Buscar clientes por nombre |
+| GET | `/api/clientes/buscar/correo` | ADMIN | Buscar clientes por correo |
+| GET | `/api/clientes/buscar/telefono` | ADMIN | Buscar clientes por teléfono |
+
+---
+
+## Empleados (`/api/empleados`)
+
+| Method | Endpoint | Acceso | Descripción |
+|--------|----------|--------|-------------|
+| POST | `/api/empleados` | ADMIN | Crear nuevo empleado con roles asignados |
+| GET | `/api/empleados` | ADMIN | Listar empleados con filtros por rol, estado y nombre |
+| PATCH | `/api/empleados/{empleadoId}/estado` | ADMIN | Cambiar estado de un empleado entre activo e inactivo |
 
 ---
 
@@ -50,17 +73,23 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/carta` | **Authenticated** | Menú agrupado por categorías (`CategoriaCarta`). Solo productos NO especiales, activos, ordenados por `orden`. |
-| GET | `/menu-especial` | **Authenticated** | Menús especiales con grupos de opciones de modificación. Para crear pre-órdenes con personalizaciones. |
-| GET | `/buscar?q=` | **Authenticated** | Búsqueda parcial case-insensitive de productos del catálogo. Excluye menús especiales y productos inactivos. |
+| GET | `/api/productos/carta` | CLIENTE | Carta de platos y bebidas agrupada por categoría (excluye menú especial) |
+| GET | `/api/productos/menu-especial` | CLIENTE | Menús especiales activos con grupos y opciones de modificación |
+| GET | `/api/productos` | ADMIN | Listar productos de inventario con filtros opcionales por categoría y nombre |
+| GET | `/api/productos/buscar` | Autenticado | Buscar productos por nombre (parcial, excluye menú especial e inactivos) |
+| GET | `/api/productos/{productoId}/estado/implicaciones` | ADMIN | Evaluar implicaciones del cambio de estado de un producto |
+| PUT | `/api/productos/{productoId}/estado` | ADMIN | Cambiar estado de un producto (ACTIVO/INACTIVO) |
 
 ---
+
 ## Inventario (`/api/inventario`)
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/buscar?q=` | **COCINERO / BARTENDER / ADMIN** | Búsqueda parcial case-insensitive de productos e insumos activos. Lista unificada ordenada alfabéticamente; incluye productos con stock 0. |
-| POST | `/movimientos` | **COCINERO / BARTENDER / ADMIN** | Registra un ajuste manual (INGRESO o EGRESO) de un producto o insumo. En EGRESO valida stock, descuenta, crea notificación CAMBIO en comandas PENDIENTE afectadas y emite WS ELIMINADA. Difunde el evento de stock a /topic/inventario. |
+| GET | `/api/inventario/buscar` | PRODUCCION, ADMIN | Buscar productos e insumos activos por nombre para ajuste |
+| POST | `/api/inventario/movimientos` | PRODUCCION, ADMIN | Registrar ajuste manual de inventario (ingreso o egreso) |
+| GET | `/api/inventario/insumos/{insumoId}/estado/implicaciones` | ADMIN | Evaluar implicaciones del cambio de estado de un insumo |
+| PUT | `/api/inventario/insumos/{insumoId}/estado` | ADMIN | Cambiar estado de un insumo (ACTIVO/INACTIVO) |
 
 ---
 
@@ -68,11 +97,11 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/` | **MESERO / CAJERO / ADMIN** | Obtener mapa completo de mesas agrupadas por zona. Incluye estado de cada mesa, identificador asignado, y visita activa. Para CAJERO, `esMesaPropia=false` y `nombreMesero` se devuelve siempre poblado. |
-| GET | `/{mesaId}/detalle` | **MESERO / CAJERO / ADMIN** | Detalle de mesa específica: identificador, estado, visita activa con cliente, items de comandas pendientes. Cajero recibe campos extra `clienteId`, `puntosFidelizacion`, `esCumpleanos`, `puedeGenerarCuenta`. |
-| GET | `/{mesaId}/items-produccion` | **MESERO / ADMIN** | Items de comandas en producción para la mesa (estados `PENDIENTE`, `EN_PREPARACION`, `LISTO`). Agrupados por comanda y estación (COCINA/BARRA). |
-| POST | `/` | **MESERO / ADMIN** | Asignar identificador a mesa. Requiere `mesaId` y `identificador`. Valida unicidad y reglas de asignación. Publica evento WebSocket. |
-| GET | `/zonas-disponibles` | **MESERO / ADMIN** | Lista zonas con mesas disponibles para asignar. Excluye mesas ya asignadas o con visita activa. |
+| GET | `/api/mesas` | MESERO, CAJERO, ADMIN | Mapa de mesas con todas las zonas; filtrable por zonaId |
+| GET | `/api/mesas/{mesaId}/detalle` | MESERO, CAJERO, ADMIN | Detalle de una mesa; CAJERO recibe campos extra (clienteId, puntos, etc.) |
+| GET | `/api/mesas/{mesaId}/items-produccion` | MESERO, ADMIN | Ítems en producción de una mesa (solo mesero asignado o ADMIN) |
+| POST | `/api/mesas` | MESERO, ADMIN | Asignar identificador a mesa (walk-in o llegada de reserva confirmada) |
+| GET | `/api/mesas/zonas-disponibles` | MESERO, ADMIN | Listar zonas con disponibilidad calculada en tiempo real |
 
 ---
 
@@ -80,17 +109,17 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/borrador?visitaId=` | **MESERO / ADMIN** | Carga el formulario de modificar comanda: ítems precargados desde pre-orden o estructura vacía para walk-in. Valida ownership de la mesa. |
-| POST | `/borrador/items` | **MESERO / ADMIN** | Agrega ítem al borrador (PLATO→COCINA, BEBIDA→BARRA). Soporta descripción opcional para modificación libre. Crea la comanda BORRADOR de la estación si no existe. Valida stock. |
-| PATCH | `/borrador/items/{itemId}` | **MESERO / ADMIN** | Modifica cantidad y/o descripción del ítem; valida stock y techo de 250 unidades. |
-| DELETE | `/borrador/items/{itemId}` | **MESERO / ADMIN** | Elimina ítem. Si es parte de un menú especial elimina el par cocina+barra del mismo grupo. Si es ítem base elimina también sus modificaciones libres. |
-| POST | `/borrador/{comandaId}/enviar` | **MESERO / ADMIN** | BORRADOR → PENDIENTE. Valida stock sin decrementarlo (el descuento ocurre al transicionar a EN_PREPARACION). Publica `comanda.nueva` en RabbitMQ (bridge impresión), WS `/topic/estacion/{estacion}` (dashboard producción), `/topic/mesas` y `/topic/visita/{visitaId}/orden`. |
-| DELETE | `/borrador?visitaId=` | **MESERO / ADMIN** | Elimina todas las comandas BORRADOR de la visita; dispara WS `/topic/mesas`. Idempotente. |
-| PATCH | `/borrador/{comandaId}/notas` | **MESERO / ADMIN** | Persiste las notas (cocina o barra) de una comanda BORRADOR en tiempo real. |
-| GET | `/produccion` | **PRODUCCION** (COCINERO / BARTENDER) | Tablero de comandas de la(s) estación(es) del usuario, en tres columnas (`pendientes`, `enPreparacion`, `listos`). Las comandas se enriquecen con mesa, mesero y total de ítems. Si el usuario tiene ambos roles, el tablero combina las dos estaciones. |
-| GET | `/produccion/{comandaId}` | **PRODUCCION** (COCINERO / BARTENDER) | Detalle de una comanda visible en producción con ítems agrupados por categoría (PLATO, BEBIDA, OTRO). Valida que la estación pertenezca al usuario (403) y que el estado sea `PENDIENTE`, `EN_PREPARACION` o `LISTO` (404 en otro caso). |
-| POST | `/produccion/{comandaId}/iniciar` | **PRODUCCION** (COCINERO / BARTENDER) | `PENDIENTE` → `EN_PREPARACION`. Descuenta el inventario consumido (VENTA_DIRECTA contra `Producto.stockActual`; PREPARACION contra `Insumo.stockActual` vía receta; menús especiales exentos) y registra `MovimientoInventario` de EGRESO. Si el descuento falla la transacción revierte. Registra `comandaFechaHoraInicio`. Publica WS `ACTUALIZADA` al tópico de producción y actualización al cliente. 409 si no está `PENDIENTE`, 403 si la estación no es del usuario. |
-| POST | `/produccion/{comandaId}/listo` | **PRODUCCION** (COCINERO / BARTENDER) | `EN_PREPARACION` → `LISTO`. Registra `comandaFechaHoraListo`, crea notificación `PLATOS_LISTOS` (cocina) o `BEBIDAS_LISTAS` (barra) para el mesero. Publica WS `ACTUALIZADA`, actualización al cliente y refresco del mapa de mesas. 409 si no está `EN_PREPARACION`, 403 si la estación no es del usuario. |
+| GET | `/api/comandas/borrador` | MESERO, ADMIN | Obtener borrador completo de la visita (estructura vacía si no existe) |
+| POST | `/api/comandas/borrador/items` | MESERO, ADMIN | Agregar ítem al borrador; enruta a COCINA o BARRA según categoría |
+| PATCH | `/api/comandas/borrador/items/{itemId}` | MESERO, ADMIN | Modificar cantidad o descripción de un ítem del borrador |
+| DELETE | `/api/comandas/borrador/items/{itemId}` | MESERO, ADMIN | Eliminar ítem del borrador (en menú especial elimina el par COCINA+BARRA) |
+| POST | `/api/comandas/borrador/{comandaId}/enviar` | MESERO, ADMIN | Enviar comanda a producción (BORRADOR → PENDIENTE, valida stock) |
+| DELETE | `/api/comandas/borrador` | MESERO, ADMIN | Cancelar formulario y eliminar todas las comandas BORRADOR de la visita |
+| PATCH | `/api/comandas/borrador/{comandaId}/notas` | MESERO, ADMIN | Actualizar notas de cocina o barra en el borrador |
+| GET | `/api/comandas/produccion` | PRODUCCION | Tablero de producción: pendientes, en preparación y listos de la estación |
+| GET | `/api/comandas/produccion/{comandaId}` | PRODUCCION | Detalle de una comanda visible para la estación del usuario |
+| POST | `/api/comandas/produccion/{comandaId}/iniciar` | PRODUCCION | Iniciar preparación (PENDIENTE → EN_PREPARACION); descuenta inventario |
+| POST | `/api/comandas/produccion/{comandaId}/listo` | PRODUCCION | Marcar comanda como lista (EN_PREPARACION → LISTO); crea notificación al mesero |
 
 ---
 
@@ -98,10 +127,12 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| GET | `/cliente/historial?emailCliente=` | **CLIENTE** | Historial de visitas pasadas (con `fechaHoraFin`). Ordenadas DESC por fecha. Ownership validation. |
-| GET | `/cliente/{visitaId}/detalle` | **CLIENTE** | Detalle completo de visita: comandas, ítems agrupados y ordenados por categoría, venta. Ownership validation. |
-| GET | `/activa` | **CLIENTE / MESERO / CAJERO / ADMIN** | Estado de visita activa (`fechaHoraFin` IS NULL): ítems ordenados por categoría, total, flag `asistenciaSolicitada`, `notificacionAsistenciaId`. **CLIENTE**: usa token (ownership). **Otros roles**: requieren `?emailCliente=`. |
-| POST | `/{visitaId}/asistencia` | **CLIENTE** | Solicita asistencia de mesero. Crea notificación tipo `ATENCION`. Retorna 409 si ya existe solicitud activa para la mesa. Publica evento WebSocket. |
+| GET | `/api/visitas/cliente/historial` | CLIENTE, ADMIN | Historial de visitas del cliente, ordenado desc por fecha; ownership para CLIENTE |
+| GET | `/api/visitas/cliente/{visitaId}/detalle` | CLIENTE, CAJERO, MESERO, ADMIN | Detalle completo de una visita; ownership para CLIENTE |
+| GET | `/api/visitas/activa` | CLIENTE, MESERO, CAJERO, ADMIN | Estado de la visita activa; CLIENTE usa su propio email, demás roles requieren emailCliente |
+| POST | `/api/visitas/{visitaId}/asistencia` | CLIENTE | Solicitar asistencia de mesero; crea notificación ATENCION y broadcast WS |
+| PATCH | `/api/visitas/{visitaId}/cliente` | CAJERO | Asignar cliente a la visita o continuar como invitado |
+| PATCH | `/api/visitas/{visitaId}/items` | CAJERO | Ajustar cantidades, precios y eliminar ítems de la cuenta |
 
 ---
 
@@ -109,7 +140,11 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| POST | `/` | **CAJERO** | Cerrar cuenta de visita. Crea registro `Venta`, cierra visita (`fechaHoraFin`), otorga +1 punto al cliente. Publica `CuentaCerradaWsMessage` con `puntosActuales` vía WebSocket. |
+| GET | `/api/ventas/{visitaId}/cuenta` | CAJERO | Cuenta preliminar: ítems, totales, decoración, abonos, saldo y puntos |
+| POST | `/api/ventas` | CAJERO | Registrar venta y cerrar cuenta de una visita; suma puntos de lealtad |
+| GET | `/api/ventas/{visitaId}/detalle` | ADMIN | Detalle completo de una venta |
+| GET | `/api/ventas` | ADMIN | Listar ventas con filtros (ventaId, fechas, método de pago) |
+| GET | `/api/ventas/dashboard` | ADMIN | Resumen diario del dashboard administrativo |
 
 ---
 
@@ -117,96 +152,91 @@ Base URL: `http://localhost:8080/api`
 
 | Method | Endpoint | Acceso | Descripción |
 |--------|----------|--------|-------------|
-| PATCH | `/{notificacionId}/atender` | **MESERO / CAJERO / ADMIN** | Marca solicitud de asistencia como atendida (`ACTIVA` → `ATENDIDA`). Publica evento WebSocket al cliente de la visita. |
-| PATCH | `/{notificacionId}/servir-platos` | **MESERO / CAJERO / ADMIN** | Marca notificación `PLATOS_LISTOS` como atendida. Refresca el mapa de mesas vía WebSocket. |
-| PATCH | `/{notificacionId}/servir-bebidas` | **MESERO / CAJERO / ADMIN** | Marca notificación `BEBIDAS_LISTAS` como atendida. Refresca el mapa de mesas vía WebSocket. |
-| PATCH | `/{notificacionId}/atender-cambio` | **MESERO / CAJERO / ADMIN** | Atiende notificación `CAMBIO` y devuelve `comandaId` para que el mesero edite la comanda. Cajero la marca como vista (no abre edición). |
-| POST | `/cambio` | **PRODUCCION** (COCINERO / BARTENDER) | Crea una notificación `CAMBIO` sobre una comanda `PENDIENTE` para que el mesero acuda a la mesa y acuerde la sustitución con el cliente. Body: `{ comandaId }`. Refresca el mapa de mesas vía WebSocket. 409 si la comanda no está `PENDIENTE` o ya tiene una notificación `CAMBIO` activa, 403 si la estación no es del usuario. |
+| PATCH | `/api/notificaciones/{notificacionId}/atender` | MESERO, CAJERO, ADMIN | Marcar solicitud de asistencia como atendida |
+| PATCH | `/api/notificaciones/{notificacionId}/servir-platos` | MESERO, CAJERO, ADMIN | Confirmar entrega de platos listos a la mesa |
+| PATCH | `/api/notificaciones/{notificacionId}/servir-bebidas` | MESERO, CAJERO, ADMIN | Confirmar entrega de bebidas listas a la mesa |
+| POST | `/api/notificaciones/cambio` | PRODUCCION | Notificar cambio sobre comanda pendiente; crea notificación CAMBIO en mesa |
+| PATCH | `/api/notificaciones/{notificacionId}/atender-cambio` | MESERO, CAJERO, ADMIN | Atender cambio de comanda; retorna comandaId listo para edición |
 
 ---
 
-## Resumen por Rol
+## Resumen por rol
 
 ### CLIENTE
-- **Auth**: login, register, refresh, me, logout
-- **Reservas**: disponibilidad, crear, modificar, cancelar, futuras, canceladas, detalle
-- **Puntos**: me/puntos
-- **Productos**: carta, menu-especial
-- **Visitas**: historial, detalle, activa (propia), asistencia
+- `POST /api/auth/register`, `POST /api/auth/login`, `POST /api/auth/refresh`
+- `GET /api/auth/me`, `POST /api/auth/logout`
+- `GET /api/clientes/me`, `PUT /api/clientes/me`, `POST /api/clientes/me/cambiar-contraseña`, `GET /api/clientes/me/puntos`
+- `GET /api/reservas/disponibilidad`, `POST /api/reservas`, `PUT /api/reservas/{id}` (solo propias), `PATCH /api/reservas/{id}/cancelar` (solo propias)
+- `GET /api/reservas/cliente/futuras` (solo propias), `GET /api/reservas/cliente/canceladas-devueltas` (solo propias), `GET /api/reservas/{id}/detalle` (solo propias)
+- `GET /api/productos/carta`, `GET /api/productos/menu-especial`
+- `GET /api/visitas/cliente/historial` (solo propias), `GET /api/visitas/cliente/{id}/detalle` (solo propias), `GET /api/visitas/activa` (propia)
+- `POST /api/visitas/{id}/asistencia`
 
 ### MESERO
-- **Auth**: login, refresh, me, logout
-- **Reservas**: consulta, detalle (mesero)
-- **Productos**: carta, menu-especial
-- **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
-- **Visitas**: activa (cualquier cliente con param)
-- **Notificaciones**: atender
+- `GET /api/reservas/mesero/consulta`, `GET /api/reservas/mesero/{id}/detalle`
+- `PATCH /api/reservas/{id}/marcar-inasistencia`
+- `GET /api/mesas`, `GET /api/mesas/{id}/detalle`, `GET /api/mesas/{id}/items-produccion`, `POST /api/mesas`, `GET /api/mesas/zonas-disponibles`
+- `GET /api/comandas/borrador`, `POST /api/comandas/borrador/items`, `PATCH /api/comandas/borrador/items/{id}`, `DELETE /api/comandas/borrador/items/{id}`, `POST /api/comandas/borrador/{id}/enviar`, `DELETE /api/comandas/borrador`, `PATCH /api/comandas/borrador/{id}/notas`
+- `GET /api/visitas/cliente/{id}/detalle`, `GET /api/visitas/activa`
+- `PATCH /api/notificaciones/{id}/atender`, `PATCH /api/notificaciones/{id}/servir-platos`, `PATCH /api/notificaciones/{id}/servir-bebidas`, `PATCH /api/notificaciones/{id}/atender-cambio`
+- `GET /api/reservas/{id}/detalle`
 
 ### CAJERO
-- **Auth**: login, refresh, me, logout
-- **Reservas**: consulta (vista cajero: todos estados + flags), detalle (con clienteId), confirmar, cancelar, registrar abono (anticipo/devolución), resumen-pago
-- **Clientes**: puntos (cualquier cliente), canje-puntos
-- **Productos**: carta, menu-especial
-- **Mesas**: mapa, detalle
-- **Visitas**: activa (cualquier cliente con param)
-- **Ventas**: cerrar cuenta
-- **Notificaciones**: atender, servir-platos, servir-bebidas, atender-cambio
+- `GET /api/reservas/mesero/consulta`
+- `PATCH /api/reservas/{id}/cancelar`, `PATCH /api/reservas/{id}/confirmar`
+- `POST /api/reservas/{id}/abonos`, `GET /api/reservas/{id}/resumen-pago`
+- `GET /api/reservas/{id}/detalle`
+- `GET /api/clientes/{id}/puntos`, `POST /api/clientes/{id}/canje-puntos`, `GET /api/clientes/buscar`
+- `GET /api/mesas`, `GET /api/mesas/{id}/detalle`
+- `GET /api/visitas/cliente/{id}/detalle`, `GET /api/visitas/activa`, `PATCH /api/visitas/{id}/cliente`, `PATCH /api/visitas/{id}/items`
+- `GET /api/ventas/{id}/cuenta`, `POST /api/ventas`
+- `PATCH /api/notificaciones/{id}/atender`, `PATCH /api/notificaciones/{id}/servir-platos`, `PATCH /api/notificaciones/{id}/servir-bebidas`, `PATCH /api/notificaciones/{id}/atender-cambio`
+
+### COCINERO / BARTENDER (rol `PRODUCCION`)
+- `GET /api/inventario/buscar`, `POST /api/inventario/movimientos`
+- `GET /api/comandas/produccion`, `GET /api/comandas/produccion/{id}`, `POST /api/comandas/produccion/{id}/iniciar`, `POST /api/comandas/produccion/{id}/listo`
+- `POST /api/notificaciones/cambio`
 
 ### ADMIN
-- **Auth**: login, refresh, me, logout
-- **Reservas**: detalle, consulta (mesero/cajero), detalle (mesero), confirmar, cancelar, registrar abono (anticipo/devolución), resumen-pago
-- **Clientes**: puntos (cualquier cliente)
-- **Productos**: carta, menu-especial
-- **Mesas**: mapa, detalle, items-produccion, asignar, zonas-disponibles
-- **Visitas**: activa (cualquier cliente con param)
-- **Notificaciones**: atender, servir-platos, servir-bebidas, atender-cambio
-- **Inventario**: buscar, movimientos
+- Acceso completo a todos los endpoints listados arriba
+- Endpoints exclusivos: `GET /api/empleados`, `POST /api/empleados`, `PATCH /api/empleados/{id}/estado`
+- `GET /api/productos`, `GET /api/productos/{id}/estado/implicaciones`, `PUT /api/productos/{id}/estado`
+- `GET /api/inventario/insumos/{id}/estado/implicaciones`, `PUT /api/inventario/insumos/{id}/estado`
+- `GET /api/clientes`, `GET /api/clientes/{id}/ventas`, `GET /api/clientes/{id}/ventas/resumen`, `GET /api/clientes/{id}/ventas/agrupadas/anio`, `GET /api/clientes/{id}/ventas/agrupadas/mes`, `POST /api/clientes/{id}/ventas/recordatorio`
+- `GET /api/clientes/buscar/nombre`, `GET /api/clientes/buscar/correo`, `GET /api/clientes/buscar/telefono`
+- `GET /api/ventas/{id}/detalle`, `GET /api/ventas`, `GET /api/ventas/dashboard`
 
-### Public (sin autenticación)
-- **Auth**: login, register, refresh
-
-### PRODUCCION
-- **Inventario**: buscar, movimientos
+### Público (sin autenticación)
+- `POST /api/auth/register`
+- `POST /api/auth/login`
+- `POST /api/auth/refresh`
 
 ---
 
-## Notas Importantes
+## Notas técnicas
 
-### Ownership Validation
-Endpoints con ownership validation (CLIENTE solo accede a recursos propios):
-- `GET /api/reservas/cliente/futuras`
-- `GET /api/reservas/cliente/canceladas-devueltas`
-- `GET /api/reservas/{reservaId}/detalle` (CLIENTE)
-- `GET /api/clientes/me/puntos`
-- `GET /api/visitas/cliente/historial`
-- `GET /api/visitas/cliente/{visitaId}/detalle`
-- `GET /api/visitas/activa` (cuando se usa con token CLIENTE)
-- `POST /api/visitas/{visitaId}/asistencia`
+### Ownership validation
+Endpoints donde CLIENTE solo puede acceder a sus propios recursos:
+- `PUT /api/reservas/{reservaId}` — email tomado del token, no del body
+- `PATCH /api/reservas/{reservaId}/cancelar` — email tomado del token
+- `GET /api/reservas/cliente/futuras` — parámetro `emailCliente` debe coincidir con token
+- `GET /api/reservas/cliente/canceladas-devueltas` — parámetro `emailCliente` debe coincidir con token
+- `GET /api/reservas/{reservaId}/detalle` — servicio valida propiedad
+- `GET /api/visitas/cliente/historial` — parámetro `emailCliente` debe coincidir con token
+- `GET /api/visitas/cliente/{visitaId}/detalle` — servicio valida propiedad
 
-### Multi-rol Endpoints
-Endpoints que sirven a múltiples roles con comportamiento diferenciado:
-- `GET /api/visitas/activa` — CLIENTE usa token, otros roles usan `?emailCliente=`
-- `GET /api/reservas/{reservaId}/detalle` — CLIENTE con ownership, CAJERO/ADMIN sin restricción; CAJERO recibe campo extra `clienteId`
-- `GET /api/reservas/mesero/consulta` — MESERO/ADMIN recibe vista con `mostrarBotonInasistencia`; CAJERO recibe vista con `tipo` y flags de acción
+### Endpoints con comportamiento diferenciado por rol
+- `GET /api/mesas/{mesaId}/detalle` — CAJERO recibe campos extra: `clienteId`, `puntosFidelizacion`, `esCumpleanos`, `puedeGenerarCuenta`
+- `GET /api/reservas/mesero/consulta` — MESERO/ADMIN: reservas activas con indicador de inasistencia; CAJERO: todas las reservas con botones de acción
+- `GET /api/visitas/activa` — CLIENTE usa email del token; MESERO/CAJERO/ADMIN requieren parámetro `emailCliente`
 
-### WebSocket Integration
-Endpoints que publican eventos WebSocket:
-- `POST /api/mesas` → `/topic/mesas`
-- `POST /api/visitas/{visitaId}/asistencia` → `/topic/mesas/asistencia`
-- `PATCH /api/notificaciones/{notificacionId}/atender` → `/topic/visita/{visitaId}/asistencia`
-- `POST /api/ventas` → `/topic/visita/{visitaId}/cuenta`
-- `POST /api/comandas/borrador/{comandaId}/enviar` → `/topic/estacion/{estacion}` (COCINA o BARRA) + `/topic/mesas` + `/topic/visita/{visitaId}/orden` + RabbitMQ `comanda.nueva`
-- `PATCH /api/reservas/{reservaId}/confirmar` → `/topic/reservas/cambios` (tipo `CONFIRMADA`)
-- `PATCH /api/reservas/{reservaId}/cancelar` → `/topic/reservas/cambios` (tipo `CANCELADA`)
-- `POST /api/reservas/{reservaId}/abonos` → `/topic/reservas/cambios` (tipo `ANTICIPO` o `DEVOLUCION`)
-- `POST /api/comandas/borrador/items` → `/topic/mesas`
-- `PATCH /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
-- `DELETE /api/comandas/borrador/items/{itemId}` → `/topic/mesas`
-- `DELETE /api/comandas/borrador?visitaId=` → `/topic/mesas`
+### Reglas de negocio
+- Cutoff de modificación de reserva: BASICA 13:00 del día previo, ESPECIAL 23:00 del día previo
+- Inasistencia: solo marcable cuando han transcurrido al menos 30 minutos desde la hora programada
+- Puntos de lealtad: +1 punto por cada venta cerrada; `clientePuntos` = canjeables, `clientePuntosAcumulados` = acumulados lifetime
+- Envío de comanda a producción valida stock disponible antes de la transición BORRADOR → PENDIENTE
+- Inicio de preparación (`/produccion/{id}/iniciar`) descuenta inventario al ejecutar la transición PENDIENTE → EN_PREPARACION
+- Solicitud de asistencia (`/visitas/{id}/asistencia`): retorna 409 si ya existe una notificación ATENCION activa para la misma mesa
 
-### Business Rules
-- **Reservation hours**: 17:00–22:00 only
-- **Modification cutoff**: BASICA 13:00, ESPECIAL 23:00 (day before)
-- **Active visit**: `visitaFechaHoraFin IS NULL`
-- **Loyalty points**: +1 per closed Venta
-- **Point redemption**: resets `puntosActuales` to 0, `puntosAcumulados` unchanged
+### Eventos WebSocket
+Ver contratos completos, tópicos y flujos en `docs/reference/websocket.md`.

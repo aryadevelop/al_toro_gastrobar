@@ -5,12 +5,18 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 **Stack:** Spring Boot 3.5 · Java 21 · PostgreSQL 15 · RabbitMQ 3.13.
 
 **Detailed references** (lee bajo demanda, no se carga en cada turno):
-- `docs/api-conventions.md` — Convenciones de naming y diseño de endpoints
-- `docs/coding-patterns.md` — Services, Mappers, DTOs, Tests, ApiResponse, WebSocket, Git Commits
-- `docs/postman-conventions.md` — Manual + Automated collections
-- `docs/testing.md` — JaCoCo y estrategia de cobertura
-- `docs/components.md` — Diagrama C4 Nivel 3: capas por módulo, componentes futuros e interacciones entre módulos
-- `ENDPOINTS.md` — Listado completo de endpoints
+- `docs/conventions/api-conventions.md` — Convenciones de naming y diseño de endpoints
+- `docs/conventions/coding-patterns.md` — Services, Mappers, DTOs, Tests, ApiResponse, WebSocket, Git Commits
+- `docs/conventions/postman-conventions.md` — Manual + Automated collections
+- `docs/conventions/testing.md` — JaCoCo y estrategia de cobertura
+- `docs/conventions/postman-generation-guide.md` — Guia de generacion de colecciones Postman (estandar v2.0)
+- `docs/reference/components.md` — Diagrama C4 Nivel 3: capas por modulo y relaciones entre componentes
+- `docs/reference/endpoints.md` — Listado completo de endpoints
+- `docs/reference/websocket.md` — Topicos WebSocket, contratos de mensajes y flujos en tiempo real
+- `docs/reference/security.md` — Flujo JWT, roles, reglas de ownership y endpoints publicos
+- `docs/reference/messaging.md` — Configuracion RabbitMQ, routing keys y contratos de mensajes
+- `docs/reference/error-codes.md` — Codigos de error de la API con HTTP status y condicion de disparo
+- `docs/reference/database.md` — Esquema de base de datos, tablas y relaciones
 
 ---
 
@@ -158,9 +164,9 @@ de `productoId`/`insumoId` viaja con valor; cualquier pantalla que muestre stock
 
 ## API
 
-Base URL: `http://localhost:8080/api`. Lista completa en `ENDPOINTS.md`. Convenciones de naming en `docs/api-conventions.md`.
+Base URL: `http://localhost:8080/api`. Lista completa en `docs/reference/endpoints.md`. Convenciones de naming en `docs/conventions/api-conventions.md`.
 
-**34 endpoints:** Auth (5), Reservas (13), Clientes (3), Productos (2), Mesas (5), Visitas (4), Ventas (1), Notificaciones (1).
+**79 endpoints:** Auth (5), Reservas (13), Clientes (16), Empleados (3), Productos (6), Inventario (4), Mesas (5), Comandas (11), Visitas (6), Ventas (5), Notificaciones (5).
 
 ---
 
