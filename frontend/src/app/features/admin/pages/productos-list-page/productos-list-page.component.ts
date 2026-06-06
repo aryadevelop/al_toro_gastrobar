@@ -2,13 +2,14 @@ import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ProductoAdminService } from '../../../../core/services/producto-admin.service';
-import { BackendProductoAdminItem } from '../../../../core/models/api.models';
+import { BackendProductoAdminItem, BackendValidacionCambioEstado, BackendCambiarEstadoRequest } from '../../../../core/models/api.models';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+import { ModalBaseComponent } from '../../../../shared/ui/modal-base/modal-base.component';
 
 @Component({
   selector: 'app-productos-list-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageHeaderComponent],
+  imports: [CommonModule, FormsModule, PageHeaderComponent, ModalBaseComponent],
   templateUrl: './productos-list-page.component.html',
   styleUrls: ['./productos-list-page.component.scss']
 })
@@ -30,6 +31,13 @@ export class ProductosListPageComponent implements OnInit {
   // Mensajes de alerta
   alertMessage: string | null = null;
   alertType: 'warning' | 'info' | 'error' | null = null;
+
+  // Estado Modal Cambio de Estado
+  isModalOpen = false;
+  selectedProductForStateChange: BackendProductoAdminItem | null = null;
+  stateChangeReason = '';
+  isValidatingState = false;
+  validationData: BackendValidacionCambioEstado | null = null;
 
   constructor(private readonly productoAdminService: ProductoAdminService) {}
 
@@ -135,5 +143,55 @@ export class ProductosListPageComponent implements OnInit {
   private clearAlert(): void {
     this.alertMessage = null;
     this.alertType = null;
+  }
+
+  // Lógica de cambio de estado
+  abrirModalEstado(prod: BackendProductoAdminItem) {
+    this.selectedProductForStateChange = prod;
+    this.stateChangeReason = '';
+    this.validationData = null;
+    this.isModalOpen = true;
+
+    if (prod.estado === 'ACTIVE') { // Validar solo al suspender
+      this.isValidatingState = true;
+      this.productoAdminService.validarCambioEstado(prod.productoId).subscribe({
+        next: (res) => {
+          if (res.success) {
+            this.validationData = res.data;
+          }
+          this.isValidatingState = false;
+        },
+        error: () => {
+          this.isValidatingState = false;
+        }
+      });
+    }
+  }
+
+  cerrarModal() {
+    this.isModalOpen = false;
+    this.selectedProductForStateChange = null;
+  }
+
+  confirmarCambioEstado(notificarClientes?: boolean) {
+    if (!this.selectedProductForStateChange) return;
+    const nuevoEstado = this.selectedProductForStateChange.estado === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    
+    const req: BackendCambiarEstadoRequest = {
+      nuevoEstado,
+      motivo: this.stateChangeReason || undefined,
+      notificarClientes
+    };
+
+    this.productoAdminService.cambiarEstado(this.selectedProductForStateChange.productoId, req).subscribe({
+      next: () => {
+        window.alert(`Producto ${nuevoEstado === 'SUSPENDED' ? 'suspendido' : 'reactivado'} correctamente.`);
+        this.cerrarModal();
+        this.cargarProductos();
+      },
+      error: () => {
+        window.alert('Ocurrió un error al intentar cambiar el estado del producto.');
+      }
+    });
   }
 }
