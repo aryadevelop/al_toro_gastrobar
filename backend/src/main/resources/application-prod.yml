@@ -14,13 +14,6 @@ spring:
     hibernate:
       ddl-auto: none
       
-  # RabbitMQ: host inyectado desde Docker Compose
-  rabbitmq:
-    host: ${RABBITMQ_HOST}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME}
-    password: ${RABBITMQ_PASSWORD}
-
   # Correo: credenciales inyectadas desde variables de entorno
   mail:
     host: ${MAIL_HOST}

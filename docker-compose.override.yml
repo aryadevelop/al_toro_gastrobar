@@ -9,12 +9,6 @@ services:
     ports:
       - "5432:5432"
 
-  rabbitmq:
-    # AMQP expuesto para clientes locales; consola web en http://localhost:15672
-    ports:
-      - "5672:5672"
-      - "15672:15672"
-
   api:
     environment:
       SPRING_PROFILES_ACTIVE: dev

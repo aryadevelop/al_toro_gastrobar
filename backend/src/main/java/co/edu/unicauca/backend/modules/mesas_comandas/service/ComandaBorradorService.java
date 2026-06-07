@@ -16,7 +16,6 @@ import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaBorradorMapp
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaItemRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.ComandaRepository;
 import co.edu.unicauca.backend.modules.mesas_comandas.repository.MesaRepository;
-import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaNuevaMessage;
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.VisitaActualizadaWsMessage;
 import co.edu.unicauca.backend.modules.mesas_comandas.dto.response.ComandaProduccionResumenResponse;
 import co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMapper;
@@ -24,7 +23,6 @@ import co.edu.unicauca.backend.modules.notificaciones.dto.ws.ComandaProduccionEv
 import co.edu.unicauca.backend.modules.notificaciones.dto.ws.TipoEventoProduccion;
 import co.edu.unicauca.backend.modules.notificaciones.service.MesaWsPublisher;
 import co.edu.unicauca.backend.modules.notificaciones.service.NotificacionWsPublisher;
-import co.edu.unicauca.backend.shared.config.RabbitMQConfig;
 import co.edu.unicauca.backend.shared.enums.EstacionComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoComanda;
 import co.edu.unicauca.backend.shared.enums.EstadoMesa;
@@ -32,7 +30,6 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.exception.ResourceNotFoundException;
 import lombok.RequiredArgsConstructor;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.Authentication;
 import org.springframework.stereotype.Service;
@@ -76,7 +73,6 @@ public class ComandaBorradorService {
     private final MesaWsPublisher mesaWsPublisher;
     private final NotificacionWsPublisher notificacionWsPublisher;
     private final ComandaProduccionMapper comandaProduccionMapper;
-    private final RabbitTemplate rabbitTemplate;
 
     /**
      * Devuelve el borrador completo de la visita: ítems agrupados por estación,
@@ -335,8 +331,8 @@ public class ComandaBorradorService {
     /**
      * Envía la comanda BORRADOR de una estación a producción: transiciona a
      * PENDIENTE, sella {@code fechaHoraInicio}, valida el stock final (sin
-     * decrementarlo), publica el evento de impresión por RabbitMQ y los
-     * eventos WebSocket para mapa, cliente y dashboard de estación. Si la
+     * decrementarlo) y publica los eventos WebSocket para mapa, cliente
+     * y dashboard de estación. Si la
      * mesa estaba en ESPERA pasa a EN_PREPARACION.
      *
      * @param comandaId identificador de la comanda BORRADOR a enviar
@@ -387,17 +383,6 @@ public class ComandaBorradorService {
             mesaRepository.save(mesa);
             mesaWsPublisher.publicarCambioEstadoMesa(visitaId, EstadoMesa.EN_PREPARACION);
         }
-
-        // RabbitMQ: bridge de impresión de tickets.
-        rabbitTemplate.convertAndSend(
-                RabbitMQConfig.EXCHANGE,
-                RabbitMQConfig.RK_COMANDA_NUEVA,
-                ComandaNuevaMessage.builder()
-                        .comandaId(comanda.getComandaId())
-                        .visitaId(visitaId)
-                        .estacion(comanda.getComandaEstacion().name())
-                        .fechaHoraInicio(comanda.getComandaFechaHoraInicio())
-                        .build());
 
         // Anuncia la aparición de la comanda en el tablero de producción.
         int totalItems = items.stream()

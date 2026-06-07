@@ -26,7 +26,7 @@ import static org.mockito.Mockito.*;
  * <ul>
  *   <li><b>Instanciación directa:</b> se crea un {@link WebSocketConfig} real y se inyecta
  *       el campo privado {@code allowedOrigins} mediante reflexión, sin levantar
- *       contexto de Spring, de manera consistente con {@link RabbitMQConfigTest}.</li>
+ *       contexto de Spring.</li>
  *   <li><b>Mocks de registries:</b> {@link MessageBrokerRegistry} y
  *       {@link StompEndpointRegistry} se crean con {@code Mockito.mock()} para
  *       verificar las llamadas exactas que realiza la configuración.</li>

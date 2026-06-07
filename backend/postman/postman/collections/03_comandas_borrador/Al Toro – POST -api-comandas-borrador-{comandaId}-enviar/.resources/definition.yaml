@@ -4,7 +4,7 @@ description: |-
   # POST /api/comandas/borrador/{comandaId}/enviar
 
   Transiciona una comanda BORRADOR → PENDIENTE. Sella `comandaFechaHoraInicio`,
-  valida stock final, publica RabbitMQ (`comanda.nueva`) y eventos WebSocket
+  valida stock final y publica eventos WebSocket
   para mapa, cliente y dashboard de estación. Si la mesa estaba en ESPERA pasa
   a EN_PREPARACION.
 

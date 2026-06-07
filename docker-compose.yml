@@ -25,22 +25,6 @@ services:
       timeout: 5s
       retries: 5
 
-  rabbitmq:
-    image: rabbitmq:3.13-management-alpine
-    container_name: altoro_rabbitmq
-    environment:
-      RABBITMQ_DEFAULT_USER: ${RABBITMQ_USERNAME:-guest}
-      RABBITMQ_DEFAULT_PASS: ${RABBITMQ_PASSWORD:-guest}
-    volumes:
-      - rabbitmq_data:/var/lib/rabbitmq
-    networks:
-      - altoro_network
-    healthcheck:
-      test: [ "CMD", "rabbitmq-diagnostics", "ping" ]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-
   api:
     build:
       context: ./backend
@@ -51,11 +35,6 @@ services:
       DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-altoro_db}
       DB_USERNAME: ${POSTGRES_USER:-altoro}
       DB_PASSWORD: ${POSTGRES_PASSWORD:-altoro123}
-      # RabbitMQ — usa el nombre del servicio como host
-      RABBITMQ_HOST: rabbitmq
-      RABBITMQ_PORT: 5672
-      RABBITMQ_USERNAME: ${RABBITMQ_USERNAME:-guest}
-      RABBITMQ_PASSWORD: ${RABBITMQ_PASSWORD:-guest}
       # Zona horaria
       TZ: America/Bogota
     healthcheck:
@@ -69,12 +48,9 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
-      rabbitmq:
-        condition: service_healthy
 
 volumes:
   postgres_data:
-  rabbitmq_data:
 
 
 networks:
