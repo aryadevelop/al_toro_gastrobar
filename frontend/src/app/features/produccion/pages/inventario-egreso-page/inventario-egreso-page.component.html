@@ -87,6 +87,9 @@
       </label>
 
       <!-- Alertas -->
+      <div *ngIf="submitSuccessMsg" class="alert success-alert" style="grid-column: 1 / -1; background-color: rgba(19, 115, 51, 0.1); color: #137333; border-left: 4px solid #137333;">
+        {{ submitSuccessMsg }}
+      </div>
       <div *ngIf="submitErrorMsg" class="alert error-alert" style="grid-column: 1 / -1;">
         {{ submitErrorMsg }}
       </div>
@@ -104,4 +107,16 @@
 
     </form>
   </article>
+
+  <!-- Modal de confirmación de cancelación -->
+  <div class="modal-backdrop" *ngIf="showCancelConfirm" (click)="abortarCancelacion()">
+    <div class="modal-card" style="max-width: 400px; padding: 1.5rem;" (click)="$event.stopPropagation()">
+      <h3 style="margin-top: 0; color: var(--danger);">Cancelar ajuste</h3>
+      <p style="margin-bottom: 1.5rem;">¿Está seguro de cancelar? Los datos ingresados se perderán.</p>
+      <div style="display: flex; justify-content: flex-end; gap: 0.75rem;">
+        <button type="button" class="btn-secondary" (click)="abortarCancelacion()">No, volver</button>
+        <button type="button" class="btn-primary" style="background: var(--danger);" (click)="confirmarCancelacion()">Sí, cancelar</button>
+      </div>
+    </div>
+  </div>
 </section>

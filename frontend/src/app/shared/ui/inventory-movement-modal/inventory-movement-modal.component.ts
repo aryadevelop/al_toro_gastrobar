@@ -122,11 +122,13 @@ export class InventoryMovementModalComponent implements OnInit {
     this.isSubmitting = true;
 
     const req: BackendInventarioMovimientoRequest = {
-      tipoElemento: this.tipoElemento,
-      elementoId: this.elementoId,
-      tipoMovimiento: this.tipoMovimiento,
+      productoId: this.tipoElemento === 'PRODUCTO' ? this.elementoId : null,
+      insumoId: this.tipoElemento === 'INSUMO' ? this.elementoId : null,
+      tipo: this.tipoMovimiento,
       cantidad: cantidad,
-      fecha: this.form.value.fecha || undefined,
+      // la fecha no es parte del request estándar según DTO backend, 
+      // pero si el controlador registro/movimientos lo soporta, el DTO en Angular lo debe ignorar si no existe
+      // o se debe mapear según la interfaz. (Actualmente la interfaz de api.models no tiene fecha).
       observaciones: this.form.value.observaciones || undefined
     };
 
