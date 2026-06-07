@@ -16,11 +16,16 @@ public class ClienteRecordatorioService {
         this.mailSender = mailSender;
     }
 
-    public void enviarRecordatorio(String emailCliente, String nombreCliente, String mensaje) {
-        SimpleMailMessage mail = new SimpleMailMessage();
-        mail.setTo(emailCliente);
-        mail.setSubject("Recordatorio de visita - Al Toro Gastrobar");
-        mail.setText("Hola " + nombreCliente + ",\n\n" + mensaje + "\n\nTe esperamos pronto.\nAl Toro Gastrobar");
-        mailSender.send(mail);
+    public boolean enviarRecordatorio(String emailCliente, String nombreCliente, String mensaje) {
+        try {
+            SimpleMailMessage mail = new SimpleMailMessage();
+            mail.setTo(emailCliente);
+            mail.setSubject("Recordatorio de visita - Al Toro Gastrobar");
+            mail.setText("Hola " + nombreCliente + ",\n\n" + mensaje + "\n\nTe esperamos pronto.\nAl Toro Gastrobar");
+            mailSender.send(mail);
+            return true;
+        } catch (Exception ex) {
+            return false;
+        }
     }
 }

@@ -277,10 +277,14 @@ public class ClienteVentasAdminService {
         }
 
         String mensaje = "Cliente inactivo. Última compra: " + FECHA_FORMATO.format(ultimaCompra) + ".";
-        recordatorioService.enviarRecordatorio(
+        boolean enviado = recordatorioService.enviarRecordatorio(
                 cliente.getUsuario().getUsuarioEmail(),
                 cliente.getClienteNombre(),
                 mensaje);
+        if (!enviado) {
+            throw new BusinessException(ErrorCode.INVALID_STATE,
+                    "No se pudo enviar el correo de recordatorio.", HttpStatus.INTERNAL_SERVER_ERROR);
+        }
     }
 
     private Cliente obtenerCliente(Long clienteId) {
