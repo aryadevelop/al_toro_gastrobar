@@ -41,6 +41,7 @@ export class InventarioEgresoPageComponent implements OnInit, OnDestroy {
   // Validation
   stockErrorMsg: string | null = null;
   submitErrorMsg: string | null = null;
+  submitSuccessMsg: string | null = null;
   isSubmitting = false;
 
   constructor(
@@ -50,12 +51,7 @@ export class InventarioEgresoPageComponent implements OnInit, OnDestroy {
     private readonly router: Router
   ) {}
 
-  @HostListener('window:beforeunload', ['$event'])
-  unloadNotification($event: any) {
-    if (this.form.dirty) {
-      $event.returnValue = true;
-    }
-  }
+  // Eliminado el HostListener de beforeunload para evitar el alert nativo (lo que el usuario llama 'console.log')
 
   ngOnInit(): void {
     this.searchSub = this.searchSubject.pipe(
@@ -116,18 +112,36 @@ export class InventarioEgresoPageComponent implements OnInit, OnDestroy {
     const stockActual = this.form.getRawValue().stockActual;
     
     if (elementoId && tipoMovimiento === 'EGRESO' && cantidad !== null && cantidad > stockActual) {
-      this.stockErrorMsg = `Stock insuficiente. Stock actual: ${stockActual} ${this.form.getRawValue().unidad}`;
+      const unidadOProducto = this.form.getRawValue().unidad || this.form.getRawValue().selectedItemName;
+      this.stockErrorMsg = `Stock insuficiente. Stock actual: ${stockActual} ${unidadOProducto}`;
     }
   }
 
+  showCancelConfirm = false;
+
   cancelar(): void {
     if (this.form.dirty) {
-      const confirm = window.confirm('¿Está seguro de cancelar? Los datos ingresados se perderán.');
-      if (!confirm) return;
+      this.showCancelConfirm = true;
+      return;
     }
+    this.ejecutarCancelacion();
+  }
+
+  confirmarCancelacion(): void {
+    this.showCancelConfirm = false;
+    this.ejecutarCancelacion();
+  }
+
+  abortarCancelacion(): void {
+    this.showCancelConfirm = false;
+  }
+
+  private ejecutarCancelacion(): void {
     this.form.reset();
     this.stockErrorMsg = null;
     this.submitErrorMsg = null;
+    this.submitSuccessMsg = null;
+    this.router.navigate(['/app/produccion']);
   }
 
   guardar(): void {
@@ -139,7 +153,7 @@ export class InventarioEgresoPageComponent implements OnInit, OnDestroy {
       return;
     }
     if (!this.form.getRawValue().tipoMovimiento) {
-      this.submitErrorMsg = 'El tipop de movidmiento es obligatorio';
+      this.submitErrorMsg = 'El tipo de movimiento es obligatorio';
       return;
     }
     if (!this.form.getRawValue().cantidad) {
@@ -154,40 +168,42 @@ export class InventarioEgresoPageComponent implements OnInit, OnDestroy {
     }
 
     this.isSubmitting = true;
+    const tipoE = this.form.getRawValue().tipoElemento;
+    const eId = this.form.getRawValue().elementoId!;
+    const proveedor = this.form.getRawValue().proveedor || undefined;
+    const factura = this.form.getRawValue().numeroFactura || undefined;
+
     const req: BackendInventarioMovimientoRequest = {
-      tipoElemento: this.form.getRawValue().tipoElemento,
-      elementoId: this.form.getRawValue().elementoId!,
-      tipoMovimiento: this.form.getRawValue().tipoMovimiento,
+      productoId: tipoE === 'PRODUCTO' ? eId : null,
+      insumoId: tipoE === 'INSUMO' ? eId : null,
+      tipo: this.form.getRawValue().tipoMovimiento,
       cantidad: this.form.getRawValue().cantidad!,
+      proveedor: proveedor,
+      numeroFactura: factura,
       observaciones: this.form.getRawValue().observaciones || undefined
     };
 
-    // Añadir datos opcionales a observaciones
-    const proveedor = this.form.getRawValue().proveedor;
-    const factura = this.form.getRawValue().numeroFactura;
-    let notasAdicionales = req.observaciones || '';
-    if (proveedor) notasAdicionales += ` | Proveedor: ${proveedor}`;
-    if (factura) notasAdicionales += ` | Factura: ${factura}`;
-    req.observaciones = notasAdicionales.trim() !== '' ? notasAdicionales : undefined;
-
+    // Añadir datos opcionales a observaciones si son relevantes pero no en campos nativos,
+    // pero el backend soporta proveedor y numeroFactura nativamente
     this.movementService.registrarMovimiento(req).subscribe({
       next: () => {
         this.isSubmitting = false;
         
         // Notificar cambio a las comandas (real-time update)
-        if (req.tipoMovimiento === 'EGRESO') {
+        if (req.tipo === 'EGRESO') {
           this.wsService.sendMessage('/app/produccion/comandas', { accion: 'STOCK_EGRESO' });
         } else {
           this.wsService.sendMessage('/app/produccion/comandas', { accion: 'STOCK_INGRESO' });
         }
 
-        window.alert('Ajuste de inventario registrado correctamente.');
+        this.submitSuccessMsg = 'Ajuste de inventario registrado correctamente.';
         this.form.reset({ tipoMovimiento: 'EGRESO' });
         this.form.markAsPristine();
+        setTimeout(() => { this.submitSuccessMsg = null; }, 5000);
       },
       error: () => {
         this.isSubmitting = false;
-        window.alert('Error al registrar el ajuste.');
+        this.submitErrorMsg = 'Error al registrar el ajuste.';
       }
     });
   }

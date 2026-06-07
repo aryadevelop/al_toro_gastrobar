@@ -685,11 +685,12 @@ export interface BackendInventarioItemBusqueda {
 }
 
 export interface BackendInventarioMovimientoRequest {
-  tipoElemento: 'PRODUCTO' | 'INSUMO';
-  elementoId: number;
-  tipoMovimiento: 'INGRESO' | 'EGRESO';
+  productoId?: number | null;
+  insumoId?: number | null;
+  tipo: 'INGRESO' | 'EGRESO';
   cantidad: number;
-  fecha?: string;
+  proveedor?: string;
+  numeroFactura?: string;
   observaciones?: string;
 }
 
