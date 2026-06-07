@@ -29,6 +29,7 @@ services:
 
   postgres:
     mem_limit: 1g
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=8MB"]
 
   rabbitmq:
     mem_limit: 512m
