@@ -18,8 +18,8 @@ Este documento define las reglas que **todos los miembros del equipo** deben seg
 
 | Rama | Propósito | Protección |
 |------|-----------|------------|
-| `main` | Código listo para producción | Requiere PR + aprobación + checks pasados |
-| `develop` | Integración continua del equipo | Requiere PR + aprobación + checks pasados |
+| `main` | Código listo para producción | Requiere PR  + checks pasados |
+| `develop` | Integración continua del equipo | Requiere PR + checks pasados |
 
 **Nadie puede hacer push directo a `main` o `develop`.** Todos los cambios entran a través de Pull Requests (PRs).
 
@@ -154,7 +154,6 @@ Una vez que todos los checks estén en verde y cuentes con la aprobación requer
 Las ramas `main` y `develop` están protegidas con las siguientes reglas (configuradas en **Settings → Branches**):
 
 - Requerir un Pull Request antes de hacer merge.
-- Requerir al menos 1 aprobación.
 - Descartar aprobaciones anteriores cuando se suben nuevos commits.
 - Requerir que los status checks pasen (incluyendo `validar-rama`).
 - Requerir que se resuelvan todas las conversaciones abiertas.
@@ -162,9 +161,4 @@ Las ramas `main` y `develop` están protegidas con las siguientes reglas (config
 
 ---
 
-**¿Puedo escribir el mensaje del commit en español?**
-Sí. La descripción del commit puede ir en español, pero el tipo y el formato deben respetarse tal como se indica (`feat`, `fix`, `docs`, etc.).
-
----
-
-*Última actualización: Junio 2026 — Equipo ARYA, Universidad del Cauca.*
+*Última actualización: Abril 2026 — Equipo ARYA, Universidad del Cauca.*
