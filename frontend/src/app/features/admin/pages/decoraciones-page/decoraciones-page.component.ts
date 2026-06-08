@@ -48,6 +48,7 @@ import { DecoracionFormModalComponent } from '../../components/decoracion-form-m
                 <td>
                   <div class="btn-group">
                     <button class="btn-secondary btn-sm" (click)="abrirModalEditar(dec)">Editar / Imagen</button>
+                    <button class="btn-warning btn-sm" (click)="cambiarEstado(dec)">Cambiar Estado</button>
                     <button class="btn-danger btn-sm" (click)="eliminar(dec)">Eliminar</button>
                   </div>
                 </td>
@@ -159,6 +160,16 @@ export class DecoracionesPageComponent implements OnInit {
       this.decoracionService.eliminarDecoracion(dec.decoracionId).subscribe({
         next: () => this.cargarDecoraciones(),
         error: (err) => alert(err.error?.message || 'Error al eliminar la decoración')
+      });
+    }
+  }
+
+  cambiarEstado(dec: BackendDecoracionAdminResponse): void {
+    const nuevoEstado = dec.decoracionEstado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
+    if (confirm('¿Desea cambiar el estado de "' + dec.decoracionNombre + '" a ' + nuevoEstado + '?')) {
+      this.decoracionService.cambiarEstado(dec.decoracionId, nuevoEstado).subscribe({
+        next: () => this.cargarDecoraciones(),
+        error: (err) => alert(err.error?.message || 'Error al cambiar estado')
       });
     }
   }
