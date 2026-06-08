@@ -26,11 +26,10 @@ Infraestructura de producción basada en Docker Compose con Caddy como reverse p
 |----------|--------|-----------------|---------|
 | `api` | build local (`backend/Dockerfile`) | interno | Spring Boot 3.5 (API REST + WebSocket) |
 | `postgres` | `postgres:15-alpine` | interno | Base de datos principal |
-| `rabbitmq` | `rabbitmq:3.13-management-alpine` | interno | Broker de mensajes |
 | `caddy` | `caddy:2-alpine` | 80, 443 | Reverse proxy + TLS |
 | `db-backup` | `postgres-backup-local:15-alpine` | — | Backups automáticos diarios |
 
-PostgreSQL y RabbitMQ no exponen puertos al exterior — solo son accesibles dentro de la red Docker `altoro_network`.
+PostgreSQL no expone puertos al exterior — solo es accesible dentro de la red Docker `altoro_network`.
 
 ---
 
@@ -54,8 +53,6 @@ Copiar `.env.prod.example` → `.env.prod` y completar todos los valores:
 | `POSTGRES_DB` | Nombre de base de datos |
 | `POSTGRES_USER` | Usuario de PostgreSQL |
 | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL |
-| `RABBITMQ_USERNAME` | Usuario de RabbitMQ |
-| `RABBITMQ_PASSWORD` | Contraseña de RabbitMQ |
 | `JWT_SECRET` | Secret para firmar tokens JWT |
 | `JWT_EXPIRATION` | Expiración del access token en ms (default: 1800000 = 30 min) |
 | `MAIL_HOST` | Servidor SMTP |
@@ -92,7 +89,6 @@ Con `SITE_ADDRESS=altoro.tudominio.com`, Caddy gestiona TLS automáticamente via
 |----------|--------|
 | `api` | 1536 MB |
 | `postgres` | 1024 MB |
-| `rabbitmq` | 512 MB |
 | `caddy` | 128 MB |
 | `db-backup` | 64 MB |
 
@@ -105,7 +101,6 @@ La JVM en el contenedor `api` está configurada con cap en el Dockerfile (`-XX:M
 | Volumen | Contenido |
 |---------|-----------|
 | `postgres_data` | Datos de PostgreSQL |
-| `rabbitmq_data` | Datos de RabbitMQ |
 | `altoro_uploads` | Imágenes subidas por el ADMIN (montado en `/opt/altoro/uploads`) |
 | `caddy_data` | Certificados TLS de Let's Encrypt |
 | `caddy_config` | Configuración interna de Caddy |

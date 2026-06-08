@@ -5,7 +5,7 @@ import org.junit.jupiter.api.Test;
 import org.springframework.boot.test.context.SpringBootTest;
 
 @SpringBootTest
-@Disabled("Requiere PostgreSQL + RabbitMQ en ejecución — ejecutar solo con infraestructura disponible (mvn test -Dspring.profiles.active=dev)")
+@Disabled("Requiere PostgreSQL en ejecución — ejecutar solo con infraestructura disponible (mvn test -Dspring.profiles.active=dev)")
 class BackendApplicationTests {
 
 	@Test

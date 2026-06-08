@@ -1,6 +1,6 @@
 $kind: http-request
 name: 06 MESERO envía la 1ª comanda COCINA – 200 OK
-description: Transiciona la 1ª comanda COCINA BORRADOR → PENDIENTE (publica comanda.nueva por RabbitMQ).
+description: Transiciona la 1ª comanda COCINA BORRADOR → PENDIENTE y publica eventos WebSocket de producción.
 url: "{{baseUrl}}/api/comandas/borrador/{{tmpComandaCocinaId}}/enviar"
 method: POST
 headers:

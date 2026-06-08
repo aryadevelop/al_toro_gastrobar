@@ -78,7 +78,7 @@ Gestiona el mapa de mesas en tiempo real, la apertura y estado de visitas, el bo
 
 | `MesaService` | Construye el mapa de mesas por zona; evalúa y actualiza estados de mesa |
 | `MesaAsignarService` | Valida reserva, asigna mesa, transiciona comandas `PRE_RESERVA → PENDIENTE` |
-| `ComandaBorradorService` | Gestiona el borrador (agregar/modificar/eliminar ítems, split COCINA/BARRA); valida stock mediante `ComandaBorradorValidador`; publica a RabbitMQ al enviar a producción |
+| `ComandaBorradorService` | Gestiona el borrador (agregar/modificar/eliminar ítems, split COCINA/BARRA); valida stock mediante `ComandaBorradorValidador`; publica eventos WebSocket al enviar a producción |
 | `ComandaProduccionService` | Provee el tablero y detalle por estación; gestiona transiciones `PENDIENTE→EN_PREPARACION→LISTO` |
 | `VisitaService` | Consulta historial y detalle de visitas; lógica de ajuste de ítems de cuenta |
 | `VisitaEstadoService` | Consulta el estado activo de la visita; notifica cambios al cliente vía WS |
@@ -97,7 +97,7 @@ Gestiona el mapa de mesas en tiempo real, la apertura y estado de visitas, el bo
 
 ### `notificaciones` — Notificaciones
 
-Persiste alertas de mesa y distribuye eventos en tiempo real a través de WebSocket y RabbitMQ.
+Persiste alertas de mesa y distribuye eventos en tiempo real a través de WebSocket.
 
 | Capa | Responsabilidad |
 |------|-----------------|
@@ -190,7 +190,7 @@ Gestiona perfiles de clientes, administración de empleados y puntos de fideliza
 
 ## Interacciones entre módulos
 
-Los módulos se comunican por llamada directa entre servicios Spring para operaciones síncronas, y por RabbitMQ para desacoplamiento en el envío a producción y notificaciones WebSocket.
+Los módulos se comunican por llamada directa entre servicios Spring para operaciones síncronas, y por eventos WebSocket para actualizaciones en tiempo real.
 
 ### Flujos principales
 
@@ -209,8 +209,7 @@ Los módulos se comunican por llamada directa entre servicios Spring para operac
 **Envío de comanda a producción**
 - `ComandaController` recibe envío del borrador del mesero
 - `ComandaBorradorService` valida stock mediante `ComandaBorradorValidador` e `InventarioDescuentoService`
-- `ComandaBorradorService` publica mensaje a RabbitMQ (routing key `comanda.nueva`)
-- `ComandaProduccionService` recibe el evento y actualiza el tablero de cocina o barra
+- `ComandaProduccionService` actualiza el tablero de cocina o barra
 - `ComandaProduccionEventoWsMessage` se envía al tópico `/topic/produccion/{cocina|barra}`
 
 **Comanda lista — cocina o barra**

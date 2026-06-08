@@ -31,7 +31,6 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 | Frontend | Angular (TypeScript) | 17.3.x |
 | Backend | Java + Spring Boot | 21 / 3.5.13 |
 | Base de datos | PostgreSQL | 15 |
-| Mensajería | RabbitMQ | 3.13 |
 | Infraestructura | Docker + Docker Compose | 24+ / 2.20+ |
 | Control de versiones | Git + GitHub | — |
 | Gestión de tareas | Jira | — |
@@ -40,7 +39,7 @@ Al Toro Gastrobar requiere una solución tecnológica que integre en tiempo real
 
 ## Arquitectura
 
-El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend utiliza RabbitMQ para comunicación asíncrona y WebSocket (STOMP) para actualizaciones en tiempo real. En producción, Caddy actúa como reverse proxy y sirve el frontend compilado.
+El sistema sigue una arquitectura cliente-servidor desacoplada. El frontend Angular consume la API REST del backend Spring Boot mediante HTTP/JSON. El backend utiliza WebSocket (STOMP) para actualizaciones en tiempo real. En producción, Caddy actúa como reverse proxy y sirve el frontend compilado.
 
 ```text
 Cliente (navegador)
@@ -49,8 +48,7 @@ Cliente (navegador)
   │                                  │
   │                                  ├── /api/* ──▶ Backend (Spring Boot :8080)
   │                                  │                  │
-  │                                  │                  ├──▶ PostgreSQL
-  │                                  │                  └──▶ RabbitMQ
+  │                                  │                  └──▶ PostgreSQL
   │                                  │
   │                                  └── /* ────▶ Frontend (Angular)
   │
@@ -110,7 +108,7 @@ al_toro_gastrobar/
 │       ├── validar-rama.yml     # Valida nombres de rama en PRs
 │       └── ci.yml               # Pipeline de integración continua
 ├── Caddyfile                    # Configuración del reverse proxy
-├── docker-compose.yml           # Orquestación base (api, postgres, rabbitmq)
+├── docker-compose.yml           # Orquestación base (api, postgres)
 ├── docker-compose.override.yml  # Overrides de desarrollo (puertos expuestos)
 ├── docker-compose.prod.yml      # Overrides de producción (caddy, db-backup, límites de memoria)
 ├── .env.prod.example            # Plantilla de variables de producción
@@ -149,7 +147,6 @@ Docker fusiona `docker-compose.yml` + `docker-compose.override.yml` automáticam
 |----------|-----|
 | API | http://localhost:8080 |
 | Swagger UI | http://localhost:8080/swagger-ui.html |
-| RabbitMQ consola | http://localhost:15672 (guest / guest) |
 | PostgreSQL | localhost:5432 (altoro / altoro123) |
 
 #### Producción
@@ -164,7 +161,7 @@ cp .env.prod.example .env.prod
 docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
 ```
 
-En producción: Postgres y RabbitMQ no exponen puertos al exterior. Caddy expone los puertos 80 y 443 y actúa como reverse proxy hacia la API. Swagger UI está deshabilitado. El servicio `db-backup` ejecuta backups diarios automáticos con retención de 7 días / 4 semanas / 6 meses.
+En producción: Postgres no expone puertos al exterior. Caddy expone los puertos 80 y 443 y actúa como reverse proxy hacia la API. Swagger UI está deshabilitado. El servicio `db-backup` ejecuta backups diarios automáticos con retención de 7 días / 4 semanas / 6 meses.
 
 #### Comandos útiles
 
@@ -196,8 +193,6 @@ Basadas en `.env.prod.example`. Los valores de dev se definen como defaults en `
 | `POSTGRES_DB` | Nombre de base de datos |
 | `POSTGRES_USER` | Usuario de PostgreSQL |
 | `POSTGRES_PASSWORD` | Contraseña de PostgreSQL |
-| `RABBITMQ_USERNAME` | Usuario de RabbitMQ |
-| `RABBITMQ_PASSWORD` | Contraseña de RabbitMQ |
 | `JWT_SECRET` | Secret para firmar tokens JWT |
 | `JWT_EXPIRATION` | Expiración del access token en ms (default: 1800000 = 30 min) |
 | `MAIL_HOST` | Servidor SMTP |
@@ -287,7 +282,6 @@ Referencia técnica del backend ubicada en `backend/docs/reference/`:
 | [`domain-model.md`](backend/docs/reference/domain-model.md) | 28 entidades en 8 módulos: campos, relaciones y enums del dominio |
 | [`database.md`](backend/docs/reference/database.md) | Esquema PostgreSQL `restaurante`: 23 tablas, índices y migraciones Flyway |
 | [`security.md`](backend/docs/reference/security.md) | JWT stateless: flujo de autenticación, roles, ownership y endpoints públicos |
-| [`messaging.md`](backend/docs/reference/messaging.md) | RabbitMQ: exchange `altoro.topic`, routing keys y contratos de mensajes |
 | [`websocket.md`](backend/docs/reference/websocket.md) | STOMP/WebSocket: tópicos `/topic/*`, contratos de eventos y flujos en tiempo real |
 | [`error-codes.md`](backend/docs/reference/error-codes.md) | Códigos `ENT-`, `AUTH-`, `NEG-`, `VAL-` con HTTP status y condición de disparo |
 | [`testing.md`](backend/docs/reference/testing.md) | Estrategia de pruebas: JaCoCo, patrones por capa y colecciones Postman |
@@ -323,6 +317,6 @@ Antes de realizar el primer commit, cada miembro del equipo debe leer y seguir e
 | Nombre | Rol en Scrum |
 |--------|--------------|
 | Paula Andrea Muñoz Delgado | Scrum Master · Desarrollador · Analista |
-| Adrián Camilo Bergaño Ortega | Desarrollador |
+| Adrián Camilo Bergaño Ortega | Desarrollador · Analista |
 | Yeixón Julián Gembuel Ciclos | Desarrollador · Tester |
 | Rubeiro Romero | Desarrollador · Tester |

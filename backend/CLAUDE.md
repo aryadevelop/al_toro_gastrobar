@@ -2,7 +2,7 @@
 
 Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 
-**Stack:** Spring Boot 3.5 · Java 21 · PostgreSQL 15 · RabbitMQ 3.13.
+**Stack:** Spring Boot 3.5 · Java 21 · PostgreSQL 15.
 
 **Detailed references** (lee bajo demanda, no se carga en cada turno):
 - `docs/conventions/api-conventions.md` — Convenciones de naming y diseño de endpoints
@@ -14,7 +14,6 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 - `docs/reference/endpoints.md` — Listado completo de endpoints
 - `docs/reference/websocket.md` — Topicos WebSocket, contratos de mensajes y flujos en tiempo real
 - `docs/reference/security.md` — Flujo JWT, roles, reglas de ownership y endpoints publicos
-- `docs/reference/messaging.md` — Configuracion RabbitMQ, routing keys y contratos de mensajes
 - `docs/reference/error-codes.md` — Codigos de error de la API con HTTP status y condicion de disparo
 - `docs/reference/database.md` — Esquema de base de datos, tablas y relaciones
 
@@ -25,7 +24,7 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 **MANDATORY CHECKPOINT** — Antes de implementar CUALQUIER feature, obtener aprobación explícita de un plan que cubra:
 
 1. **Resumen Ejecutivo:** Qué se construirá, qué problema resuelve, quién lo usará
-2. **Lógica de Implementación:** Flujo Controller→Service→Repository, validaciones, mappers, side effects (RabbitMQ/WebSocket)
+2. **Lógica de Implementación:** Flujo Controller→Service→Repository, validaciones, mappers, side effects (WebSocket)
 3. **Pruebas Propuestas:** Tests unitarios (ServiceTest, ControllerTest, MapperTest) y Postman (collection, test cases)
 4. **DTOs Structure:** Todos los DTOs nuevos/modificados con campos completos y tipos
 5. **Controller Access Rules:** `@PreAuthorize` por endpoint + ownership validation si aplica
@@ -40,7 +39,7 @@ Guidance for Claude Code working on the **backend** of Al Toro Gastrobar.
 
 ### Backend (desde `backend/`)
 ```bash
-./mvnw spring-boot:run                   # requires PostgreSQL + RabbitMQ
+./mvnw spring-boot:run                   # requires PostgreSQL
 ./mvnw test                              # all unit tests
 ./mvnw clean test jacoco:report          # tests + coverage report
 ./mvnw clean package                     # build JAR
@@ -77,10 +76,10 @@ Modular Spring Boot. Cada módulo: `controller → service → repository → en
 | `mesas_comandas` | `Mesa`, `Comanda`, `Visita`, notificaciones |
 | `pagos_caja` | `Venta`, `Abono` |
 | `inventario` | Insumos, recetas, modificadores, movimientos |
-| `notificaciones` | Alertas en tiempo real (RabbitMQ + WebSocket) |
+| `notificaciones` | Alertas en tiempo real (WebSocket) |
 | `reportes` | Analítica (placeholder) |
 
-**Cross-cutting** (`shared/`): SecurityConfig, RabbitMQConfig, WebSocketConfig, exception handler, `ApiResponse<T>`.
+**Cross-cutting** (`shared/`): SecurityConfig, WebSocketConfig, exception handler, `ApiResponse<T>`.
 
 **Roles:** `CLIENTE`, `MESERO`, `CAJERO`, `COCINERO`, `BARTENDER`, `ADMIN` (un usuario puede tener varios).
 
@@ -133,9 +132,6 @@ docker compose down -v && docker compose up --build
 ### Postman password
 - Manual: `Al.Toro2026!` (hardcoded)
 - Automated: variable `passwordValida`
-
-### RabbitMQ
-Exchange: `altoro.topic` (durable, topic). Routing keys: `comanda.nueva`, `impresion.ticket`, `notificacion.email`, `notificacion.ws`.
 
 ### WebSocket — tópicos existentes
 `/topic/mesas`, `/topic/mesas/asistencia`, `/topic/visita/{id}/orden`, `/topic/visita/{id}/cuenta`, `/topic/visita/{id}/asistencia`, `/topic/reservas/cambios`, `/topic/produccion/{cocina|barra}`. **NO crear duplicados.** Detalle del patrón en `docs/coding-patterns.md`.

@@ -32,7 +32,6 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.springframework.amqp.rabbit.core.RabbitTemplate;
 import org.springframework.security.core.Authentication;
 
 import java.math.BigDecimal;
@@ -59,7 +58,6 @@ class ComandaBorradorServiceTest {
     @Mock MesaValidador             mesaValidador;
     @Mock MesaWsPublisher           mesaWsPublisher;
     @Mock NotificacionWsPublisher   notificacionWsPublisher;
-    @Mock RabbitTemplate            rabbitTemplate;
     @Mock co.edu.unicauca.backend.modules.mesas_comandas.mapper.ComandaProduccionMapper comandaProduccionMapper;
 
     @InjectMocks ComandaBorradorService service;
@@ -963,8 +961,8 @@ class ComandaBorradorServiceTest {
         }
 
         @Test
-        @DisplayName("publica RabbitMQ, estación WS, mapa y orden cliente")
-        void publica_RabbitMQ_estacion_mapa_ordenCliente() {
+        @DisplayName("publica eventos WS de estación, mapa y orden cliente")
+        void publica_estacion_mapa_ordenCliente() {
             Authentication auth = crearAuth();
             Mesa mesa = crearMesa(1L, EstadoMesa.EN_PREPARACION);
             Producto prod = producto(3L, CategoriaProducto.PLATO, false);
@@ -975,10 +973,6 @@ class ComandaBorradorServiceTest {
 
             service.enviarAProduccion(10L, auth);
 
-            verify(rabbitTemplate).convertAndSend(
-                    eq("altoro.topic"),
-                    eq("comanda.nueva"),
-                    any(Object.class));
             verify(mesaWsPublisher).publicarActualizacionMesa(eq(1L), eq(MesaWsPublisher.TipoEventoMesa.ACTUALIZAR));
             verify(notificacionWsPublisher).publicarVisitaActualizada(eq(1L), any());
 

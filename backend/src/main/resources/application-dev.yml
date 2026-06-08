@@ -18,13 +18,6 @@ spring:
       hibernate:
         format_sql: true
 
-  # RabbitMQ via Docker; defaults para correr localmente
-  rabbitmq:
-    host: ${RABBITMQ_HOST:localhost}
-    port: ${RABBITMQ_PORT:5672}
-    username: ${RABBITMQ_USERNAME:guest}
-    password: ${RABBITMQ_PASSWORD:guest}
-
   # Mailtrap: intercepta emails sin enviarlos realmente
   mail:
     host:     ${MAIL_HOST:smtp.mailtrap.io}
@@ -50,4 +43,3 @@ logging:
     root: INFO
     co.edu.unicauca: DEBUG
     org.springframework.security: DEBUG
-    org.springframework.amqp: DEBUG

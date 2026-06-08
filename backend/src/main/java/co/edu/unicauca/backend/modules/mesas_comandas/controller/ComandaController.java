@@ -105,7 +105,7 @@ public class ComandaController {
 
     /**
      * Envía a producción la comanda BORRADOR de una estación: transiciona a
-     * PENDIENTE, valida stock, publica RabbitMQ y eventos WebSocket.
+     * PENDIENTE, valida stock y publica eventos WebSocket.
      *
      * @param comandaId identificador de la comanda a enviar
      * @param auth      contexto del usuario autenticado

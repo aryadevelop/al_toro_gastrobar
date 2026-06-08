@@ -34,7 +34,7 @@ Contenido: tabla, viñetas o bloque de código según corresponda.
 ### Reglas de estructura
 
 1. Separador `---` entre secciones de nivel 2
-2. Títulos con mayúscula solo en la primera palabra, excepto nombres propios, siglas y nombres de herramientas (`Spring Boot`, `RabbitMQ`, `JWT`)
+2. Títulos con mayúscula solo en la primera palabra, excepto nombres propios, siglas y nombres de herramientas (`Spring Boot`, `JWT`)
 3. Tablas cuando hay dos o más atributos comparables
 4. Viñetas cuando son ítems sin atributos secundarios
 5. Bloques de código con lenguaje especificado (`bash`, `java`, `yaml`, `sql`)
@@ -142,7 +142,7 @@ Se usa dentro de celdas de tablas y viñetas de atributos o responsabilidades.
 
 Estos términos no se traducen porque son nombres de herramienta o conceptos sin equivalente exacto en el contexto del proyecto:
 
-`token`, `endpoint`, `payload`, `commit`, `branch`, `pull request`, `JWT`, `WebSocket`, `STOMP`, `Docker`, `Spring Boot`, `RabbitMQ`, `controller`, `service`, `repository`, `mapper`, `DTO`, `middleware`, `seed`
+`token`, `endpoint`, `payload`, `commit`, `branch`, `pull request`, `JWT`, `WebSocket`, `STOMP`, `Docker`, `Spring Boot`, `controller`, `service`, `repository`, `mapper`, `DTO`, `middleware`, `seed`
 
 ---
 
@@ -155,5 +155,5 @@ Estos términos no se traducen porque son nombres de herramienta o conceptos sin
 | Escribir una regla o advertencia | Telegráfico imperativo, verbo al inicio |
 | Documentar un comando | Bloque de código `bash` con comentario descriptivo |
 | Mencionar una clase o archivo | Backticks: `NombreClase`, `archivo.md` |
-| Mencionar una herramienta | Nombre oficial: `Spring Boot`, `PostgreSQL`, `RabbitMQ` |
+| Mencionar una herramienta | Nombre oficial: `Spring Boot`, `PostgreSQL`|
 | Señalar algo crítico | **Negrita** en la palabra clave, no en la oración completa |

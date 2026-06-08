@@ -1,8 +1,6 @@
 $kind: http-request
 name: 07 MESERO envía comanda COCINA a producción – 200 OK
-description: |-
-  Transiciona la comanda COCINA del borrador BORRADOR → PENDIENTE (solo Hamburguesa queda tras eliminar
-  el ítem sin stock). Publica comanda.nueva por RabbitMQ.
+description: Transiciona la comanda COCINA del borrador BORRADOR → PENDIENTE (solo Hamburguesa queda tras eliminar el ítem sin stock). Publica eventos WebSocket de producción.
 url: "{{baseUrl}}/api/comandas/borrador/{{tmpComandaCocinaId}}/enviar"
 method: POST
 headers:
