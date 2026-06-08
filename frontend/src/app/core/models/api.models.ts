@@ -715,3 +715,7 @@ export interface BackendActualizarDecoracionRequest {
   zonaIds?: number[];
 }
 
+export interface BackendCambioEstadoDecoracionRequest {
+  estado: string;
+}
+

@@ -122,6 +122,7 @@ export const API_PATHS = {
         eliminar: (id: string | number) => `${API}/decoraciones/${id}`,
         subirImagen: (id: string | number) => `${API}/decoraciones/${id}/imagen`,
         eliminarImagen: (id: string | number) => `${API}/decoraciones/${id}/imagen`,
+        cambiarEstado: (id: string | number) => `${API}/decoraciones/${id}/estado`,
     },
 
     inventarioMovimientos: `${API}/inventario/movimientos`,
