@@ -17,6 +17,7 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -44,6 +45,9 @@ public class EmpleadoService {
     private final SesionRepository sesionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.from}")
+    private String mailFrom;
 
     public EmpleadoResponse crearEmpleado(CrearEmpleadoRequest request) {
         validarPassword(request.getPassword(), request.getPasswordConfirmacion());
@@ -316,6 +320,7 @@ public class EmpleadoService {
     private boolean enviarCorreoBienvenida(CrearEmpleadoRequest request, String correo) {
         try {
             SimpleMailMessage mail = new SimpleMailMessage();
+            mail.setFrom(mailFrom);
             mail.setTo(correo);
             mail.setSubject("Bienvenido a Al Toro Gastrobar");
             mail.setText("Hola " + request.getNombre() + ",\n\n" +

@@ -24,6 +24,7 @@ spring:
     port:     ${MAIL_PORT:587}
     username: ${MAIL_USERNAME:tu_usuario_mailtrap}
     password: ${MAIL_PASSWORD:tu_password_mailtrap}
+    from: ${MAIL_FROM:notificaciones@altorogastrobar.com}
 
 management:
   health:
