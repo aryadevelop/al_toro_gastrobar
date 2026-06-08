@@ -1,0 +1,21 @@
+name: CD
+
+on:
+  push:
+    branches: [main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Deploy al servidor
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USER }}
+          key: ${{ secrets.SSH_PRIVATE_KEY }}
+          script: |
+            cd /home/altoro/al_toro_gastrobar
+            git pull
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod build
+            docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d

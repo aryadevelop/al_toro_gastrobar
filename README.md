@@ -1,4 +1,4 @@
-# Al Toro Gastrobar
+# Al Toro Gastro-Bar
 
 ## Tabla de contenidos
 
