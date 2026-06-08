@@ -1,0 +1,65 @@
+$kind: http-request
+name: MD-07 Segunda llamada retorna datos consistentes – 200 OK
+description: |-
+  **Objetivo:** Verificar idempotencia — llamadas sucesivas retornan datos consistentes.
+  **Pre-condición:** `meseroToken` disponible. Visita 10 está activa.
+  **Resultado esperado:** 200 OK con datos consistentes.
+url: "{{baseUrl}}/api/mesas/10/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+
+          // Primera llamada
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/mesas/10/detalle',
+            method: 'GET',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, (err2, res2) => {
+            if (!err2 && res2 && res2.code === 200) {
+              pm.environment.set('tmpPrimeraLlamada', JSON.stringify(res2.json().data));
+            }
+          });
+        } else {
+          console.warn('MD-07: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200 en segunda llamada', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Los datos son consistentes entre llamadas', function () {
+        const primeraLlamada = JSON.parse(pm.environment.get('tmpPrimeraLlamada'));
+        const segundaLlamada = pm.response.json().data;
+
+        pm.expect(segundaLlamada.mesaId).to.equal(primeraLlamada.mesaId);
+        pm.expect(segundaLlamada.visitaId).to.equal(primeraLlamada.visitaId);
+        pm.expect(segundaLlamada.totalCuenta).to.equal(primeraLlamada.totalCuenta);
+      });
+
+      // Cleanup
+      pm.environment.unset('tmpPrimeraLlamada');
+    language: text/javascript
+order: 7000

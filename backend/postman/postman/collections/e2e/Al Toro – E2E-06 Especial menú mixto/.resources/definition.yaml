@@ -1,0 +1,45 @@
+﻿$kind: collection
+name: Al Toro – E2E-06 Especial menú mixto
+description: |-
+  **Escenario E2E-06** · Reserva ESPECIAL **por menú** con pre-orden MIXTA (menú especial + carta) +
+  CAMBIO sobre el menú en producción + ajuste de cantidad del par menú (sincroniza cocina+barra).
+  TR=ESPECIAL · OE=menú · PO=menú esp.+carta · CF=confirmar · CB=**con cambio (menú)** ·
+  AJ=ajustar cantidad del par menú · DE=con descuento · MP=EFECTIVO · PU=cliente(+1).
+
+  **Pre-condición:** la reserva ESPECIAL **por menú** fechada HOY **19:00** PENDIENTE está sembrada en
+  `V3__dev_data.sql` con pre-orden mixta (par menú `E2E-06-MENU`: COCINA precio completo + BARRA bebida 0,
+  más 1 ítem de carta). Si ya fue consumida, re-sembrar con `docker compose down -v && docker compose up --build`.
+
+  **Aserciones clave del par menú (COCINA+BARRA):**
+  1. **Ajuste de cantidad** del menú sincroniza el par: ambas líneas (cocina y barra) del mismo
+     `menuGrupo` cambian de cantidad a la vez; la bebida sigue con `precioUnitario=0`.
+  2. **CAMBIO sobre el menú** se gestiona sobre la comanda correcta y no desincroniza el par.
+
+  **Flujo de CAMBIO (verificado en colección notificaciones):**
+  - `POST /api/notificaciones/cambio` con `{comandaId}` → 201, `data.notificacionId`, `data.estado='ACTIVA'`.
+  - `PATCH /api/notificaciones/{id}/atender-cambio` → 200, `data.comandaId`, message "Comanda lista para modificar."
+  - Tras atender, el mesero reenvía la comanda del menú.
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | CAJERO | Descubre reserva 19:00 PENDIENTE ESPECIAL por menú | captura `tmpReservaId` |
+  | 110 | CAJERO | Confirmar | estado CONFIRMADA |
+  | 120 | MESERO | Asignar mesa (reserva) | 201; captura `tmpVisitaId` |
+  | 130 | MESERO | Obtener borrador (par menú + carta precargados) | captura comandas + `comandaItemId` del par menú |
+  | 140 | MESERO | Enviar comanda COCINA | 200 |
+  | 150 | MESERO | Enviar comanda BARRA | 200 |
+  | 160 | COCINERO | Crea CAMBIO sobre la comanda del menú (COCINA) | 201; captura `tmpNotificacionId` |
+  | 170 | MESERO | Atender cambio | 200; devuelve comandaId |
+  | 180 | MESERO | Reenvía comanda COCINA del menú | 200 |
+  | 190 | COCINERO | Iniciar COCINA | EN_PREPARACION |
+  | 200 | COCINERO | Marcar listo COCINA | LISTO |
+  | 210 | BARTENDER | Iniciar BARRA | EN_PREPARACION |
+  | 220 | BARTENDER | Marcar listo BARRA | LISTO |
+  | 230 | CAJERO | Cuenta (par menú presente: cocina precio completo + barra 0) | par menú presente |
+  | 240 | CAJERO | Ajustar cantidad del menú (PATCH visitas/items) | 200 |
+  | 250 | CAJERO | Cuenta tras ajuste (par sincronizado, bebida sigue 0) | ambas líneas cambian; bebida=0 |
+  | 260 | CAJERO | Cerrar con descuento 5000 (EFECTIVO) | 201 |
+
+  **Login autónomo por rol** en cada `beforeRequest` (emails de entorno + `passwordValida`).
+  Roles: emailCajero, emailMesero, emailCocinero, emailBartender. NO usa CLIENTE (reserva sembrada de paola).

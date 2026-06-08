@@ -1,0 +1,53 @@
+$kind: http-request
+name: CR-12 Ownership – el emailCliente del body se ignora para CLIENTE
+description: |-
+  **Criterio de Aceptación:** Cuando el solicitante autenticado tiene rol CLIENTE,
+  el servicio ignora el `emailCliente` del body y asocia la reserva al email del token.
+  Esto evita que un cliente cree reservas a nombre de otro.
+  **Objetivo:** Verificar que enviar un `emailCliente` distinto al del CLIENTE
+  autenticado no cambia la propiedad de la reserva — la respuesta debe reflejar el
+  cliente autenticado (y por ende `clienteNombre` coherente con el token).
+  **Pre-condición:** `clienteToken` y `emailCliente` corresponden al cliente autenticado;
+  el body envía un correo arbitrario diferente.
+  **Resultado esperado:** 201 Created; el servicio crea la reserva para el cliente del
+  token, no para el email del body.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "otro.cliente@ejemplo.com",
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva se asocia al cliente del token, no al email del body', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('clienteId');
+        pm.expect(body.data).to.have.property('clienteNombre');
+        pm.expect(body.data.clienteNombre).to.be.a('string').and.not.empty;
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 12000

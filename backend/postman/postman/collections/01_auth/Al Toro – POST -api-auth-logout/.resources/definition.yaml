@@ -1,0 +1,52 @@
+$kind: collection
+name: Al Toro – POST /api/auth/logout
+description: |-
+  ## Descripción
+  Endpoint de cierre de sesión que invalida la sesión activa del usuario autenticado. Requiere el access token vigente en el header `Authorization`. Al ejecutarse exitosamente, el refresh token asociado queda eliminado de la base de datos.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{accessToken}}
+  ```
+
+  ## Comportamiento Post-Logout
+  Tras un cierre de sesión exitoso, intentar renovar el token con el refresh token anterior resulta en error 401, ya que la sesión queda marcada como inactiva.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CC-01 | Solicitud sin token JWT | 401 |
+  | CC-02 | Cierre de sesión con token válido | 204 |
+  | CC-03 | Intento de refresh tras logout (sesión inactiva) | 401 |
+  | CC-04 | Reutilización de access token tras logout en /me | 401 |
+  | CC-05 | Segundo logout con access token invalidado | 401 |
+  | CC-06 | Uso de refresh token como Bearer en /logout | 401 |
+  | CC-07 | Header Authorization sin prefijo Bearer | 401 |
+  | CC-08 | Header Authorization Bearer vacío | 401 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de ADMIN (forceSessionOverride=true evita conflicto con CA-10)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        const body = res.json();
+        pm.environment.set('accessToken', body.accessToken);
+        pm.environment.set('refreshToken', body.refreshToken);
+        pm.environment.set('loginExpiresIn', body.expiresIn);
+      });
+    language: text/javascript

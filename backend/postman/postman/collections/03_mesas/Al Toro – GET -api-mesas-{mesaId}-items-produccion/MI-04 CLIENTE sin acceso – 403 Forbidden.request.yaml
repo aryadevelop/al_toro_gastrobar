@@ -1,0 +1,44 @@
+$kind: http-request
+name: MI-04 CLIENTE sin acceso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** CA-08 — Solo MESERO y ADMIN tienen acceso.
+  **Objetivo:** Verificar que CLIENTE recibe 403 Forbidden.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** 403 Forbidden con código AUTH-002.
+url: "{{baseUrl}}/api/mesas/1/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+
+      pm.test('La respuesta contiene código de error AUTH-002', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 3030

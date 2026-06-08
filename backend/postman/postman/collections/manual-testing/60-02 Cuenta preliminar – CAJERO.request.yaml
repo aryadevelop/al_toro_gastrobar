@@ -1,0 +1,33 @@
+$kind: http-request
+name: 60-02 Cuenta preliminar – CAJERO
+description: Obtiene la cuenta preliminar de una visita (ítems, totales, decoración, abonos, saldo y puntos). Usar ID=1 como ejemplo.
+url: "{{baseUrl}}/api/ventas/1/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 6020

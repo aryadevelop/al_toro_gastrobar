@@ -1,0 +1,34 @@
+$kind: http-request
+name: 50-01 Mis Puntos – CLIENTE
+description: Obtener puntos de fidelidad del cliente autenticado
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente=cliente1@altoro.com"
+method: GET
+headers:
+  Authorization: Bearer {{tmpClienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpClienteToken');
+    language: text/javascript
+order: 5010

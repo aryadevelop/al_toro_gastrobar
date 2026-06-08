@@ -1,0 +1,47 @@
+$kind: http-request
+name: VA-NEW-01 Cliente sin visitas consulta su propio historial – 200 OK lista vacía
+description: |-
+  **Criterio de Aceptación:** CA-05 — historial vacío
+  **Objetivo:** Verificar que cuando un CLIENTE autenticado no tiene visitas registradas, el sistema retorna 200 con lista vacía.
+  **Pre-condición:** `emailSinHistorial` (sinhistorial@altoro.com) no tiene visitas ni reservas. El pre-request autentica a ese usuario y almacena el token en `sinHistorialToken`.
+  **Resultado esperado:** 200 OK · `data` = `[]`.
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailSinHistorial}}"
+method: GET
+headers:
+  Authorization: Bearer {{sinHistorialToken}}
+queryParams:
+  emailCliente: "{{emailSinHistorial}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Autenticar como sinhistorial@altoro.com para consultar su propio historial vacío
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+      pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+              mode: 'raw',
+              raw: JSON.stringify({
+                  email: pm.environment.get('emailSinHistorial'),
+                  password: password,
+                  forceSessionOverride: true
+              })
+          }
+      }, function(err, res) {
+          if (!err && res.code === 200) {
+              pm.environment.set('sinHistorialToken', res.json().accessToken);
+          }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El historial de visitas está vacío para el cliente sin visitas', function() {
+        pm.expect(pm.response.json().data).to.be.an('array').with.lengthOf(0);
+      });
+    language: text/javascript
+order: 8000

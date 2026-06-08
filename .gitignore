@@ -1,5 +1,22 @@
-gitignore# ========================
-# JAVA (ya tenías esto)
+# ========================
+# VARIABLES DE ENTORNO
+# ========================
+.env
+.env.prod
+.env.local
+
+# ========================
+# BACKUPS DE BASE DE DATOS
+# ========================
+/backups/
+
+# ========================
+# UPLOADS (archivos subidos por el ADMIN en dev local)
+# ========================
+/uploads/
+
+# ========================
+# JAVA
 # ========================
 *.class
 *.log
@@ -33,6 +50,11 @@ backend/src/main/resources/application-local.properties
 backend/src/main/resources/application-prod.properties
 
 # ========================
+# Claude Code
+# ========================
+.claude/
+
+# ========================
 # IDEs y editores
 # ========================
 .idea/
@@ -54,3 +76,13 @@ desktop.ini
 *.tmp
 *.bak
 logs/
+
+# Git worktrees
+.worktrees/
+
+# ========================
+# Graphify
+# ========================
+graphify-out/
+**/graphify-out/
+.graphify_*

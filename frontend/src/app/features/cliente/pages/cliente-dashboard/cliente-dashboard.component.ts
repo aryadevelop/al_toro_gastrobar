@@ -1,0 +1,1113 @@
+import { CommonModule } from '@angular/common';
+import { HttpErrorResponse } from '@angular/common/http';
+import { Component, OnDestroy, OnInit, signal } from '@angular/core';
+import { Router, RouterLink } from '@angular/router';
+import { combineLatest, finalize, Subscription } from 'rxjs';
+import { DashboardMetric, Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
+import { ActiveVisitService, ActiveVisitState, OrderItem } from '../../../../core/services/active-visit.service';
+import { AuthService } from '../../../../core/services/auth.service';
+import { ClientePointsService } from '../../../../core/services/cliente-points.service';
+import { ReservationDetailData, ReservationService } from '../../../../core/services/reservation.service';
+import { WebSocketService } from '../../../../core/services/websocket.service';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
+import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+
+const WHATSAPP_COMPANY_NUMBER = '573001112233';
+const ACTIVE_VISIT_CACHE_KEY = 'activeVisitCache';
+const ACTIVE_VISIT_CACHE_TTL_MS = 6 * 60 * 60 * 1000;
+const ASSISTANCE_TOAST_DURATION_MS = 6000;
+
+interface ActiveVisitCacheEntry {
+  hasActiveVisit: boolean;
+  assistanceRequested: boolean;
+  updatedAt: number;
+}
+
+@Component({
+  selector: 'app-cliente-dashboard',
+  standalone: true,
+  imports: [CommonModule, RouterLink, PageHeaderComponent, ConfirmDialogComponent],
+  template: `
+    <section class="page-grid cliente-compact">
+      <article class="flash-toast card" *ngIf="showFlash()">
+        {{ flashMessage() }}
+      </article>
+
+      <article class="toast-assistance card" *ngIf="showAssistanceToast()">
+        {{ assistanceToastMessage() }}
+      </article>
+
+      <section class="dashboard-header-row">
+        <app-page-header title="Panel de cliente" subtitle="Resumen de tus reservas y actividad"></app-page-header>
+        <div class="header-actions">
+          <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+          <a class="btn-secondary profile-shortcut" routerLink="/app/profile">Mi perfil</a>
+        </div>
+      </section>
+
+      <article class="card points-card">
+        <h3>Puntos acumulados: {{ points() }}</h3>
+      </article>
+
+      <section class="metrics-grid">
+        <article class="card metric-card" *ngFor="let metric of metrics">
+          <p>{{ metric.label }}</p>
+          <h3>{{ metric.value }}</h3>
+        </article>
+      </section>
+
+      <section class="page-grid">
+        <div class="reservas-head">
+          <h2 class="section-title">Reservas futuras</h2>
+          <a class="history-tab" routerLink="/app/cliente/reservas/history" fragment="historial">Historial</a>
+        </div>
+
+        <article class="card future-card" *ngFor="let reservation of reservasFuturas">
+          <p><strong>Fecha y hora:</strong> {{ formatDateTime(reservation) }}</p>
+          <p><strong>Número de personas:</strong> {{ reservation.guests }}</p>
+          <p><strong>Estado:</strong> {{ getStatusLabel(reservation.status) }}</p>
+          <p class="modify-warning" *ngIf="isModificationCutoffReached(reservation)">
+            {{ getModificationCutoffMessage(reservation) }}
+          </p>
+
+          <div class="reservation-actions">
+            <button type="button" class="btn-secondary" (click)="onViewDetail(reservation.id)">Ver detalle</button>
+            <button type="button" class="btn-secondary" 
+                    *ngIf="reservation.status === 'PENDING' || reservation.status === 'CONFIRMED'" 
+                    [class.disabled]="!canModifyReservation(reservation)" 
+                    (click)="onModifyReservation(reservation)">
+              Modificar
+            </button>
+            <button
+              type="button"
+              class="btn-danger"
+              [disabled]="!canCancelReservation(reservation)"
+              (click)="onCancelReservation(reservation)"
+            >
+              Cancelar
+            </button>
+          </div>
+        </article>
+
+        <article class="card empty-state-box" *ngIf="reservasFuturas.length === 0">
+          <p class="empty-state">No tienes reservas futuras. ¡Crea una nueva reserva!</p>
+          <a class="btn-secondary" routerLink="/app/cliente/reserva/create">Nueva reserva</a>
+        </article>
+      </section>
+
+      <!-- HU-06: Estado de tu orden -->
+      <section class="page-grid">
+        <h2 class="section-title">Estado de tu orden</h2>
+
+        <article class="card order-card" *ngIf="activeVisit(); else noActiveVisit" [class.order-closed]="activeVisit()!.closed">
+          <div *ngIf="activeVisit()!.closed" class="closed-banner">
+            La cuenta ya está cerrada. ¡Gracias por tu visita!
+          </div>
+
+          <div *ngIf="orderItems().length > 0; else noProducts">
+            <article class="order-item" *ngFor="let item of orderItems()">
+              <div class="order-item-info">
+                <span class="order-item-name">{{ item.productName }}</span>
+                <span class="order-item-status" [class.servido]="item.status === 'Servido'">{{ item.status }}</span>
+              </div>
+              <div class="order-item-numbers">
+                <span>{{ item.quantity }} x {{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
+                <span class="order-item-subtotal">{{ item.subtotal | currency:'COP':'symbol':'1.0-0' }}</span>
+              </div>
+            </article>
+          </div>
+
+          <ng-template #noProducts>
+            <p class="empty-state" *ngIf="!activeVisit()!.closed">Aún no tienes productos en tu cuenta. ¡Pide algo del menú!</p>
+          </ng-template>
+
+          <p class="order-total" *ngIf="orderItems().length > 0">
+            <strong>Total acumulado:</strong> {{ activeVisit()!.total | currency:'COP':'symbol':'1.0-0' }}
+          </p>
+
+          <div class="order-actions" *ngIf="!activeVisit()!.closed">
+            <button
+              type="button"
+              class="btn-secondary"
+              [disabled]="assistanceRequested()"
+              (click)="onRequestAssistance()"
+            >
+              {{ assistanceRequested() ? 'Solicitud enviada' : 'Solicitar asistencia' }}
+            </button>
+          </div>
+        </article>
+
+        <ng-template #noActiveVisit>
+          <article class="card order-card empty-order">
+            <p class="empty-state" *ngIf="activeVisitChecked()">
+              No tienes una visita activa en este momento.
+            </p>
+            <p class="empty-state" *ngIf="!activeVisitChecked()">
+              Consulta si tienes una visita activa para ver el estado de tu orden.
+            </p>
+            <button
+              type="button"
+              class="btn-secondary"
+              (click)="onCheckActiveVisit()"
+              [disabled]="activeVisitLoading()"
+            >
+              {{ activeVisitLoading() ? 'Consultando...' : 'Consultar visita activa' }}
+            </button>
+          </article>
+        </ng-template>
+      </section>
+
+      <app-confirm-dialog
+        [open]="showCancelDialog()"
+        title="Cancelar reserva"
+        [message]="cancelDialogMessage()"
+        [confirmLabel]="cancelingReservation() ? 'Cancelando...' : 'Sí, cancelar'"
+        (confirm)="onConfirmCancelReservation()"
+        (cancel)="onCancelDialog()"
+      ></app-confirm-dialog>
+
+      <app-confirm-dialog
+        [open]="showAssistanceDialog()"
+        title="Solicitar asistencia"
+        message="¿Solicitar atención? El mesero se acercará lo más pronto posible."
+        cancelLabel="Cancelar"
+        confirmLabel="Solicitar"
+        (confirm)="onConfirmAssistance()"
+        (cancel)="showAssistanceDialog.set(false)"
+      ></app-confirm-dialog>
+
+      <section class="overlay" *ngIf="showAssistanceResultDialog()">
+        <article class="card assistance-result-modal">
+          <h3>Solicitud enviada</h3>
+          <p>{{ assistanceResultMessage() }}</p>
+          <div class="result-actions">
+            <button type="button" class="btn-secondary" (click)="closeAssistanceResultDialog()">Aceptar</button>
+          </div>
+        </article>
+      </section>
+
+      <!-- CA-08: Modal de detalle inline -->
+      <section class="overlay" *ngIf="showDetailModal()">
+        <article class="card detail-modal">
+          <div class="detail-modal-header">
+            <h3>Detalle de la reserva</h3>
+            <button type="button" class="btn-close" (click)="closeDetailModal()">✕</button>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="detailReservation()">
+            <p><strong>Fecha y hora:</strong> {{ formatDetailDateTime() }}</p>
+            <p><strong>Número de personas:</strong> {{ detailReservation()!.guests }}</p>
+            <p><strong>Estado de la visita:</strong> {{ getStatusLabel(detailReservation()!.status) }}</p>
+            <p><strong>Mesa asignada:</strong> {{ detailReservation()!.tableCode || 'No aplica' }}</p>
+            <p><strong>Zona seleccionada:</strong> {{ detailReservation()!.zoneName || 'No aplica' }}</p>
+            <p><strong>Decoración seleccionada:</strong> {{ detailReservation()!.decorationName || 'No aplica' }}</p>
+
+            <section class="detail-section">
+              <h4>Productos de la comanda</h4>
+              <div *ngIf="detailPreorderItems().length > 0; else noComanda">
+                <article class="line-item" *ngFor="let item of detailPreorderItems()">
+                  <span>{{ item.productName }} x {{ item.quantity }}</span>
+                  <span>{{ item.description || 'Sin observaciones' }}</span>
+                </article>
+              </div>
+              <ng-template #noComanda>
+                <p class="muted">No aplica</p>
+              </ng-template>
+            </section>
+
+            <section class="detail-section">
+              <h4>Historial de abonos</h4>
+              <div *ngIf="detailPayments().length > 0; else noPayments">
+                <article class="line-item" *ngFor="let payment of detailPayments()">
+                  <span>{{ payment.method }} - {{ formatDate(payment.paidAt) }}</span>
+                  <span>{{ payment.amount | currency:'COP':'symbol':'1.0-0' }}</span>
+                </article>
+              </div>
+              <ng-template #noPayments>
+                <p class="muted">No aplica</p>
+              </ng-template>
+            </section>
+
+            <p class="total-row"><strong>Total pre-orden:</strong> {{ detailPreOrderTotal() | currency:'COP':'symbol':'1.0-0' }}</p>
+            <p class="total-row"><strong>Total abonado:</strong> {{ detailTotalPaid() | currency:'COP':'symbol':'1.0-0' }}</p>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="detailLoading()">
+            <p class="muted">Cargando detalle...</p>
+          </div>
+
+          <div class="detail-modal-body" *ngIf="!detailReservation() && !detailLoading()">
+            <p class="muted">No se encontró el detalle de esta reserva.</p>
+          </div>
+        </article>
+      </section>
+    </section>
+  `,
+  styles: [
+    `
+      .flash-toast {
+        border: 1px solid #6F4E37;
+        background: rgba(111, 78, 55, 0.1);
+        color: #4d3323;
+        padding: 0.7rem 0.9rem;
+        font-weight: 700;
+      }
+
+      .toast-assistance {
+        position: fixed;
+        bottom: 1rem;
+        left: 1rem;
+        right: 1rem;
+        max-width: 420px;
+        margin: 0 auto;
+        z-index: 1100;
+        border: 1px solid rgba(111, 78, 55, 0.35);
+        background: #fff7f0;
+        color: #4d3323;
+        padding: 0.7rem 0.9rem;
+        font-weight: 700;
+        box-shadow: 0 10px 24px rgba(0, 0, 0, 0.12);
+      }
+
+      .dashboard-header-row {
+        display: flex;
+        justify-content: space-between;
+        align-items: flex-start;
+        gap: 0.8rem;
+        flex-wrap: wrap;
+      }
+
+      .profile-shortcut {
+        text-align: center;
+        white-space: nowrap;
+      }
+
+      .header-actions {
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.6rem;
+        align-items: center;
+      }
+
+      .header-actions .btn-primary,
+      .header-actions .btn-secondary {
+        padding: 0.5rem 0.72rem;
+        font-size: 0.82rem;
+        border-radius: 8px;
+      }
+
+      .points-card {
+        padding: 0.4rem 0.6rem;
+        display: grid;
+        gap: 0.15rem;
+      }
+
+      .points-card h3 {
+        margin: 0;
+          font-size: 0.95rem;
+      }
+
+      .points-info {
+        margin: 0;
+        font-size: 0.78rem;
+        color: var(--muted);
+        opacity: 0.75;
+        line-height: 1.35;
+      }
+
+      .metrics-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        gap: 0.55rem;
+      }
+
+      .metric-card {
+        padding: 0.28rem 0.36rem;
+        min-height: 44px;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+        gap: 0.08rem;
+        align-items: flex-start;
+      }
+
+      .metric-card p,
+      .metric-card h3 {
+        margin: 0;
+      }
+
+      .metric-card p {
+        color: var(--muted);
+        font-size: 0.7rem;
+        opacity: 0.95;
+      }
+
+      .metric-card h3 {
+        font-size: 0.95rem;
+        line-height: 1;
+        font-weight: 700;
+      }
+
+      .reservas-head {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        flex-wrap: wrap;
+        gap: 0.5rem;
+      }
+
+      .history-tab {
+        border: 1px solid rgba(111, 78, 55, 0.7);
+        border-radius: 8px;
+        padding: 0.35rem 0.6rem;
+        font-size: 0.8rem;
+        color: #ffffff;
+        background: #6F4E37;
+      }
+
+      .future-card {
+        padding: 0.72rem 0.84rem;
+        display: grid;
+        gap: 0.28rem;
+      }
+
+      .future-card p {
+        margin: 0;
+        font-size: 0.84rem;
+      }
+
+      .modify-warning {
+        color: #5b3f2c;
+        font-size: 0.78rem;
+      }
+
+      .reservation-actions {
+        margin-top: 0.2rem;
+        display: flex;
+        flex-wrap: wrap;
+        gap: 0.4rem;
+      }
+
+      .reservation-actions .btn-secondary,
+      .reservation-actions .btn-danger {
+        padding: 0.42rem 0.62rem;
+        font-size: 0.78rem;
+        border-radius: 8px;
+      }
+
+      .empty-state-box {
+        padding: 0.75rem 0.85rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+
+      .empty-state {
+        margin: 0;
+        color: var(--muted);
+        font-size: 0.86rem;
+      }
+
+      /* ── Modal de detalle (CA-08) ── */
+      .overlay {
+        position: fixed;
+        inset: 0;
+        display: grid;
+        place-items: center;
+        background: rgba(24, 29, 27, 0.45);
+        z-index: 1000;
+        padding: 1rem;
+        overflow-y: auto;
+      }
+
+      .detail-modal {
+        width: 100%;
+        max-width: 520px;
+        max-height: 85vh;
+        overflow-y: auto;
+        padding: 0.85rem;
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .detail-modal-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+      }
+
+      .detail-modal-header h3 {
+        margin: 0;
+      }
+
+      .btn-close {
+        background: none;
+        border: none;
+        font-size: 1.1rem;
+        cursor: pointer;
+        padding: 0.25rem 0.45rem;
+        border-radius: 6px;
+        color: var(--text);
+      }
+
+      .btn-close:hover {
+        background: rgba(111, 78, 55, 0.15);
+      }
+
+      .detail-modal-body {
+        display: grid;
+        gap: 0.3rem;
+      }
+
+      .detail-modal-body p {
+        margin: 0;
+        font-size: 0.84rem;
+      }
+
+      .detail-section {
+        display: grid;
+        gap: 0.3rem;
+        margin-top: 0.2rem;
+      }
+
+      .detail-section h4 {
+        margin: 0;
+        font-size: 0.88rem;
+      }
+
+      .line-item {
+        display: flex;
+        justify-content: space-between;
+        gap: 0.45rem;
+        border: 1px dashed rgba(10, 10, 10, 0.2);
+        border-radius: 8px;
+        padding: 0.35rem 0.45rem;
+        font-size: 0.82rem;
+      }
+
+      .muted {
+        color: var(--muted);
+        opacity: 0.65;
+      }
+
+      .total-row {
+        margin-top: 0.25rem;
+      }
+
+      /* ── HU-06: Estado de tu orden ── */
+      .order-card {
+        padding: 0.72rem 0.84rem;
+        display: grid;
+        gap: 0.35rem;
+      }
+
+      .order-card.order-closed {
+        opacity: 0.7;
+        pointer-events: none;
+      }
+
+      .closed-banner {
+        background: rgba(111, 78, 55, 0.15);
+        border: 1px solid #6F4E37;
+        border-radius: 8px;
+        padding: 0.55rem 0.7rem;
+        font-weight: 700;
+        font-size: 0.84rem;
+        color: #4d3323;
+        text-align: center;
+      }
+
+      .order-item {
+        display: grid;
+        grid-template-columns: 1fr auto;
+        gap: 0.3rem;
+        border: 1px dashed rgba(10, 10, 10, 0.2);
+        border-radius: 8px;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.82rem;
+      }
+
+      .order-item-info {
+        display: flex;
+        flex-direction: column;
+        gap: 0.1rem;
+      }
+
+      .order-item-name {
+        font-weight: 600;
+      }
+
+      .order-item-status {
+        font-size: 0.75rem;
+        color: #5b3f2c;
+      }
+
+      .order-item-status.servido {
+        color: #333333;
+        font-weight: 600;
+      }
+
+      .order-item-numbers {
+        display: flex;
+        flex-direction: column;
+        align-items: flex-end;
+        gap: 0.1rem;
+        font-size: 0.8rem;
+      }
+
+      .order-item-subtotal {
+        font-weight: 600;
+      }
+
+      .order-total {
+        margin: 0.3rem 0 0;
+        font-size: 0.9rem;
+      }
+
+      .order-actions {
+        margin-top: 0.2rem;
+        display: flex;
+        gap: 0.4rem;
+      }
+
+      .order-actions .btn-secondary {
+        padding: 0.42rem 0.62rem;
+        font-size: 0.78rem;
+        border-radius: 8px;
+      }
+
+      .assistance-result-modal {
+        width: min(420px, 100%);
+        padding: 1rem;
+        display: grid;
+        gap: 0.65rem;
+      }
+
+      .assistance-result-modal h3,
+      .assistance-result-modal p {
+        margin: 0;
+      }
+
+      .result-actions {
+        display: flex;
+        justify-content: flex-end;
+      }
+    `
+  ]
+})
+export class ClienteDashboardComponent implements OnInit, OnDestroy {
+  readonly flashMessage = signal('');
+  readonly showFlash = signal(false);
+  readonly assistanceToastMessage = signal('');
+  readonly showAssistanceToast = signal(false);
+  readonly points = signal(0);
+  readonly showCancelDialog = signal(false);
+  readonly cancelingReservation = signal(false);
+  readonly reservationPendingCancel = signal<Reserva | null>(null);
+  readonly cancelDialogMessage = signal('¿Deseas cancelar esta reserva?');
+
+  // CA-08: Detail modal state
+  readonly showDetailModal = signal(false);
+  readonly detailLoading = signal(false);
+  readonly detailReservation = signal<Reserva | null>(null);
+  readonly detailData = signal<ReservationDetailData | null>(null);
+
+  // HU-06: Active visit / order state
+  readonly activeVisit = signal<ActiveVisitState | null>(null);
+  readonly activeVisitLoading = signal(false);
+  readonly activeVisitChecked = signal(false);
+  readonly assistanceRequested = signal(false);
+  readonly showAssistanceDialog = signal(false);
+  readonly showAssistanceResultDialog = signal(false);
+  readonly assistanceResultMessage = signal('Solicitud enviada. El mesero te atenderá en breve.');
+
+  metrics: DashboardMetric[] = [];
+  reservasFuturas: Reserva[] = [];
+
+  private wsSubscriptions: Subscription[] = [];
+  private assistanceToastTimeout: ReturnType<typeof setTimeout> | undefined;
+
+  constructor(
+    private readonly authService: AuthService,
+    private readonly reservationService: ReservationService,
+    private readonly clientePointsService: ClientePointsService,
+    private readonly activeVisitService: ActiveVisitService,
+    private readonly webSocketService: WebSocketService,
+    private readonly router: Router
+  ) {}
+
+  ngOnInit(): void {
+    const state = history.state as { flashMessage?: string };
+    if (state.flashMessage) {
+      this.flashMessage.set(state.flashMessage);
+      this.showFlash.set(true);
+      setTimeout(() => this.showFlash.set(false), 3500);
+      history.replaceState({}, document.title, this.router.url);
+    }
+
+    this.loadDashboardData();
+    if (this.shouldAutoLoadActiveVisit()) {
+      this.loadActiveVisit();
+    }
+  }
+
+  ngOnDestroy(): void {
+    this.wsSubscriptions.forEach((sub) => sub.unsubscribe());
+    if (this.assistanceToastTimeout) {
+      clearTimeout(this.assistanceToastTimeout);
+    }
+  }
+
+  // ── CA-08: Detail modal methods ──
+
+  onViewDetail(reservationId: string): void {
+    this.showDetailModal.set(true);
+    this.detailLoading.set(true);
+    this.detailReservation.set(null);
+    this.detailData.set(null);
+
+    this.reservationService.getDetail(reservationId).subscribe({
+      next: (detail) => {
+        this.detailData.set(detail);
+        this.detailReservation.set(detail.reservation);
+        this.detailLoading.set(false);
+      },
+      error: () => {
+        this.detailLoading.set(false);
+      }
+    });
+  }
+
+  closeDetailModal(): void {
+    this.showDetailModal.set(false);
+    this.detailReservation.set(null);
+    this.detailData.set(null);
+  }
+
+  formatDetailDateTime(): string {
+    const target = this.detailReservation();
+    if (!target) {
+      return 'No aplica';
+    }
+
+    return new Date(`${target.date}T${target.time}:00`).toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  detailPreorderItems(): ReservaPreorderItem[] {
+    return this.detailReservation()?.preorderItems ?? [];
+  }
+
+  detailPayments(): Pago[] {
+    return this.detailData()?.payments ?? [];
+  }
+
+  detailPreOrderTotal(): number {
+    return this.detailData()?.preOrderTotal ?? 0;
+  }
+
+  detailTotalPaid(): number {
+    return this.detailData()?.totalPaid ?? 0;
+  }
+
+  formatDate(isoDate: string): string {
+    return new Date(isoDate).toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  // ── Reservation action methods ──
+
+  onModifyReservation(reservation: Reserva): void {
+    const resDate = new Date(`${reservation.date}T00:00:00`);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (resDate.getTime() === today.getTime() && new Date().getHours() >= 16) {
+      alert('Ya no es posible modificar esta reserva. Solo puedes cancelarla.');
+      return;
+    }
+
+    if (!this.canModifyReservation(reservation)) {
+      alert(this.getModificationCutoffMessage(reservation));
+      return;
+    }
+
+    void this.router.navigate(['/app/cliente/reserva/edit', reservation.id]);
+  }
+
+  onCancelReservation(reservation: Reserva): void {
+    if (!this.canCancelReservation(reservation)) {
+      return;
+    }
+
+    this.reservationPendingCancel.set(reservation);
+    this.cancelDialogMessage.set(this.getCancelDialogMessage(reservation));
+    this.showCancelDialog.set(true);
+  }
+
+  onConfirmCancelReservation(): void {
+    const reservation = this.reservationPendingCancel();
+    if (!reservation || this.cancelingReservation()) {
+      return;
+    }
+
+    this.cancelingReservation.set(true);
+
+    this.reservationService.cancel(reservation.id).subscribe({
+      next: (result) => {
+        this.cancelingReservation.set(false);
+        this.showCancelDialog.set(false);
+        this.reservationPendingCancel.set(null);
+
+        if (result.requiresWhatsApp) {
+          this.redirectToWhatsapp(result.whatsappMessage);
+          return;
+        }
+
+        this.flashMessage.set('Reserva cancelada correctamente.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+        this.loadDashboardData();
+      },
+      error: (err: HttpErrorResponse) => {
+        this.cancelingReservation.set(false);
+        this.showCancelDialog.set(false);
+        this.reservationPendingCancel.set(null);
+
+        const backendMessage =
+          (typeof err.error?.message === 'string' && err.error.message.trim().length > 0
+            ? err.error.message
+            : '') ||
+          (typeof err.error === 'string' && err.error.trim().length > 0 ? err.error : '');
+
+        this.flashMessage.set(backendMessage || 'No fue posible cancelar la reserva. Intenta nuevamente.');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 3500);
+      }
+    });
+  }
+
+  onCancelDialog(): void {
+    if (this.cancelingReservation()) {
+      return;
+    }
+
+    this.showCancelDialog.set(false);
+    this.reservationPendingCancel.set(null);
+    this.cancelDialogMessage.set('¿Deseas cancelar esta reserva?');
+  }
+
+  canModifyReservation(reservation: Reserva): boolean {
+    return (
+      this.isFutureReservation(reservation) &&
+      (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED') &&
+      !this.isModificationCutoffReached(reservation)
+    );
+  }
+
+  canCancelReservation(reservation: Reserva): boolean {
+    return this.isFutureReservation(reservation) && (reservation.status === 'PENDING' || reservation.status === 'CONFIRMED');
+  }
+
+  private getCancelDialogMessage(reservation: Reserva): string {
+    if (this.shouldShowRefundNote(reservation)) {
+      return 'Esta reserva especial requiere gestionar el reembolso del abono. ¿Deseas cancelar?';
+    }
+
+    return '¿Deseas cancelar esta reserva?';
+  }
+
+  private shouldShowRefundNote(reservation: Reserva): boolean {
+    return reservation.type === 'SPECIAL' && this.isBeforeRefundCutoff(reservation);
+  }
+
+  private isBeforeRefundCutoff(reservation: Reserva): boolean {
+    const cutoff = new Date(`${reservation.date}T16:00:00`);
+    return Date.now() < cutoff.getTime();
+  }
+
+  getStatusLabel(status: Reserva['status']): string {
+    if (status === 'CONFIRMED') {
+      return 'Confirmada';
+    }
+
+    if (status === 'PENDING') {
+      return 'Pendiente';
+    }
+
+    if (status === 'CANCELLED') {
+      return 'Cancelada';
+    }
+
+    if (status === 'COMPLETED') {
+      return 'Completada';
+    }
+
+    if (status === 'ARRIVED') {
+      return 'Asistio';
+    }
+
+    return status;
+  }
+
+  formatDateTime(reserva: Reserva): string {
+    return this.toDateTime(reserva).toLocaleString('es-CO', {
+      dateStyle: 'short',
+      timeStyle: 'short'
+    });
+  }
+
+  private loadDashboardData(): void {
+    const currentUser = this.authService.currentUser();
+    if (!currentUser) {
+      this.metrics = [];
+      this.reservasFuturas = [];
+      this.points.set(0);
+      return;
+    }
+
+    combineLatest([
+      this.reservationService.listFuture(),
+      this.clientePointsService.getMyPoints(currentUser.email)
+    ]).subscribe(([futureReservations, currentPoints]) => {
+      const orderedFuture = [...futureReservations]
+        .filter((item) => item.status === 'PENDING' || item.status === 'CONFIRMED')
+        .sort((a, b) => this.toDateTime(a).getTime() - this.toDateTime(b).getTime());
+
+      const pending = orderedFuture.filter((item) => item.status === 'PENDING').length;
+      const confirmed = orderedFuture.filter((item) => item.status === 'CONFIRMED').length;
+
+      this.points.set(currentPoints);
+      this.reservasFuturas = orderedFuture;
+
+      this.metrics = [
+        { id: 'cm-1', label: 'Reservas futuras', value: orderedFuture.length, tone: 'neutral' },
+        { id: 'cm-2', label: 'Pendientes', value: pending, tone: pending > 0 ? 'success' : 'neutral' },
+        { id: 'cm-3', label: 'Confirmadas', value: confirmed, tone: 'neutral' }
+      ];
+    });
+  }
+
+  isFutureReservation(reserva: Reserva): boolean {
+    return this.toDateTime(reserva).getTime() > Date.now();
+  }
+
+  isModificationCutoffReached(reserva: Reserva): boolean {
+    const cutoff = this.getModificationCutoffDate(reserva);
+    return Date.now() >= cutoff.getTime();
+  }
+
+  getModificationCutoffMessage(reserva: Reserva): string {
+    return 'Ya no es posible modificar esta reserva. Solo puedes cancelarla.';
+  }
+
+  private toDateTime(reserva: Reserva): Date {
+    return new Date(`${reserva.date}T${reserva.time}:00`);
+  }
+
+  private redirectToWhatsapp(customMessage?: string): void {
+    const message = customMessage?.trim()
+      ? customMessage
+      : 'Hola, deseo gestionar la cancelación y posible reembolso de mi reserva en Al Toro Gastrobar.';
+
+    const url = `https://wa.me/${WHATSAPP_COMPANY_NUMBER}?text=${encodeURIComponent(message)}`;
+    window.location.href = url;
+  }
+
+  private getModificationCutoffDate(reserva: Reserva): Date {
+    const dayStart = new Date(`${reserva.date}T00:00:00`);
+
+    if (reserva.type === 'SPECIAL') {
+      dayStart.setDate(dayStart.getDate() - 1);
+      dayStart.setHours(23, 0, 0, 0);
+      return dayStart;
+    }
+
+    dayStart.setHours(16, 0, 0, 0);
+    return dayStart;
+  }
+
+  // ── HU-06: Active visit / order methods ──
+
+  orderItems(): OrderItem[] {
+    return this.activeVisit()?.items ?? [];
+  }
+
+  onRequestAssistance(): void {
+    this.showAssistanceDialog.set(true);
+  }
+
+  onConfirmAssistance(): void {
+    const visit = this.activeVisit();
+    if (!visit) {
+      return;
+    }
+
+    this.showAssistanceDialog.set(false);
+
+    this.activeVisitService.requestAssistance(visit.visitaId).subscribe({
+      next: () => {
+        this.assistanceRequested.set(true);
+        this.cacheActiveVisit(true);
+        this.assistanceResultMessage.set('Solicitud enviada. El mesero te atenderá en breve.');
+        this.showAssistanceResultDialog.set(true);
+      },
+      error: (err: HttpErrorResponse) => {
+        const msg = err.error?.message || 'No fue posible enviar la solicitud.';
+        this.showAssistanceToastMessage(msg);
+      }
+    });
+  }
+
+  onCheckActiveVisit(): void {
+    const current = this.authService.currentUser();
+    if (current?.role !== 'CLIENTE') {
+      return;
+    }
+
+    this.loadActiveVisit();
+  }
+
+  closeAssistanceResultDialog(): void {
+    this.showAssistanceResultDialog.set(false);
+  }
+
+  private loadActiveVisit(): void {
+    if (this.activeVisitLoading()) {
+      return;
+    }
+
+    this.activeVisitLoading.set(true);
+
+    this.activeVisitService
+      .getActiveVisit()
+      .pipe(
+        finalize(() => {
+          this.activeVisitLoading.set(false);
+          this.activeVisitChecked.set(true);
+        })
+      )
+      .subscribe({
+        next: (visit) => {
+          this.activeVisit.set(visit);
+          if (visit) {
+            this.assistanceRequested.set(visit.assistanceRequested);
+            this.cacheActiveVisit(true);
+            this.subscribeToVisitWebSocket(visit.visitaId);
+          } else {
+            this.cacheActiveVisit(false);
+          }
+        },
+        error: () => {
+          this.activeVisit.set(null);
+          this.cacheActiveVisit(false);
+        }
+      });
+  }
+
+  private shouldAutoLoadActiveVisit(): boolean {
+    const cache = this.readActiveVisitCache();
+    return Boolean(cache?.hasActiveVisit);
+  }
+
+  private cacheActiveVisit(hasActiveVisit: boolean): void {
+    const payload: ActiveVisitCacheEntry = {
+      hasActiveVisit,
+      assistanceRequested: hasActiveVisit ? this.assistanceRequested() : false,
+      updatedAt: Date.now(),
+    };
+
+    localStorage.setItem(ACTIVE_VISIT_CACHE_KEY, JSON.stringify(payload));
+  }
+
+  private readActiveVisitCache(): ActiveVisitCacheEntry | null {
+    try {
+      const raw = localStorage.getItem(ACTIVE_VISIT_CACHE_KEY);
+      if (!raw) {
+        return null;
+      }
+
+      const parsed = JSON.parse(raw) as ActiveVisitCacheEntry;
+      if (!parsed.updatedAt || Date.now() - parsed.updatedAt > ACTIVE_VISIT_CACHE_TTL_MS) {
+        localStorage.removeItem(ACTIVE_VISIT_CACHE_KEY);
+        return null;
+      }
+
+      return parsed;
+    } catch {
+      localStorage.removeItem(ACTIVE_VISIT_CACHE_KEY);
+      return null;
+    }
+  }
+
+  private showAssistanceToastMessage(message: string): void {
+    this.assistanceToastMessage.set(message);
+    this.showAssistanceToast.set(true);
+
+    if (this.assistanceToastTimeout) {
+      clearTimeout(this.assistanceToastTimeout);
+    }
+
+    this.assistanceToastTimeout = setTimeout(() => {
+      this.showAssistanceToast.set(false);
+    }, ASSISTANCE_TOAST_DURATION_MS);
+  }
+
+  private subscribeToVisitWebSocket(visitaId: string): void {
+    // CA-02 of HU-06: Real-time order updates
+    const orderSub = this.webSocketService
+      .subscribe<{ visitaId: number; items: Array<{ comandaItemId: number; nombreProducto: string; cantidad: number; estadoItem: string; precioUnitario: number; subtotal: number }>; total: number }>(
+        `/topic/visita/${visitaId}/orden`
+      )
+      .subscribe((msg) => {
+        const current = this.activeVisit();
+        if (current) {
+          this.activeVisit.set({
+            ...current,
+            items: msg.items.map((i) => ({
+              comandaItemId: String(i.comandaItemId),
+              productName: i.nombreProducto,
+              quantity: i.cantidad,
+              status: i.estadoItem,
+              unitPrice: i.precioUnitario,
+              subtotal: i.subtotal,
+            })),
+            total: msg.total,
+          });
+        }
+      });
+    this.wsSubscriptions.push(orderSub);
+
+    // CA-04 of HU-06: Account closed
+    const closedSub = this.webSocketService
+      .subscribe<{ visitaId: number; mensaje: string; puntosActuales: number }>(
+        `/topic/visita/${visitaId}/cuenta`
+      )
+      .subscribe((msg) => {
+        const current = this.activeVisit();
+        if (current) {
+          this.activeVisit.set({ ...current, closed: true });
+        }
+        this.points.set(msg.puntosActuales);
+        this.flashMessage.set(msg.mensaje || 'La cuenta ya está cerrada. ¡Gracias por tu visita!');
+        this.showFlash.set(true);
+        setTimeout(() => this.showFlash.set(false), 5000);
+      });
+    this.wsSubscriptions.push(closedSub);
+
+    // CA-06 of HU-06: Assistance attended
+    const assistSub = this.webSocketService
+      .subscribe<{ visitaId: number; asistenciaAtendida: boolean }>(
+        `/topic/visita/${visitaId}/asistencia`
+      )
+      .subscribe((msg) => {
+        if (msg.asistenciaAtendida) {
+          this.assistanceRequested.set(false);
+        }
+      });
+    this.wsSubscriptions.push(assistSub);
+  }
+}

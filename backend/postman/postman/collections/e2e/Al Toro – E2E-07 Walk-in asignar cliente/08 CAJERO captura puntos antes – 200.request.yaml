@@ -1,0 +1,39 @@
+$kind: http-request
+name: 08 CAJERO captura puntos del cliente ANTES – 200 OK
+description: Lee los puntos del cliente a asignar, para comparar el +1 tras cerrar. Captura `tmpPuntosAntes`.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Captura puntosActuales como base', function () {
+        const p = pm.response.json().data.puntosActuales;
+        pm.expect(p).to.be.a('number');
+        pm.environment.set('tmpPuntosAntes', p);
+      });
+    language: text/javascript
+order: 170

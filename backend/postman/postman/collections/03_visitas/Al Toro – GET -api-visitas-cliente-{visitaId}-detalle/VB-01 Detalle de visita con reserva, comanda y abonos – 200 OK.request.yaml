@@ -1,0 +1,37 @@
+$kind: http-request
+name: VB-01 Detalle de visita con reserva, comanda y abonos – 200 OK (CA-07)
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-07 (detalle de visita)
+  **Objetivo:** Verificar que el detalle de una visita proveniente de reserva incluye zona, decoración (si aplica), comanda consolidada con nombre/cantidad/precio/subtotal por ítem, abonos y totales de cuenta.
+  **Pre-condición:** `visitaIdConReserva` apunta a una visita vinculada a una reserva con comanda y abonos (capturado dinámicamente en VA-01 o definido en datos semilla).
+  **Resultado esperado:** 200 OK · `data.reservaId` no es null · `data.itemsComanda` tiene ítems con `nombreProducto`, `cantidad`, `precioUnitario`, `subtotal` · `data.abonos` presente si la reserva tuvo anticipos.
+url: "{{baseUrl}}/api/visitas/cliente/{{visitaIdConReserva}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El detalle de visita incluye los campos base obligatorios (CA-07)', function() {
+        var data = pm.response.json().data;
+        pm.expect(data).to.have.property('visitaId');
+        pm.expect(data).to.have.property('fechaHoraLlegada');
+        pm.expect(data).to.have.property('numeroPersonas');
+      });
+      pm.test('La visita con reserva tiene reservaId no nulo (CA-07)', function() {
+        pm.expect(pm.response.json().data.reservaId).to.not.be.null.and.not.be.undefined;
+      });
+      pm.test('Los ítems de comanda contienen nombreProducto, cantidad, precioUnitario y subtotal', function() {
+        var items = pm.response.json().data.itemsComanda;
+        if (items && items.length > 0) {
+          pm.expect(items[0]).to.have.property('nombreProducto');
+          pm.expect(items[0]).to.have.property('cantidad');
+          pm.expect(items[0]).to.have.property('precioUnitario');
+          pm.expect(items[0]).to.have.property('subtotal');
+        }
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,26 @@
+$kind: http-request
+name: MI-09 Tipo de movimiento ausente – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** MI-09 (HE-04-HU-04-CA-09)
+  **Objetivo:** Rechazar un ajuste sin el campo `tipo`.
+  **Resultado esperado:** HTTP 400 por validación de bean.
+  **Atómica:** la solicitud falla; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 143,
+      "cantidad": 1.000
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422', () => pm.response.to.have.status(422));
+      pm.test('success: false', () => pm.expect(pm.response.json()).to.have.property('success', false));
+    language: text/javascript
+order: 7000

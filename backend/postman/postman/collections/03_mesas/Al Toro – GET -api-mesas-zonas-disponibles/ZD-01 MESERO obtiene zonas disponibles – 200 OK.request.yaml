@@ -1,0 +1,56 @@
+$kind: http-request
+name: ZD-01 MESERO obtiene zonas disponibles – 200 OK
+description: |-
+  **Criterio:** CA-01 — MESERO obtiene listado de zonas con disponibilidad.
+  **Objetivo:** Verificar que un mesero puede consultar las zonas disponibles con cálculo en tiempo real.
+  **Pre-condición:** `meseroToken` disponible. Zonas seed existen.
+  **Resultado esperado:** 200 OK con array de ZonaDisponibleMesaResponse.
+url: "{{baseUrl}}/api/mesas/zonas-disponibles"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene success=true', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+
+      pm.test('El campo data es un array', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.be.an('array');
+      });
+
+      pm.test('Cada zona contiene los campos requeridos', function () {
+        const body = pm.response.json();
+        if (body.data.length > 0) {
+          const zona = body.data[0];
+          pm.expect(zona).to.have.property('zonaId');
+          pm.expect(zona).to.have.property('zonaNombre');
+          pm.expect(zona).to.have.property('capacidadTotal');
+          pm.expect(zona).to.have.property('personasOcupadas');
+          pm.expect(zona).to.have.property('disponibilidad');
+        }
+      });
+
+      pm.test('La disponibilidad se calcula correctamente', function () {
+        const body = pm.response.json();
+        if (body.data.length > 0) {
+          body.data.forEach(zona => {
+            const disponibilidadEsperada = zona.capacidadTotal - zona.personasOcupadas;
+            pm.expect(zona.disponibilidad).to.equal(disponibilidadEsperada);
+          });
+        }
+      });
+
+      pm.test('El array contiene al menos una zona', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.length).to.be.greaterThan(0);
+      });
+    language: text/javascript
+order: 1000

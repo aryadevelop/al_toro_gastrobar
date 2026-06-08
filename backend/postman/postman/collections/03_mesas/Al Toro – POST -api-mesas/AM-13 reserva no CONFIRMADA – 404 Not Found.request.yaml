@@ -1,0 +1,148 @@
+$kind: http-request
+name: AM-13 reserva no CONFIRMADA – 404 Not Found
+description: |-
+  **Criterio:** CA-13 — Validación de negocio: reserva debe estar en estado CONFIRMADA.
+  **Objetivo:** Verificar que el sistema rechaza asignación con reserva CANCELADA.
+  **Pre-condición:** El beforeRequest crea y cancela una reserva fresca, y obtiene `meseroToken`.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+  Cada ejecución crea sus propios datos. Independiente del orden.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
+      "zonaId": 1,
+      "numeroPersonas": 2,
+      "reservaId": {{tmpReservaCanceladaId}}
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Generar identificador único de mesa (no debería persistirse porque la
+      // validación de reserva falla antes, pero garantiza independencia total)
+      pm.environment.set('tmpMesaIdentificador', 'RC-' + String(Date.now()).slice(-6));
+
+      // Crear reserva y cancelarla inmediatamente
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setDate(d.getDate() + 1);  // Mañana
+      d.setHours(19, 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`;
+
+      // 1. Login cliente para crear reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const clienteToken = res.json().accessToken;
+
+          // 2. Crear reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas',
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + clienteToken
+            },
+            body: {
+              mode: 'raw',
+              raw: JSON.stringify({
+                emailCliente: pm.environment.get('emailCliente'),
+                fechaHoraLlegada: fechaHora,
+                numeroPersonas: 2,
+                zonaId: null,
+                decoracionId: null,
+                notas: null,
+                preOrden: null
+              })
+            }
+          }, (err2, res2) => {
+            if (!err2 && res2 && res2.code === 201) {
+              const reservaId = res2.json().data.reservaId;
+
+              // 3. Cancelar reserva inmediatamente
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+                method: 'PATCH',
+                header: { 'Authorization': 'Bearer ' + clienteToken }
+              }, (err3, res3) => {
+                if (!err3 && res3 && res3.code === 200) {
+                  pm.environment.set('tmpReservaCanceladaId', reservaId);
+
+                  // 4. Login mesero para ejecutar la prueba
+                  pm.sendRequest({
+                    url: pm.environment.get('baseUrl') + '/api/auth/login',
+                    method: 'POST',
+                    header: { 'Content-Type': 'application/json' },
+                    body: {
+                      mode: 'raw',
+                      raw: JSON.stringify({
+                        email: pm.environment.get('emailMesero'),
+                        password: pm.environment.get('passwordValida'),
+                        forceSessionOverride: true
+                      })
+                    }
+                  }, (err4, res4) => {
+                    if (!err4 && res4 && res4.code === 200) {
+                      pm.environment.set('meseroToken', res4.json().accessToken);
+                    } else {
+                      console.warn('AM-13: login MESERO falló', err4, res4 && res4.code);
+                    }
+                  });
+                } else {
+                  console.warn('AM-13: cancelar reserva falló', err3, res3 && res3.code);
+                }
+              });
+            } else {
+              console.warn('AM-13: crear reserva falló', err2, res2 && res2.code);
+            }
+          });
+        } else {
+          console.warn('AM-13: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 404', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('La respuesta contiene success=false', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(false);
+      });
+
+      pm.test('El código de error es ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+
+      pm.test('El mensaje describe el error de reserva no disponible', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('message');
+        pm.expect(body.message).to.be.a('string');
+      });
+
+      // Cleanup de variables temporales
+      pm.environment.unset('tmpReservaCanceladaId');
+      pm.environment.unset('tmpMesaIdentificador');
+
+      // NO cleanup adicional - la reserva cancelada puede quedarse en BD
+    language: text/javascript
+order: 13000

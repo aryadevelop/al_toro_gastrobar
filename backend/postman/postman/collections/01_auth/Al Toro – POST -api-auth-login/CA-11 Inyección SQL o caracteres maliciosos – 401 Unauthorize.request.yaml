@@ -1,0 +1,27 @@
+$kind: http-request
+name: CA-11 Inyección SQL o caracteres maliciosos – 401 Unauthorized
+description: |-
+  **Criterio de Aceptación:** CA-11
+  **Objetivo:** Verificar que el backend no es vulnerable a ataques de inyección SQL en el campo contraseña. El sistema debe retornar el mensaje genérico de credenciales inválidas sin exponer información interna ni alterar el comportamiento de la autenticación.
+  **Pre-condición:** El correo existe en el sistema.
+  **Resultado esperado:** HTTP 401 con mensaje genérico `Credenciales inválidas.`
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailAdmin}}",
+      "password": "admin' --"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 401 – Inyección SQL rechazada', () => pm.response.to.have.status(401));
+
+      pm.test('Mensaje genérico de credenciales inválidas (sin exposición de detalles internos)', () =>
+        pm.expect(pm.response.json().message).to.eql('Credenciales inválidas.'));
+    language: text/javascript
+order: 12000

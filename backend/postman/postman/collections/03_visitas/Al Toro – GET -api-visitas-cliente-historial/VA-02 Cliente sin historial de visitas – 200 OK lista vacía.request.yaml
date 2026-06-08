@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Control de acceso por propiedad
+  **Objetivo:** Verificar que un CLIENTE no puede consultar el historial de otro cliente. El sistema debe retornar 403 cuando el emailCliente del parámetro no coincide con el email del token autenticado.
+  **Pre-condición:** `emailSuspendido` pertenece a un cliente distinto al autenticado (`emailCliente`).
+  **Resultado esperado:** 403 Forbidden · `code` = "AUTH-002".
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailSuspendido}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailSuspendido}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 403 al consultar historial de otro cliente', function() {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El código de error indica acceso denegado (AUTH-002)', function() {
+        pm.expect(pm.response.json().code).to.eql('AUTH-002');
+      });
+    language: text/javascript
+order: 2000

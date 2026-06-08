@@ -1,0 +1,41 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-09
+  **Objetivo:** Verificar que el backend normaliza el correo electrónico a minúsculas antes de ejecutar la búsqueda en la base de datos, garantizando que `ADMIN@ALTORO.COM` sea equivalente a `admin@altoro.com`.
+  **Pre-condición:** El usuario admin@altoro.com debe existir con estado activo.
+  **Resultado esperado:** HTTP 200. El campo `user.email` en la respuesta está en minúsculas. Se actualizan los tokens de entorno al finalizar.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "ADMIN@ALTORO.COM",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Login con correo en mayúsculas exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('Retorna tokens y datos del usuario', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body.user.role).to.eql('ADMIN');
+      });
+
+      pm.test('El correo en la respuesta está normalizado a minúsculas', () =>
+        pm.expect(body.user.email).to.eql(body.user.email.toLowerCase()));
+
+      // CA-09 usa forceSessionOverride=true: invalida la sesión de CA-01 y genera una nueva.
+      // Se actualizan los tokens para que los casos CB y CC utilicen la sesión vigente.
+      if (pm.response.code === 200) {
+        pm.environment.set('accessToken', body.accessToken);
+        pm.environment.set('refreshToken', body.refreshToken);
+      }
+    language: text/javascript
+order: 10000

@@ -1,0 +1,109 @@
+﻿$kind: http-request
+name: N-09 CAJERO ajusta ítems de una visita ya cerrada – 409 Conflict
+description: |-
+  `PATCH /api/visitas/{id}/items` sobre una visita cerrada → 409 NEG-002 (el lock detecta el estado
+  antes de tocar ítems). El beforeRequest crea un walk-in con un ítem, lo cierra, captura un
+  comandaItemId real de la cuenta y la request principal intenta ajustar su cantidad. Coincide con
+  la colección por-endpoint AJ-05.
+  // VERIFICAR EN VIVO: setup pesado (walk-in→armar→cerrar→leer cuenta) antes del ajuste.
+url: "{{baseUrl}}/api/visitas/{{tmpNegVisitaItemsId}}/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "items": [ { "comandaItemId": {{tmpNegItemId}}, "cantidad": 2 } ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const ident = 'N09-' + (Date.now() % 1000000);
+      const emailCajero = pm.environment.get('emailCajero');
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-09: login MESERO falló', e1, r1 && r1.code); return; }
+        const meseroToken = r1.json().accessToken;
+        const meseroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + meseroToken };
+
+        pm.sendRequest({
+          url: baseUrl + '/api/mesas', method: 'POST', header: meseroHdr,
+          body: { mode: 'raw', raw: JSON.stringify({
+            mesaIdentificador: ident, zonaId: 3, numeroPersonas: 2, reservaId: null
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-09: walk-in falló', e2, r2 && r2.code); return; }
+          const visitaId = r2.json().data.visitaId;
+
+          pm.sendRequest({
+            url: baseUrl + '/api/comandas/borrador/items', method: 'POST', header: meseroHdr,
+            body: { mode: 'raw', raw: JSON.stringify({ visitaId: visitaId, productoId: 36, cantidad: 1 }) }
+          }, (e3, r3) => {
+            if (e3 || !r3 || r3.code !== 200) { console.warn('N-09: agregar ítem falló', e3, r3 && r3.code); return; }
+
+            pm.sendRequest({
+              url: baseUrl + '/api/auth/login', method: 'POST',
+              header: { 'Content-Type': 'application/json' },
+              body: { mode: 'raw', raw: JSON.stringify({
+                email: emailCajero,
+                password: pm.environment.get('passwordValida'),
+                forceSessionOverride: true
+              })}
+            }, (e4, r4) => {
+              if (e4 || !r4 || r4.code !== 200) { console.warn('N-09: login CAJERO falló', e4, r4 && r4.code); return; }
+              const cajeroToken = r4.json().accessToken;
+              pm.environment.set('cajeroToken', cajeroToken);
+              const cajeroHdr = { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + cajeroToken };
+
+              // Leer la cuenta ANTES de cerrar para capturar un comandaItemId real
+              pm.sendRequest({
+                url: baseUrl + '/api/ventas/' + visitaId + '/cuenta', method: 'GET',
+                header: { 'Authorization': 'Bearer ' + cajeroToken }
+              }, (e5, r5) => {
+                if (e5 || !r5 || r5.code !== 200) { console.warn('N-09: leer cuenta falló', e5, r5 && r5.code); return; }
+                const items = r5.json().data.items || [];
+                if (!items.length) { console.warn('N-09: cuenta sin ítems'); return; }
+                pm.environment.set('tmpNegItemId', items[0].comandaItemId);
+
+                // Cerrar la visita
+                pm.sendRequest({
+                  url: baseUrl + '/api/ventas', method: 'POST', header: cajeroHdr,
+                  body: { mode: 'raw', raw: JSON.stringify({
+                    emailCajero: emailCajero, visitaId: visitaId, descuento: 0, metodo: 'EFECTIVO'
+                  })}
+                }, (e6, r6) => {
+                  if (e6 || !r6 || r6.code !== 201) { console.warn('N-09: cierre falló', e6, r6 && r6.code); return; }
+                  pm.environment.set('tmpNegVisitaItemsId', visitaId);
+                  pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + cajeroToken });
+                });
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Ajustar ítems de visita cerrada → 409', function () {
+        pm.response.to.have.status(409);
+      });
+      pm.test('code = NEG-002 (estado inválido)', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+      });
+      pm.environment.unset('tmpNegVisitaItemsId');
+      pm.environment.unset('tmpNegItemId');
+    language: text/javascript
+order: 900

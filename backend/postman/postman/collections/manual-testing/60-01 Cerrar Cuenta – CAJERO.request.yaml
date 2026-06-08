@@ -1,0 +1,44 @@
+$kind: http-request
+name: 60-01 Cerrar Cuenta – CAJERO
+description: Registrar venta y cerrar cuenta de una visita. El total se recalcula en el servidor; el cajero solo envía descuento y método.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "cajero1@altoro.com",
+      "visitaId": 13,
+      "descuento": 5000.00,
+      "metodo": "EFECTIVO"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 6010

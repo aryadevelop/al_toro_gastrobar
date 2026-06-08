@@ -1,0 +1,140 @@
+$kind: http-request
+name: AM-10 identificador duplicado – 409 Conflict
+description: |-
+  **Criterio:** CA-10 — Validación de negocio: identificador debe ser único entre mesas activas.
+  **Objetivo:** Verificar que el sistema rechaza asignación con identificador duplicado.
+  **Pre-condición:** El beforeRequest hace login MESERO y crea una primera mesa con un identificador único generado dinámicamente; la solicitud principal intenta crear otra mesa con el mismo identificador.
+  **Resultado esperado:** 409 Conflict con código ENT-002.
+  Cada ejecución crea sus propios datos. Independiente del orden.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
+      "zonaId": 1,
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Generar identificador único compartido (la primera creación lo registra,
+      // la solicitud principal reutiliza el mismo para forzar el conflicto 409)
+      pm.environment.set('tmpMesaIdentificador', 'DUP-' + String(Date.now()).slice(-6));
+
+      // Login mesero y crear primera mesa con el identificador
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+
+          // Crear primera mesa con el identificador único
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/mesas',
+            method: 'POST',
+            header: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + token
+            },
+            body: {
+              mode: 'raw',
+              raw: JSON.stringify({
+                mesaIdentificador: pm.environment.get('tmpMesaIdentificador'),
+                zonaId: 1,
+                numeroPersonas: 2
+              })
+            }
+          }, (err2, res2) => {
+            if (!err2 && res2 && res2.code === 201) {
+              pm.environment.set('tmpVisitaIdDup', res2.json().data.visitaId);
+            } else {
+              console.warn('AM-10: crear primera mesa falló', err2, res2 && res2.code);
+            }
+          });
+        } else {
+          console.warn('AM-10: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 409', function () {
+        pm.response.to.have.status(409);
+      });
+
+      pm.test('La respuesta contiene success=false', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(false);
+      });
+
+      pm.test('El código de error es ENT-002', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-002');
+      });
+
+      pm.test('El mensaje describe el conflicto de identificador duplicado', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('message');
+        pm.expect(body.message).to.be.a('string');
+      });
+
+      // Cleanup: cerrar la visita creada en beforeRequest
+      const visitaId = pm.environment.get('tmpVisitaIdDup');
+      if (visitaId && visitaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/ventas',
+              method: 'POST',
+              header: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + res.json().accessToken
+              },
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  visitaId: parseInt(visitaId),
+                  emailCajero: pm.environment.get('emailCajero')
+                })
+              }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 201) {
+                console.warn('AM-10: cleanup de visita falló', err2, res2 && res2.code);
+              }
+            });
+          }
+        });
+      }
+
+      pm.environment.unset('tmpVisitaIdDup');
+      pm.environment.unset('tmpMesaIdentificador');
+    language: text/javascript
+order: 10000

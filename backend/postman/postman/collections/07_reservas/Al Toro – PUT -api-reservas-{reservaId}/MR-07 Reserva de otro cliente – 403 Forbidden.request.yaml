@@ -1,0 +1,90 @@
+$kind: http-request
+name: MR-07 Reserva de otro cliente – 403 Forbidden
+description: |
+  El cliente autenticado intenta modificar una reserva que pertenece a otro cliente.
+  El servicio detecta el mismatch de ownership → BusinessException ACCESS_DENIED → 403.
+  Cada ejecución crea su propia reserva fresca a nombre de sinpuntos@altoro.com.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdAjena}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+
+      // Paso 1: login como otro cliente (sinpuntos) para crear su reserva
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'sinpuntos@altoro.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MR-07: login sinpuntos falló', err, res && res.code);
+          return;
+        }
+        const ajenoToken = res.json().accessToken;
+
+        // Paso 2: crear reserva a nombre del otro cliente
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + ajenoToken },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('MR-07: crear reserva ajena falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaIdAjena', r2.json().data.reservaId);
+
+          // Paso 3: login del cliente principal para ejecutar el request principal
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCliente'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('clienteToken', r3.json().accessToken);
+            } else {
+              console.warn('MR-07: login CLIENTE falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva ajena → 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.environment.unset('tmpReservaIdAjena');
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 7000

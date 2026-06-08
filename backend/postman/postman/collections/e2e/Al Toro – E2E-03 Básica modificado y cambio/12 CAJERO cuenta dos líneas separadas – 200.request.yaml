@@ -1,0 +1,67 @@
+$kind: http-request
+name: 12 CAJERO consulta cuenta – Hamburguesa en DOS líneas – 200 OK
+description: |-
+  🔴 INVARIANTE CRÍTICO (vista de caja). En `GET /api/ventas/{visitaId}/cuenta` la Hamburguesa aparece
+  como DOS líneas distintas: base (esModificado=false, descripcion=null) y modificada (esModificado=true,
+  descripcion poblada). Captura el `comandaItemId` de la línea modificada (`tmpCuentaItemModId`) y los
+  subtotales base/modificado ANTES del ajuste para comparar tras el ajuste de precio.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const data = pm.response.json().data;
+      const hamburguesas = (data.items || []).filter(i => i.nombreProducto && i.nombreProducto.includes('Hamburguesa'));
+      const base = hamburguesas.find(h => h.esModificado === false);
+      const mod  = hamburguesas.find(h => h.esModificado === true);
+
+      // Capturas FUERA del pm.test para que el ajuste (paso 13) siempre reciba un comandaItemId válido.
+      if (mod) {
+        pm.environment.set('tmpCuentaItemModId', mod.comandaItemId);
+        pm.environment.set('tmpPrecioModAntes', String(mod.precioUnitario));
+      }
+      if (base) {
+        pm.environment.set('tmpSubtotalBaseAntes', String(base.subtotal));
+        pm.environment.set('tmpPrecioBaseAntes', String(base.precioUnitario));
+      }
+
+      pm.test('Hamburguesa aparece en DOS líneas (base esModificado=false / modif. esModificado=true)', function () {
+        pm.expect(hamburguesas, 'líneas de Hamburguesa').to.have.lengthOf(2);
+        pm.expect(new Set(hamburguesas.map(h => h.comandaItemId)).size, 'comandaItemId distintos').to.eql(2);
+        pm.expect(base, 'línea base esModificado=false').to.exist;
+        pm.expect(mod,  'línea modificada esModificado=true').to.exist;
+        pm.expect(base.descripcion, 'base descripcion=null').to.be.oneOf([null, undefined]);
+        pm.expect(mod.descripcion, 'modif. con descripción').to.be.a('string');
+      });
+
+      pm.test('totalPreorden ≥ suma de subtotales de las dos líneas de Hamburguesa', function () {
+        const suma = hamburguesas.reduce((acc, h) => acc + Number(h.subtotal), 0);
+        pm.expect(Number(data.totalPreorden)).to.be.at.least(suma);
+      });
+    language: text/javascript
+order: 210

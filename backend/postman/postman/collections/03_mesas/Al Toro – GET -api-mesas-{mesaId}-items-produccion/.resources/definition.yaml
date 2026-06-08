@@ -1,0 +1,77 @@
+$kind: collection
+name: Al Toro – GET /api/mesas/{mesaId}/items-produccion
+description: |-
+  # GET /api/mesas/{mesaId}/items-produccion
+
+  Retorna el resumen de items en producción de una mesa específica.
+
+  **Criterios de Aceptación cubiertos:**
+  - CA-01: Items agrupados y ordenados por categoría (RN-06)
+  - CA-02: Manejo de mesas sin items en producción
+
+  **Control de acceso:**
+  - MESERO/ADMIN: acceso permitido
+  - CAJERO/CLIENTE: 403 Forbidden
+  - Sin token: 401 Unauthorized
+
+  **Campos de MesaItemsProduccionResponse:**
+  - mesaIdentificador
+  - itemsProduccion[]: lista de ItemProduccionResponse
+    - nombreProducto, categoriaProducto, cantidad, estadoComanda
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección.
+  - **Mesa con items en producción:** Visita 10 (tiene comandas EN_PREPARACION y LISTO).
+  - **Agrupación RN-06:** Items con mismo nombre se agrupan sumando cantidades.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MI-01 | MESERO obtiene items válidos — 200 OK | 200 |
+  | MI-02 | ADMIN obtiene items — 200 OK | 200 |
+  | MI-03 | Mesa inexistente — 404 Not Found | 404 |
+  | MI-04 | CLIENTE sin acceso — 403 Forbidden | 403 |
+  | MI-05 | Sin autenticación — 401 Unauthorized | 401 |
+  | MI-06 | Verificar agrupación RN-06 — 200 OK | 200 |
+  | MI-07 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | MI-08 | Segunda llamada retorna datos consistentes (idempotencia) | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: MESERO, ADMIN, CAJERO, CLIENTE
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('MI pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

@@ -1,0 +1,49 @@
+$kind: http-request
+name: 13 CAJERO ajusta el PRECIO solo de la línea B (modificada) – 200 OK
+description: |-
+  El cajero ajusta el precio ÚNICAMENTE de la línea modificada (B), por su `comandaItemId`. La línea
+  base (A) no se incluye, por lo que no debe cambiar (CA-06: el precio solo es editable en ítems
+  modificados con descripción).
+  ⚠️ El campo del precio en AjustarItemsRequest.ItemAjuste es `precio` (NO `precioUnitario`), y
+  `cantidad` es OBLIGATORIO en cada ItemAjuste → se reenvía cantidad=1.
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaId}}/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        { "comandaItemId": {{tmpCuentaItemModId}}, "cantidad": 1, "precio": 30000 }
+      ],
+      "eliminados": []
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema aplica el ajuste de precio (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 220

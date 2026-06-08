@@ -1,0 +1,126 @@
+$kind: http-request
+name: RP-05 CAJERO consulta resumen pago – 200 OK
+description: |
+  CAJERO consulta el resumen de pago de una reserva ESPECIAL CONFIRMADA.
+  El beforeRequest: (1) cliente crea reserva ESPECIAL, (2) CAJERO la confirma,
+  (3) CAJERO obtiene token para el GET.
+  Resultado esperado: 200, data contiene todos los campos del ResumenPagoResponse.
+  Cleanup en afterResponse: CAJERO cancela la reserva.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdRP05}}/resumen-pago"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaReserva = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      // Paso 1: cliente crea reserva ESPECIAL PENDIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fechaReserva,
+            numeroPersonas: 2,
+            decoracionId: 1,
+            zonaId: 2
+          })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('RP-05: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaIdRP05', r2.json().data.reservaId);
+
+          // Paso 2: CAJERO obtiene token y confirma la reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (e3 || !r3 || r3.code !== 200) {
+              console.warn('RP-05: login CAJERO falló', e3, r3 && r3.code);
+              return;
+            }
+            const cajeroToken = r3.json().accessToken;
+            pm.environment.set('cajeroToken', cajeroToken);
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + r2.json().data.reservaId + '/confirmar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + cajeroToken }
+            }, function (e4, r4) {
+              if (!e4 && r4 && r4.code !== 200) {
+                console.warn('RP-05: confirmar reserva falló', r4 && r4.code);
+              }
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('RP-05: CAJERO consulta resumen pago → 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('RP-05: data.reservaId coincide', function () {
+        pm.expect(pm.response.json().data.reservaId)
+          .to.eql(parseInt(pm.environment.get('tmpReservaIdRP05')));
+      });
+      pm.test('RP-05: data contiene campos de resumen pago', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.clienteNombre).to.be.a('string').and.not.empty;
+        pm.expect(data.totalAPagar).to.be.a('number');
+        pm.expect(data.totalAnticipado).to.be.a('number');
+        pm.expect(data.totalDevuelto).to.be.a('number');
+        pm.expect(data.montoAbonado).to.be.a('number');
+        // Reserva CONFIRMADA: saldoPendiente presente, pendientePorDevolver ausente
+        pm.expect(data.saldoPendiente).to.be.a('number');
+        pm.expect(data).to.not.have.property('pendientePorDevolver');
+      });
+      pm.test('RP-05: data.estado = CONFIRMADA', function () {
+        pm.expect(pm.response.json().data.estado).to.equal('CONFIRMADA');
+      });
+
+      // Cleanup: CAJERO cancela la reserva
+      const reservaId = pm.environment.get('tmpReservaIdRP05');
+      if (reservaId && reservaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('cajeroToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup RP-05: cancelar reserva falló', r && r.code);
+          }
+        });
+      }
+      pm.environment.unset('tmpReservaIdRP05');
+    language: text/javascript
+order: 5000

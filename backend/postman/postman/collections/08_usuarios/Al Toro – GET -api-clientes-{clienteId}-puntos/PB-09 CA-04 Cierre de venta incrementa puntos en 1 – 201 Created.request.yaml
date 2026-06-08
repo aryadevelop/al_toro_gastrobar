@@ -1,0 +1,99 @@
+$kind: http-request
+name: PB-09 CA-04 Cierre de venta incrementa puntos en 1 – 201 Created
+description: |-
+  **Criterio de Aceptación:** CA-04 — cada cierre de cuenta suma 1 punto al cliente
+  (`clientePuntos` y `clientePuntosAcumulados`).
+  **Objetivo:** Verificar que `VentaService.cerrarCuenta` incrementa en exactamente 1 ambos
+  contadores del cliente 11 (Carlos Pérez), asociado a la visita seed ID=10.
+  **Pre-condición:**
+    - PB-08 debe haber corrido antes en la misma sesión para que `tmpCA04PuntosAntes` y
+      `tmpCA04AcumuladosAntes` estén en el entorno.
+    - La visita ID=10 debe estar abierta (sin `Venta` registrada). Tras cerrarla, no se puede
+      reutilizar sin hacer `./mvnw flyway:clean flyway:migrate`. Para las siguientes corridas
+      usar visitaId=11 (cliente 13) y luego visitaId=12 (cliente 15) actualizando el body.
+    - El `beforeRequest` hace login autónomo de CAJERO (un solo nivel de `pm.sendRequest`).
+  **Mecanismo de verificación:** el `afterResponse` realiza un `GET /api/clientes/11/puntos`
+  con `pm.sendRequest` (dentro del mismo script de post-respuesta, tras confirmar el 201) y
+  compara contra los valores baseline capturados en PB-08.
+  **Resultado esperado:** 201 Created · `puntosActuales(despues) = tmpCA04PuntosAntes + 1` ·
+  `puntosAcumulados(despues) = tmpCA04AcumuladosAntes + 1`.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Content-Type: application/json
+  Authorization: Bearer {{cajeroToken}}
+body:
+  type: text
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": 10,
+      "subtotal": 10000.00,
+      "descuento": 0.00,
+      "total": 10000.00,
+      "metodo": "EFECTIVO"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PB-09: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El cierre de venta retorna 201 Created', function () {
+        pm.response.to.have.status(201);
+      });
+
+      if (pm.response.code !== 201) {
+        if (pm.response.code === 409) {
+          console.warn('PB-09: la visita ID=10 ya fue cerrada en una corrida anterior. ' +
+            'Actualiza el body a visitaId=11 (cliente 13) o ejecuta flyway:clean flyway:migrate.');
+        }
+        pm.environment.unset('tmpCA04PuntosAntes');
+        pm.environment.unset('tmpCA04AcumuladosAntes');
+        return;
+      }
+
+      // La visita se cerró correctamente — verificar el incremento de puntos
+      const baseUrl      = pm.environment.get('baseUrl');
+      const cajeroToken  = pm.environment.get('cajeroToken');
+      const puntosAntes     = parseInt(pm.environment.get('tmpCA04PuntosAntes')     ?? '-1');
+      const acumuladosAntes = parseInt(pm.environment.get('tmpCA04AcumuladosAntes') ?? '-1');
+
+      pm.sendRequest({
+        url: baseUrl + '/api/clientes/11/puntos',
+        method: 'GET',
+        header: { 'Authorization': 'Bearer ' + cajeroToken }
+      }, function (err, res) {
+        pm.test('puntosActuales aumentó exactamente en 1 tras el cierre (CA-04)', function () {
+          pm.expect(res.json().data.puntosActuales).to.eql(puntosAntes + 1);
+        });
+        pm.test('puntosAcumulados aumentó exactamente en 1 — nunca disminuye (CA-04)', function () {
+          pm.expect(res.json().data.puntosAcumulados).to.eql(acumuladosAntes + 1);
+        });
+
+        pm.environment.unset('tmpCA04PuntosAntes');
+        pm.environment.unset('tmpCA04AcumuladosAntes');
+      });
+    language: text/javascript
+order: 9000

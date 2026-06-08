@@ -1,0 +1,59 @@
+# ============================================================
+# BASE — compartido por todos los entornos
+# Dev:  docker compose up --build  (carga override.yml automaticamente)
+# Prod: docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up --build -d
+# Ejecutar siempre desde la RAIZ del proyecto.
+# El frontend NO esta dockerizado; correr por separado con: cd frontend && npm start
+# ============================================================
+services:
+
+  postgres:
+    image: postgres:15-alpine
+    container_name: altoro_postgres
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-altoro_db}
+      POSTGRES_USER: ${POSTGRES_USER:-altoro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-altoro123}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - altoro_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: altoro_api
+    environment:
+      # Postgres — usa el nombre del servicio como host
+      DB_URL: jdbc:postgresql://postgres:5432/${POSTGRES_DB:-altoro_db}
+      DB_USERNAME: ${POSTGRES_USER:-altoro}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:-altoro123}
+      # Zona horaria
+      TZ: America/Bogota
+    healthcheck:
+      test: [ "CMD-SHELL", "wget -q --spider http://localhost:8080/actuator/health || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - altoro_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  postgres_data:
+
+
+networks:
+  altoro_network:
+    driver: bridge
+    name: altoro_network

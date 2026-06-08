@@ -1,0 +1,37 @@
+$kind: collection
+name: Al Toro – PATCH /api/reservas/{reservaId}/confirmar
+description: |-
+  # PATCH /api/reservas/{reservaId}/confirmar
+
+  Confirma una reserva ESPECIAL que está en estado PENDIENTE.
+
+  **Control de acceso:** `@PreAuthorize("hasAnyRole('CAJERO', 'ADMIN')")`.
+  - CAJERO/ADMIN: pueden confirmar cualquier reserva ESPECIAL PENDIENTE.
+  - MESERO/CLIENTE/COCINERO: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  **Validaciones de negocio:**
+  - Reserva debe existir (404 si no existe).
+  - Estado debe ser PENDIENTE y tipo ESPECIAL (422 en cualquier otro caso).
+  - Al confirmar: estado pasa a CONFIRMADA y se emite evento WS en `/topic/reservas/cambios`.
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden. Los tests 200
+  crean su propia reserva ESPECIAL PENDIENTE en `beforeRequest` usando decoracionId=1
+  (Velas Románticas, costo>0) y zonaId=2 (Terraza), y luego limpian en `afterResponse`.
+
+  | ID    | Escenario                                           | HTTP |
+  |-------|-----------------------------------------------------|------|
+  | CF-01 | Sin token                                           | 401  |
+  | CF-02 | MESERO sin permiso                                  | 403  |
+  | CF-03 | CLIENTE sin permiso                                 | 403  |
+  | CF-04 | COCINERO sin permiso                                | 403  |
+  | CF-05 | CAJERO confirma ESPECIAL PENDIENTE                  | 200  |
+  | CF-06 | ADMIN confirma ESPECIAL PENDIENTE                   | 200  |
+  | CF-07 | Reserva no encontrada                               | 404  |
+  | CF-08 | Reserva BASICA PENDIENTE                            | 422  |
+  | CF-09 | Reserva ESPECIAL ya CONFIRMADA                      | 422  |
+
+  Tests 401/403 (CF-01..CF-04) no llegan al servicio: el filtro de seguridad rechaza
+  antes. CF-07 (404) usa ID 999999 inexistente — tampoco muta DB.

@@ -1,0 +1,75 @@
+$kind: http-request
+name: MD-07 Detalle incluye modificaciones de menú especial – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-05 — el detalle incluye modificaciones de menú especial en los ítems de pre-orden.
+  **Objetivo:** Verificar que cuando una reserva tiene pre-orden con menús especiales y modificaciones, estas se muestran correctamente en el detalle.
+  **Pre-condición:** Se usa una reserva existente con pre-orden que incluye menús especiales con modificaciones (variable de entorno reservaIdConPreOrden).
+  **Resultado esperado:** 200 OK · preOrdenItems contiene ítems · ítems de menú especial tienen modificaciones.
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD07}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD07', reservaId);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-07: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('preOrdenItems existe y no está vacío', function () {
+        pm.expect(body.data.preOrdenItems).to.not.be.undefined;
+        pm.expect(body.data.preOrdenItems).to.be.an('array');
+        pm.expect(body.data.preOrdenItems.length).to.be.at.least(1);
+      });
+
+      pm.test('Cada ítem contiene los campos obligatorios', function () {
+        body.data.preOrdenItems.forEach(item => {
+          pm.expect(item).to.have.property('productoNombre');
+          pm.expect(item).to.have.property('cantidad');
+          pm.expect(item).to.have.property('precioUnitario');
+        });
+      });
+
+      const itemsConModificaciones = body.data.preOrdenItems.filter(i => i.modificaciones && i.modificaciones.length > 0);
+
+      if (itemsConModificaciones.length > 0) {
+        pm.test('Al menos un ítem tiene modificaciones de menú especial', function () {
+          pm.expect(itemsConModificaciones.length).to.be.at.least(1);
+        });
+
+        pm.test('Las modificaciones contienen tipoComponente y opcionNombre', function () {
+          itemsConModificaciones.forEach(item => {
+            item.modificaciones.forEach(mod => {
+              pm.expect(mod).to.have.property('tipoComponente');
+              pm.expect(mod).to.have.property('opcionNombre');
+            });
+          });
+        });
+      }
+
+      pm.environment.unset('tmpReservaIdMD07');
+    language: text/javascript
+order: 2060

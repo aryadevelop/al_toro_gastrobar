@@ -1,0 +1,58 @@
+spring:
+
+  # PostgreSQL: credenciales obligatorias inyectadas desde Docker Compose
+  datasource:
+    url: ${DB_URL}
+    username: ${DB_USERNAME}
+    password: ${DB_PASSWORD}
+    hikari:
+      maximum-pool-size: 20
+      minimum-idle: 5
+      connection-timeout: 3000
+
+  jpa:
+    hibernate:
+      ddl-auto: none
+      
+  # Correo: credenciales inyectadas desde variables de entorno
+  mail:
+    host: ${MAIL_HOST}
+    port: ${MAIL_PORT:587}
+    username: ${MAIL_USERNAME}
+    password: ${MAIL_PASSWORD}
+
+# Secret obligatorio desde variable de entorno; no tiene valor por defecto
+jwt:
+  secret: ${JWT_SECRET}
+
+# Orígenes permitidos en CORS; obligatorio en prod — debe ser el dominio real del frontend
+cors:
+  allowed-origins: ${CORS_ALLOWED_ORIGINS}
+
+# No exponer detalles internos en respuestas de error
+server:
+  error:
+    include-message: never
+    include-stacktrace: never
+
+# Actuator: solo /health para health checks del orquestador
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health
+  health:
+    mail:
+      enabled: false  # SMTP caído no debe marcar la app como unhealthy
+
+# Swagger deshabilitado: no exponer la API publica en produccion
+springdoc:
+  swagger-ui:
+    enabled: false
+  api-docs:
+    enabled: false
+
+logging:
+  level:
+    root: WARN
+    co.edu.unicauca: INFO

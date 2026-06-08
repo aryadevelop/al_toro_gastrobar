@@ -1,0 +1,54 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-17
+  **Objetivo:** Verificar que no se permite cambiar contraseña si la nueva y confirmación no coinciden.
+url: "{{baseUrl}}/api/clientes/me/cambiar-contraseña"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "contraseñaActual": "ClientePass123!",
+      "nuevaContraseña": "NewPass123!",
+      "confirmacion": "DistintaPass123!"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Las contraseñas no coinciden', () => pm.response.to.have.status(400));
+
+      const body = pm.response.json();
+
+      pm.test('Mensaje de error sobre coincidencia de contraseñas', () => {
+        pm.expect(body.message).to.include('no coinciden');
+      });
+    language: text/javascript
+order: 3003
+

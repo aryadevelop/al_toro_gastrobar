@@ -1,0 +1,72 @@
+$kind: http-request
+name: CD4-01 MESERO elimina ítem – 200 OK
+description: |-
+  **Objetivo:** Verificar que un ítem creado por el propio test se elimina correctamente.
+  **Pre-condición:** beforeRequest crea un ítem único en visita 14 (descripcion = "E4-CD4-01-{timestamp}") y guarda su id en `cd401TargetItemId`.
+  **Resultado esperado:** 200 OK; la descripción única no aparece en `data.platos` de la respuesta.
+url: "{{baseUrl}}/api/comandas/borrador/items/{{cd401TargetItemId}}"
+method: DELETE
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Genera descripcion única para evitar colisiones en re-ejecuciones
+      const unique = 'E4-CD4-01-' + Date.now();
+      pm.environment.set('cd401Desc', unique);
+
+      // 1) Login MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err1, res1) => {
+        if (err1 || !res1 || res1.code !== 200) {
+          console.warn('CD4-01: login falló', err1, res1 && res1.code);
+          return;
+        }
+        const token = res1.json().accessToken;
+        pm.environment.set('meseroToken', token);
+
+        // 2) POST nuevo ítem en visita 14 con producto stockless (productoTestPlatoId)
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador/items',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            visitaId: 14,
+            productoId: Number(pm.environment.get('productoTestPlatoId')),
+            cantidad: 1,
+            descripcion: unique
+          }) }
+        }, (err2, res2) => {
+          if (err2 || !res2 || res2.code !== 200) {
+            console.warn('CD4-01: POST item falló', err2, res2 && res2.code, res2 && res2.text());
+            return;
+          }
+          // 3) Resolver itemId del ítem recién creado por su descripción única
+          const platos = res2.json().data.platos || [];
+          const creado = platos.find(p => p.descripcion === unique);
+          if (creado) pm.environment.set('cd401TargetItemId', creado.comandaItemId);
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('El ítem eliminado ya no aparece en el borrador', function () {
+        const platos = pm.response.json().data.platos || [];
+        const unique = pm.environment.get('cd401Desc');
+        const sigueAhi = platos.find(p => p.descripcion === unique);
+        pm.expect(sigueAhi).to.be.undefined;
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,63 @@
+package co.edu.unicauca.backend.modules.mesas_comandas.entity;
+
+import co.edu.unicauca.backend.shared.entity.AuditableEntity;
+import jakarta.persistence.*;
+import jakarta.validation.constraints.Min;
+import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.NotNull;
+import jakarta.validation.constraints.Size;
+import lombok.*;
+
+/**
+ * Área física del restaurante donde se ubican las mesas.
+ *
+ * <p>La capacidad total de personas de una zona ({@code zonaCapacidadPersonas})
+ * es informativa; la ocupación real se calcula sumando comensales de las
+ * {@link Mesa}s activas en esa zona.
+ *
+ * @see Mesa
+ */
+@Entity
+@Table(name = "zona", schema = "restaurante")
+@Getter
+@Setter
+@NoArgsConstructor
+@AllArgsConstructor
+@Builder
+public class Zona extends AuditableEntity {
+
+    /** Identificador único generado por la base de datos. */
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    @Column(name = "zona_id")
+    private Long zonaId;
+
+    /** Nombre descriptivo del área; máximo 100 caracteres. */
+    @NotBlank(message = "El nombre de la zona es obligatorio")
+    @Size(max = 100, message = "El nombre no debe exceder 100 caracteres")
+    @Column(name = "zona_nombre", nullable = false, length = 100)
+    private String zonaNombre;
+
+    /** Aforo máximo de la zona en personas; mínimo 1. */
+    @NotNull(message = "La capacidad de personas es obligatoria")
+    @Min(value = 1, message = "La capacidad debe ser al menos 1 persona")
+    @Column(name = "zona_capacidad_personas", nullable = false)
+    private Integer zonaCapacidadPersonas;
+
+    /** URL de imagen representativa de la zona para el frontend; {@code null} si no se configuró. */
+    @Column(name = "zona_imagen_url", length = 500)
+    private String zonaImagenUrl;
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (!(o instanceof Zona)) return false;
+        Zona zona = (Zona) o;
+        return zonaId != null && zonaId.equals(zona.getZonaId());
+    }
+
+    @Override
+    public int hashCode() {
+        return getClass().hashCode();
+    }
+}

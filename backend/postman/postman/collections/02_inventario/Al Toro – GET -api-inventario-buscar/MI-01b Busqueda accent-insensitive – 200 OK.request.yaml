@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-01b (HE-04-HU-04 búsqueda accent-insensitive)
+  **Objetivo:** Verificar que buscar "aguila" sin tilde encuentra "Águila Light" (con tilde).
+  **Pre-condición:** `{{emailCocinero}}` con rol COCINERO. Producto "Águila Light" activo en BD.
+  **Resultado esperado:** HTTP 200 con al menos un ítem cuyo nombre contenga "guila".
+  **Atómica:** solo lectura; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/buscar?q=aguila"
+method: GET
+headers:
+  Authorization: Bearer {{cocineroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200', () => pm.response.to.have.status(200));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('data es arreglo no vacío', () => {
+        pm.expect(body.data).to.be.an('array').that.is.not.empty;
+      });
+      pm.test('al menos un ítem contiene "guila" (accent-insensitive)', () => {
+        const encontrado = body.data.some(i => i.nombre.toLowerCase().includes('guila'));
+        pm.expect(encontrado, 'ningún ítem contiene "guila" en su nombre').to.be.true;
+      });
+    language: text/javascript
+order: 1001

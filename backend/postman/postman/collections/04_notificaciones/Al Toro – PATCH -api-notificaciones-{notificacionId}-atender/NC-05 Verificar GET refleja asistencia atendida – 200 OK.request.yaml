@@ -1,0 +1,51 @@
+$kind: http-request
+name: NC-05 Verificar GET refleja asistencia atendida – 200 OK
+description: |-
+  **Criterio de Aceptación:** Validar efecto observable del evento WS AsistenciaAtendidaWsMessage.
+  **Objetivo:** Después de PATCH atender (NC-01), verificar que GET /visitas/activa refleja el cambio.
+  **Pre-condición:** NC-01 debe ejecutarse primero. Cliente juan.torres@gmail.com tiene visita activa con asistencia atendida.
+  **Resultado esperado:** 200 OK con asistenciaSolicitada=false, notificacionAsistenciaId=null.
+  **Nota:** Este test valida indirectamente que el mensaje WS se publicó correctamente y el cliente recibió la actualización.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'andres.morales@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('NC-05: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('GET /visitas/activa retorna estado con asistencia atendida', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('asistenciaSolicitada=false y notificacionId ausente (efecto WS validado)', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.asistenciaSolicitada).to.be.false;
+        // El DTO usa @JsonInclude(NON_NULL), entonces campos null no aparecen (undefined)
+        pm.expect(body.data.notificacionAsistenciaId).to.satisfy(function(val) {
+          return val === null || val === undefined;
+        }, 'notificacionAsistenciaId debe ser null o undefined');
+      });
+    language: text/javascript
+order: 5000

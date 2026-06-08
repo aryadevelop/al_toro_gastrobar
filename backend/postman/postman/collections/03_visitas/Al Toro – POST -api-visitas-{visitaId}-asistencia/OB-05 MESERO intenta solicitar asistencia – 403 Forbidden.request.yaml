@@ -1,0 +1,42 @@
+$kind: http-request
+name: OB-05 MESERO intenta solicitar asistencia – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Control de acceso — solo CLIENTE puede solicitar asistencia.
+  **Objetivo:** Verificar que otros roles no pueden usar este endpoint.
+  **Resultado esperado:** 403 Forbidden.
+  **Independencia:** El rechazo ocurre en `@PreAuthorize` antes de invocar el service, por lo que no se muta estado y no hace falta limpieza. El visitaId hardcodeado es irrelevante para el resultado.
+url: "{{baseUrl}}/api/visitas/12/asistencia"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('OB-05: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza al MESERO con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 5000

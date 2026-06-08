@@ -1,0 +1,45 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-01
+  **Objetivo:** Verificar que un usuario con rol ADMIN puede iniciar sesión exitosamente, que la respuesta contiene los tokens JWT requeridos y que el script de post-respuesta almacena dichos tokens en el entorno de ejecución para su uso en casos subsiguientes.
+  **Pre-condición:** El usuario admin@altoro.com debe existir en la base de datos con estado activo.
+  **Resultado esperado:** HTTP 200 con estructura `{ accessToken, refreshToken, tokenType, expiresIn, user }`.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailAdmin}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Inicio de sesión exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene accessToken, refreshToken y user', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body).to.have.property('refreshToken');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('El rol principal del usuario es ADMIN', () => pm.expect(body.user.role).to.eql('ADMIN'));
+
+      pm.test('La respuesta incluye el listado de roles asignados', () => pm.expect(body.user.roles).to.be.an('array').and.not.empty);
+
+      pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
+
+      pm.test('El campo expiresIn es un número positivo', () => pm.expect(body.expiresIn).to.be.a('number').and.above(0));
+
+      // Almacenar tokens en el entorno para casos subsiguientes
+      pm.environment.set('accessToken', body.accessToken);
+      pm.environment.set('refreshToken', body.refreshToken);
+      pm.environment.set('loginExpiresIn', body.expiresIn);
+    language: text/javascript
+order: 2000

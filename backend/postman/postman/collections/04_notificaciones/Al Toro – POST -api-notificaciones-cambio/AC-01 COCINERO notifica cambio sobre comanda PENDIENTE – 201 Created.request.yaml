@@ -1,0 +1,34 @@
+$kind: http-request
+name: AC-01 COCINERO notifica cambio sobre comanda PENDIENTE – 201 Created
+description: |-
+  **Objetivo:** El cocinero crea una notificación CAMBIO sobre una comanda PENDIENTE de COCINA.
+  **Pre-condición:** `cocineroToken` lo provee el `beforeRequest` de colección;
+  comanda 30 (COCINA, PENDIENTE) no tiene notificación CAMBIO ACTIVA previa.
+  **Nota:** Esta acción crea una notificación ACTIVA. Para repetir se requiere reseed.
+  **Resultado esperado:** 201 Created con `data.notificacionId` presente y `data.estado === 'ACTIVA'`.
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "comandaId": 30
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 201', function () { pm.response.to.have.status(201); });
+      pm.test('notificacionId presente', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('notificacionId');
+        pm.expect(data.notificacionId).to.be.a('number');
+      });
+      pm.test('Estado ACTIVA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.estado).to.equal('ACTIVA');
+      });
+    language: text/javascript
+order: 5010

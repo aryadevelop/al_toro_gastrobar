@@ -1,0 +1,38 @@
+$kind: http-request
+name: 90-12 Iniciar preparacion – COCINERO
+description: Inicia la preparación de una comanda PENDIENTE (CA-04). Cambia el estado a EN_PREPARACION y descuenta inventario.
+url: "{{baseUrl}}/api/comandas/produccion/{{tmpComandaId}}/iniciar"
+method: POST
+headers:
+  Authorization: Bearer {{tmpCocineroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Ajustar al ID de una comanda PENDIENTE de la estación COCINA
+      pm.environment.set('tmpComandaId', '1');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cocinero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCocineroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpComandaId');
+      pm.environment.unset('tmpCocineroToken');
+    language: text/javascript
+order: 8040

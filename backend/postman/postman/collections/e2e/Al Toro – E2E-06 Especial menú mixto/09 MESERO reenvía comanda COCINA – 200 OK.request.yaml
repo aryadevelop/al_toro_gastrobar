@@ -1,0 +1,38 @@
+$kind: http-request
+name: 09 MESERO reenvía la comanda COCINA del menú – 200 OK
+description: |-
+  Tras atender el CAMBIO la comanda COCINA vuelve a BORRADOR; el mesero la reenvía a producción
+  (BORRADOR → PENDIENTE) sin desincronizar el par menú.
+  // VERIFICAR EN VIVO: tras atender-cambio la comanda del menú vuelve a estado editable (BORRADOR) y
+  // se reenvía con el mismo endpoint y comandaId; confirmar que el id de comanda no cambia.
+url: "{{baseUrl}}/api/comandas/borrador/{{tmpComandaCocinaId}}/enviar"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('meseroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema reenvía la comanda COCINA (HTTP 200)', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 180

@@ -1,0 +1,61 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-03
+  **Objetivo:** Verificar que se obtiene correctamente el perfil del cliente autenticado con estructura esperada.
+url: "{{baseUrl}}/api/clientes/me"
+method: GET
+headers:
+  Content-Type: application/json
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login como CLIENTE para obtener token
+      const loginRequest = {
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: {
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente@altoro.com',
+            password: 'ClientePass123!'
+          })
+        }
+      };
+
+      pm.sendRequest(loginRequest, function (err, response) {
+        if (!err && response.code === 200) {
+          const token = response.json().accessToken;
+          pm.request.headers.add({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Perfil obtenido exitosamente', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('Estructura base de respuesta', () => {
+        pm.expect(body).to.have.property('id');
+        pm.expect(body).to.have.property('nombre');
+        pm.expect(body).to.have.property('email');
+        pm.expect(body).to.have.property('telefono');
+        pm.expect(body).to.have.property('direccion');
+        pm.expect(body).to.have.property('puntosActuales');
+        pm.expect(body).to.have.property('puntosAcumulados');
+        pm.expect(body).to.have.property('aceptaTerminos');
+      });
+
+      pm.test('Tipos de datos válidos', () => {
+        pm.expect(body.id).to.be.a('number');
+        pm.expect(body.nombre).to.be.a('string');
+        pm.expect(body.email).to.be.a('string');
+        pm.expect(body.telefono).to.be.a('string');
+        pm.expect(body.aceptaTerminos).to.be.a('boolean');
+      });
+    language: text/javascript
+order: 1002
+

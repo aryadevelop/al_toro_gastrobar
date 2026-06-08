@@ -1,0 +1,64 @@
+$kind: http-request
+name: HE-08-HU-01-CA-07 crear empleado exitosamente – 201 Created
+description: |-
+  **Criterio:** CA-07 — Creación exitosa de empleado.
+  **Objetivo:** Verificar que el endpoint crea un empleado con rol y devuelve 201.
+  **Pre-condición:** El administrador está autenticado y los datos son válidos.
+  **Resultado esperado:** 201 Created con success=true y datos del empleado.
+url: "{{baseUrl}}/api/empleados"
+method: POST
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "Ana Rivera",
+      "correoElectronico": "ana.rr@altoro.com",
+      "telefono": "3001234567",
+      "direccion": "Calle 45 #12-34",
+      "documento": "123456789",
+      "roles": ["CAJERO"],
+      "fechaIngreso": "2026-05-18",
+      "password": "Password1!",
+      "passwordConfirmacion": "Password1!"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('Login admin falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Success es true', function () {
+        pm.expect(pm.response.json().success).to.equal(true);
+      });
+      pm.test('Retorna datos del empleado creado', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('correoElectronico', 'ana.rr@altoro.com');
+        pm.expect(body.data.roles).to.include('CAJERO');
+      });
+    language: text/javascript
+order: 18000

@@ -1,0 +1,32 @@
+$kind: http-request
+name: AC-04 CAJERO continuar como invitado – 200 OK
+description: Sin clienteId → la visita 15 queda como invitado (cliente null). Repetible.
+url: "{{baseUrl}}/api/visitas/15/cliente"
+method: PATCH
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO marca invitado → 200', function () {
+        pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 4000

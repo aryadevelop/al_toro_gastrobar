@@ -1,0 +1,74 @@
+$kind: collection
+name: Al Toro – PATCH /api/notificaciones/{notificacionId}/atender
+description: |-
+  # PATCH /api/notificaciones/{notificacionId}/atender
+
+  El mesero marca una solicitud de asistencia como atendida.
+  Al completar, el cliente recibe un evento WebSocket que re-habilita el botón de asistencia.
+
+  **Criterios de Aceptación cubiertos:** CA-05 (mesero atiende la solicitud).
+
+  **Control de acceso:** MESERO, CAJERO y ADMIN. CLIENTE → 403.
+
+  **Efecto observable WS:** Al atender, se publica `AsistenciaAtendidaWsMessage` al cliente. El test NC-05 valida el efecto consultando GET /api/visitas/activa.
+
+  ## Independencia de datos
+
+  Cada test crea sus propios datos en `beforeRequest`, sin depender de colecciones externas ni del orden con otras suites.
+
+  - **Tokens:** login secuencial encadenado en cada `beforeRequest` (CLIENTE, MESERO).
+  - **Notificaciones para pruebas:**
+    - NC-01: hace login CLIENTE+MESERO, obtiene `visitaId` vía `GET /api/visitas/activa`, y crea una notificación nueva con `POST /api/visitas/{visitaId}/asistencia`. El id se guarda en `tmpNotificacionId` y la URL del request usa `{{tmpNotificacionId}}`. Si ya hay una asistencia activa previa, se atiende primero como limpieza.
+    - NC-02: igual a NC-01, y adicionalmente atiende la notificación recién creada antes del request bajo prueba para reproducir el conflicto 409.
+    - NC-03: usa un ID inexistente (999999) — no muta estado.
+    - NC-04: CLIENTE intenta atender — 403 antes de la lógica de negocio, no muta estado.
+    - NC-05: GET de verificación, no muta estado.
+  - **Limpieza:** cada test que use `tmpNotificacionId` lo elimina con `pm.environment.unset('tmpNotificacionId')` en `afterResponse`.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | NC-01 | MESERO atiende solicitud activa — 200 OK | 200 |
+  | NC-02 | MESERO intenta atender notificación ya atendida — 409 Conflict | 409 |
+  | NC-03 | MESERO intenta atender notificación inexistente — 404 Not Found | 404 |
+  | NC-04 | CLIENTE intenta atender — 403 Forbidden | 403 |
+  | NC-05 | Verificar GET /visitas/activa refleja asistencia atendida (valida WS) | 200 |
+  | NC-06 | CAJERO atiende solicitud activa — 200 OK | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: CLIENTE, MESERO
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',   tokenKey: 'cajeroToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('NC pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

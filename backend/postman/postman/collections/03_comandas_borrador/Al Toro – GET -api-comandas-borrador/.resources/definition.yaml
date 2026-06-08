@@ -1,0 +1,88 @@
+$kind: collection
+name: Al Toro – GET /api/comandas/borrador
+description: |-
+  # GET /api/comandas/borrador
+
+  Carga el borrador completo de la visita (ítems de cocina + barra, notas, totales,
+  flags para habilitar envío a producción). Si la visita no tiene comandas BORRADOR
+  devuelve una estructura vacía pero válida.
+
+  **Criterios de Aceptación cubiertos (HU-05):**
+  - CA-01: Mesero carga formulario con ítems precargados (visita 13).
+  - CA-02: Mesero abre formulario sin borradores previos → estructura vacía (visita 15).
+
+  **Control de acceso:**
+  - MESERO/ADMIN: permitido (mesero dueño de la mesa).
+  - CAJERO/CLIENTE: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  **Parámetros:**
+  - `visitaId` (obligatorio): identificador de la visita.
+
+  **Campos de BorradorComandaResponse:**
+  - visitaId, mesaIdentificador, comandaCocinaId, comandaBarraId
+  - platos[], bebidas[] (cada ítem: itemId, productoId, productoNombre, cantidad, precioUnitario, descripcion, menuGrupo, modificable)
+  - subTotal, total, notasCocina, notasBarra
+  - puedeEnviarCocina, puedeEnviarBarra
+  - advertenciasPreorden[] (PA-HE-04): ítems cuya cantidad supera el stock disponible (productoId, productoNombre, cantidadEnComanda, cantidadDisponible)
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial encadenado en `beforeRequest` de la colección (MESERO, ADMIN, CAJERO, CLIENTE).
+  - **Visitas seed HU-05 (V3 sección 14):**
+    - `13` borrador completo (cocina con 5 ítems + barra con 1 ítem par menú).
+    - `14` borrador BARRA con 1 ítem, COCINA vacío.
+    - `15` sin borradores → estructura vacía.
+    - `17` con borrador COCINA (1 ítem PA-HE-04-Sin-Stock, stock=0) → CD1-08.
+  - **Mesero dueño:** `mesero2@altoro.com` = `emailMesero`.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD1-01 | MESERO obtiene borrador completo (visita 13) — 200 OK | 200 |
+  | CD1-02 | MESERO obtiene borrador vacío (visita 15) — 200 OK | 200 |
+  | CD1-03 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD1-04 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD1-05 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+  | CD1-06 | visitaId inexistente — 404 Not Found | 404 |
+  | CD1-07 | Parámetro visitaId ausente — 400 Bad Request | 400 |
+  | CD1-08 | GET borrador con stock insuficiente retorna advertencias — 200 OK | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: MESERO, ADMIN, CAJERO, CLIENTE
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD1 pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

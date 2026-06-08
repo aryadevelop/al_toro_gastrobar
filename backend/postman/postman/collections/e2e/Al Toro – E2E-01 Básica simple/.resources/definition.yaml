@@ -1,0 +1,36 @@
+$kind: collection
+name: Al Toro – E2E-01 Básica simple
+description: |-
+  **Escenario E2E-01** · Camino feliz mínimo con reserva BÁSICA + asistencia del cliente.
+  TR=BÁSICA · PO=carta simple · AS=sí · BR=precargado · PU=cliente(+1) · MP=EFECTIVO.
+
+  **Pre-condición:** NO requiere seed (la reserva BÁSICA se crea por API para hoy).
+  **Cliente:** paola.rojas@gmail.com (hardcodeado en los pasos de cliente para no depender de una
+  variable de entorno que el tooling poda). Elegido por NO tener visita activa (las consultas
+  `GET /visitas/activa` por token exigen exactamente una) y tener puntos.
+  **Token:** cada paso hace login autónomo e inyecta `Authorization: Bearer <token>` con
+  `pm.request.headers.upsert` dentro del callback (no confía en `{{token}}`, que puede no estar listo).
+  **Ventana horaria:** la asignación de mesa valida `LocalTime.now()` contra el horario de atención.
+  Validado de punta a punta en vivo (los 15 pasos en verde).
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | CLIENTE | Crea reserva BÁSICA hoy 19:00 (2 ítems carta) | 201, tipo BASICA, CONFIRMADA; captura `tmpReservaId`, `tmpClienteId` |
+  | 110 | CAJERO | Puntos antes | captura `tmpPuntosAntes` |
+  | 120 | MESERO | Asignar mesa (reserva) | 201; captura `tmpVisitaId` |
+  | 130 | MESERO | Obtener borrador | borrador precargado (≥2 platos); captura `tmpComandaCocinaId` |
+  | 140 | MESERO | Enviar comanda COCINA | 200 |
+  | 150 | CLIENTE | Solicitar asistencia | 201 |
+  | 160 | CLIENTE | Visita activa | `asistenciaSolicitada=true`; captura `tmpNotifAsistenciaId` |
+  | 170 | MESERO | Atender asistencia | 200 |
+  | 180 | CLIENTE | Visita activa | `asistenciaSolicitada=false` |
+  | 190 | COCINERO | Iniciar preparación | EN_PREPARACION |
+  | 200 | COCINERO | Marcar listo | LISTO |
+  | 210 | CLIENTE | Visita activa | `estadoItem="Servido"`; total = suma de subtotales |
+  | 220 | CAJERO | Cuenta preliminar | `clienteId` poblado; captura `tmpTotalAPagar` |
+  | 230 | CAJERO | Cerrar cuenta (EFECTIVO, sin descuento) | 201 |
+  | 240 | CAJERO | Puntos después | `puntosActuales` = `tmpPuntosAntes` + 1 |
+
+  **Login autónomo por rol** en cada `beforeRequest` (emails de entorno + `passwordValida`).
+  **Re-corridas:** crea datos nuevos y cierra la visita (terminal). Reseed limpio si se desea.

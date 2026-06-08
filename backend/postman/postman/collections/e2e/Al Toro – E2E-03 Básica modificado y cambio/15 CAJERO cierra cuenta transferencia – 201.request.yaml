@@ -1,0 +1,52 @@
+$kind: http-request
+name: 15 CAJERO cierra la cuenta (TRANSFERENCIA, sin descuento) – 201 Created
+description: |-
+  Registra la venta y cierra la visita (mesa CERRADA; +1 punto de lealtad al cliente). El total se
+  recalcula en el servidor; el cajero solo envía descuento y método. Cierra el escenario E2E-03.
+url: "{{baseUrl}}/api/ventas"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCajero": "{{emailCajero}}",
+      "visitaId": {{tmpVisitaId}},
+      "descuento": 0,
+      "metodo": "TRANSFERENCIA"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema cierra la cuenta (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+        pm.expect(pm.response.json().success).to.be.true;
+      });
+      // Limpieza de variables temporales del escenario
+      ['tmpReservaId','tmpClienteId','tmpVisitaId','tmpComandaCocinaId','tmpItemBaseId','tmpItemModId',
+       'tmpNotifCambioId','tmpCuentaItemModId','tmpSubtotalBaseAntes','tmpPrecioBaseAntes',
+       'tmpPrecioModAntes','tmpMesaIdent','tmpFechaLlegada']
+        .forEach(k => pm.environment.unset(k));
+    language: text/javascript
+order: 240

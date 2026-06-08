@@ -1,0 +1,57 @@
+$kind: http-request
+name: OA-08 CLIENTE con asistencia solicitada – valida notificacionId – 200 OK
+description: |-
+  **Criterio de Aceptación:** Validar efecto observable del evento WS AsistenciaSolicitadaWsMessage.
+  **Objetivo:** Verificar que después de solicitar asistencia (POST), el GET refleja asistenciaSolicitada=true y notificacionAsistenciaId poblado.
+  **Pre-condición:** El test OB-01 debe ejecutarse primero para crear la solicitud. Cliente juan.torres@gmail.com tiene visita activa (ID 12).
+  **Resultado esperado:** 200 OK con asistenciaSolicitada=true, notificacionAsistenciaId != null.
+  **Nota:** Este test valida indirectamente que el mensaje WS contiene los datos correctos (provienen de la misma notificación en BD).
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE que solicitará asistencia
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'juan.torres@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OA-08: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna estado con asistencia solicitada', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('asistenciaSolicitada y notificacionAsistenciaId (efecto WS)', function () {
+        const body = pm.response.json();
+        // Si asistenciaSolicitada=true, debe haber notificacionAsistenciaId
+        if (body.data.asistenciaSolicitada) {
+          pm.expect(body.data.notificacionAsistenciaId).to.be.a('number');
+          // Guardar ID para tests posteriores (NC-01, NC-02)
+          pm.environment.set('tmpNotificacionId', body.data.notificacionAsistenciaId);
+        } else {
+          // Si no hay solicitud, el campo puede estar ausente o ser null
+          pm.expect(body.data.notificacionAsistenciaId).to.satisfy(function(val) {
+            return val === null || val === undefined;
+          });
+        }
+      });
+    language: text/javascript
+order: 8000

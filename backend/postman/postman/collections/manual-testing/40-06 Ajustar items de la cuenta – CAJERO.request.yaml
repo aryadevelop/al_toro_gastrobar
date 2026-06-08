@@ -1,0 +1,43 @@
+$kind: http-request
+name: 40-06 Ajustar items de la cuenta – CAJERO
+description: Ajusta cantidades/precios y elimina ítems de la cuenta (CA-06/07/08/09). Usar comandaItemId reales de la visita.
+url: "{{baseUrl}}/api/visitas/19/items"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "items": [
+        { "comandaItemId": 59, "cantidad": 2 }
+      ],
+      "eliminados": []
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 4060

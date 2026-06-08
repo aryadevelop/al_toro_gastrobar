@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CC-02
+  **Objetivo:** Verificar que el logout invalida la sesión activa y retorna HTTP 204 sin cuerpo. Se preserva el refresh token en `savedRefreshToken` para el caso CC-03, y se limpian `accessToken` y `refreshToken` del entorno.
+  **Pre-condición:** Debe existir un `accessToken` válido en el entorno.
+  **Resultado esperado:** HTTP 204 sin contenido en el cuerpo de la respuesta.
+url: "{{baseUrl}}/api/auth/logout"
+method: POST
+headers:
+  Authorization: Bearer {{accessToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 204 – Sesión cerrada exitosamente', () => pm.response.to.have.status(204));
+
+      // Preservar el accessToken para casos de reutilización post-logout
+      pm.environment.set('savedAccessToken', pm.environment.get('accessToken'));
+
+      // Preservar el refreshToken para CC-03 antes de eliminarlo del entorno
+      pm.environment.set('savedRefreshToken', pm.environment.get('refreshToken'));
+
+      // Limpiar tokens del entorno
+      pm.environment.unset('accessToken');
+      pm.environment.unset('refreshToken');
+    language: text/javascript
+order: 2000

@@ -1,0 +1,39 @@
+$kind: http-request
+name: 30-05 Cancelar Reserva – CAJERO
+description: |-
+  Cancelar cualquier reserva activa como CAJERO (sin restricción de ownership).
+  Cambiar tmpReservaId al ID de la reserva a cancelar.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/cancelar"
+method: PATCH
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Ajustar el ID de reserva según la prueba manual
+      pm.environment.set('tmpReservaId', '10');
+
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 3050

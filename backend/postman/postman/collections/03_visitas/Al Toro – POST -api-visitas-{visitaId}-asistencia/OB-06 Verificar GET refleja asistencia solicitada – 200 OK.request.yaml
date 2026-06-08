@@ -1,0 +1,124 @@
+$kind: http-request
+name: OB-06 Verificar GET refleja asistencia solicitada – 200 OK
+description: |-
+  **Criterio de Aceptación:** Validar efecto observable del evento WS AsistenciaSolicitadaWsMessage.
+  **Objetivo:** Después de POST asistencia, verificar que GET /visitas/activa refleja el cambio.
+  **Resultado esperado:** 200 OK con `asistenciaSolicitada=true` y `notificacionAsistenciaId != null`.
+  **Independencia:** Cada ejecución obtiene su propia visita activa y crea una notificación fresca; el setup garantiza que exista una asistencia ACTIVA antes del GET y la limpia al final.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Setup:
+      //   1) Login CLIENTE + MESERO
+      //   2) GET /api/visitas/activa → tmpVisitaId
+      //   3) Si NO hay asistencia activa, POST /asistencia para crearla.
+      //      Guardar notificacionId en tmpNotificacionCleanup.
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (email, tokenKey, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-06: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set(tokenKey, res.json().accessToken);
+          cb();
+        });
+      };
+
+      const crearAsistencia = (visitaId, clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/' + visitaId + '/asistencia',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 201) {
+            console.warn('OB-06: POST asistencia inicial falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpNotificacionCleanup', res.json().data.notificacionId);
+        });
+      };
+
+      const obtenerVisita = (clienteToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + clienteToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-06: GET /visitas/activa setup falló', err, res && res.code);
+            return;
+          }
+          const estado = res.json().data;
+          pm.environment.set('tmpVisitaId', estado.visitaId);
+
+          if (estado.asistenciaSolicitada && estado.notificacionAsistenciaId) {
+            pm.environment.set('tmpNotificacionCleanup', estado.notificacionAsistenciaId);
+          } else {
+            crearAsistencia(estado.visitaId, clienteToken);
+          }
+        });
+      };
+
+      login('juan.torres@gmail.com', 'clienteToken', () => {
+        login(pm.environment.get('emailMesero'), 'meseroToken', () => {
+          obtenerVisita(pm.environment.get('clienteToken'));
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('GET /visitas/activa retorna estado con asistencia solicitada', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('asistenciaSolicitada=true y notificacionId poblado (efecto WS validado)', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.asistenciaSolicitada).to.be.true;
+        pm.expect(body.data.notificacionAsistenciaId).to.not.be.null;
+      });
+
+      // Cleanup: atender la notificación con MESERO para no contaminar siguientes ejecuciones
+      try {
+        const notifId = pm.environment.get('tmpNotificacionCleanup');
+        const baseUrl = pm.environment.get('baseUrl');
+        const meseroToken = pm.environment.get('meseroToken');
+        if (notifId && meseroToken) {
+          pm.sendRequest({
+            url: baseUrl + '/api/notificaciones/' + notifId + '/atender',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + meseroToken }
+          }, (err, res) => {
+            if (err || !res || res.code !== 200) {
+              console.warn('OB-06: cleanup atender notificación falló', err, res && res.code);
+            }
+          });
+        }
+      } catch (e) {
+        console.warn('OB-06: cleanup falló', e);
+      }
+
+      pm.environment.unset('tmpVisitaId');
+      pm.environment.unset('tmpNotificacionCleanup');
+      pm.environment.unset('tmpNotificacionParaAtender');
+    language: text/javascript
+order: 6000

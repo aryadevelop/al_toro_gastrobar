@@ -1,0 +1,16 @@
+$kind: http-request
+name: 00-08 Login ADMIN
+description: Login manual como administrador para obtener tokens
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "email": "admin@altoro.com",
+      "password": "Al.Toro2026!",
+      "forceSessionOverride": true
+    }
+order: 800

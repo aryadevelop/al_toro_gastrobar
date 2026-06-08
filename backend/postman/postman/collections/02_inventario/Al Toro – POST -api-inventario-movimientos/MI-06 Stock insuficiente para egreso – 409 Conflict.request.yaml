@@ -1,0 +1,33 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-06 (HE-04-HU-04-CA-04)
+  **Objetivo:** El sistema rechaza un egreso con stock insuficiente.
+  **Pre-condición:** producto `145` con `stockActual = 0`.
+  **Resultado esperado:** HTTP 409, `success: false`, código `NEG-001`.
+  **Atómica:** la solicitud falla; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 145,
+      "cantidad": 1.000,
+      "tipo": "EGRESO",
+      "observaciones": "Test stock insuficiente MI-06"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 409 – stock insuficiente', () => pm.response.to.have.status(409));
+      const body = pm.response.json();
+      pm.test('success: false', () => pm.expect(body).to.have.property('success', false));
+      pm.test('código de error NEG-001', () => pm.expect(body.code).to.eql('NEG-001'));
+      pm.test('el mensaje menciona stock insuficiente', () => {
+        pm.expect(body.message.toLowerCase()).to.include('stock insuficiente');
+      });
+    language: text/javascript
+order: 4000

@@ -1,0 +1,46 @@
+$kind: http-request
+name: PC-04 COCINERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Matriz de roles — canje exclusivo de `CAJERO`/`ADMIN`.
+  **Objetivo:** Verificar que el endpoint deniega token de COCINERO.
+  **Pre-condición:** El `beforeRequest` de este test hace login autónomo para obtener
+  `cocineroToken`, independiente del hook de colección.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/clientes/1/canje-puntos?emailEmpleado={{emailCajero}}"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+queryParams:
+  emailEmpleado: "{{emailCajero}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCocinero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cocineroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PC-04: login COCINERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza token de COCINERO con 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 4000

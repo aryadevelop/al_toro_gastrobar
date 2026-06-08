@@ -1,0 +1,54 @@
+$kind: http-request
+name: MD-09 CAJERO obtiene detalle con campos extra – 200 OK
+description: |-
+  **Objetivo:** Verificar que CAJERO obtiene el detalle de mesa con los 4 campos extra
+  (clienteId, puntosFidelizacion, esCumpleanos, puedeGenerarCuenta).
+  **Pre-condición:** `cajeroToken` disponible. Visita 10 activa (carlos.perez@gmail.com, mesa M-02).
+  **Resultado esperado:** 200 OK con campos extra presentes en el body.
+url: "{{baseUrl}}/api/mesas/10/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-09: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('CAJERO obtiene 200 OK', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('Body contiene los 4 campos extra de cajero', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('clienteId');
+        pm.expect(data).to.have.property('puntosFidelizacion');
+        pm.expect(data).to.have.property('esCumpleanos');
+        pm.expect(data).to.have.property('puedeGenerarCuenta');
+      });
+
+      pm.test('puedeGenerarCuenta es boolean (true/false según estado)', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.puedeGenerarCuenta).to.be.a('boolean');
+      });
+    language: text/javascript
+order: 9000

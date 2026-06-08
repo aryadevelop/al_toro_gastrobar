@@ -1,0 +1,65 @@
+$kind: http-request
+name: AM-09 numeroPersonas menor a 1 – 400 Bad Request
+description: |-
+  **Criterio:** CA-09 — Validación DTO: numeroPersonas debe ser >= 1.
+  **Objetivo:** Verificar que el sistema rechaza requests con numeroPersonas=0.
+  **Pre-condición:** `meseroToken` se obtiene en beforeRequest.
+  **Resultado esperado:** 400 o 422 con mensaje de error de validación.
+  Cada ejecución crea sus propios datos. Independiente del orden.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "mesaIdentificador": "TEST-CERO-PERSONAS",
+      "zonaId": 1,
+      "numeroPersonas": 0
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Autonomous login using environment variables
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('AM-09: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 400 o 422', function () {
+        pm.expect(pm.response.code).to.be.oneOf([400, 422]);
+      });
+
+      pm.test('La respuesta contiene success=false', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(false);
+      });
+
+      pm.test('La respuesta contiene mensaje de error de validación', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('message');
+        pm.expect(body.message).to.be.a('string');
+      });
+
+      // NO cleanup - no se creó ningún recurso
+    language: text/javascript
+order: 9000

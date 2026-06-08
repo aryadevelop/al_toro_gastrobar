@@ -1,0 +1,59 @@
+$kind: http-request
+name: MI-09 Idempotencia – 422 Unprocessable Entity
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data y de orden de ejecución
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque requiere una
+  > reserva ya en estado INASISTENCIA. Como no se puede crear vía API una reserva con
+  > fecha pasada (validación `@Future`), tampoco se puede generar el estado INASISTENCIA
+  > sin pasar por un seed con fecha pasada.
+  >
+  > Hasta que exista un endpoint público para back-fill de reservas pasadas, este test:
+  >   1. Sigue dependiendo de la reserva seed ID 21 en `V3__dev_data.sql`.
+  >   2. Requiere ejecutar MI-08 antes (rompe la independencia).
+  >   3. Puede romperse en runs repetidos sin reset de DB.
+  >
+  > Acción pendiente: refactorizar al patrón create-fresh cuando el backend exponga un
+  > mecanismo apropiado para crear reservas con fecha pasada en estado INASISTENCIA.
+
+  Intentar marcar inasistencia una segunda vez sobre una reserva ya INASISTENCIA debe
+  fallar con 422 (estado inválido, código NEG-002).
+url: "{{baseUrl}}/api/reservas/21/marcar-inasistencia"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Usar misma reserva que MI-08 (ID 18), que ya fue marcada como INASISTENCIA
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MI-09: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva ya marcada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+
+      pm.test('Código NEG-002 y mensaje indica estado', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('NEG-002');
+        pm.expect(body.message).to.include('confirmadas');
+      });
+    language: text/javascript
+order: 9000

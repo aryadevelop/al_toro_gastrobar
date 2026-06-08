@@ -1,0 +1,60 @@
+$kind: http-request
+name: CD1-08 GET borrador con stock insuficiente retorna advertencias – 200 OK
+description: |-
+  **Criterio de Aceptación:** PA-HE-04 Fix B — advertencias de stock en borrador.
+  **Objetivo:** Verificar que cuando un ítem del borrador supera el stock disponible, la respuesta incluye la advertencia en `advertenciasPreorden`.
+  **Pre-condición:** `meseroToken` disponible. Seed PA-HE-04 aplicado (visita 17, comanda 36, producto PA-HE-04-Sin-Stock con stock_actual=0, 1 unidad en borrador → disponible=0 < 1).
+  **Resultado esperado:** 200 OK con `advertenciasPreorden` conteniendo 1 advertencia para el producto sin stock.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId=17"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('CD1-08: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+
+      pm.test('advertenciasPreorden tiene al menos una advertencia', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.advertenciasPreorden).to.be.an('array');
+        pm.expect(data.advertenciasPreorden.length).to.be.greaterThan(0);
+      });
+
+      pm.test('La advertencia corresponde al producto sin stock', function () {
+        const adv = pm.response.json().data.advertenciasPreorden[0];
+        pm.expect(adv.productoNombre).to.equal('PA-HE-04-Sin-Stock');
+        pm.expect(adv.cantidadEnComanda).to.equal(1);
+        pm.expect(adv.cantidadDisponible).to.equal(0);
+        pm.expect(adv).to.have.property('productoId');
+      });
+
+      pm.test('La estructura de advertencia es completa', function () {
+        const adv = pm.response.json().data.advertenciasPreorden[0];
+        ['productoId','productoNombre','cantidadEnComanda','cantidadDisponible'].forEach(k => {
+          pm.expect(adv).to.have.property(k);
+        });
+      });
+    language: text/javascript
+order: 1070

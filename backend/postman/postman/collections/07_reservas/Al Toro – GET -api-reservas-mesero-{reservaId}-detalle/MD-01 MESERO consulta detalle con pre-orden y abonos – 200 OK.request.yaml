@@ -1,0 +1,82 @@
+$kind: http-request
+name: MD-01 MESERO consulta detalle con pre-orden y abonos – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-04 — el mesero visualiza detalle completo incluyendo pre-orden y abonos.
+  **Objetivo:** Verificar que un MESERO obtiene el detalle completo de una reserva con pre-orden, abonos y teléfono del cliente.
+  **Pre-condición:** El pre-request hace login autónomo como MESERO y consulta una reserva ESPECIAL existente con pre-orden.
+  **Resultado esperado:** 200 OK · detalle contiene clienteTelefono, preOrdenItems y abonos.
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD01}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Usar reservaIdConPreOrden del ambiente (pre-configurado en V3_dev_data.sql)
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD01', reservaId);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MD-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es true', function () {
+        pm.expect(body.success).to.be.true;
+      });
+
+      pm.test('El detalle contiene los campos obligatorios', function () {
+        const d = body.data;
+        pm.expect(d).to.include.keys([
+          'reservaId', 'fechaHoraLlegada', 'numeroPersonas', 'estado', 'tipo',
+          'clienteTelefono', 'preOrdenItems', 'abonos'
+        ]);
+      });
+
+      pm.test('clienteTelefono está presente y no es null', function () {
+        pm.expect(body.data.clienteTelefono).to.exist;
+        pm.expect(body.data.clienteTelefono).to.not.be.null;
+      });
+
+      if (body.data.preOrdenItems !== undefined) {
+        pm.test('preOrdenItems es un array', function () {
+          pm.expect(body.data.preOrdenItems).to.be.an('array');
+        });
+      }
+
+      if (body.data.abonos !== undefined) {
+        pm.test('abonos es un array', function () {
+          pm.expect(body.data.abonos).to.be.an('array');
+        });
+      }
+
+      if (body.data.preOrdenItems && body.data.preOrdenItems.length > 0) {
+        pm.test('Cada ítem de pre-orden contiene los campos obligatorios', function () {
+          body.data.preOrdenItems.forEach(item => {
+            pm.expect(item).to.include.keys(['productoNombre', 'cantidad', 'precioUnitario']);
+          });
+        });
+      }
+
+      pm.environment.unset('tmpReservaIdMD01');
+    language: text/javascript
+order: 2000

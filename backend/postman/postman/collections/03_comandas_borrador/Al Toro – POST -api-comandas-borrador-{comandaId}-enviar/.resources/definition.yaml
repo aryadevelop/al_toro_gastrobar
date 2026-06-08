@@ -1,0 +1,94 @@
+$kind: collection
+name: Al Toro – POST /api/comandas/borrador/{comandaId}/enviar
+description: |-
+  # POST /api/comandas/borrador/{comandaId}/enviar
+
+  Transiciona una comanda BORRADOR → PENDIENTE. Sella `comandaFechaHoraInicio`,
+  valida stock final y publica eventos WebSocket
+  para mapa, cliente y dashboard de estación. Si la mesa estaba en ESPERA pasa
+  a EN_PREPARACION.
+
+  **Errores:**
+  - Comanda inexistente → `ENT-001` (404).
+  - Comanda no-BORRADOR → `NEG-002` (409).
+  - Comanda sin ítems → `NEG-001`/`NEG-002` (validador interno).
+  - Stock insuficiente → `NEG-004` (409).
+
+  **Control de acceso:** MESERO/ADMIN dueño permitidos; CAJERO/CLIENTE 403; sin token 401.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial MESERO/CAJERO/CLIENTE.
+  - **Producto stockless:** tras login MESERO se resuelve `productoTestPlatoId` desde el ítem Picanha base de la visita 13 (sin límite de stock).
+  - **Visita destino:** visita 14 (no tocada por E2/E3). Cada ejecución crea una nueva comanda BORRADOR COCINA porque la anterior queda en PENDIENTE.
+  - **Operación irreversible:** una vez enviada, la comanda NO puede regresar a BORRADOR. Los tests crean su propia comanda fresca en `beforeRequest` antes de cada envío.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD5-01 | MESERO envía comanda BORRADOR → 200 OK (transición a PENDIENTE) | 200 |
+  | CD5-02 | Re-envío de comanda ya en PENDIENTE — 409 Conflict (NEG-002) | 409 |
+  | CD5-03 | comandaId inexistente — 404 Not Found | 404 |
+  | CD5-04 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD5-05 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD5-06 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // 1) Login secuencial MESERO/CAJERO/CLIENTE.
+      // 2) Tras login MESERO, resuelve productoTestPlatoId vía /borrador?visitaId=13.
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const resolverProducto = () => {
+        const token = pm.environment.get('meseroToken');
+        if (!token) return;
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador?visitaId=13',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD5 pre-request: resolver producto falló', err, res && res.code);
+            return;
+          }
+          const platos = res.json().data.platos || [];
+          const picanha = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+          if (picanha) pm.environment.set('productoTestPlatoId', picanha.productoId);
+        });
+      };
+
+      const runLogin = (index) => {
+        if (index >= logins.length) {
+          resolverProducto();
+          return;
+        }
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD5 pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

@@ -1,0 +1,86 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/{reservaId}/detalle
+description: |-
+  Retorna el detalle completo de una reserva: datos base, pre-orden (si aplica) y abonos (si aplica).
+
+  **Criterio de Aceptación cubierto:** HE-02-HU-03-CA-07 (detalle de reserva futura).
+
+  **Roles autorizados (según `@PreAuthorize` del controller):** `CLIENTE`, `MESERO`, `CAJERO`, `ADMIN`.
+  Los roles `PRODUCCION` (COCINERO/BARTENDER) reciben **403 Forbidden**.
+
+  **Encabezados requeridos:** `Authorization: Bearer <token-según-rol>`
+
+  **Reglas de ownership:**
+  - Si el solicitante es `CLIENTE`, el servicio valida que la reserva pertenezca al email autenticado.
+    Si no es propia, retorna **403 Forbidden**.
+  - Para los roles `MESERO`, `CAJERO`, `ADMIN` no aplica restricción de ownership.
+
+  **Campos de la respuesta `ReservaDetalleResponse`:**
+  - Siempre presentes: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`, `estado`, `tipo`
+  - Opcionales (omitidos por `@JsonInclude(NON_NULL)` si no aplican): `zonaNombre`, `decoracionNombre`, `notas`
+  - Opcionales pre-orden: `preOrdenItems` (lista con `comandaItemId`, `productoId`, `productoNombre`, `cantidad`, `precioUnitario`, `descripcion`, `modificaciones`), `totalPreorden`
+  - Opcionales abonos: `abonos` (lista con `abonoId`, `monto`, `fechaHora`, `metodo`, `tipo`), `montoAbonado (neto)`
+
+  **Independencia de los casos:**
+  Cada request se autoabastece. El pre-request del request crea (vía `POST /api/reservas`)
+  los recursos que necesita y los almacena en variables temporales que se limpian al final
+  con `pm.environment.unset()`. El único acoplamiento permitido con otras colecciones es la
+  autenticación, que se gestiona en este pre-request de carpeta.
+
+  **Tabla de casos:**
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | RE-01 | CLIENTE consulta detalle de reserva propia con pre-orden (CA-07) | 200 |
+  | RE-02 | CLIENTE consulta detalle de reserva propia básica sin pre-orden ni abonos | 200 |
+  | RE-03 | CLIENTE consulta detalle de reserva propia con zona y decoración | 200 |
+  | RE-04 | ID de reserva inexistente | 404 |
+  | RE-05 | Sin token de autenticación | 401 |
+  | RE-06 | CLIENTE consulta reserva ajena (otro cliente) | 403 |
+  | RE-07 | MESERO consulta reserva de cualquier cliente | 200 |
+  | RE-08 | CAJERO consulta reserva de cualquier cliente | 200 |
+  | RE-09 | ADMIN consulta reserva de cualquier cliente | 200 |
+  | RE-10 | COCINERO (rol PRODUCCION) sin permiso para consultar detalle | 403 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente: Postman no garantiza esperar a
+      // múltiples callbacks hermanos de pm.sendRequest antes de disparar la request, así
+      // que se ejecutan uno tras otro mediante una cadena recursiva para evitar la race
+      // condition. Se cubren todos los roles autorizados por el controller más COCINERO
+      // (rol no autorizado) y un segundo CLIENTE para el caso de reserva ajena.
+      const logins = [
+        { emailKey: 'emailCliente',            tokenKey: 'clienteToken'      },
+        { emailKey: 'emailClienteSinVisitas',  tokenKey: 'otroClienteToken'  },
+        { emailKey: 'emailMesero',             tokenKey: 'meseroToken'       },
+        { emailKey: 'emailCajero',             tokenKey: 'cajeroToken'       },
+        { emailKey: 'emailAdmin',              tokenKey: 'accessToken'       },
+        { emailKey: 'emailCocinero',           tokenKey: 'cocineroToken'     }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

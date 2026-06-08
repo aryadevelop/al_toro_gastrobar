@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-07
+  **Objetivo:** Verificar que el campo `email` es obligatorio y que el sistema retorna un error de validación cuando se envía vacío.
+  **Pre-condición:** Ninguna sesión activa requerida.
+  **Resultado esperado:** HTTP 422 con mensaje que indica que el correo electrónico es requerido.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "",
+      "password": "{{passwordValida}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – Campo correo vacío', () => pm.response.to.have.status(422));
+
+      pm.test('Mensaje de correo electrónico requerido', () =>
+        pm.expect(pm.response.json().message).to.include('Por favor ingresa tu correo electronico'));
+    language: text/javascript
+order: 8000

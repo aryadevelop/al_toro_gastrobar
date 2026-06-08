@@ -1,0 +1,43 @@
+$kind: http-request
+name: CR-18 emailCliente con formato inválido – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `emailCliente` tiene `@Email`. Aunque el campo sea
+  opcional, cuando se envía debe tener formato de correo. La validación falla incluso
+  para CLIENTE (el servicio ignora el valor pero el binding se ejecuta antes).
+  **Objetivo:** Verificar que un correo malformado en el body se rechaza con 422.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria válida.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "emailCliente": "no-es-un-email",
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza un email malformado con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 18000

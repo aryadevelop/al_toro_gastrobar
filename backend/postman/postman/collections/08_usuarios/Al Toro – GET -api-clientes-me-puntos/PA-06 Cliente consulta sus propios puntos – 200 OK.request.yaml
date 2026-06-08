@@ -1,0 +1,63 @@
+$kind: http-request
+name: PA-06 Cliente consulta sus propios puntos – 200 OK
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-03 (visualización de puntos en dashboard).
+  **Objetivo:** Verificar que el cliente autenticado obtiene `puntosActuales` y
+  `puntosAcumulados`, y que se cumple el invariante `puntosAcumulados ≥ puntosActuales`.
+  El test NO compara contra valores numéricos absolutos, por lo que es robusto frente
+  a canjes previos que hayan reducido `puntosActuales`.
+  **Pre-condición:** El `beforeRequest` de este test hace login autónomo para obtener
+  `clienteToken`, independiente del hook de colección.
+  **Resultado esperado:** 200 OK · `data.puntosActuales ≥ 0` · `data.puntosAcumulados ≥ puntosActuales`.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PA-06: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La respuesta expone puntosActuales y puntosAcumulados', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('puntosActuales');
+        pm.expect(data).to.have.property('puntosAcumulados');
+      });
+      pm.test('Ambos campos son enteros no negativos', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.puntosActuales).to.be.a('number').and.to.be.at.least(0);
+        pm.expect(data.puntosAcumulados).to.be.a('number').and.to.be.at.least(0);
+      });
+      pm.test('puntosAcumulados ≥ puntosActuales (invariante de vida)', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.puntosAcumulados).to.be.at.least(data.puntosActuales);
+      });
+    language: text/javascript
+order: 6000

@@ -1,0 +1,86 @@
+$kind: http-request
+name: MR-08 Reserva ya cancelada – 422 Unprocessable
+description: |
+  Intento de modificar una reserva con estado CANCELADA.
+  El beforeRequest crea una reserva BASICA, la cancela, y luego el request principal
+  intenta modificarla. El servicio verifica el estado y lanza BusinessException
+  INVALID_STATE → 422. Cada ejecución crea su propia reserva fresca.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaCancelada}}"
+method: PUT
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MR-08: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const token = res.json().accessToken;
+        pm.environment.set('clienteToken', token);
+
+        // Paso 1: crear reserva BASICA
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + token },
+          body: { mode: 'raw', raw: JSON.stringify({ fechaHoraLlegada: fecha, numeroPersonas: 2 })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('MR-08: crear reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          const reservaId = r2.json().data.reservaId;
+
+          // Paso 2: cancelar la reserva recién creada
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+            method: 'PATCH',
+            header: { 'Authorization': 'Bearer ' + token }
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('tmpReservaCancelada', reservaId);
+            } else {
+              console.warn('MR-08: cancelar reserva falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva cancelada → 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpReservaCancelada');
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 8000

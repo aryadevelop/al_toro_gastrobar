@@ -1,0 +1,95 @@
+# ============================================================
+# PROD — se fusiona con docker-compose.yml manualmente
+# Requiere: variables de .env.prod exportadas al entorno o pasadas con --env-file
+#   docker compose -f docker-compose.yml -f docker-compose.prod.yml --env-file .env.prod up -d
+# ============================================================
+# Postgres no necesita override:
+#   - La base no expone puertos (solo accesible dentro de la red Docker)
+#   - Las credenciales vienen de POSTGRES_* definidas en .env.prod
+# ============================================================
+services:
+
+  api:
+    environment:
+      SPRING_PROFILES_ACTIVE: prod
+      JWT_SECRET:     ${JWT_SECRET}
+      JWT_EXPIRATION: ${JWT_EXPIRATION:-1800000}
+      MAIL_HOST:      ${MAIL_HOST}
+      MAIL_PORT:     ${MAIL_PORT:-587}
+      MAIL_USERNAME: ${MAIL_USERNAME}
+      MAIL_PASSWORD: ${MAIL_PASSWORD}
+      CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS}
+      BOOTSTRAP_ADMIN_EMAIL:    ${BOOTSTRAP_ADMIN_EMAIL:-}
+      BOOTSTRAP_ADMIN_PASSWORD: ${BOOTSTRAP_ADMIN_PASSWORD:-}
+      UPLOAD_DIR: /opt/altoro/uploads
+    volumes:
+      - altoro_uploads:/opt/altoro/uploads
+    mem_limit: 1536m
+    restart: unless-stopped
+
+  postgres:
+    mem_limit: 1g
+    command: ["postgres", "-c", "shared_buffers=256MB", "-c", "work_mem=8MB"]
+
+  db-backup:
+    image: prodrigestivill/postgres-backup-local:15-alpine
+    container_name: altoro_db_backup
+    mem_limit: 64m
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST: postgres
+      POSTGRES_DB:   ${POSTGRES_DB:-altoro_db}
+      POSTGRES_USER: ${POSTGRES_USER:-altoro}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+      SCHEDULE: "@daily"
+      BACKUP_KEEP_DAYS: 7
+      BACKUP_KEEP_WEEKS: 4
+      BACKUP_KEEP_MONTHS: 6
+      TZ: America/Bogota
+    volumes:
+      - ./backups:/backups
+    networks:
+      - altoro_network
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  caddy:
+    image: caddy:2-alpine
+    container_name: altoro_caddy
+    mem_limit: 128m
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    environment:
+      SITE_ADDRESS: ${SITE_ADDRESS}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      - altoro_network
+    depends_on:
+      api:
+        condition: service_healthy
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: altoro_frontend
+    mem_limit: 64m
+    restart: unless-stopped
+    networks:
+      - altoro_network
+    depends_on:
+      api:
+        condition: service_healthy
+    # Sin 'ports': solo Caddy expone al exterior; lo alcanza por la red interna.
+
+volumes:
+  caddy_data:
+  caddy_config:
+  altoro_uploads:
+

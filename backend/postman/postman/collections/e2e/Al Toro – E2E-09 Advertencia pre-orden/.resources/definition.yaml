@@ -1,0 +1,40 @@
+$kind: collection
+name: Al Toro – E2E-09 Advertencia pre-orden
+description: |-
+  **Escenario E2E-09** · BÁSICA con un producto sin stock en la pre-orden → campo `advertenciasPreorden`.
+  TR=BÁSICA · PO=carta + producto sin stock (pre-orden) · AJ=eliminar (sin-stock) · DE=sin ·
+  PU=cliente(+1) · MP=EFECTIVO.
+
+  **Qué cubre:** `GET /api/comandas/borrador` expone `advertenciasPreorden` = lista de ítems cuya
+  cantidad supera el stock disponible (`{productoId, productoNombre, cantidadEnComanda, cantidadDisponible}`);
+  es informativa, NO bloquea el borrador (`puedeEnviarCocina=true`). La advertencia solo surge para
+  ítems que entraron al borrador SIN chequeo de stock, es decir vía pre-orden migrada (la creación de
+  reserva no valida stock). Usa `PA-HE-04-Sin-Stock` (productoId=145, stock 0, ya en V3).
+
+  **Nota de flujo:** el ítem sin stock NO se envía a producción (stock 0 bloquea `iniciar`); por eso se
+  ELIMINA del borrador antes de enviar la comanda (solo queda la Hamburguesa).
+
+  **Pre-condición:** NO requiere seed (la reserva BÁSICA se crea por API para hoy).
+  **Cliente:** paola.rojas@gmail.com (hardcodeado en los pasos de cliente).
+  **Token:** cada paso hace login autónomo e inyecta `Authorization: Bearer <token>` con
+  `pm.request.headers.upsert` dentro del callback.
+  La asignación de mesa no tiene restricción horaria.
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | CLIENTE | Crea reserva BÁSICA hoy 19:00 (Hamburguesa + PA-HE-04-Sin-Stock) | 201, BASICA, CONFIRMADA; captura `tmpReservaId`, `tmpClienteId` |
+  | 110 | CAJERO | Puntos antes | captura `tmpPuntosAntes` |
+  | 120 | MESERO | Asignar mesa (reserva) | 201; captura `tmpVisitaId` |
+  | 130 | MESERO | Obtener borrador | `advertenciasPreorden` con 1 entrada (145, disponible=0), `puedeEnviarCocina=true`; captura `tmpComandaCocinaId`, `tmpItem145Id` |
+  | 140 | MESERO | Eliminar ítem 145 del borrador | 200 |
+  | 150 | MESERO | Obtener borrador de nuevo | `advertenciasPreorden` vacío ([]) |
+  | 160 | MESERO | Enviar comanda COCINA (solo Hamburguesa) | 200 |
+  | 170 | COCINERO | Iniciar preparación | EN_PREPARACION |
+  | 180 | COCINERO | Marcar listo | LISTO |
+  | 190 | CAJERO | Cuenta preliminar | clienteId poblado; captura `tmpTotalAPagar` |
+  | 200 | CAJERO | Cerrar cuenta (EFECTIVO, sin descuento) | 201 |
+  | 210 | CAJERO | Puntos después | `puntosActuales` = `tmpPuntosAntes` + 1 |
+
+  **Login autónomo por rol** en cada `beforeRequest` (emails de entorno + `passwordValida`).
+  **Re-corridas:** crea datos nuevos y cierra la visita (terminal).

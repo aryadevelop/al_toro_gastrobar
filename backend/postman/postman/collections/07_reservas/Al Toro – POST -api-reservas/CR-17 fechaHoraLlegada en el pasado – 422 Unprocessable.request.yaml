@@ -1,0 +1,40 @@
+$kind: http-request
+name: CR-17 fechaHoraLlegada en el pasado – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** `fechaHoraLlegada` tiene `@Future`. Una fecha en el
+  pasado viola la restricción y produce `MethodArgumentNotValidException` → 422.
+  **Objetivo:** Verificar que el sistema rechaza reservas con fecha anterior al ahora.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaPasada` calculada en
+  `beforeRequest` como fecha/hora 30 días atrás, para independencia de la fecha de corrida.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaPasada}}",
+      "numeroPersonas": 2
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setDate(d.getDate() - 30);
+      d.setHours(19, 0, 0, 0);
+      pm.environment.set('tmpFechaPasada',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la fecha pasada con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaPasada');
+    language: text/javascript
+order: 17000

@@ -1,0 +1,58 @@
+$kind: collection
+name: Al Toro – PATCH /api/reservas/{reservaId}/marcar-inasistencia
+description: |-
+  # PATCH /api/reservas/{reservaId}/marcar-inasistencia
+
+  Marca una reserva como inasistencia tras 30 minutos de tolerancia después de la hora de llegada.
+
+  **Criterios de Aceptación cubiertos:**
+  - CA-01: Solo MESERO y ADMIN pueden marcar inasistencia
+  - CA-02: Solo reservas CONFIRMADAS pueden marcarse como inasistencia
+  - CA-03: Debe esperar 30 minutos después de la hora de llegada
+  - CA-04: Libera zona y decoración al marcar inasistencia
+  - CA-05: Cambio de estado es irreversible
+
+  **Control de acceso:**
+  - MESERO/ADMIN: acceso permitido con `@PreAuthorize("hasAnyRole('MESERO', 'ADMIN')")`
+  - CLIENTE/CAJERO/COCINERO: 403 Forbidden
+  - Sin token: 401 Unauthorized
+
+  **Validaciones de negocio:**
+  - Reserva debe existir (404 si no existe)
+  - Estado debe ser CONFIRMADA (422 si es PENDIENTE, CANCELADA, etc.)
+  - Debe haber pasado 30 minutos desde fechaHoraLlegada (422 si es antes)
+  - Idempotencia: rechaza si ya está marcada como INASISTENCIA
+  - MESERO solo puede marcar inasistencia de reservas del día actual
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden.
+
+  | ID    | Escenario                                        | HTTP |
+  |-------|--------------------------------------------------|------|
+  | MI-01 | Sin token de autenticación                       | 401  |
+  | MI-02 | CLIENTE sin permiso                              | 403  |
+  | MI-03 | CAJERO sin permiso                               | 403  |
+  | MI-04 | COCINERO sin permiso                             | 403  |
+  | MI-05 | Reserva no encontrada                            | 404  |
+  | MI-06 | Reserva PENDIENTE                                | 422  |
+  | MI-08 | ADMIN marca CONFIRMADA pasada                    | 200  |
+  | MI-09 | Idempotencia (ya marcada)                        | 422  |
+
+  Tests 401/403 (MI-01..MI-04) no llegan al servicio: el filtro de seguridad rechaza
+  antes. MI-05 (404) usa ID 999999 inexistente — tampoco muta DB.
+
+  > ⚠️ TODO — MI-08 y MI-09 dependientes de seed data
+  >
+  > Los siguientes tests no se pudieron refactorizar al patrón "create fresh data":
+  >   - MI-08 (200 OK ADMIN marca CONFIRMADA pasada): requiere reserva CONFIRMADA con
+  >     `fechaHoraLlegada` >= 30 minutos en el pasado. La validación `@Future` del DTO
+  >     `CrearReservaRequest`/`ModificarReservaRequest` impide crear reservas con fecha
+  >     pasada vía API pública.
+  >   - MI-09 (422 idempotencia): requiere reserva ya en estado INASISTENCIA. El estado
+  >     se logra ejecutando MI-08 primero, lo que rompe la independencia.
+  >
+  > Hasta que exista una vía pública para crear reservas con fecha pasada (o un endpoint
+  > de "back-fill" para tests), ambos tests dependen de seed data en `V3__dev_data.sql`
+  > y pueden romperse en runs repetidos. Refactorizar al patrón create-fresh cuando el
+  > backend exponga un mecanismo apropiado.

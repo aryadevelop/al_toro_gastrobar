@@ -1,0 +1,38 @@
+$kind: http-request
+name: AC-01 MESERO atiende cambio válido – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Modificar una comanda existente para disparar notificación CAMBIO automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+
+  **Criterio de Aceptación:** CA-04 — Mesero puede registrar que atendió una solicitud de cambio.
+  **Objetivo:** Verificar respuesta exitosa con data.comandaId y mensaje correcto.
+  **Pre-condición:** `meseroToken` disponible. Notificación ID 15 (ACTIVA, CAMBIO).
+  **Resultado esperado:** 200 OK, data.comandaId es un número, message="Comanda lista para modificar."
+url: "{{baseUrl}}/api/notificaciones/15/atender-cambio"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+      pm.test('data.comandaId es un número', () => {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('comandaId');
+        pm.expect(body.data.comandaId).to.be.a('number');
+      });
+      pm.test('message correcto', () => {
+        pm.expect(pm.response.json().message).to.equal('Comanda lista para modificar.');
+      });
+    language: text/javascript
+order: 7301

@@ -1,0 +1,63 @@
+$kind: http-request
+name: CR-38 Menú especial con bebida no disponible – 422 NEG-002
+description: |-
+  **Criterio de Aceptación:** CR-38
+  **Objetivo:** Verificar que un ítem con `esMenuEspecial=true` cuyo `bebidaProductoId`
+  no pertenece a las bebidas disponibles del menú es rechazado con 422.
+  **Pre-condición:** `clienteToken` disponible; producto id=132 activo con `menu_especial=TRUE`;
+  producto id=1 existe pero NO está vinculado como bebida disponible del menú 132
+  (solo los jugos ids 138–141 lo están).
+  **Resultado esperado:** 422 con `success: false` y código de error `NEG-002`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 12,
+      "preOrden": [
+        {
+          "productoId": 132,
+          "cantidad": 12,
+          "esMenuEspecial": true,
+          "bebidaProductoId": 1,
+          "opcionesModificacion": [1]
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 422 – bebida no disponible para el menú rechazada', function () {
+        pm.response.to.have.status(422);
+      });
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene success: false', function () {
+        pm.expect(body).to.have.property('success', false);
+      });
+
+      pm.test('El código de error es NEG-002', function () {
+        pm.expect(body).to.have.property('code', 'NEG-002');
+      });
+
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 38000

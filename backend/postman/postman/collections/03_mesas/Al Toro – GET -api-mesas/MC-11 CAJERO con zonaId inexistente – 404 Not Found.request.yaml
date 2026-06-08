@@ -1,0 +1,45 @@
+$kind: http-request
+name: MC-11 CAJERO con zonaId inexistente – 404 Not Found
+description: |-
+  **Objetivo:** Verificar que CAJERO recibe 404 al consultar una zona inexistente.
+  **Pre-condición:** `cajeroToken` disponible. zonaId=99999 no existe en seed.
+  **Resultado esperado:** 404 Not Found con código ENT-001.
+url: "{{baseUrl}}/api/mesas?zonaId=99999"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cajeroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-11: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Retorna 404 cuando zonaId no existe', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('Código de error es ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+    language: text/javascript
+order: 11000

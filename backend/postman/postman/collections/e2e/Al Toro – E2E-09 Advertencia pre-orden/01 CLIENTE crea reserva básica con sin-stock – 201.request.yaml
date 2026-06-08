@@ -1,0 +1,69 @@
+$kind: http-request
+name: 01 CLIENTE crea reserva BÁSICA con producto sin stock – 201 Created
+description: |-
+  El cliente crea una reserva BÁSICA para HOY 19:00 con Hamburguesa(36) y PA-HE-04-Sin-Stock(145).
+  La creación de reserva NO valida stock, así que el ítem sin stock entra en la pre-orden y luego
+  provocará `advertenciasPreorden` en el borrador. Captura `tmpReservaId` y `tmpClienteId`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "emailCliente": "paola.rojas@gmail.com",
+      "fechaHoraLlegada": "{{tmpFechaLlegada}}",
+      "numeroPersonas": 2,
+      "zonaId": null,
+      "decoracionId": null,
+      "notas": null,
+      "preOrden": [
+        { "productoId": 36, "cantidad": 1, "descripcion": null, "esMenuEspecial": false, "opcionesModificacion": null },
+        { "productoId": 145, "cantidad": 1, "descripcion": null, "esMenuEspecial": false, "opcionesModificacion": null }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // fechaHoraLlegada = HOY 19:00
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      pm.environment.set('tmpFechaLlegada',
+        `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T19:00:00`);
+
+      // Login autónomo CLIENTE (dueño de la reserva)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('E2E-09/01: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva es BÁSICA y queda CONFIRMADA', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.tipo).to.eql('BASICA');
+        pm.expect(data.estado).to.eql('CONFIRMADA');
+        pm.environment.set('tmpReservaId', data.reservaId);
+        pm.environment.set('tmpClienteId', data.clienteId);
+      });
+    language: text/javascript
+order: 100

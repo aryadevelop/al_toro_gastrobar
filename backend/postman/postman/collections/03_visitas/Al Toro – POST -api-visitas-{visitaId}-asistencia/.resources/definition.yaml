@@ -1,0 +1,73 @@
+$kind: collection
+name: Al Toro – POST /api/visitas/{visitaId}/asistencia
+description: |-
+  # POST /api/visitas/{visitaId}/asistencia
+
+  Solicita la asistencia de un mesero para la mesa de la visita activa del cliente.
+
+  **Criterios de Aceptación cubiertos:** CA-04 (solicitud de asistencia, no duplicar).
+
+  **Control de acceso:** Solo CLIENTE. MESERO/ADMIN → 403.
+
+  **Efecto observable WS:** Al crear la notificación, se publica `AsistenciaSolicitadaWsMessage` en `/topic/mesas/asistencia`. El test OB-06 valida el efecto consultando GET /api/visitas/activa.
+
+  ## Independencia de datos
+
+  Cada test es **independiente**: no asume orden de ejecución ni efectos persistentes
+  de tests previos. Cada `beforeRequest`:
+
+  1. Hace login del/los rol(es) requeridos (CLIENTE, MESERO).
+  2. Resuelve `tmpVisitaId` dinámicamente vía `GET /api/visitas/activa`.
+  3. Limpia (atiende con MESERO) cualquier notificación de asistencia ACTIVA preexistente
+     para que el escenario empiece desde un estado conocido — salvo OB-02 y OB-06 que
+     justo necesitan que exista una asistencia ACTIVA, en cuyo caso la crean si falta.
+
+  Cada `afterResponse` hace `unset` de las variables `tmp*` y atiende la notificación
+  creada para no contaminar ejecuciones posteriores.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | OB-01 | CLIENTE solicita asistencia — 201 Created | 201 |
+  | OB-02 | CLIENTE solicita segunda vez (ya activa) — 409 Conflict | 409 |
+  | OB-03 | CLIENTE en visita sin mesa asignada — 409 Conflict (limitación de seed: 404 aceptado) | 409 |
+  | OB-04 | CLIENTE en visita de otro cliente — 403 Forbidden | 403 |
+  | OB-05 | MESERO intenta solicitar asistencia — 403 Forbidden | 403 |
+  | OB-06 | Verificar GET /visitas/activa refleja asistencia (valida WS) | 200 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: CLIENTE, MESERO
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

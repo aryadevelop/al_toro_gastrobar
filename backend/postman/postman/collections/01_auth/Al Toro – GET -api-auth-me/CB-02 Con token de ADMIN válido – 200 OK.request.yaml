@@ -1,0 +1,28 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CB-02
+  **Objetivo:** Verificar que el endpoint retorna correctamente los datos del usuario ADMIN autenticado, incluyendo todos los campos requeridos por el frontend para la renderización del perfil y la navegación por roles.
+  **Pre-condición:** Debe existir un `accessToken` válido de ADMIN en el entorno.
+  **Resultado esperado:** HTTP 200. La respuesta incluye `id`, `nombre`, `email`, `role`, `roles`, `status` y `createdAt`.
+url: "{{baseUrl}}/api/auth/me"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Usuario ADMIN autenticado retornado', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene email, rol y listado de roles', () => {
+        pm.expect(body).to.have.property('email');
+        pm.expect(body).to.have.property('role');
+        pm.expect(body.roles).to.be.an('array').and.not.empty;
+      });
+
+      pm.test('La respuesta incluye todos los campos requeridos por el frontend', () => {
+        pm.expect(body).to.include.all.keys('id', 'nombre', 'email', 'role', 'roles', 'status', 'createdAt');
+      });
+    language: text/javascript
+order: 2000

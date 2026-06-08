@@ -1,0 +1,55 @@
+$kind: http-request
+name: PA-08 Ownership violada – CLIENTE consulta email ajeno – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Control de ownership — un CLIENTE solo consulta sus propios puntos.
+  **Objetivo:** Verificar que cuando el `emailCliente` del query param no coincide con el
+  email del token, el controller devuelve 403 con el mensaje "Solo puedes consultar tus
+  propios puntos." (regla del `ClienteController.obtenerMisPuntos`).
+  **Pre-condición:** El `beforeRequest` de este test hace login autónomo con `emailCliente`
+  para obtener `clienteToken`; el query apunta a `emailSinPuntos`, que es otro cliente
+  válido pero distinto del autenticado.
+  **Resultado esperado:** 403 Forbidden · mensaje relacionado con ownership.
+url: "{{baseUrl}}/api/clientes/me/puntos?emailCliente=sinpuntos@altoro.com"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  emailCliente: sinpuntos@altoro.com
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('clienteToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        } else {
+          console.warn('PA-08: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza ownership violada con 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El mensaje de error menciona la restricción de ownership', function () {
+        const msg = (pm.response.json().message || '').toLowerCase();
+        pm.expect(msg).to.satisfy(function (m) {
+          return m.includes('propios') || m.includes('puntos') || m.includes('acceso');
+        });
+      });
+    language: text/javascript
+order: 8000

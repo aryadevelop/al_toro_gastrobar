@@ -1,0 +1,36 @@
+$kind: http-request
+name: SP-01 MESERO sirve platos válido – 200 OK
+description: |-
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Marcar comanda con items PLATO como LISTO (rol COCINERO) para disparar notificación PLATOS_LISTOS automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+
+  **Criterio de Aceptación:** CA-04 — Mesero puede registrar que sirvió los platos.
+  **Objetivo:** Verificar respuesta exitosa con success=true y mensaje correcto.
+  **Pre-condición:** `meseroToken` disponible. Notificación ID 11 (ACTIVA, PLATOS_LISTOS).
+  **Resultado esperado:** 200 OK, success=true, message="Platos servidos."
+url: "{{baseUrl}}/api/notificaciones/11/servir-platos"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', () => pm.response.to.have.status(200));
+      pm.test('success=true', () => {
+        pm.expect(pm.response.json().success).to.equal(true);
+      });
+      pm.test('message="Platos servidos."', () => {
+        pm.expect(pm.response.json().message).to.equal('Platos servidos.');
+      });
+    language: text/javascript
+order: 7101

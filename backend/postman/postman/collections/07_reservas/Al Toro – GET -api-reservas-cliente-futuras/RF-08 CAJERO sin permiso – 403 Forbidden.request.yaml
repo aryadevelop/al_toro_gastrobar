@@ -1,0 +1,23 @@
+$kind: http-request
+name: RF-08 CAJERO sin permiso – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Autorización por rol — el `@PreAuthorize` del controller solo
+  acepta `CLIENTE` y `ADMIN`. El rol `CAJERO` debe ser rechazado con 403.
+  **Objetivo:** Verificar que un CAJERO autenticado correctamente NO puede consultar
+  el endpoint de reservas futuras.
+  **Pre-condición:** `cajeroToken` disponible (gestionado por el pre-request del folder).
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/cliente/futuras?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailCliente: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 al rol CAJERO', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 8000

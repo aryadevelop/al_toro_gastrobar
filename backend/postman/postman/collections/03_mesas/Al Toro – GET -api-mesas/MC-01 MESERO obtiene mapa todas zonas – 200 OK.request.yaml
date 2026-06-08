@@ -1,0 +1,79 @@
+$kind: http-request
+name: MC-01 MESERO obtiene mapa todas zonas – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Mesero visualiza mapa completo con todas las zonas.
+  **Objetivo:** Verificar que se retornan todas las zonas con sus mesas activas.
+  **Pre-condición:** `meseroToken` disponible. BD tiene zonas seed y mesas activas.
+  **Resultado esperado:** 200 OK con array de zonas, cada zona tiene mesas[].
+url: "{{baseUrl}}/api/mesas"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MC-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene zonas', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('zonas');
+        pm.expect(body.data.zonas).to.be.an('array');
+        pm.expect(body.data.zonas.length).to.be.greaterThan(0);
+      });
+
+      pm.test('Cada zona tiene estructura correcta', function () {
+        const body = pm.response.json();
+        if (body.data.zonas.length > 0) {
+          const zona = body.data.zonas[0];
+          pm.expect(zona).to.have.property('zonaId');
+          pm.expect(zona).to.have.property('zonaNombre');
+          pm.expect(zona).to.have.property('cantidadMesasActivas');
+          pm.expect(zona).to.have.property('mesas');
+          pm.expect(zona.mesas).to.be.an('array');
+        }
+      });
+
+      pm.test('Las mesas tienen estructura correcta', function () {
+        const body = pm.response.json();
+        const zonasConMesas = body.data.zonas.filter(z => z.mesas.length > 0);
+        if (zonasConMesas.length > 0) {
+          const mesa = zonasConMesas[0].mesas[0];
+          pm.expect(mesa).to.have.property('mesaId');
+          pm.expect(mesa).to.have.property('visitaId');
+          pm.expect(mesa.mesaId).to.equal(mesa.visitaId);  // mesaId == visitaId
+          pm.expect(mesa).to.have.property('identificador');
+          pm.expect(mesa).to.have.property('numeroPersonas');
+          pm.expect(mesa).to.have.property('nombreMesero');
+          pm.expect(mesa).to.have.property('esMesaPropia');
+          pm.expect(mesa).to.have.property('estado');
+          pm.expect(mesa).to.have.property('notificacionesActivas');
+        }
+      });
+    language: text/javascript
+order: 1000

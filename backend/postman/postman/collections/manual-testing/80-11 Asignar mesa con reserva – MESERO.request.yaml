@@ -1,0 +1,43 @@
+$kind: http-request
+name: 80-11 Asignar mesa con reserva – MESERO
+description: Asignar mesa a cliente con reserva previa
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "mesaIdentificador": "T-02",
+      "zonaId": 1,
+      "numeroPersonas": 4,
+      "reservaId": 1,
+      "mesaNotas": "Mesa reservada - Evento especial"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 8011

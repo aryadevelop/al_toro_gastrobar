@@ -1,0 +1,44 @@
+$kind: http-request
+name: MI-09 Mesero no asignado intenta acceder – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** RN-07 — Solo el mesero asignado puede ver items de producción.
+  **Objetivo:** Verificar que mesero2 (no asignado) recibe 403 al intentar acceder a items de visita 10 (asignada a mesero1).
+  **Pre-condición:** `mesero2Token` disponible. Visita 10 pertenece a mesero1@altoro.com.
+  **Resultado esperado:** 403 Forbidden con código AUTH-002.
+url: "{{baseUrl}}/api/mesas/10/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{mesero2Token}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero2@altoro.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('mesero2Token', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+
+      pm.test('Mensaje indica acceso denegado', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('mesero asignado');
+      });
+    language: text/javascript
+order: 3100

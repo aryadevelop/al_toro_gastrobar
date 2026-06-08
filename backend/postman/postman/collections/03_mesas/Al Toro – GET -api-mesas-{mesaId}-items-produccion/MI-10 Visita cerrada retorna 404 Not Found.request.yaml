@@ -1,0 +1,49 @@
+$kind: http-request
+name: MI-10 Visita cerrada retorna 404 Not Found
+description: |-
+  **Criterio de Aceptación:** RN-08 — Solo visitas activas son consultables.
+  **Objetivo:** Verificar que al intentar obtener items de producción de una visita cerrada (visitaFechaHoraFin != NULL) se retorna 404.
+  **Pre-condición:** `meseroToken` disponible. Visita 1 está cerrada en seed V3.
+  **Resultado esperado:** 404 Not Found con código ENT-001 y mensaje "cerrada".
+url: "{{baseUrl}}/api/mesas/1/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 404', function () {
+        pm.response.to.have.status(404);
+      });
+
+      pm.test('Código de error es ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+
+      pm.test('Mensaje indica que la visita está cerrada', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('cerrada');
+      });
+    language: text/javascript
+order: 3150

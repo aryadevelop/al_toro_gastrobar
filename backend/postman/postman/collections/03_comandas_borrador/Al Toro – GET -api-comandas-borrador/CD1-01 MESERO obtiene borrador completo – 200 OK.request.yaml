@@ -1,0 +1,85 @@
+$kind: http-request
+name: CD1-01 MESERO obtiene borrador completo – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Mesero carga formulario con ítems precargados.
+  **Objetivo:** Verificar que la visita 13 retorna ambas comandas BORRADOR con sus ítems agrupados (platos + bebidas) y totales calculados.
+  **Pre-condición:** `meseroToken` disponible. Seed HU-05 sección 14 aplicado (visita 13, comandas 26 + 27).
+  **Resultado esperado:** 200 OK con `comandaCocinaId`, `comandaBarraId`, listas no vacías y totales > 0.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId=13"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del MESERO dueño de la visita 13 (mesero2@altoro.com)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('CD1-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene el borrador de la visita 13', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('visitaId', 13);
+        pm.expect(body.data).to.have.property('mesaIdentificador');
+      });
+
+      pm.test('Ambas comandas BORRADOR están presentes', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.comandaCocinaId).to.not.equal(null);
+        pm.expect(data.comandaBarraId).to.not.equal(null);
+      });
+
+      pm.test('Listas platos y bebidas tienen ítems', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.platos).to.be.an('array');
+        pm.expect(data.bebidas).to.be.an('array');
+        pm.expect(data.platos.length).to.be.greaterThan(0);
+        pm.expect(data.bebidas.length).to.be.greaterThan(0);
+      });
+
+      pm.test('Cada ítem tiene la estructura completa', function () {
+        const item = pm.response.json().data.platos[0];
+        ['comandaItemId','productoId','productoNombre','categoriaProducto',
+         'precioUnitario','cantidad','subtotal'].forEach(k => {
+          pm.expect(item).to.have.property(k);
+        });
+      });
+
+      pm.test('Totales calculados y flags de envío habilitados', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.subTotal)).to.be.greaterThan(0);
+        pm.expect(Number(data.total)).to.be.greaterThan(0);
+        pm.expect(data.puedeEnviarCocina).to.equal(true);
+        pm.expect(data.puedeEnviarBarra).to.equal(true);
+      });
+
+      pm.test('advertenciasPreorden está presente y es un array', function () {
+        const data = pm.response.json().data;
+        pm.expect(data).to.have.property('advertenciasPreorden');
+        pm.expect(data.advertenciasPreorden).to.be.an('array');
+      });
+    language: text/javascript
+order: 1000

@@ -1,0 +1,12 @@
+$kind: collection
+name: Al Toro - Manual Testing
+description: |-
+  Colección para pruebas manuales exploratorias del backend Al Toro Gastrobar.
+
+  **Propósito:** Verificar manualmente flujos end-to-end, explorar respuestas,
+  y validar comportamiento sin assertions automáticas.
+
+  **Uso:** Ejecutar requests individualmente en Postman for VS Code o Postman Desktop.
+  Cada request incluye login automático en beforeRequest para ejecutarse de forma aislada.
+  
+version: 1.0.0

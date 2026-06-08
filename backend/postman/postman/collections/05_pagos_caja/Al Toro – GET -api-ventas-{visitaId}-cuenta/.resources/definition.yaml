@@ -1,0 +1,27 @@
+$kind: collection
+name: Al Toro – GET /api/ventas/{visitaId}/cuenta
+description: |-
+  # GET /api/ventas/{visitaId}/cuenta
+
+  Devuelve la cuenta preliminar de una visita para el cierre de venta (CA-01): cliente y
+  puntos, ítems (con comandaItemId, menuGrupo, esMenuEspecial, esModificado), decoración,
+  totales, abonos y saldo pendiente.
+
+  **Control de acceso:** `@PreAuthorize("hasRole('CAJERO')")`.
+  - CAJERO: 200.
+  - MESERO/CLIENTE/COCINERO/ADMIN: 403.
+  - Sin token: 401.
+
+  **Respuesta 200:** `ApiResponse<CuentaPreliminarResponse>`. Invariante verificado:
+  `totalPreorden` == Σ(subtotales de items) y `saldoPendiente` == `totalAPagar − montoAbonado`.
+
+  ## Independencia de datos
+  Solo lectura. Usa la visita seed 1 (siempre existe). Funciona sobre visitas abiertas o cerradas.
+
+  | ID    | Escenario                      | HTTP |
+  |-------|--------------------------------|------|
+  | CU-01 | Sin token                      | 401  |
+  | CU-02 | MESERO sin permiso             | 403  |
+  | CU-03 | CLIENTE sin permiso            | 403  |
+  | CU-04 | CAJERO cuenta válida           | 200  |
+  | CU-05 | Visita inexistente             | 404  |

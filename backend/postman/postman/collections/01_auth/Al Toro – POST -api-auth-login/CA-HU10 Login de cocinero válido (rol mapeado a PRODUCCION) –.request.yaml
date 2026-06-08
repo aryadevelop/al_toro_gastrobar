@@ -1,0 +1,37 @@
+$kind: http-request
+name: CA-HU10 Login de cocinero válido (rol mapeado a PRODUCCION) – 200 OK
+description: |-
+  **Historia de Usuario:** HU-10
+  **Objetivo:** Verificar que el rol COCINERO es mapeado correctamente al rol frontend `PRODUCCION` mediante `RoleMapper`, permitiendo que las sub-interfaces de cocina y barra compartan la misma vista de producción.
+  **Pre-condición:** cocinero2@altoro.com debe tener COCINERO activo (MESERO inactivo).
+  **Resultado esperado:** HTTP 200. `user.role` es `PRODUCCION`.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailCocinero}}",
+      "password": "{{passwordValida}}",
+      "forceSessionOverride": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Login de cocinero exitoso', () => pm.response.to.have.status(200));
+
+      const body = pm.response.json();
+
+      pm.test('La respuesta contiene accessToken, refreshToken y user', () => {
+        pm.expect(body).to.have.property('accessToken');
+        pm.expect(body).to.have.property('refreshToken');
+        pm.expect(body).to.have.property('user');
+      });
+
+      pm.test('El rol primario es PRODUCCION (COCINERO mapeado por RoleMapper)', () => pm.expect(body.user.role).to.eql('PRODUCCION'));
+
+      pm.test('El tipo de token es Bearer', () => pm.expect(body.tokenType).to.eql('Bearer'));
+    language: text/javascript
+order: 14000

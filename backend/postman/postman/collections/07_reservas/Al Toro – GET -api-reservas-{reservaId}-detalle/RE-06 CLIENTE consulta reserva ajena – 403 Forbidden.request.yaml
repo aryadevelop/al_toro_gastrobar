@@ -1,0 +1,101 @@
+$kind: http-request
+name: RE-06 CLIENTE consulta detalle de reserva ajena – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Regla de ownership — un CLIENTE solo puede consultar sus propias reservas.
+  **Objetivo:** Verificar que el sistema retorna 403 cuando un CLIENTE consulta el detalle de
+  una reserva que pertenece a otro cliente.
+  **Pre-condición:** Ninguna externa. El pre-request hace login autónomo como `emailClienteSinVisitas`
+  para crear la reserva ajena, y como `emailCliente` para el token del request principal.
+  El afterResponse cancela la reserva creada.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+
+      // Login cliente principal (para el request GET)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('Pre-request RE-06: login CLIENTE falló', err, res && res.code);
+        }
+      });
+
+      // Login otro cliente → crear reserva ajena
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailClienteSinVisitas'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err2, res2) {
+        if (err2 || !res2 || res2.code !== 200) {
+          console.warn('Pre-request RE-06: login emailClienteSinVisitas falló', err2, res2 && res2.code);
+          return;
+        }
+        const otroToken = res2.json().accessToken;
+        pm.environment.set('otroClienteToken', otroToken);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + otroToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailClienteSinVisitas'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null, decoracionId: null, notas: null, preOrden: null
+          })}
+        }, function (e3, r3) {
+          if (!e3 && r3 && r3.code === 201) {
+            pm.environment.set('tmpReservaId', r3.json().data.reservaId);
+          } else {
+            console.warn('Pre-request RE-06: creación de reserva ajena falló', e3, r3 && r3.code, r3 && r3.text());
+          }
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza con 403 la consulta de detalle de reserva ajena', function () {
+        pm.response.to.have.status(403);
+      });
+
+      const reservaId = pm.environment.get('tmpReservaId');
+      if (reservaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('otroClienteToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup RE-06: cancelar reserva ajena ' + reservaId + ' falló', r && r.code);
+          }
+        });
+      }
+      pm.environment.unset('tmpReservaId');
+    language: text/javascript
+order: 6000

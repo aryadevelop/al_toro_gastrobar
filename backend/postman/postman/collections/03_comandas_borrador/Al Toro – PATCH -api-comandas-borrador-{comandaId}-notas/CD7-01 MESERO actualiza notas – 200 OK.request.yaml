@@ -1,0 +1,64 @@
+$kind: http-request
+name: CD7-01 MESERO actualiza notas – 200 OK
+description: |-
+  **Objetivo:** Verificar que las notas se persisten en la comanda BORRADOR.
+  **Pre-condición:** beforeRequest auto-provisiona la comanda y guarda su id en `cd701ComandaId`.
+  **Resultado esperado:** 200 OK; `notasCocina` en la respuesta coincide con el texto enviado.
+url: "{{baseUrl}}/api/comandas/borrador/{{cd701ComandaId}}/notas"
+method: PATCH
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "notas": "Sin cebolla en ninguno"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const unique = 'E7-CD7-01-' + Date.now();
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailMesero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        }) }
+      }, (err1, res1) => {
+        if (err1 || !res1 || res1.code !== 200) return;
+        const token = res1.json().accessToken;
+        pm.environment.set('meseroToken', token);
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador/items',
+          method: 'POST',
+          header: { 'Authorization': 'Bearer ' + token, 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            visitaId: 14,
+            productoId: Number(pm.environment.get('productoTestPlatoId')),
+            cantidad: 1,
+            descripcion: unique
+          }) }
+        }, (err2, res2) => {
+          if (err2 || !res2 || res2.code !== 200) return;
+          const comandaId = res2.json().data.comandaCocinaId;
+          if (comandaId) pm.environment.set('cd701ComandaId', comandaId);
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('notasCocina coincide con el texto enviado', function () {
+        const data = pm.response.json().data;
+        pm.expect(data.notasCocina).to.equal('Sin cebolla en ninguno');
+      });
+    language: text/javascript
+order: 1000

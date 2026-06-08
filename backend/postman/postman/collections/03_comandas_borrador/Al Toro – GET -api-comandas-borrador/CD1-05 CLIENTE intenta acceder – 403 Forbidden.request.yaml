@@ -1,0 +1,40 @@
+$kind: http-request
+name: CD1-05 CLIENTE intenta acceder – 403 Forbidden
+description: |-
+  **Objetivo:** Verificar que un usuario con rol CLIENTE recibe 403 al intentar obtener el borrador.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/comandas/borrador?visitaId=13"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('CD1-05: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+    language: text/javascript
+order: 1040

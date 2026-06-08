@@ -1,0 +1,54 @@
+$kind: http-request
+name: VA-01 Cliente con historial de visitas – 200 OK
+description: |-
+  **Criterio de Aceptación:** HE-02-HU-03-CA-05
+  **Objetivo:** Verificar que el sistema retorna el historial de visitas completo, ordenado de más reciente a más antiguo, con los campos requeridos por el criterio.
+  **Pre-condición:** El cliente `emailCliente` tiene al menos una visita registrada.
+  **Resultado esperado:** 200 OK · `data` es array no vacío · cada elemento contiene `visitaId`, `fechaHoraLlegada`, `numeroPersonas`, `estadoVisita`, `montoTotal` (null si no cerrada) · ordenado descendentemente por `fechaHoraLlegada`.
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailCliente}}"
+method: GET
+headers:
+  - key: Authorization
+    value: Bearer {{clienteToken}}
+queryParams:
+  - key: emailCliente
+    value: "{{emailCliente}}"
+scripts:
+  - type: afterResponse
+    code: >-
+      pm.test('El sistema retorna HTTP 200', function() {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La lista del historial no está vacía (CA-05)', function() {
+        pm.expect(pm.response.json().data).to.be.an('array').with.lengthOf.above(0);
+      });
+
+      pm.test('Cada visita del historial contiene visitaId, fechaHoraLlegada,
+      numeroPersonas y estadoVisita', function() {
+        pm.response.json().data.forEach(function(v) {
+          pm.expect(v).to.have.property('visitaId');
+          pm.expect(v).to.have.property('fechaHoraLlegada');
+          pm.expect(v).to.have.property('numeroPersonas');
+          pm.expect(v).to.have.property('estadoVisita');
+        });
+      });
+
+      pm.test('El historial está ordenado de más reciente a más antiguo
+      (CA-05)', function() {
+        var fechas = pm.response.json().data.map(function(v) { return v.fechaHoraLlegada; });
+        for (var i = 1; i < fechas.length; i++) {
+          pm.expect(fechas[i] <= fechas[i-1]).to.be.true;
+        }
+      });
+
+      if (pm.response.code === 200 && pm.response.json().data.length > 0) {
+        var visitas = pm.response.json().data;
+        pm.environment.set('historialSnapshot', JSON.stringify(visitas.map(function(v){ return v.visitaId; })));
+        var conReserva = visitas.find(function(v){ return v.reservaId != null; });
+        var walkIn = visitas.find(function(v){ return v.reservaId == null; });
+        if (conReserva) pm.environment.set('visitaIdConReserva', conReserva.visitaId);
+        if (walkIn) pm.environment.set('visitaIdWalkIn', walkIn.visitaId);
+      }
+    language: text/javascript
+order: 1000

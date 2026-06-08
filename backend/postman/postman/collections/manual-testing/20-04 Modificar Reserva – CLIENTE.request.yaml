@@ -1,0 +1,65 @@
+$kind: http-request
+name: 20-04 Modificar Reserva – CLIENTE
+description: Modificar una reserva futura del cliente (incluye todos los campos del DTO)
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}"
+method: PUT
+headers:
+  Authorization: Bearer {{tmpClienteToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "fechaHoraLlegada": "2026-12-26T20:00:00",
+      "numeroPersonas": 8,
+      "zonaId": 2,
+      "decoracionId": 2,
+      "notas": "Reserva modificada - prueba manual",
+      "preOrden": [
+        {
+          "productoId": 51,
+          "cantidad": 5,
+          "descripcion": null,
+          "esMenuEspecial": true,
+          "opcionesModificacion": [3, 4, 6]
+        },
+        {
+          "productoId": 20,
+          "cantidad": 3,
+          "descripcion": "Sin picante",
+          "esMenuEspecial": false,
+          "opcionesModificacion": []
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar ID temporal (usar ID conocido de reserva existente)
+      pm.environment.set('tmpReservaId', '10');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cliente1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpClienteToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpReservaId');
+      pm.environment.unset('tmpClienteToken');
+    language: text/javascript
+order: 2040

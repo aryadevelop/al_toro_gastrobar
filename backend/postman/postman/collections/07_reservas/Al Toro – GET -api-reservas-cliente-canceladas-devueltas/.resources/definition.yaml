@@ -1,0 +1,99 @@
+$kind: collection
+name: Al Toro – GET /api/reservas/cliente/canceladas-devueltas
+description: |-
+  ## Descripción
+
+  Retorna las reservas en estado `CANCELADA` o `DEVUELTA` del cliente,
+  **ordenadas descendentemente por `fechaHoraLlegada`** (la más reciente primero).
+
+  ## Autorización (`@PreAuthorize`)
+
+  El controller solo permite `CLIENTE` y `ADMIN`.
+
+  | Rol (token)               | Rol funcional (RoleMapper) | Resultado esperado            |
+  |---------------------------|----------------------------|-------------------------------|
+  | `CLIENTE` (sí dueño)      | `CLIENTE`                  | 200 (sus propias reservas)    |
+  | `CLIENTE` (otro dueño)    | `CLIENTE`                  | 403 (regla de ownership)      |
+  | `ADM`                     | `ADMIN`                    | 200 (cualquier cliente)       |
+  | `MESERO`                  | `MESERO`                   | 403 (rol no permitido)        |
+  | `CAJERO`                  | `CAJERO`                   | 403 (rol no permitido)        |
+  | `COCINERO` / `BARTENDER`  | `PRODUCCION`               | 403 (rol no permitido)        |
+  | sin token                 | —                          | 401 (no autenticado)          |
+
+  ## Independencia de las pruebas
+
+  La API no expone un endpoint de cancelación/devolución de reservas (está marcado como TODO
+  en el controller), por lo que las pruebas no pueden crear una reserva en estado terminal
+  desde un `beforeRequest`. Los casos de happy-path (RD-01, RD-04) dependen del seed
+  `V3__dev_data.sql`, que incluye:
+
+  - Reserva `id=6`  → `CANCELADA` (cliente_id=14, sofía)
+  - Reserva `id=15` → `DEVUELTA`  (cliente_id=16, valentina)
+  - Reserva `id=16` → `DEVUELTA`  (cliente_id=13, **andres.morales** = `emailCliente`)
+
+  Esta es una dependencia *de seed*, no *entre pruebas*: ninguna prueba depende de un insert
+  hecho por otra. RD-02 usa `emailSinHistorial` (también definido en el seed como cuenta vacía).
+
+  ## Campos esperados en cada elemento
+
+  Mismos que `ReservaDetalleResponse`: `reservaId`, `fechaHoraLlegada`, `numeroPersonas`,
+  `estado` (siempre `CANCELADA` o `DEVUELTA`), `tipo`. Opcionales (omitidos por
+  `@JsonInclude(NON_NULL)`): `zonaNombre`, `decoracionNombre`, `notas`, `preOrdenItems`,
+  `totalPreorden`, `abonos`, `montoAbonado (neto)`.
+
+  ## Matriz de casos
+
+  | ID    | Escenario                                                           | HTTP |
+  |-------|---------------------------------------------------------------------|------|
+  | RD-01 | CLIENTE consulta sus propias canceladas/devueltas                   | 200  |
+  | RD-02 | CLIENTE sin historial terminal (lista vacía)                        | 200  |
+  | RD-03 | CLIENTE consulta canceladas de otro cliente (ownership)             | 403  |
+  | RD-04 | ADMIN consulta canceladas/devueltas de cualquier cliente            | 200  |
+  | RD-05 | Sin token JWT                                                        | 401  |
+  | RD-06 | COCINERO (rol PRODUCCION) sin permiso                               | 403  |
+  | RD-07 | MESERO sin permiso                                                   | 403  |
+  | RD-08 | CAJERO sin permiso                                                   | 403  |
+  | RD-09 | Email de cliente inexistente (con ADMIN, sin conflicto de ownership)| 404  |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Logins autónomos encadenados secuencialmente: Postman no garantiza esperar a múltiples
+      // callbacks hermanos de pm.sendRequest antes de disparar la request. Los ejecutamos
+      // uno tras otro mediante una cadena recursiva para evitar race conditions.
+      const logins = [
+        { emailKey: 'emailCliente',            tokenKey: 'clienteToken'      },
+        { emailKey: 'emailClienteSinVisitas',  tokenKey: 'otroClienteToken'  },
+        { emailKey: 'emailSinHistorial',       tokenKey: 'sinHistorialToken' },
+        { emailKey: 'emailMesero',             tokenKey: 'meseroToken'       },
+        { emailKey: 'emailCajero',             tokenKey: 'cajeroToken'       },
+        { emailKey: 'emailAdmin',              tokenKey: 'accessToken'       },
+        { emailKey: 'emailCocinero',           tokenKey: 'cocineroToken'     }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+
+      runLogin(0);
+    language: text/javascript

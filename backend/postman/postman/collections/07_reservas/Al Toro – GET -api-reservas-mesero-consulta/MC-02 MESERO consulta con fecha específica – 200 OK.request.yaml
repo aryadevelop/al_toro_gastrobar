@@ -1,0 +1,129 @@
+$kind: http-request
+name: MC-02 MESERO consulta con fecha específica – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-06 — el mesero puede filtrar por fecha específica.
+  **Objetivo:** Verificar que un MESERO obtiene el listado de reservas activas de una fecha específica cuando usa el parámetro fecha.
+  **Pre-condición:** El pre-request hace login autónomo como MESERO y crea una reserva para el día siguiente.
+  **Resultado esperado:** 200 OK · `data.reservas` contiene la reserva creada · solo reservas de la fecha especificada.
+url: "{{baseUrl}}/api/reservas/mesero/consulta"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+queryParams:
+  fecha: "{{tmpFechaConsulta}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setDate(d.getDate() + 1);
+      d.setHours(19, 0, 0, 0);
+      const fechaHora = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}T${pad(d.getHours())}:00:00`;
+      const fechaConsulta = `${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+      pm.environment.set('tmpFechaConsulta', fechaConsulta);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) {
+          console.warn('MC-02: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            emailCliente: pm.environment.get('emailCliente'),
+            fechaHoraLlegada: fechaHora,
+            numeroPersonas: 2,
+            zonaId: null, decoracionId: null, notas: null, preOrden: null
+          })}
+        }, function (e2, r2) {
+          if (!e2 && r2 && r2.code === 201) {
+            pm.environment.set('tmpReservaIdMC02', r2.json().data.reservaId);
+          } else {
+            console.warn('MC-02: creación de reserva falló', e2, r2 && r2.code);
+          }
+
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailMesero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (!e3 && r3 && r3.code === 200) {
+              pm.environment.set('meseroToken', r3.json().accessToken);
+            } else {
+              console.warn('MC-02: login MESERO falló', e3, r3 && r3.code);
+            }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es true', function () {
+        pm.expect(body.success).to.be.true;
+      });
+
+      pm.test('El campo data contiene reservas y resumenZonas', function () {
+        pm.expect(body.data.reservas).to.be.an('array');
+        pm.expect(body.data.resumenZonas).to.be.an('array');
+      });
+
+      const tmpId = String(pm.environment.get('tmpReservaIdMC02'));
+      if (tmpId && tmpId !== 'undefined') {
+        pm.test('La reserva creada aparece en el listado', function () {
+          const ids = body.data.reservas.map(r => String(r.reservaId));
+          pm.expect(ids).to.include(tmpId);
+        });
+
+        const reservaId = pm.environment.get('tmpReservaIdMC02');
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: { mode: 'raw', raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })}
+        }, function (e, r) {
+          if (!e && r && r.code === 200) {
+            const clienteToken = r.json().accessToken;
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + clienteToken }
+            }, function (e2, r2) {
+              if (!e2 && r2 && r2.code !== 200) {
+                console.warn('Cleanup MC-02: cancelar reserva falló', r2 && r2.code);
+              }
+            });
+          }
+        });
+      }
+
+      pm.environment.unset('tmpReservaIdMC02');
+      pm.environment.unset('tmpFechaConsulta');
+    language: text/javascript
+order: 1010

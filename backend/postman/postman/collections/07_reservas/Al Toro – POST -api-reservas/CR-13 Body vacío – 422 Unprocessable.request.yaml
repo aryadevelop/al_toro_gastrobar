@@ -1,0 +1,27 @@
+$kind: http-request
+name: CR-13 Body vacío – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** Las validaciones `@NotNull` sobre `fechaHoraLlegada` y
+  `numeroPersonas` en `CrearReservaRequest` obligan a rechazar el request cuando el
+  body es `{}`. `GlobalExceptionHandler` traduce `MethodArgumentNotValidException` a
+  `422 UNPROCESSABLE_ENTITY`.
+  **Objetivo:** Verificar el rechazo cuando no se envía ningún campo.
+  **Pre-condición:** `clienteToken` disponible.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza el body vacío con 422', function () {
+        pm.response.to.have.status(422);
+      });
+    language: text/javascript
+order: 13000

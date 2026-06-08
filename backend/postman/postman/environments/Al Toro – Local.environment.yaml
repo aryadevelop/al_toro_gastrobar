@@ -1,0 +1,170 @@
+name: Al Toro – Local
+values:
+  - key: baseUrl
+    value: 'http://localhost:8080'
+  - key: emailAdmin
+    value: admin@altoro.com
+  - key: emailCliente
+    value: andres.morales@gmail.com
+  - key: emailSuspendido
+    value: carlos.perez@gmail.com
+  - key: emailMesero
+    value: mesero2@altoro.com
+  - key: emailCocinero
+    value: cocinero2@altoro.com
+  - key: emailBartender
+    value: bartender1@altoro.com
+  - key: emailCajero
+    value: cajero2@altoro.com
+  - key: emailMultiRol
+    value: cajero1@altoro.com
+  - key: emailClienteSinVisitas
+    value: nicolas.vargas@gmail.com
+  - key: emailSinHistorial
+    value: sinhistorial@altoro.com
+  - key: passwordValida
+    value: Al.Toro2026!
+  - key: idProductoInactivo
+    value: '138'
+  - key: idDecoracionZonaFija
+    value: '8'
+  - key: visitaIdWalkInOtroCliente
+    value: '10'
+  - key: visitaIdAnonima
+    value: '8'
+  - key: fechaLibre
+    value: '2026-12-15T19:00:00'
+  - key: fechaCapacidad
+    value: '2026-12-16T20:00:00'
+  - key: fechaDecoracion
+    value: '2026-12-17T18:00:00'
+  - key: fechaPreorden
+    value: '2026-12-18T19:00:00'
+  - key: fechaTodasOcupadas
+    value: '2026-12-20T19:00:00'
+  - key: fechaBloqueadaDia
+    value: '2026-12-25T19:00:00'
+  - key: fechaBloqueadaFranja
+    value: '2026-12-22T20:00:00'
+  - key: fechaBloqueadaFranjaFuera
+    value: '2026-12-22T17:00:00'
+  - key: fechaFueraHorario
+    value: '2026-12-15T15:00:00'
+  - key: fechaDespuesCierre
+    value: '2026-12-15T23:00:00'
+  - key: clienteAccessToken
+    value: ''
+  - key: clienteRefreshToken
+    value: ''
+  - key: meseroToken
+    value: ''
+  - key: meseroAccessToken
+    value: ''
+  - key: cocineroToken
+    value: ''
+  - key: sinHistorialToken
+    value: ''
+  - key: visitaIdConReserva
+    value: ''
+  - key: visitaIdWalkIn
+    value: ''
+  - key: reservaIdConPreOrden
+    value: '10'
+  - key: reservaIdCancelada
+    value: '6'
+  - key: reservaIdBasica
+    value: '1'
+  - key: reservaIdFutura
+    value: ''
+  - key: reservaIdConZona
+    value: ''
+  - key: clienteIdConPuntos
+    value: ''
+  - key: clienteIdSinPuntos
+    value: ''
+  - key: zonaIdDisponibleCapacidad
+    value: ''
+  - key: zonaIdDisponible
+    value: ''
+  - key: decoracionIdDisponible
+    value: ''
+  - key: fechaCapacidadHoraAlternativa
+    value: ''
+  - key: otroClienteToken
+    value: ''
+  - key: adminToken
+    value: ''
+  - key: cajeroToken
+    value: ''
+  - key: clienteToken
+    value: ''
+  - key: clienteSinPuntosToken
+    value: ''
+  - key: decoracionConCostoId
+    value: ''
+  - key: decoracionConCostoId2
+    value: ''
+  - key: loginExpiresIn
+    value: ''
+  - key: refreshToken
+    value: ''
+  - key: tmpClienteToken
+    value: ''
+  - key: mesero2Token
+    value: ''
+  - key: itemPicanhaBaseId
+    value: ''
+  - key: itemHamburguesaSinTomateId
+    value: ''
+  - key: itemHamburguesaExtraQuesoId
+    value: ''
+  - key: productoTestPlatoId
+    value: ''
+  - key: cd401Desc
+    value: ''
+  - key: cd401TargetItemId
+    value: ''
+  - key: cd501Desc
+    value: ''
+  - key: cd501ComandaId
+    value: ''
+  - key: cd502ComandaId
+    value: ''
+  - key: cd701ComandaId
+    value: ''
+  - key: cd702ComandaId
+    value: ''
+  - key: cd705ComandaId
+    value: ''
+  - key: notificacionIdSinBorrador
+    value: ''
+  - key: notificacionIdConBorrador
+    value: ''
+  - key: comandaIdBorradorDestino
+    value: ''
+  - key: bartenderToken
+    value: ''
+  - key: comandaIdCocinaVisible
+    value: ''
+  - key: comandaIdBarraVisible
+    value: ''
+  - key: comandaIdCompletada
+    value: ''
+  - key: tmpFechaHora
+    value: ''
+  - key: tmpComandaBarraId
+    value: ''
+  - key: tmpMenuItemCocinaId
+    value: ''
+  - key: tmpMenuGrupo
+    value: ''
+  - key: tmpMenuCantidadAntes
+    value: ''
+  - key: tmpMesaIdent
+    value: ''
+  - key: tmpFechaLlegada
+    value: ''
+  - key: tmpClienteId
+    value: ''
+  - key: accessToken
+    value: ''

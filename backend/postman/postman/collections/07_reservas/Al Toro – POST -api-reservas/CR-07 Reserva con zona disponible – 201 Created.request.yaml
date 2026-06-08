@@ -1,0 +1,54 @@
+$kind: http-request
+name: CR-07 Reserva con zona disponible – 201 Created
+description: |-
+  **Criterio de Aceptación:** El usuario puede elegir una zona específica al crear la
+  reserva. Sin decoración con costo y sin menú especial, la reserva permanece BÁSICA y
+  queda CONFIRMADA.
+  **Objetivo:** Verificar que al indicar `zonaId`, la reserva se asocia a la zona
+  solicitada y la respuesta refleja su nombre.
+  **Pre-condición:** `clienteToken` disponible; `tmpFechaLibre` aleatoria futura; zona
+  id=1 (Salón Principal, cap=60) existe por seed V2.
+  **Resultado esperado:** 201 Created, `tipo=BASICA`, `estado=CONFIRMADA`,
+  `zonaNombre` no nulo, `decoracionNombre` null.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 4,
+      "zonaId": 1
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema crea la reserva con zona con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva queda asociada a la zona solicitada como BÁSICA CONFIRMADA', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('reservaId');
+        pm.expect(body.data.tipo).to.eql('BASICA');
+        pm.expect(body.data.estado).to.eql('CONFIRMADA');
+        pm.expect(body.data.zonaNombre).to.be.a('string').and.not.empty;
+        pm.expect(body.data.decoracionNombre).to.be.null;
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 7000

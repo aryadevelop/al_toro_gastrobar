@@ -1,0 +1,43 @@
+$kind: http-request
+name: 19 CAJERO verifica el +1 punto tras el cierre – 200 OK
+description: Tras cerrar la venta, el cliente recibe +1 punto sobre el saldo post-canje. `puntosActuales` = `tmpPuntosTrasCanje` + 1.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El cliente recibió exactamente +1 punto tras el cierre', function () {
+        const antes = Number(pm.environment.get('tmpPuntosTrasCanje'));
+        const despues = Number(pm.response.json().data.puntosActuales);
+        pm.expect(despues).to.eql(antes + 1);
+      });
+      // Limpieza de variables temporales del escenario
+      ['tmpReservaId','tmpVisitaId','tmpComandaCocinaId','tmpComandaCocinaId2','tmpMesaIdent',
+       'tmpClienteId','tmpPuntosTrasCanje']
+        .forEach(k => pm.environment.unset(k));
+    language: text/javascript
+order: 280

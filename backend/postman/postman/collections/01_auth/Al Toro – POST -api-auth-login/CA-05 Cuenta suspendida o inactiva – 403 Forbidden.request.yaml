@@ -1,0 +1,26 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-05
+  **Objetivo:** Verificar que el sistema impide el acceso a cuentas suspendidas o marcadas como inactivas, retornando el mensaje informativo correspondiente.
+  **Pre-condición:** El usuario carlos.perez@gmail.com debe existir con estado suspendido o inactivo.
+  **Resultado esperado:** HTTP 403 con mensaje `Tu cuenta se encuentra suspendida. Por favor contacta al administrador`.
+url: "{{baseUrl}}/api/auth/login"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "email": "{{emailSuspendido}}",
+      "password": "{{passwordValida}}"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 403 – Cuenta suspendida', () => pm.response.to.have.status(403));
+
+      pm.test('Mensaje de cuenta suspendida', () =>
+        pm.expect(pm.response.json().message).to.eql('Tu cuenta se encuentra suspendida. Por favor contacta al administrador'));
+    language: text/javascript
+order: 6000

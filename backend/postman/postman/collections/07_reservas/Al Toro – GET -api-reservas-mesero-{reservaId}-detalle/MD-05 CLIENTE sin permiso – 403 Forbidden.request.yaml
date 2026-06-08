@@ -1,0 +1,47 @@
+$kind: http-request
+name: MD-05 CLIENTE sin permiso – 403 Forbidden
+description: |-
+  **Objetivo:** Verificar que el endpoint está protegido para roles MESERO/ADMIN y rechaza acceso de CLIENTE.
+  **Pre-condición:** El pre-request hace login autónomo como CLIENTE.
+  **Resultado esperado:** 403 Forbidden · sin acceso a datos.
+url: "{{baseUrl}}/api/reservas/mesero/{{tmpReservaIdMD05}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      const reservaId = pm.environment.get('reservaIdConPreOrden') || '10';
+      pm.environment.set('tmpReservaIdMD05', reservaId);
+
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('MD-05: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 403', function () {
+        pm.response.to.have.status(403);
+      });
+
+      const body = pm.response.json();
+      pm.test('El campo success es false', function () {
+        pm.expect(body.success).to.be.false;
+      });
+
+      pm.environment.unset('tmpReservaIdMD05');
+    language: text/javascript
+order: 2040

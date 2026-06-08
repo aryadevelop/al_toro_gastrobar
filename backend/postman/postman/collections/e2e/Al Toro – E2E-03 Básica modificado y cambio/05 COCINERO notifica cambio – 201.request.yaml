@@ -1,0 +1,52 @@
+$kind: http-request
+name: 05 COCINERO notifica CAMBIO sobre la comanda COCINA – 201 Created
+description: |-
+  Producción registra una notificación CAMBIO sobre la comanda COCINA PENDIENTE (CA-02).
+  Captura `tmpNotifCambioId` para que el mesero la atienda.
+  // VERIFICAR EN VIVO: payload exacto {comandaId} y status 201; nombre del campo id en data
+  // (se intenta data.notificacionId y data.id como fallback).
+url: "{{baseUrl}}/api/notificaciones/cambio"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "comandaId": {{tmpComandaCocinaId}}
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCocinero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cocineroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema registra la notificación de cambio (HTTP 201)', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('Captura el id de la notificación CAMBIO', function () {
+        const data = pm.response.json().data;
+        // VERIFICAR EN VIVO: nombre exacto del campo id de la notificación.
+        const notifId = data.notificacionId != null ? data.notificacionId : data.id;
+        pm.expect(notifId, 'id de notificación CAMBIO').to.be.a('number');
+        pm.environment.set('tmpNotifCambioId', notifId);
+      });
+    language: text/javascript
+order: 140

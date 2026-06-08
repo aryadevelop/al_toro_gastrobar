@@ -1,0 +1,104 @@
+$kind: collection
+name: Al Toro – POST /api/reservas
+description: |-
+  # POST /api/reservas
+
+  Crear una reserva del cliente.
+
+  ## Autorización
+
+  `@PreAuthorize("hasRole('CLIENTE')")` — **solo** el rol funcional `CLIENTE` puede crear
+  reservas. Cualquier otro rol (MESERO, CAJERO, PRODUCCION, ADMIN) debe recibir
+  `403 Forbidden`. La lógica de ownership del controller toma el `emailCliente` del token
+  cuando el solicitante es CLIENTE (ignorando el campo del body); la rama "no-CLIENTE → email
+  del body" del código existe para cuando se amplíe el `@PreAuthorize` en el futuro.
+
+  | Caso          | Token                          | Esperado |
+  |---------------|--------------------------------|----------|
+  | CR-01         | (sin token)                    | 401      |
+  | CR-02..CR-05  | MESERO / CAJERO / PRODUCCION / ADMIN | 403 |
+  | CR-06..CR-12  | CLIENTE                        | 201      |
+  | CR-13..CR-20  | CLIENTE                        | 422      |
+  | CR-21..CR-28  | CLIENTE                        | 422 / 404 / 201 |
+  | CR-29..CR-31  | CLIENTE                        | 422      |
+  | CR-32..CR-36  | CLIENTE                        | 422 / 404 |
+
+  ## Categorías de pruebas
+
+  - **CR-01..CR-05** Matriz de autorización por rol.
+  - **CR-06..CR-12** Casos exitosos: reserva mínima, con zona, decoración gratuita,
+    decoración costosa (ESPECIAL), pre-orden regular, menú especial, ownership.
+  - **CR-13..CR-20** Validaciones del request body por `@Valid` → 422 (campos obligatorios,
+    límites de rango, formato de email, fecha futura, cantidad en pre-orden).
+  - **CR-21..CR-28** Reglas de negocio: horario, bloqueos administrativos, recursos no
+    encontrados, compatibilidad decoración-zona.
+  - **CR-29..CR-31** Capacidad de zona (por zona y global) y decoración ya ocupada.
+  - **CR-32..CR-36** Validaciones de pre-orden y menú especial.
+
+  ## Independencia de datos
+
+  Cada test es ejecutable solo, repetidamente y en cualquier orden. No hay dependencias
+  entre tests dentro de la colección.
+
+  - **Tokens:** se obtienen dinámicamente mediante `pm.sendRequest` encadenado en el
+    `beforeRequest` de la colección (login secuencial de todos los roles).
+  - **Fechas libres:** los tests de creación generan fechas futuras aleatorias
+    (`tmpFechaLibre`, año actual + 2..4) en sus propios `beforeRequest`, evitando
+    colisiones con datos insertados por ejecuciones previas.
+  - **Estado de capacidad/decoración ocupada:** los tests CR-29 y CR-31 crean su propio
+    estado vía POST en el `beforeRequest` (llenan zona / ocupan decoración) antes de
+    invocar el caso bajo prueba. Cada ejecución crea sus propios datos.
+  - **Bloqueos administrativos** (CR-23, CR-24, CR-25): dependen de seed data en
+    `V3__dev_data.sql` (fechas fijas 2026-12-22 y 2026-12-25). Esta dependencia es
+    inevitable mientras no exista un endpoint público para crear bloqueos.
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de todos los roles requeridos por la colección.
+      //
+      // Se encadenan las peticiones para evitar race conditions entre callbacks:
+      // cada login dispara el siguiente solo cuando el anterior terminó.
+      //
+      // Tokens expuestos:
+      //   - clienteToken   : rol CLIENTE (único autorizado)
+      //   - meseroToken    : rol MESERO
+      //   - cajeroToken    : rol CAJERO
+      //   - cocineroToken  : rol PRODUCCION (COCINERO)
+      //   - accessToken    : rol ADMIN (ADM)
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailCliente',  tokenKey: 'clienteToken'  },
+        { emailKey: 'emailMesero',   tokenKey: 'meseroToken'   },
+        { emailKey: 'emailCajero',   tokenKey: 'cajeroToken'   },
+        { emailKey: 'emailCocinero', tokenKey: 'cocineroToken' },
+        { emailKey: 'emailAdmin',    tokenKey: 'accessToken'   }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('Pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

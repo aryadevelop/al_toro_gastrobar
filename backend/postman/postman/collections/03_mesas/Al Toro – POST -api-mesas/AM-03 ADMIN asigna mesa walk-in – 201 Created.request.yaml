@@ -1,0 +1,120 @@
+$kind: http-request
+name: AM-03 ADMIN asigna mesa walk-in – 201 Created
+description: |-
+  **Criterio:** CA-03 — ADMIN asigna mesa walk-in sin reserva.
+  **Objetivo:** Verificar que un administrador puede asignar un identificador a una mesa para clientes walk-in.
+  **Pre-condición:** `adminToken` se obtiene en beforeRequest. Zona ID 1 existe y está activa.
+  **Resultado esperado:** 201 Created con visitaId, estadoMesa="ESPERA".
+  Cada ejecución crea sus propios datos. Independiente del orden.
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "mesaIdentificador": "{{tmpMesaIdentificador}}",
+      "zonaId": 1,
+      "numeroPersonas": 3
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Generar identificador único de mesa para evitar colisiones entre ejecuciones
+      pm.environment.set('tmpMesaIdentificador', 'A1-' + String(Date.now()).slice(-6));
+
+      // Autonomous login using environment variables
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        } else {
+          console.warn('AM-03: login ADMIN falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      const expectedIdent = pm.environment.get('tmpMesaIdentificador');
+
+      pm.test('El sistema retorna HTTP 201', function () {
+        pm.response.to.have.status(201);
+      });
+
+      pm.test('La respuesta contiene success=true', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.equal(true);
+      });
+
+      pm.test('La respuesta contiene visitaId', function () {
+        const body = pm.response.json();
+        pm.expect(body.data).to.have.property('visitaId');
+        pm.expect(body.data.visitaId).to.be.a('number');
+      });
+
+      pm.test('El estadoMesa es ESPERA', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.estadoMesa).to.equal('ESPERA');
+      });
+
+      pm.test('El mesaIdentificador coincide con el enviado', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.mesaIdentificador).to.equal(expectedIdent);
+      });
+
+      // Cleanup: cerrar la visita creada
+      const visitaId = pm.response.json().data && pm.response.json().data.visitaId;
+      if (visitaId) {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/ventas',
+              method: 'POST',
+              header: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + res.json().accessToken
+              },
+              body: {
+                mode: 'raw',
+                raw: JSON.stringify({
+                  visitaId: visitaId,
+                  emailCajero: pm.environment.get('emailCajero')
+                })
+              }
+            }, (err2, res2) => {
+              if (err2 || !res2 || res2.code !== 201) {
+                console.warn('AM-03: cleanup de visita falló', err2, res2 && res2.code);
+              }
+            });
+          }
+        });
+      }
+
+      pm.environment.unset('tmpMesaIdentificador');
+    language: text/javascript
+order: 3000

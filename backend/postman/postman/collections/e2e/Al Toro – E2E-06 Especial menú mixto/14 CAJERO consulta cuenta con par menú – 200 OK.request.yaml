@@ -1,0 +1,57 @@
+$kind: http-request
+name: 14 CAJERO consulta la cuenta (par menú presente) – 200 OK
+description: |-
+  La cuenta debe mostrar el par de menú especial: la línea COCINA a precio completo y la línea BARRA
+  (bebida) a precio 0, ambas con el mismo `menuGrupo`. Captura la cantidad actual del menú en
+  `tmpMenuCantidadAntes` para comparar tras el ajuste.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El par de menú está presente (cocina precio completo + barra 0)', function () {
+        const data = pm.response.json().data;
+        // VERIFICAR EN VIVO: nombres exactos de los arrays/campos del DTO de cuenta (platos/bebidas/items).
+        const items = []
+          .concat(data.platos || [])
+          .concat(data.bebidas || [])
+          .concat(data.items || []);
+        const grupo = pm.environment.get('tmpMenuGrupo');
+        const lineasMenu = items.filter(i => i.menuGrupo && (!grupo || i.menuGrupo === grupo));
+        pm.expect(lineasMenu.length, 'líneas del par de menú').to.be.at.least(2);
+
+        const cocina = lineasMenu.find(i => Number(i.precioUnitario) > 0);
+        const barra = lineasMenu.find(i => Number(i.precioUnitario) === 0);
+        pm.expect(cocina, 'línea COCINA del menú (precio > 0)').to.be.an('object');
+        pm.expect(barra, 'línea BARRA del menú (precio 0)').to.be.an('object');
+
+        // Guardar comandaItemId del plato de menú y su cantidad actual para el ajuste posterior.
+        if (cocina.comandaItemId) pm.environment.set('tmpMenuItemCocinaId', cocina.comandaItemId);
+        pm.environment.set('tmpMenuCantidadAntes', cocina.cantidad);
+      });
+    language: text/javascript
+order: 230

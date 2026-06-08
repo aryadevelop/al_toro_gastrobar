@@ -1,0 +1,42 @@
+$kind: http-request
+name: 12 CAJERO verifica el +1 punto del cliente asignado – 200 OK
+description: Tras cerrar, el cliente recién asignado recibe +1 punto. `puntosActuales` = `tmpPuntosAntes` + 1.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('El cliente asignado recibió exactamente +1 punto', function () {
+        const antes = Number(pm.environment.get('tmpPuntosAntes'));
+        const despues = Number(pm.response.json().data.puntosActuales);
+        pm.expect(despues).to.eql(antes + 1);
+      });
+      // Limpieza de variables temporales del escenario
+      ['tmpVisitaId','tmpComandaCocinaId','tmpMesaIdent','tmpClienteId','tmpPuntosAntes']
+        .forEach(k => pm.environment.unset(k));
+    language: text/javascript
+order: 210

@@ -1,0 +1,52 @@
+$kind: http-request
+name: 07 CAJERO detalle con abono NETO – 200 OK
+description: |-
+  Verificación final del cálculo NETO: montoAbonado = 40000 − 15000 = 25000. Como la reserva
+  está CANCELADA, el detalle omite `saldoPendiente` y expone `pendientePorDevolver`=25000
+  (neto a devolver). El historial `abonos` contiene 2 movimientos (ANTICIPO y DEVOLUCION).
+url: "{{baseUrl}}/api/reservas/{{tmpReservaId}}/detalle"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('montoAbonado es NETO (25000) y, por estar CANCELADA, expone pendientePorDevolver (no saldoPendiente)', function () {
+        const d = pm.response.json().data;
+        pm.expect(Number(d.montoAbonado), 'neto = anticipos − devoluciones').to.eql(25000);
+        // Reserva CANCELADA: saldoPendiente se omite (no se debe pagar nada);
+        // el neto retenido (25000) se reporta como pendientePorDevolver.
+        pm.expect(d.saldoPendiente, 'saldoPendiente omitido en CANCELADA').to.not.exist;
+        pm.expect(Number(d.pendientePorDevolver), 'neto a devolver').to.eql(25000);
+      });
+      pm.test('El historial de abonos lista ANTICIPO y DEVOLUCION', function () {
+        const abonos = pm.response.json().data.abonos;
+        pm.expect(abonos, 'array de abonos').to.be.an('array').with.lengthOf(2);
+        const tipos = abonos.map(a => a.tipo);
+        pm.expect(tipos).to.include('ANTICIPO');
+        pm.expect(tipos).to.include('DEVOLUCION');
+      });
+    language: text/javascript
+order: 160

@@ -1,0 +1,35 @@
+$kind: http-request
+name: CU-03 ADMIN sin permiso – 403 Forbidden
+description: La cuenta es exclusiva del CAJERO; ADMIN también recibe 403.
+url: "{{baseUrl}}/api/ventas/1/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{adminToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailAdmin'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('adminToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('ADMIN no puede ver la cuenta → 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('code = AUTH-002', function () {
+        pm.expect(pm.response.json().code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 3000

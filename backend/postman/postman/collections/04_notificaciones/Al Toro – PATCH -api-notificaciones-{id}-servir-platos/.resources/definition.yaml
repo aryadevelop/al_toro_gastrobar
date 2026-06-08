@@ -1,0 +1,74 @@
+$kind: collection
+name: Al Toro – PATCH /api/notificaciones/{id}/servir-platos
+description: |-
+  # PATCH /api/notificaciones/{id}/servir-platos
+
+  Registra que el mesero sirvió los platos de una comanda.
+
+  **Control de acceso:**
+  - MESERO/CAJERO/ADMIN: acceso permitido.
+  - CLIENTE: 403 Forbidden.
+  - Sin token: 401 Unauthorized.
+
+  ## Variables de entorno requeridas
+  - `seedNotificacionPlatosListosId`  = 11  (notificación ACTIVA PLATOS_LISTOS para SP-01)
+  - `seedNotificacionPlatosListosId2` = 12  (notificación ACTIVA PLATOS_LISTOS para SP-02)
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | SP-01 | MESERO sirve platos válido | 200 |
+  | SP-02 | ADMIN sirve platos | 200 |
+  | SP-03 | Sin token | 401 |
+  | SP-05 | CLIENTE | 403 |
+  | SP-06 | ID inexistente | 404 |
+  | SP-07 | Ya atendida | 409 |
+  | SP-08 | CAJERO sirve platos | 200 |
+
+  > ⚠️ TODO — Test dependiente de seed data
+  >
+  > Este test no se pudo refactorizar al patrón "create fresh data" porque el flujo prerequisito
+  > no expone endpoint público:
+  >   - Marcar comanda con items PLATO como LISTO (rol COCINERO) para disparar notificación PLATOS_LISTOS automáticamente.
+  >
+  > Hasta que el endpoint exista, el test:
+  >   1. Sigue dependiendo de la notificación seed en V3__dev_data.sql.
+  >   2. Puede romperse en runs repetidos.
+  >
+  > Acción pendiente: cuando se construya el endpoint, refactorizar este test al patrón
+  > create-fresh siguiendo `docs/superpowers/plans/2026-05-03-postman-tests-independencia.md`.
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('SP pre-request: login ' + emailKey + ' falló');
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript
+order: 7100

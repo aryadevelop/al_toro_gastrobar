@@ -1,0 +1,23 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** Historial vacío para cliente sin visitas
+  **Objetivo:** Verificar que el endpoint retorna 200 con lista vacía cuando el cliente existe pero no tiene ninguna visita registrada.
+  **Pre-condición:** `emailClienteSinVisitas` (nicolas.vargas@gmail.com, usuario_id=21) existe en la BD como CLIENTE pero no tiene filas en la tabla `restaurante.visita`.
+  **Resultado esperado:** 200 OK · `data` = `[]`.
+url: "{{baseUrl}}/api/visitas/cliente/historial?emailCliente={{emailClienteSinVisitas}}"
+method: GET
+headers:
+  Authorization: Bearer {{accessToken}}
+queryParams:
+  emailCliente: "{{emailClienteSinVisitas}}"
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 200 para cliente sin visitas', function() {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La lista de visitas está vacía para un cliente sin historial', function() {
+        pm.expect(pm.response.json().data).to.be.an('array').with.lengthOf(0);
+      });
+    language: text/javascript
+order: 7000

@@ -1,0 +1,56 @@
+$kind: http-request
+name: CR-10 Reserva con pre-orden de productos regulares – 201 Created
+description: |-
+  **Criterio de Aceptación:** El cliente puede adjuntar una pre-orden con productos
+  regulares (sin menú especial) al crear la reserva; el servicio valida que los
+  productos existan y estén activos y registra los ítems en estado PRE_RESERVA.
+  **Objetivo:** Verificar que una pre-orden válida sin menú especial mantiene la reserva
+  como BÁSICA y la deja CONFIRMADA.
+  **Pre-condición:** `clienteToken` disponible; seed V2 incluye el producto id=1
+  "Don Tostón" (ACTIVO, `menu_especial=FALSE`).
+  **Resultado esperado:** 201 Created, `tipo=BASICA`, `estado=CONFIRMADA`.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 3,
+      "preOrden": [
+        {
+          "productoId": 1,
+          "cantidad": 2,
+          "esMenuEspecial": false
+        }
+      ]
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      pm.environment.set('tmpFechaLibre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema acepta la pre-orden regular con 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('La reserva con pre-orden regular queda BÁSICA CONFIRMADA', function () {
+        const body = pm.response.json();
+        pm.expect(body.data.tipo).to.eql('BASICA');
+        pm.expect(body.data.estado).to.eql('CONFIRMADA');
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 10000

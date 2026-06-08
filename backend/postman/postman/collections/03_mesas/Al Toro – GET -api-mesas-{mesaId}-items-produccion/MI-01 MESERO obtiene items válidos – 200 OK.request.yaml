@@ -1,0 +1,67 @@
+$kind: http-request
+name: MI-01 MESERO obtiene items válidos – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-01 — Mesero consulta items en producción de una mesa.
+  **Objetivo:** Verificar que MESERO obtiene lista de items con identificadorMesa e itemsEnProduccion[].
+  **Pre-condición:** `meseroToken` disponible. Mesa con visitaId=1 tiene items en producción.
+  **Resultado esperado:** 200 OK con MesaItemsProduccionResponse.
+url: "{{baseUrl}}/api/mesas/11/items-produccion"
+method: GET
+headers:
+  Authorization: Bearer {{meseroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar visitaId temporal
+      pm.environment.set('tmpVisitaId', '10');
+
+      // Login autónomo del MESERO usando variables de entorno
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailMesero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('meseroToken', res.json().accessToken);
+        } else {
+          console.warn('MI-01: login MESERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+
+      pm.test('La respuesta contiene identificadorMesa e itemsEnProduccion', function () {
+        const body = pm.response.json();
+        pm.expect(body).to.have.property('data');
+        pm.expect(body.data).to.have.property('identificadorMesa');
+        pm.expect(body.data).to.have.property('itemsEnProduccion');
+        pm.expect(body.data.itemsEnProduccion).to.be.an('array');
+      });
+
+      pm.test('Cada item tiene estructura correcta', function () {
+        const body = pm.response.json();
+        if (body.data.itemsEnProduccion.length > 0) {
+          const item = body.data.itemsEnProduccion[0];
+          pm.expect(item).to.have.property('nombreProducto');
+          pm.expect(item).to.have.property('cantidad');
+          pm.expect(item).to.have.property('categoriaProducto');
+          pm.expect(item).to.have.property('estadoComanda');
+        }
+      });
+
+      // Cleanup
+      pm.environment.unset('tmpVisitaId');
+    language: text/javascript
+order: 3000

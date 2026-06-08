@@ -1,0 +1,52 @@
+$kind: http-request
+name: DX-12 Hora en cierre o después (22:00) – 200 OK disponible=false
+description: |-
+  **Criterio de Aceptación:** CA-HOR-02 — el servicio valida `hora < HORA_CIERRE (22)`.
+  Para una hora igual o posterior a las 22:00, debe retornar `disponible=false` con `zonas=[]`
+  y `decoraciones=[]`. El rango válido es `[17:00, 22:00)`.
+  **Objetivo:** Verificar la validación del límite superior del horario de atención.
+  **Pre-condición:** Token CLIENTE disponible (lo gestiona el pre-request de la colección).
+  **Resultado esperado:** 200 OK · `data.disponible=false` · `data.zonas=[]` · `data.decoraciones=[]`.
+url: "{{baseUrl}}/api/reservas/disponibilidad?fechaHora={{tmpFechaCierre}}"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+queryParams:
+  fechaHora: "{{tmpFechaCierre}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Genera una fecha futura aleatoria con hora 22:00 (límite de cierre, ya no disponible).
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(22, 0, 0, 0);
+      pm.environment.set('tmpFechaCierre',
+        d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T22:00:00');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Status 200 – Consulta procesada correctamente', function () {
+        pm.response.to.have.status(200);
+      });
+
+      const d = pm.response.json().data;
+
+      pm.test('disponible=false para hora en el límite de cierre (22:00)', function () {
+        pm.expect(d.disponible).to.be.false;
+      });
+
+      pm.test('zonas está vacío cuando no hay disponibilidad por horario', function () {
+        pm.expect(d.zonas).to.be.an('array').and.be.empty;
+      });
+
+      pm.test('decoraciones está vacío cuando no hay disponibilidad por horario', function () {
+        pm.expect(d.decoraciones).to.be.an('array').and.be.empty;
+      });
+
+      pm.environment.unset('tmpFechaCierre');
+    language: text/javascript
+order: 12000

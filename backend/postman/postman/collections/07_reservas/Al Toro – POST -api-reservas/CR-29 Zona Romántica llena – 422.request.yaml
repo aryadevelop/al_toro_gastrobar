@@ -1,0 +1,68 @@
+$kind: http-request
+name: CR-29 Zona Romántica llena – 422 Unprocessable
+description: |-
+  **Criterio de Aceptación:** El servicio valida la capacidad de la zona en la fecha
+  solicitada. Si la suma de comensales en reservas activas más la nueva petición supera
+  la capacidad, se rechaza con 422.
+  **Objetivo:** Verificar el rechazo por capacidad agotada sobre la Zona Romántica
+  (cap=6), llenando la zona en el `beforeRequest` y solicitando 1 persona adicional.
+  **Pre-condición:** `clienteToken` disponible. El `beforeRequest` genera
+  `tmpFechaLibre` aleatoria y crea una primera reserva con 6 personas en la zona 7
+  sobre esa fecha. Si la creación previa falla (por colisión aleatoria o dato
+  inesperado), el test principal igual ejecuta pero el 422 no está garantizado — el
+  log de consola muestra el warning.
+  **Resultado esperado:** 422 Unprocessable Entity.
+url: "{{baseUrl}}/api/reservas"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "fechaHoraLlegada": "{{tmpFechaLibre}}",
+      "numeroPersonas": 1,
+      "zonaId": 7
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+      pm.environment.set('tmpFechaLibre', fecha);
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/reservas',
+        method: 'POST',
+        header: {
+          'Authorization': 'Bearer ' + pm.environment.get('clienteToken'),
+          'Content-Type': 'application/json'
+        },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            fechaHoraLlegada: fecha,
+            numeroPersonas: 6,
+            zonaId: 7
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 201) {
+          console.warn('CR-29 pre-request: llenado de Zona Romántica falló', err, res && res.code, res && res.text && res.text());
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza la reserva por capacidad agotada con 422', function () {
+        pm.response.to.have.status(422);
+      });
+      pm.environment.unset('tmpFechaLibre');
+    language: text/javascript
+order: 29000

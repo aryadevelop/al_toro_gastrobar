@@ -1,0 +1,76 @@
+$kind: http-request
+name: PC-09 emailEmpleado inexistente – 404 Not Found
+description: |-
+  **Criterio de Aceptación:** Validación de existencia del empleado (auditoría de canje).
+  **Objetivo:** Verificar que el sistema retorna 404 cuando el `emailEmpleado` no
+  corresponde a ningún `Empleado` registrado. El chequeo ocurre **después** de validar
+  que el cliente exista y tenga saldo > 0, por lo que el pre-request debe elegir un
+  cliente con puntos.
+  **Pre-condición:** El `beforeRequest` hace login autónomo de CAJERO y luego selecciona
+  un cliente con `puntosActuales > 0` del pool seed 11..22. Como el servicio lanza 404
+  antes de aplicar el canje, **no se consume** el saldo del cliente (este test no muta estado).
+  **Resultado esperado:** 404 Not Found.
+url: "{{baseUrl}}/api/clientes/{{tmpClienteConPuntos}}/canje-puntos?emailEmpleado=noexiste@altoro.com"
+method: POST
+headers:
+  Authorization: Bearer {{cajeroToken}}
+queryParams:
+  emailEmpleado: noexiste@altoro.com
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      const candidates = [11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22];
+
+      const probe = (token, index) => {
+        if (index >= candidates.length) {
+          console.warn('PC-09: no quedan clientes seed con puntosActuales > 0; reseed requerido');
+          return;
+        }
+        const id = candidates[index];
+        pm.sendRequest({
+          url: baseUrl + '/api/clientes/' + id + '/puntos',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            const data = res.json().data;
+            if (data && data.puntosActuales > 0) {
+              pm.environment.set('tmpClienteConPuntos', id);
+              return;
+            }
+          }
+          probe(token, index + 1);
+        });
+      };
+
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCajero'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          probe(token, 0);
+        } else {
+          console.warn('PC-09: login CAJERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna 404 para emailEmpleado inexistente', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.environment.unset('tmpClienteConPuntos');
+    language: text/javascript
+order: 9000

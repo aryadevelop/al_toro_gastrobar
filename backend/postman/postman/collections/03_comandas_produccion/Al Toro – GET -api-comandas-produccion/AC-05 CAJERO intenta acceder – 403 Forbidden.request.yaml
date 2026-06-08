@@ -1,0 +1,16 @@
+$kind: http-request
+name: AC-05 CAJERO intenta acceder – 403 Forbidden
+description: |-
+  **Objetivo:** Un usuario con rol CAJERO recibe 403 al intentar acceder al tablero.
+  **Pre-condición:** `cajeroToken` lo provee el `beforeRequest` de colección.
+  **Resultado esperado:** 403 Forbidden.
+url: "{{baseUrl}}/api/comandas/produccion"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 403', function () { pm.response.to.have.status(403); });
+    language: text/javascript
+order: 1050

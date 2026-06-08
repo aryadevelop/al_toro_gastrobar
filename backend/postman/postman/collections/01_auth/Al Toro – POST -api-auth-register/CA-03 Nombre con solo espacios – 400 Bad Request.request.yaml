@@ -1,0 +1,29 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** CA-03
+  **Objetivo:** Validar que nombre con espacios en blanco se rechaza.
+url: "{{baseUrl}}/api/auth/register"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "nombre": "   ",
+      "telefono": "3001111112",
+      "email": "ca03.{{$timestamp}}@example.com",
+      "password": "ValidPass123!",
+      "passwordConfirmation": "ValidPass123!",
+      "aceptaTerminos": true
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 400 – Nombre inválido', () => pm.response.to.have.status(400));
+
+      const body = pm.response.json();
+
+      pm.test('Error de validación presente', () => pm.expect(body.code).to.eql('VAL-001'));
+    language: text/javascript
+order: 1002

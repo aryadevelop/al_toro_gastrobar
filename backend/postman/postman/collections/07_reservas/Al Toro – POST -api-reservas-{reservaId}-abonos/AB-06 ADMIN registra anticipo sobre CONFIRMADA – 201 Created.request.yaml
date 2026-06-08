@@ -1,0 +1,159 @@
+$kind: http-request
+name: AB-06 ADMIN registra anticipo sobre CONFIRMADA – 201 Created
+description: |
+  ADMIN registra un anticipo sobre una reserva ESPECIAL CONFIRMADA.
+  El beforeRequest: (1) cliente crea reserva ESPECIAL, (2) CAJERO la confirma,
+  (3) ADMIN obtiene token para el POST del abono.
+  Resultado esperado: 201, data.tipo=ANTICIPO, message contiene "Anticipo".
+  Cleanup en afterResponse: ADMIN cancela la reserva.
+url: "{{baseUrl}}/api/reservas/{{tmpReservaIdAB06}}/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{adminToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: "{{tmpAbonoBodyAB06}}"
+scripts:
+  - type: beforeRequest
+    code: |-
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      d.setHours(17 + Math.floor(Math.random() * 5), 0, 0, 0);
+      const fechaReserva = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate())
+        + 'T' + pad(d.getHours()) + ':00:00';
+
+      const now = new Date();
+      const fechaAbono = now.getFullYear() + '-' + pad(now.getMonth() + 1) + '-' + pad(now.getDate())
+        + 'T' + pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds());
+
+      pm.environment.set('tmpAbonoBodyAB06', JSON.stringify({
+        tipo: 'ANTICIPO',
+        monto: 3000,
+        metodo: 'TARJETA',
+        fechaHora: fechaAbono
+      }));
+
+      // Paso 1: cliente crea reserva ESPECIAL PENDIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCliente'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (err || !res || res.code !== 200) return;
+        const clienteToken = res.json().accessToken;
+
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fechaReserva,
+            numeroPersonas: 2,
+            decoracionId: 1,
+            zonaId: 2
+          })}
+        }, function (e2, r2) {
+          if (e2 || !r2 || r2.code !== 201) {
+            console.warn('AB-06: creación de reserva falló', e2, r2 && r2.code);
+            return;
+          }
+          pm.environment.set('tmpReservaIdAB06', r2.json().data.reservaId);
+
+          // Paso 2: CAJERO confirma la reserva
+          pm.sendRequest({
+            url: pm.environment.get('baseUrl') + '/api/auth/login',
+            method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailCajero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, function (e3, r3) {
+            if (e3 || !r3 || r3.code !== 200) {
+              console.warn('AB-06: login CAJERO para confirmar falló', e3, r3 && r3.code);
+              return;
+            }
+            const cajeroToken = r3.json().accessToken;
+
+            pm.sendRequest({
+              url: pm.environment.get('baseUrl') + '/api/reservas/' + r2.json().data.reservaId + '/confirmar',
+              method: 'PATCH',
+              header: { 'Authorization': 'Bearer ' + cajeroToken }
+            }, function (e4, r4) {
+              if (!e4 && r4 && r4.code !== 200) {
+                console.warn('AB-06: confirmar reserva falló', r4 && r4.code);
+              }
+
+              // Paso 3: ADMIN obtiene su token
+              pm.sendRequest({
+                url: pm.environment.get('baseUrl') + '/api/auth/login',
+                method: 'POST',
+                header: { 'Content-Type': 'application/json' },
+                body: { mode: 'raw', raw: JSON.stringify({
+                  email: pm.environment.get('emailAdmin'),
+                  password: pm.environment.get('passwordValida'),
+                  forceSessionOverride: true
+                })}
+              }, function (e5, r5) {
+                if (!e5 && r5 && r5.code === 200) {
+                  pm.environment.set('adminToken', r5.json().accessToken);
+                } else {
+                  console.warn('AB-06: login ADMIN falló', e5, r5 && r5.code);
+                }
+              });
+            });
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('AB-06: ADMIN registra anticipo → 201', function () {
+        pm.response.to.have.status(201);
+      });
+      pm.test('AB-06: data.tipo = ANTICIPO', function () {
+        pm.expect(pm.response.json().data.tipo).to.equal('ANTICIPO');
+      });
+      pm.test('AB-06: message contiene "Anticipo"', function () {
+        pm.expect(pm.response.json().message).to.include('Anticipo');
+      });
+      pm.test('AB-06: data.abonoId es número positivo', function () {
+        pm.expect(pm.response.json().data.abonoId).to.be.a('number').and.above(0);
+      });
+      pm.test('AB-06: data.resumen presente', function () {
+        pm.expect(pm.response.json().data.resumen).to.be.an('object');
+      });
+      pm.test('AB-06: resumen.saldoPendiente presente (reserva CONFIRMADA)', function () {
+        const resumen = pm.response.json().data.resumen;
+        // Reserva CONFIRMADA: saldoPendiente presente, pendientePorDevolver ausente
+        pm.expect(resumen.saldoPendiente).to.be.a('number');
+        pm.expect(resumen).to.not.have.property('pendientePorDevolver');
+      });
+
+      // Cleanup: ADMIN cancela la reserva
+      const reservaId = pm.environment.get('tmpReservaIdAB06');
+      if (reservaId && reservaId !== 'undefined') {
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/reservas/' + reservaId + '/cancelar',
+          method: 'PATCH',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('adminToken') }
+        }, function (e, r) {
+          if (!e && r && r.code !== 200) {
+            console.warn('Cleanup AB-06: cancelar reserva falló', r && r.code);
+          }
+        });
+      }
+      pm.environment.unset('tmpReservaIdAB06');
+      pm.environment.unset('tmpAbonoBodyAB06');
+    language: text/javascript
+order: 6000

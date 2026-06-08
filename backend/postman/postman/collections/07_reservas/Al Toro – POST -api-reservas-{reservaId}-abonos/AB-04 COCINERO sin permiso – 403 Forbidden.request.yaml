@@ -1,0 +1,46 @@
+$kind: http-request
+name: AB-04 COCINERO sin permiso – 403 Forbidden
+url: "{{baseUrl}}/api/reservas/999999/abonos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "tipo": "ANTICIPO",
+      "monto": 50000,
+      "metodo": "EFECTIVO",
+      "fechaHora": "2026-05-23T10:00:00"
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCocinero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, function (err, res) {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('cocineroToken', res.json().accessToken);
+        } else {
+          console.warn('AB-04: login COCINERO falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('COCINERO no puede registrar abonos → 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('code = AUTH-002', function () {
+        pm.expect(pm.response.json().code).to.equal('AUTH-002');
+      });
+    language: text/javascript
+order: 4000

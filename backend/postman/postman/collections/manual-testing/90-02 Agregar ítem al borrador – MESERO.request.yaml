@@ -1,0 +1,42 @@
+$kind: http-request
+name: 90-02 Agregar ítem al borrador – MESERO
+description: Agrega HU05-Stock-Bajo (productoId=143) a la comanda BORRADOR COCINA de la visita 15
+url: "{{baseUrl}}/api/comandas/borrador/items"
+method: POST
+headers:
+  Authorization: Bearer {{tmpMeseroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "visitaId": 15,
+      "productoId": 143,
+      "cantidad": 1,
+      "descripcion": null
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'mesero2@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpMeseroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpMeseroToken');
+    language: text/javascript
+order: 9020

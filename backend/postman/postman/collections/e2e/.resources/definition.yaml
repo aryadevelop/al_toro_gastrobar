@@ -1,0 +1,11 @@
+$kind: collection
+name: e2e
+description: |-
+  Pruebas de integración E2E por rol (recorridos completos cliente→mesero→producción→cajero).
+
+  Cada subcolección "Al Toro – E2E-NN" es una secuencia ORDENADA de requests: 
+  cada request consume lo que el anterior capturó en su `afterResponse`.
+
+  Login autónomo por rol en cada request (emails de entorno: emailCliente, emailMesero,  
+  emailCajero, emailCocinero, emailBartender; password `passwordValida`).
+

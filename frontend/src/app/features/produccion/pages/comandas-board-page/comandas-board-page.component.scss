@@ -1,0 +1,825 @@
+/* ═══════════════════════════════════════════════════
+   Tablero de Producción – Kanban Board
+   ═══════════════════════════════════════════════════ */
+
+.board-wrapper {
+  padding-bottom: 2rem;
+  /* [FIX CLICKS] Establece contexto de apilamiento propio para el módulo,
+     evita que elementos externos (sticky header, sidebar) queden por encima */
+  position: relative;
+  z-index: 0;
+  
+  /* [FIX SCROLL] Asegura que el contenedor principal no crezca más allá de la pantalla
+     forzando a los elementos hijos (board-columns) a activar su propio scroll */
+  min-width: 0;
+  overflow-x: hidden;
+}
+
+/* ── Loading / Error ────────────────────────────── */
+.board-loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.spinner {
+  width: 36px;
+  height: 36px;
+  border: 3px solid rgba(111, 78, 55, 0.18);
+  border-top-color: var(--secondary);
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.board-error {
+  text-align: center;
+  padding: 1.5rem;
+  color: var(--danger);
+}
+
+/* ── Toast inline de retroalimentación ─────────── */
+.board-toast {
+  margin: 0 0 0.75rem;
+  padding: 0.65rem 1rem;
+  border-radius: 10px;
+  background: rgba(90, 125, 58, 0.12);
+  border: 1px solid rgba(90, 125, 58, 0.35);
+  color: #3a5c20;
+  font-size: 0.88rem;
+  font-weight: 600;
+  animation: toastFadeIn 0.25s ease;
+}
+
+.board-toast--error {
+  background: rgba(196, 30, 58, 0.1);
+  border-color: rgba(196, 30, 58, 0.3);
+  color: #a1172f;
+}
+
+@keyframes toastFadeIn {
+  from { opacity: 0; transform: translateY(-6px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+
+
+/* ── Three-Column Layout ────────────────────────── */
+.board-columns {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 1rem;
+  align-items: start;
+  /* [FIX CLICKS] Contexto de apilamiento aislado para las columnas */
+  position: relative;
+  z-index: 1;
+}
+
+/* ── Column ─────────────────────────────────────── */
+.board-column {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  border-radius: var(--radius-md);
+  /* [FIX CLICKS] Cambiado de overflow: hidden a overflow: visible.
+     overflow: hidden creaba un contexto de recorte que impedía que los
+     eventos de click llegaran a los botones dentro de las tarjetas cuando
+     el navegador calculaba el hit-testing sobre el elemento recortado. */
+  overflow: visible;
+  background: rgba(241, 223, 205, 0.3);
+  border: 1px solid rgba(111, 78, 55, 0.1);
+}
+
+.column-header {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.75rem 1rem;
+  font-weight: 700;
+  /* [FIX CLICKS] border-radius explícito porque la columna ya no recorta */
+  border-radius: var(--radius-md) var(--radius-md) 0 0;
+}
+
+.column-header h2 {
+  margin: 0;
+  font-size: 1rem;
+  flex: 1;
+}
+
+/* [LIMPIEZA] .column-icon eliminado: ya no se usa en el HTML */
+
+.column-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 26px;
+  height: 26px;
+  border-radius: 999px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  color: #fff;
+}
+
+/* Column header colors */
+.pendiente-header {
+  background: linear-gradient(135deg, #d4a76a 0%, #c8903c 100%);
+  color: #fff;
+}
+
+.pendiente-header .column-badge {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.preparacion-header {
+  background: linear-gradient(135deg, #b85c38 0%, #a04422 100%);
+  color: #fff;
+}
+
+.preparacion-header .column-badge {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+.listo-header {
+  background: linear-gradient(135deg, #5a7d3a 0%, #486a2d 100%);
+  color: #fff;
+}
+
+.listo-header .column-badge {
+  background: rgba(0, 0, 0, 0.25);
+}
+
+/* ── Column body ────────────────────────────────── */
+.column-body {
+  display: flex;
+  flex-direction: column;
+  gap: 0.65rem;
+  padding: 0.75rem;
+  max-height: calc(100vh - 200px);
+  overflow-y: auto;
+  /* [FIX CLICKS] overflow-x visible para no recortar sombras de tarjetas */
+  overflow-x: visible;
+}
+
+.column-body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.column-body::-webkit-scrollbar-thumb {
+  background: rgba(111, 78, 55, 0.25);
+  border-radius: 99px;
+}
+
+/* ── Comanda Card ───────────────────────────────── */
+.comanda-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0;
+  overflow: hidden;
+  /* [FIX CLICKS] Previene que la tarjeta se encoja cuando hay muchas en la columna, 
+     lo que causaba que los botones de acción quedaran ocultos */
+  flex-shrink: 0; 
+  transition: transform 0.15s ease, box-shadow 0.15s ease;
+  /* [FIX CLICKS] Contexto de apilamiento propio para cada tarjeta,
+     garantiza que sus botones internos estén siempre por encima del layout */
+  position: relative;
+  z-index: 1;
+}
+
+.comanda-card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 6px 20px rgba(10, 10, 10, 0.12);
+  /* [FIX CLICKS] Eleva la tarjeta activa sobre sus hermanas */
+  z-index: 2;
+}
+
+.comanda-card__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 0.6rem 0.85rem;
+  background: rgba(111, 78, 55, 0.08);
+  border-bottom: 1px solid rgba(111, 78, 55, 0.1);
+}
+
+.comanda-mesa {
+  font-weight: 700;
+  font-size: 0.95rem;
+}
+
+.comanda-estacion-badge {
+  font-size: 0.7rem;
+  padding: 0.2rem 0.55rem;
+  border-radius: 999px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+.estacion-cocina {
+  background: rgba(184, 92, 56, 0.15);
+  color: #8b3a1e;
+}
+
+.estacion-barra {
+  background: rgba(56, 107, 184, 0.15);
+  color: #1e4f8b;
+}
+
+.comanda-card__body {
+  padding: 0.65rem 0.85rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+}
+
+.comanda-info-row {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+  font-size: 0.85rem;
+}
+
+.info-label {
+  color: var(--muted);
+  opacity: 0.7;
+  min-width: 55px;
+}
+
+.info-value {
+  font-weight: 500;
+}
+
+.comanda-tiempo {
+  margin-top: 0.25rem;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: #b85c38;
+  background: rgba(184, 92, 56, 0.08);
+  padding: 0.2rem 0.55rem;
+  border-radius: 6px;
+  width: fit-content;
+}
+
+.comanda-tiempo.prep-time {
+  color: #a04422;
+  background: rgba(160, 68, 34, 0.1);
+}
+
+.comanda-tiempo.listo-time {
+  color: #486a2d;
+  background: rgba(90, 125, 58, 0.1);
+}
+
+.comanda-notas {
+  margin: 0.25rem 0 0;
+  font-size: 0.8rem;
+  color: var(--muted);
+  opacity: 0.85;
+  font-style: italic;
+  padding: 0.3rem 0.5rem;
+  background: rgba(111, 78, 55, 0.06);
+  border-radius: 6px;
+}
+
+.comanda-card__actions {
+  display: flex;
+  flex-direction: column;
+  gap: 0.45rem;
+  padding: 0.6rem 0.85rem 0.75rem;
+  border-top: 1px solid rgba(111, 78, 55, 0.08);
+  /* [FIX CLICKS] Asegura que los botones de acción siempre reciban eventos */
+  position: relative;
+  z-index: 1;
+}
+
+.actions-secondary {
+  display: flex;
+  gap: 0.4rem;
+}
+
+.actions-secondary .btn-secondary {
+  flex: 1;
+  font-size: 0.78rem;
+  padding: 0.4rem 0.5rem;
+}
+
+/* ── Buttons ────────────────────────────────────── */
+.btn-sm {
+  font-size: 0.82rem;
+  padding: 0.5rem 0.75rem;
+}
+
+.btn-block {
+  width: 100%;
+}
+
+.btn-success {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: linear-gradient(135deg, #5a7d3a 0%, #486a2d 100%);
+  color: #fff;
+  box-shadow: 0 4px 12px rgba(90, 125, 58, 0.3);
+}
+
+.btn-success:hover {
+  filter: brightness(1.06);
+}
+
+.btn-success:disabled,
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-notify {
+  border: 1px solid rgba(212, 167, 106, 0.5);
+  border-radius: 10px;
+  padding: 0.45rem 0.75rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: rgba(212, 167, 106, 0.12);
+  color: #8b5e3c;
+  font-size: 0.8rem;
+}
+
+.btn-notify:hover {
+  background: rgba(212, 167, 106, 0.22);
+}
+
+/* ── Empty column ───────────────────────────────── */
+.column-empty {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--muted);
+  opacity: 0.6;
+}
+
+/* [LIMPIEZA] .empty-icon eliminado: ya no se usa en el HTML */
+
+.column-empty p {
+  margin: 0;
+  font-size: 0.88rem;
+}
+
+/* ═══════════════════════════════════════════════════
+   CA-06: Panel lateral de detalle de comanda
+   ═══════════════════════════════════════════════════ */
+
+.detalle-overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  background: rgba(10, 10, 10, 0.45);
+  display: flex;
+  justify-content: flex-end;
+  animation: fadeIn 0.2s ease;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+
+  to {
+    opacity: 1;
+  }
+}
+
+.detalle-panel {
+  width: 480px;
+  max-width: 92vw;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  border-radius: 0;
+  box-shadow: -8px 0 32px rgba(10, 10, 10, 0.18);
+  animation: slideIn 0.25s ease;
+  overflow: hidden;
+}
+
+@keyframes slideIn {
+  from {
+    transform: translateX(100%);
+  }
+
+  to {
+    transform: translateX(0);
+  }
+}
+
+.detalle-panel__header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 1rem 1.2rem;
+  border-bottom: 1px solid rgba(111, 78, 55, 0.15);
+  background: rgba(111, 78, 55, 0.06);
+}
+
+.detalle-panel__header h2 {
+  margin: 0;
+  font-size: 1.1rem;
+}
+
+.btn-cerrar {
+  width: 34px;
+  height: 34px;
+  border: 0;
+  background: rgba(111, 78, 55, 0.1);
+  border-radius: 8px;
+  cursor: pointer;
+  font-size: 1.1rem;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--text);
+  transition: background 0.15s ease;
+}
+
+.btn-cerrar:hover {
+  background: rgba(111, 78, 55, 0.2);
+}
+
+.detalle-panel__loading {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.75rem;
+  padding: 3rem 1rem;
+  color: var(--muted);
+}
+
+.detalle-panel__error {
+  text-align: center;
+  padding: 2rem 1rem;
+  color: var(--danger);
+}
+
+/* ── Panel body ─────────────────────────────────── */
+.detalle-panel__body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.2rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+
+.detalle-panel__body::-webkit-scrollbar {
+  width: 5px;
+}
+
+.detalle-panel__body::-webkit-scrollbar-thumb {
+  background: rgba(111, 78, 55, 0.2);
+  border-radius: 99px;
+}
+
+.detalle-info-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.75rem;
+}
+
+.detalle-info-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.15rem;
+}
+
+.detalle-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  opacity: 0.7;
+  font-weight: 600;
+}
+
+.detalle-value {
+  font-size: 0.92rem;
+  font-weight: 600;
+}
+
+.estacion-tag,
+.estado-tag {
+  display: inline-block;
+  padding: 0.18rem 0.55rem;
+  border-radius: 999px;
+  width: fit-content;
+  font-size: 0.8rem;
+}
+
+.estacion-cocina {
+  background: rgba(184, 92, 56, 0.15);
+  color: #8b3a1e;
+}
+
+.estacion-barra {
+  background: rgba(56, 107, 184, 0.15);
+  color: #1e4f8b;
+}
+
+.estado-pendiente {
+  background: rgba(212, 167, 106, 0.2);
+  color: #8b5e3c;
+}
+
+.estado-en_preparacion {
+  background: rgba(184, 92, 56, 0.15);
+  color: #a04422;
+}
+
+.estado-listo {
+  background: rgba(90, 125, 58, 0.15);
+  color: #486a2d;
+}
+
+.detalle-notas-box {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.detalle-notas-text {
+  margin: 0;
+  font-size: 0.85rem;
+  font-style: italic;
+  color: var(--muted);
+  padding: 0.45rem 0.65rem;
+  background: rgba(111, 78, 55, 0.06);
+  border-radius: 8px;
+}
+
+/* Items */
+.detalle-items-section {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+}
+
+.detalle-items-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.detalle-item-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.6rem;
+  padding: 0.45rem 0.6rem;
+  border-radius: 8px;
+  background: rgba(111, 78, 55, 0.04);
+  border: 1px solid rgba(111, 78, 55, 0.08);
+}
+
+.detalle-item-qty {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 30px;
+  height: 30px;
+  border-radius: 7px;
+  background: var(--secondary);
+  color: #fff;
+  font-weight: 700;
+  font-size: 0.8rem;
+  flex-shrink: 0;
+}
+
+.detalle-item-info {
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.detalle-item-name {
+  font-weight: 600;
+  font-size: 0.88rem;
+}
+
+.detalle-item-desc {
+  font-size: 0.78rem;
+  color: var(--muted);
+  opacity: 0.75;
+  font-style: italic;
+}
+
+.detalle-item-mods {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25rem;
+  margin-top: 0.1rem;
+}
+
+.mod-tag {
+  font-size: 0.7rem;
+  padding: 0.12rem 0.4rem;
+  border-radius: 999px;
+  background: rgba(111, 78, 55, 0.1);
+  color: var(--secondary);
+  font-weight: 500;
+}
+
+/* Footer */
+.detalle-panel__footer {
+  padding: 0.85rem 1.2rem;
+  border-top: 1px solid rgba(111, 78, 55, 0.12);
+  background: rgba(111, 78, 55, 0.04);
+}
+
+/* ═══════════════════════════════════════════════════
+   Responsive
+   ═══════════════════════════════════════════════════ */
+
+/* Tablet: 2 columns stacked */
+@media (max-width: 960px) {
+  .board-columns {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .column-listo {
+    grid-column: 1 / -1;
+  }
+}
+
+/* Mobile: swipeable Kanban layout */
+@media (max-width: 768px) {
+  .board-columns {
+    display: flex !important;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    scroll-snap-type: x mandatory;
+    padding-bottom: 1rem;
+    width: 100%;
+    /* [FIX SCROLL] CSS Grid hace que los items crezcan para ajustar su contenido. 
+       min-width: 0 fuerza a que el contenedor respete el 100% y habilite el scroll interno */
+    min-width: 0;
+    /* Smooth scrolling */
+    scroll-behavior: smooth;
+    -webkit-overflow-scrolling: touch;
+    scroll-padding: 0 0.5rem;
+  }
+  
+  /* Restaura la barra de scroll para poder navegar en escritorio simulando móvil */
+  .board-columns::-webkit-scrollbar {
+    height: 8px;
+  }
+  .board-columns::-webkit-scrollbar-thumb {
+    background: rgba(111, 78, 55, 0.4);
+    border-radius: 4px;
+  }
+
+  .board-column {
+    min-width: 85vw;
+    width: 85vw;
+    scroll-snap-align: start;
+    flex: 0 0 auto;
+    margin-right: 0.5rem;
+  }
+  
+  .board-column:last-child {
+    margin-right: 1.5rem; /* Extra padding at the end of scroll */
+  }
+
+  .column-body {
+    max-height: calc(100vh - 220px);
+  }
+
+  .comanda-card__header {
+    flex-wrap: wrap;
+    gap: 0.3rem;
+  }
+
+  .actions-secondary {
+    flex-direction: column;
+  }
+
+  .detalle-panel {
+    width: 100vw;
+    max-width: 100vw;
+  }
+
+  .detalle-info-grid {
+    grid-template-columns: 1fr;
+  }
+}
+@media print {
+  @page {
+    margin: 0;
+    size: 80mm auto;
+  }
+  
+  body * {
+    visibility: hidden;
+  }
+  
+  .thermal-print-area, .thermal-print-area * {
+    visibility: visible;
+  }
+  
+  .thermal-print-area {
+    position: absolute;
+    left: 0;
+    top: 0;
+    width: 80mm;
+    margin: 0;
+    padding: 2mm 5mm 5mm 5mm;
+  }
+  
+  .thermal-ticket {
+    font-family: 'Courier New', Courier, monospace;
+    font-size: 13px;
+    line-height: 1.2;
+    color: #000;
+  }
+  
+  .ticket-header {
+    text-align: center;
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-header h3 {
+    margin: 0 0 6px 0;
+    font-size: 16px;
+    font-weight: 800;
+  }
+  
+  .ticket-header p {
+    margin: 3px 0;
+  }
+  
+  .ticket-type {
+    font-size: 14px;
+    font-weight: bold;
+  }
+
+  .text-bold {
+    font-weight: bold;
+  }
+  
+  .ticket-items {
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-item {
+    display: flex;
+    margin-bottom: 6px;
+    align-items: flex-start;
+  }
+  
+  .qty {
+    width: 25px;
+    font-weight: bold;
+    flex-shrink: 0;
+  }
+  
+  .item-desc {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .mod {
+    font-size: 11.5px;
+    padding-left: 5px;
+  }
+  
+  .ticket-notes {
+    margin-bottom: 10px;
+    border-bottom: 1px dashed #000;
+    padding-bottom: 8px;
+  }
+  
+  .ticket-notes p {
+    margin: 3px 0;
+  }
+  
+  .ticket-footer {
+    text-align: center;
+    margin-top: 10px;
+    padding-bottom: 20px;
+  }
+}
+
+@media screen {
+  .thermal-print-area {
+    display: none;
+  }
+}
+

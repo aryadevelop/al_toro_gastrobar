@@ -1,0 +1,95 @@
+$kind: http-request
+name: N-02 MESERO asigna mesa con reserva ESPECIAL PENDIENTE (no confirmada) – 404 Not Found
+description: |-
+  `POST /api/mesas` con reservaId exige una reserva CONFIRMADA del día
+  (`findByIdAndEstadoForAsignacion(..., CONFIRMADA)`). Una ESPECIAL todavía PENDIENTE no aparece
+  en esa consulta → 404 ENT-001 ("La reserva no existe o no está en estado CONFIRMADA").
+
+  AUTOSUFICIENTE: el beforeRequest crea su PROPIA ESPECIAL futura (decoración con costo → PENDIENTE)
+  vía API, así NO depende de las reservas sembradas en V3 (que los escenarios ESPECIAL consumen).
+  Verificado en vivo: PENDIENTE → 404 ENT-001 (no 409; el plan §5 anotaba 409).
+url: "{{baseUrl}}/api/mesas"
+method: POST
+headers:
+  Authorization: Bearer {{meseroToken}}
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "mesaIdentificador": "{{tmpNegMesaIdent}}",
+      "zonaId": 3,
+      "numeroPersonas": 2,
+      "reservaId": {{tmpNegReservaPendienteId}},
+      "mesaNotas": null
+    }
+scripts:
+  - type: beforeRequest
+    code: |-
+      const baseUrl = pm.environment.get('baseUrl');
+      pm.environment.set('tmpNegMesaIdent', 'N02-' + (Date.now() % 1000000));
+
+      // Fecha futura para crear una ESPECIAL propia que nazca PENDIENTE (no se consume con el seed)
+      const pad = n => String(n).padStart(2, '0');
+      const d = new Date();
+      d.setFullYear(d.getFullYear() + 2 + Math.floor(Math.random() * 3));
+      d.setMonth(Math.floor(Math.random() * 12));
+      d.setDate(1 + Math.floor(Math.random() * 28));
+      const fecha = d.getFullYear() + '-' + pad(d.getMonth() + 1) + '-' + pad(d.getDate()) + 'T19:00:00';
+
+      // 1) CLIENTE (paola) crea una ESPECIAL (decoracionId con costo) → PENDIENTE
+      pm.sendRequest({
+        url: baseUrl + '/api/auth/login', method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: 'paola.rojas@gmail.com',
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (e1, r1) => {
+        if (e1 || !r1 || r1.code !== 200) { console.warn('N-02: login CLIENTE falló', e1, r1 && r1.code); return; }
+        const clienteToken = r1.json().accessToken;
+
+        pm.sendRequest({
+          url: baseUrl + '/api/reservas', method: 'POST',
+          header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + clienteToken },
+          body: { mode: 'raw', raw: JSON.stringify({
+            fechaHoraLlegada: fecha, numeroPersonas: 2, decoracionId: 1
+          })}
+        }, (e2, r2) => {
+          if (e2 || !r2 || r2.code !== 201) { console.warn('N-02: crear ESPECIAL falló', e2, r2 && r2.code, r2 && r2.text()); return; }
+          pm.environment.set('tmpNegReservaPendienteId', r2.json().data.reservaId);
+
+          // 2) login MESERO para la request principal
+          pm.sendRequest({
+            url: baseUrl + '/api/auth/login', method: 'POST',
+            header: { 'Content-Type': 'application/json' },
+            body: { mode: 'raw', raw: JSON.stringify({
+              email: pm.environment.get('emailMesero'),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })}
+          }, (e3, r3) => {
+            if (!e3 && r3 && r3.code === 200) {
+              const token = r3.json().accessToken;
+              pm.environment.set('meseroToken', token);
+              pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+            } else { console.warn('N-02: login MESERO falló', e3, r3 && r3.code); }
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('Reserva PENDIENTE (no CONFIRMADA) → 404', function () {
+        pm.response.to.have.status(404);
+      });
+      pm.test('code = ENT-001', function () {
+        const body = pm.response.json();
+        pm.expect(body.success).to.be.false;
+        pm.expect(body.code).to.equal('ENT-001');
+      });
+      pm.environment.unset('tmpNegReservaPendienteId');
+      pm.environment.unset('tmpNegMesaIdent');
+    language: text/javascript
+order: 200

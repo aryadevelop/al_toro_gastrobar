@@ -1,0 +1,97 @@
+$kind: collection
+name: Al Toro – DELETE /api/comandas/borrador/items/{itemId}
+description: |-
+  # DELETE /api/comandas/borrador/items/{itemId}
+
+  Elimina un ítem del borrador. Reglas del servicio (cubiertas por unit tests):
+  - Si el ítem es parte de un par de menú especial: elimina el par cocina+barra.
+  - Si es un ítem base (sin descripción): elimina también todos los modificados con el mismo `productoId`.
+  - Si es un ítem modificado: solo se elimina esa fila.
+  - Si la comanda queda sin ítems, se elimina la comanda.
+
+  Esta colección Postman cubre el contrato HTTP (códigos de respuesta), no las
+  ramas de cascada/par menú que requieren múltiples ítems y se validan con tests
+  unitarios de `ComandaBorradorService.eliminarItem`.
+
+  **Errores:**
+  - Ítem inexistente → `ENT-001` (404).
+  - Ítem en comanda no-BORRADOR → `NEG-002` (409) — cubierto por unit tests.
+
+  **Control de acceso:** MESERO/ADMIN dueño permitidos; CAJERO/CLIENTE 403; sin token 401.
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial MESERO/CAJERO/CLIENTE.
+  - **Producto stockless:** tras login MESERO se llama `GET /borrador?visitaId=13` y se extrae el `productoId` del ítem Picanha base; queda en `productoTestPlatoId`.
+  - **Visita destino:** CD4-01 opera en visita 14 (no tocada por E2/E3).
+  - **Ítem único por ejecución:** CD4-01 genera `descripcion = E4-CD4-01-<timestamp>` en beforeRequest y resuelve `cd401TargetItemId` desde la respuesta del POST. Evita colisiones en re-ejecuciones.
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CD4-01 | MESERO elimina ítem (auto-creado en beforeRequest) — 200 OK | 200 |
+  | CD4-02 | itemId inexistente — 404 Not Found | 404 |
+  | CD4-03 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | CD4-04 | CAJERO intenta acceder — 403 Forbidden | 403 |
+  | CD4-05 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // 1) Login secuencial MESERO/CAJERO/CLIENTE.
+      // 2) Tras login MESERO, resuelve productoTestPlatoId vía /borrador?visitaId=13
+      //    (toma el productoId del ítem Picanha base — sin stock limit).
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const resolverProducto = () => {
+        const token = pm.environment.get('meseroToken');
+        if (!token) return;
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/comandas/borrador?visitaId=13',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + token }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD4 pre-request: resolver producto falló', err, res && res.code);
+            return;
+          }
+          const platos = res.json().data.platos || [];
+          const picanha = platos.find(p => p.productoNombre === 'Picanha' && p.descripcion === null);
+          if (picanha) pm.environment.set('productoTestPlatoId', picanha.productoId);
+        });
+      };
+
+      const runLogin = (index) => {
+        if (index >= logins.length) {
+          resolverProducto();
+          return;
+        }
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('CD4 pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

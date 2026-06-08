@@ -1,0 +1,25 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-11
+  **Objetivo:** Un CLIENTE no puede registrar movimientos de inventario.
+  **Pre-condición:** `{{clienteToken}}` corresponde a un usuario con rol CLIENTE.
+  **Resultado esperado:** HTTP 403.
+  **Atómica:** la solicitud falla; no modifica la BD.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 143,
+      "cantidad": 1.000,
+      "tipo": "EGRESO"
+    }
+scripts:
+  - type: afterResponse
+    code: pm.test('Status 403 – rol CLIENTE', () => pm.response.to.have.status(403));
+    language: text/javascript
+order: 9000

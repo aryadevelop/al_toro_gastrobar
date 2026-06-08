@@ -1,0 +1,77 @@
+$kind: http-request
+name: OB-04 CLIENTE en visita de otro cliente – 403 Forbidden
+description: |-
+  **Criterio de Aceptación:** Validación de ownership — solo el dueño puede solicitar asistencia.
+  **Objetivo:** Verificar que un cliente no puede solicitar asistencia para visita de otro.
+  **Resultado esperado:** 403 Forbidden.
+  **Independencia:** Cada ejecución obtiene la visita activa de OTRO cliente (andres.morales) dinámicamente y la usa autenticando como juan.torres. El endpoint rechaza antes de mutar estado.
+url: "{{baseUrl}}/api/visitas/{{tmpVisitaIdOtro}}/asistencia"
+method: POST
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Setup:
+      //   1) Login andres.morales (otro cliente con visita activa) para obtener su visitaId.
+      //      NOTA: Antes se usaba carlos.perez, pero esa cuenta está SUSPENDIDA (login → 403),
+      //      lo que dejaba tmpVisitaIdOtro vacío y causaba VAL-001 "Formato de parámetro inválido".
+      //   2) Login juan.torres → será el cliente autenticado en el request.
+      // ---------------------------------------------------------------------------
+      const baseUrl = pm.environment.get('baseUrl');
+      const password = pm.environment.get('passwordValida');
+
+      const login = (email, cb) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: email,
+              password: password,
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-04: login ' + email + ' falló', err, res && res.code);
+            return;
+          }
+          cb(res.json().accessToken);
+        });
+      };
+
+      login('andres.morales@gmail.com', (otroToken) => {
+        pm.sendRequest({
+          url: baseUrl + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + otroToken }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('OB-04: GET /visitas/activa de otro cliente falló', err, res && res.code);
+            return;
+          }
+          pm.environment.set('tmpVisitaIdOtro', res.json().data.visitaId);
+
+          // Ahora autenticarse como juan.torres (cliente atacante)
+          login('juan.torres@gmail.com', (juanToken) => {
+            pm.environment.set('clienteToken', juanToken);
+          });
+        });
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema rechaza acceso a visita de otro cliente con 403', function () {
+        pm.response.to.have.status(403);
+      });
+      pm.test('El mensaje indica falta de acceso', function () {
+        const body = pm.response.json();
+        pm.expect(body.message).to.include('acceso');
+      });
+      pm.environment.unset('tmpVisitaIdOtro');
+    language: text/javascript
+order: 4000

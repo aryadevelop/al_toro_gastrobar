@@ -1,0 +1,83 @@
+$kind: collection
+name: Al Toro – GET /api/mesas
+description: |-
+  # GET /api/mesas
+
+  Retorna el mapa de mesas del restaurante para meseros.
+
+  **Criterios de Aceptación cubiertos:**
+  - CA-01: Dashboard muestra mapa completo con todas las zonas
+  - CA-02: Filtrado por zona específica
+
+  **Control de acceso:**
+  - MESERO/CAJERO/ADMIN: acceso permitido
+  - CLIENTE: 403 Forbidden
+  - Sin token: 401 Unauthorized
+
+  **Parámetros:**
+  - `zonaId` (opcional): filtra por zona específica
+
+  **Campos de MapaMesasResponse:**
+  - zonas[]: lista de ZonaMesaResponse
+    - zonaId, zonaNombre, cantidadMesasActivas
+    - mesas[]: lista de MesaMapaResponse
+      - mesaId, mesaIdentificador, numeroPersonas, nombreMesero, esMesaPropia, estado, notificacionesActivas
+
+  ## Independencia de datos
+
+  - **Tokens:** login secuencial encadenado en `beforeRequest` de colección (MESERO, ADMIN).
+  - **Zonas seed:** IDs 1-7 (Salón Principal, Terraza, VIP, Barra, Jardín, Sala Privada, Zona Romántica).
+  - **Mesas activas seed:** Visitas 10, 11, 12 (M-02, M-04, T-04).
+
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | MC-01 | MESERO obtiene mapa todas zonas — 200 OK | 200 |
+  | MC-02 | MESERO obtiene mapa de zona específica — 200 OK | 200 |
+  | MC-03 | MESERO con zonaId inexistente — 404 Not Found | 404 |
+  | MC-04 | ADMIN obtiene mapa todas zonas — 200 OK | 200 |
+  | MC-06 | Sin token de autenticación — 401 Unauthorized | 401 |
+  | MC-07 | CLIENTE intenta acceder — 403 Forbidden | 403 |
+  | MC-08 | Segunda llamada retorna datos consistentes (idempotencia) | 200 |
+  | MC-09 | CAJERO obtiene mapa todas zonas — 200 OK | 200 |
+  | MC-10 | CAJERO filtra por zona específica — 200 OK | 200 |
+  | MC-11 | CAJERO con zonaId inexistente — 404 Not Found | 404 |
+
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // ---------------------------------------------------------------------------
+      // Login secuencial de roles requeridos: MESERO, ADMIN
+      // ---------------------------------------------------------------------------
+      const logins = [
+        { emailKey: 'emailMesero',  tokenKey: 'meseroToken'  },
+        { emailKey: 'emailAdmin',   tokenKey: 'adminToken'   },
+        { emailKey: 'emailCajero',  tokenKey: 'cajeroToken'  },
+        { emailKey: 'emailCliente', tokenKey: 'clienteToken' }
+      ];
+
+      const runLogin = (index) => {
+        if (index >= logins.length) return;
+        const { emailKey, tokenKey } = logins[index];
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/auth/login',
+          method: 'POST',
+          header: { 'Content-Type': 'application/json' },
+          body: {
+            mode: 'raw',
+            raw: JSON.stringify({
+              email: pm.environment.get(emailKey),
+              password: pm.environment.get('passwordValida'),
+              forceSessionOverride: true
+            })
+          }
+        }, (err, res) => {
+          if (err || !res || res.code !== 200) {
+            console.warn('MC pre-request: login ' + emailKey + ' falló', err, res && res.code);
+          } else {
+            pm.environment.set(tokenKey, res.json().accessToken);
+          }
+          runLogin(index + 1);
+        });
+      };
+      runLogin(0);
+    language: text/javascript

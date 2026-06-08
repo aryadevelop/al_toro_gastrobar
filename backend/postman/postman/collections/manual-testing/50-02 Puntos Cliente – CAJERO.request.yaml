@@ -1,0 +1,38 @@
+$kind: http-request
+name: 50-02 Puntos Cliente – CAJERO
+description: Obtener puntos de fidelidad de un cliente (cajero)
+url: "{{baseUrl}}/api/clientes/{{tmpClienteId}}/puntos"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Configurar ID temporal (usar ID conocido)
+      pm.environment.set('tmpClienteId', '11');
+
+      // Login autónomo con credenciales hardcoded
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'password123',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.environment.unset('tmpClienteId');
+      pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 5020

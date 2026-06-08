@@ -1,0 +1,15 @@
+$kind: http-request
+name: MI-01 Sin token JWT – 401 Unauthorized
+description: |
+  Sin cabecera Authorization, el filtro JWT rechaza el request antes de llegar al controlador.
+  Resultado esperado: 401 Unauthorized.
+url: "{{baseUrl}}/api/reservas/1/marcar-inasistencia"
+method: PATCH
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Sin token → 401', function () {
+        pm.response.to.have.status(401);
+      });
+    language: text/javascript
+order: 1000

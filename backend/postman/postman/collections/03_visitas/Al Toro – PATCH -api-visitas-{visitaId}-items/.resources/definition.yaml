@@ -1,0 +1,30 @@
+$kind: collection
+name: Al Toro – PATCH /api/visitas/{visitaId}/items
+description: |-
+  # PATCH /api/visitas/{visitaId}/items
+
+  Ajuste batch de la cuenta por el cajero (CA-06/07/08/09): cantidades, precios de ítems
+  modificados y eliminaciones. Devuelve la cuenta recalculada.
+
+  **Control de acceso:** `@PreAuthorize("hasRole('CAJERO')")`. Otros roles → 403; sin token → 401.
+
+  **Validación Bean (@Valid → 422):** cantidad fuera de [1, 250] → 422.
+  **Reglas de negocio:**
+  - Ítem que no pertenece a la visita → 404 (ENT-001)
+  - Editar precio de un ítem NO modificado (sin descripción) → 409 (NEG-001)
+  - Visita ya cerrada → 409 (NEG-002)
+  - Menú especial: la cantidad se sincroniza en el par COCINA+BARRA; eliminar retira el par completo.
+
+  ## Dependencia de datos (seed)
+  Usa la visita ABIERTA 19. Los tests con `comandaItemId` real lo obtienen dinámicamente vía
+  `GET /api/ventas/19/cuenta` en `beforeRequest`. El caso 409 usa la visita CERRADA 1.
+
+  | ID    | Escenario                                | HTTP |
+  |-------|------------------------------------------|------|
+  | AJ-01 | Sin token                                | 401  |
+  | AJ-02 | MESERO sin permiso                       | 403  |
+  | AJ-03 | cantidad fuera de rango (300)            | 422  |
+  | AJ-04 | ítem que no pertenece a la visita        | 404  |
+  | AJ-05 | visita ya cerrada                        | 409  |
+  | AJ-06 | CAJERO ajusta cantidad (válido)          | 200  |
+  | AJ-07 | precio en ítem NO modificado             | 409  |

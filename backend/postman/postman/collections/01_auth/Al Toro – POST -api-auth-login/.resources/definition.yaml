@@ -1,0 +1,36 @@
+$kind: collection
+name: Al Toro – POST /api/auth/login
+description: |-
+  ## Descripción
+  Endpoint de inicio de sesión que autentica al usuario mediante credenciales de correo electrónico y contraseña, retornando un par de tokens JWT (access token y refresh token) junto con los datos básicos del usuario autenticado.
+
+  ## Estructura del Cuerpo de la Solicitud
+  ```json
+  {
+    "email": "string",
+    "password": "string",
+    "forceSessionOverride": false
+  }
+  ```
+  El campo `forceSessionOverride` permite cerrar una sesión activa previa en otro dispositivo. Si se omite, el valor predeterminado es `false`.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CA-01 | Login de administrador válido (override=true) | 200 |
+  | CA-02 | Credenciales incorrectas | 401 |
+  | CA-03 | Login con rol CLIENTE | 200 |
+  | CA-04 | Correo con espacios al inicio/final | 422 |
+  | CA-05 | Cuenta suspendida o inactiva | 403 |
+  | CA-06 | Formato de correo electrónico inválido | 422 |
+  | CA-07 | Campo correo vacío | 422 |
+  | CA-08 | Campo contraseña vacío | 422 |
+  | CA-09 | Correo en mayúsculas (normalización) | 200 |
+  | CA-10 | Sesión activa en otro dispositivo (override=false) | 409 |
+  | CA-11 | Inyección SQL o caracteres maliciosos | 401 |
+  | CA-HU09 | Login de mesero válido | 200 |
+  | CA-HU10 | Login de cocinero válido (rol mapeado a PRODUCCION) | 200 |
+  | CA-HU10b | Login de bartender válido (rol mapeado a PRODUCCION) | 200 |
+  | CA-HU12 | Login de cajero válido | 200 |
+  | CA-HU-MR | Login de usuario con múltiples roles — validación de rol primario | 200 |
+order: 348946001739002

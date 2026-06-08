@@ -1,0 +1,60 @@
+$kind: http-request
+name: OA-07 Segunda llamada retorna datos consistentes – 200 OK
+description: |-
+  **Criterio de Aceptación:** CA-06 — Recarga del dashboard mantiene estado consistente.
+  **Objetivo:** Verificar que múltiples llamadas consecutivas retornan los mismos datos (idempotencia de lectura).
+  **Pre-condición:** `clienteToken` disponible. Cliente carlos.perez@gmail.com tiene visita activa.
+  **Resultado esperado:** 200 OK con datos idénticos en ambas llamadas.
+url: "{{baseUrl}}/api/visitas/activa"
+method: GET
+headers:
+  Authorization: Bearer {{clienteToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      // Login autónomo del CLIENTE
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'carlos.perez@gmail.com',
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('clienteToken', res.json().accessToken);
+        } else {
+          console.warn('OA-07: login CLIENTE falló', err, res && res.code);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('La primera llamada retorna 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('Se hace segunda llamada y los datos son consistentes', function () {
+        const primera = pm.response.json().data;
+        // Guardar para comparar con segunda llamada inmediata
+        pm.sendRequest({
+          url: pm.environment.get('baseUrl') + '/api/visitas/activa',
+          method: 'GET',
+          header: { 'Authorization': 'Bearer ' + pm.environment.get('clienteToken') }
+        }, (err, res) => {
+          if (!err && res && res.code === 200) {
+            const segunda = res.json().data;
+            pm.expect(segunda.visitaId).to.equal(primera.visitaId);
+            pm.expect(segunda.totalPreorden).to.equal(primera.totalPreorden);
+            pm.expect(segunda.items.length).to.equal(primera.items.length);
+          } else {
+            pm.expect.fail('Segunda llamada falló: ' + (res && res.code));
+          }
+        });
+      });
+    language: text/javascript
+order: 7000

@@ -1,0 +1,47 @@
+$kind: http-request
+description: |-
+  **Criterio de Aceptación:** MI-12 (HE-04-HU-04-CA-06 FIFO)
+  **Objetivo:** Egreso del producto MI-FIFO-Cubierto (ID 146, stock=5) con cantidad=1.
+  **Lógica FIFO:** stockRestante=4 ≥ demanda_c37(1) + demanda_c38(1) = 2 → 0 comandas notificadas.
+  **Pre-condición:** Producto 146 con stock=5. Comandas 37 y 38 PENDIENTE con 1 ítem cada una.
+  **Resultado esperado:** HTTP 201, comandasNotificadas = 0.
+  **Atómica:** afterResponse ejecuta INGRESO compensatorio qty=1 para restaurar stock=5.
+url: "{{baseUrl}}/api/inventario/movimientos"
+method: POST
+headers:
+  Authorization: Bearer {{cocineroToken}}
+  Content-Type: application/json
+body:
+  type: text
+  content: |-
+    {
+      "productoId": 146,
+      "cantidad": 1.000,
+      "tipo": "EGRESO",
+      "observaciones": "Test FIFO MI-12: stock cubre todas"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status 201', () => pm.response.to.have.status(201));
+      const body = pm.response.json();
+      pm.test('success: true', () => pm.expect(body).to.have.property('success', true));
+      pm.test('data.movimientoId es número', () => pm.expect(body.data.movimientoId).to.be.a('number'));
+      pm.test('data.stockActualizado = 4', () => {
+        pm.expect(Number(body.data.stockActualizado)).to.eql(4);
+      });
+      pm.test('data.comandasNotificadas = 0 (stock cubre todas)', () => {
+        pm.expect(body.data.comandasNotificadas).to.eql(0);
+      });
+
+      // Compensación: INGRESO para restaurar stock=5
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/inventario/movimientos',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json', 'Authorization': 'Bearer ' + pm.environment.get('cocineroToken') },
+        body: { mode: 'raw', raw: JSON.stringify({ productoId: 146, cantidad: 1.000, tipo: 'INGRESO', observaciones: 'Reversa MI-12' }) }
+      }, (err, res) => {
+        pm.test('Reversa MI-12 restauró stock (201)', () => pm.expect(!err && res && res.code === 201).to.be.true);
+      });
+    language: text/javascript
+order: 1480

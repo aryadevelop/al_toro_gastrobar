@@ -1,0 +1,70 @@
+$kind: collection
+name: Al Toro – GET /api/auth/me
+description: |-
+  ## Descripción
+  Endpoint protegido que retorna los datos del usuario correspondiente al token JWT activo presentado en el header `Authorization`. Requiere token de tipo `access` con claim válido.
+
+  ## Encabezado Requerido
+  ```
+  Authorization: Bearer {{accessToken}}
+  ```
+
+  ## Pre-request Script de Grupo
+  Este grupo incluye un script de pre-request a nivel de carpeta que realiza un login fresco de ADMIN y, si no está disponible, un login de CLIENTE. Esto garantiza que los tokens estén actualizados independientemente del orden de ejecución.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CB-01 | Solicitud sin token JWT | 401 |
+  | CB-02 | Con token de ADMIN válido | 200 |
+  | CB-03 | Con token de CLIENTE válido | 200 |
+  | CB-04 | Token con firma adulterada | 401 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de ADMIN (forceSessionOverride=true evita conflicto con CA-10)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        const body = res.json();
+        pm.environment.set('accessToken', body.accessToken);
+        pm.environment.set('refreshToken', body.refreshToken);
+        pm.environment.set('loginExpiresIn', body.expiresIn);
+      });
+
+      // Login autónomo de CLIENTE para poblar clienteAccessToken (CB-03)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailCliente'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login CLIENTE falló', err, res && res.code);
+          return;
+        }
+        pm.environment.set('clienteAccessToken', res.json().accessToken);
+      });
+    language: text/javascript
+order: 929290848499767

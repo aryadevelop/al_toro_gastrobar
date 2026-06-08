@@ -1,0 +1,23 @@
+$kind: http-request
+name: AC-02 BARTENDER consulta detalle – 200 OK
+description: |-
+  **Objetivo:** El bartender obtiene el detalle de una comanda de BARRA en estado visible.
+  **Pre-condición:** `bartenderToken` lo provee el `beforeRequest` de colección;
+  `comandaIdBarraVisible` apunta a una comanda visible de la estación BARRA.
+  **Resultado esperado:** 200 OK con `data.estacion='BARRA'`.
+url: "{{baseUrl}}/api/comandas/produccion/{{comandaIdBarraVisible}}"
+method: GET
+headers:
+  Authorization: Bearer {{bartenderToken}}
+scripts:
+  - type: beforeRequest
+    code: pm.environment.set('comandaIdBarraVisible', '14');
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('HTTP 200', function () { pm.response.to.have.status(200); });
+      pm.test('Estación BARRA', function () {
+        pm.expect(pm.response.json().data.estacion).to.equal('BARRA');
+      });
+    language: text/javascript
+order: 2020

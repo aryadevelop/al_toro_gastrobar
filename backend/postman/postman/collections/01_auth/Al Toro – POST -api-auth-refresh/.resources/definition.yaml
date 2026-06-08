@@ -1,0 +1,53 @@
+$kind: collection
+name: Al Toro – POST /api/auth/refresh
+description: |-
+  ## Descripción
+  Endpoint de renovación del token de acceso. Recibe el refresh token activo y, si es válido, emite un nuevo par de tokens (access token y refresh token) mediante rotación de token. El refresh token utilizado queda invalidado inmediatamente tras la operación.
+
+  ## Estructura del Cuerpo de la Solicitud
+  ```json
+  {
+    "refreshToken": "string"
+  }
+  ```
+
+  ## Comportamiento de Rotación de Token
+  Al ejecutar un refresh exitoso, el refresh token enviado se elimina de la base de datos y se genera un nuevo par. Intentar reutilizar el token anterior resulta en error 401.
+
+  ## Matriz de Casos de Prueba
+  | ID | Escenario | HTTP |
+  |----|-----------|------|
+  | CA-12 | Refresh token con valor inválido | 401 |
+  | CA-13 | Refresh token válido con rotación | 200 |
+  | CA-14 | Cuerpo de solicitud sin campo refreshToken | 422 |
+  | CA-15 | Reutilización de refresh token ya rotado | 401 |
+  | CA-16 | Uso de refresh token como access token en /me | 401 |
+  | CA-17 | Uso de access token en endpoint /refresh | 401 |
+scripts:
+  - type: http:beforeRequest
+    code: |-
+      // Login autónomo de ADMIN (forceSessionOverride=true evita conflicto con CA-10)
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: pm.environment.get('emailAdmin'),
+            password: pm.environment.get('passwordValida'),
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (err || !res || res.code !== 200) {
+          console.warn('Pre-request: login ADMIN falló', err, res && res.code);
+          return;
+        }
+        const body = res.json();
+        pm.environment.set('accessToken', body.accessToken);
+        pm.environment.set('refreshToken', body.refreshToken);
+        pm.environment.set('loginExpiresIn', body.expiresIn);
+      });
+    language: text/javascript
+order: 2911013810063665

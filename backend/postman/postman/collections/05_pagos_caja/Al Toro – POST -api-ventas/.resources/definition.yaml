@@ -1,0 +1,35 @@
+$kind: collection
+name: Al Toro – POST /api/ventas
+description: |-
+  # POST /api/ventas
+
+  Registra el pago y cierra la cuenta de una visita (CA-11/12/13). El subtotal y el total se
+  recalculan en el SERVIDOR a partir de las comandas activas; el cajero solo envía `descuento`
+  y `metodo`. Efectos: crea Venta, +1 punto al cliente, cierra visita y mesa (CERRADA), marca
+  comandas COMPLETADO y publica `/topic/visita/{id}/cuenta` + `/topic/mesas`.
+
+  **Body:** `CerrarCuentaRequest { emailCajero, visitaId, descuento?, metodo }`.
+  **Control de acceso:** `@PreAuthorize("hasRole('CAJERO')")`. Otros roles → 403; sin token → 401.
+
+  **Validación (@Valid → 422):** `metodo` null → 422 (CA-13).
+  **Reglas de negocio:**
+  - Visita inexistente → 404 (ENT-001)
+  - Descuento mayor al total → 409 (NEG-001, CA-11)
+  - Cuenta ya cerrada → 409 (NEG-002)
+
+  ## Dependencia de datos (seed)
+  El happy-path (VE-07) CIERRA la visita (single-use): usa la visita ABIERTA 18 (ATENDIDA con
+  ítems). El test de descuento usa la visita ABIERTA 17 (con ítems, no la cierra). El de cuenta
+  cerrada usa la visita 1.
+  Tras correr VE-07, re-seed para repetir: `docker compose down -v && docker compose up --build`.
+
+  | ID    | Escenario                       | HTTP |
+  |-------|---------------------------------|------|
+  | VE-01 | Sin token                       | 401  |
+  | VE-02 | MESERO sin permiso              | 403  |
+  | VE-03 | CLIENTE sin permiso             | 403  |
+  | VE-04 | Sin método de pago              | 422  |
+  | VE-05 | Visita inexistente              | 404  |
+  | VE-06 | Descuento mayor al total        | 409  |
+  | VE-07 | CAJERO registra pago (válido)   | 201  |
+  | VE-08 | Cuenta ya cerrada               | 409  |

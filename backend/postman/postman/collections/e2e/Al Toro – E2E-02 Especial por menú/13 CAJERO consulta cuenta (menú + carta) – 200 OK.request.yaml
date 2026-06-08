@@ -1,0 +1,61 @@
+$kind: http-request
+name: 13 CAJERO consulta la cuenta (menú + carta conviven) – 200 OK
+description: |-
+  ASERCIÓN CLAVE de E2E-02: en la cuenta deben aparecer JUNTOS el par de menú especial (plato a precio
+  completo + bebida a precio 0) y el plato de carta agregado en la visita (Hamburguesa). El menú no
+  fusiona ni oculta la carta. Captura `tmpTotalAPagar`.
+url: "{{baseUrl}}/api/ventas/{{tmpVisitaId}}/cuenta"
+method: GET
+headers:
+  Authorization: Bearer {{cajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: pm.environment.get('baseUrl') + '/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: { mode: 'raw', raw: JSON.stringify({
+          email: pm.environment.get('emailCajero'),
+          password: pm.environment.get('passwordValida'),
+          forceSessionOverride: true
+        })}
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          const token = res.json().accessToken;
+          pm.environment.set('cajeroToken', token);
+          pm.request.headers.upsert({ key: 'Authorization', value: 'Bearer ' + token });
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: |-
+      pm.test('El sistema retorna HTTP 200', function () {
+        pm.response.to.have.status(200);
+      });
+      pm.test('La cuenta tiene total a pagar', function () {
+        const data = pm.response.json().data;
+        pm.expect(Number(data.totalAPagar)).to.be.above(0);
+        pm.environment.set('tmpTotalAPagar', data.totalAPagar);
+      });
+      pm.test('El menú especial y la carta agregada conviven en la cuenta', function () {
+        const data = pm.response.json().data;
+        // Aplanar todas las líneas de la cuenta (platos + bebidas, según el contrato del detalle).
+        // VERIFICAR EN VIVO: nombres exactos de los arrays/campos del DTO de cuenta (platos/bebidas/items).
+        const items = []
+          .concat(data.platos || [])
+          .concat(data.bebidas || [])
+          .concat(data.items || []);
+        pm.expect(items.length, 'líneas de la cuenta').to.be.at.least(3);
+
+        // El plato de menú: tiene menuGrupo poblado.
+        const lineaMenu = items.find(i => i.menuGrupo);
+        pm.expect(lineaMenu, 'línea del menú especial (con menuGrupo)').to.be.an('object');
+
+        // La Hamburguesa agregada de carta: SIN menuGrupo (no pertenece al menú).
+        const lineaCarta = items.find(i =>
+          !i.menuGrupo && /hamburguesa/i.test(i.productoNombre || i.nombreProducto || ''));
+        pm.expect(lineaCarta, 'plato de carta agregado (Hamburguesa, sin menuGrupo)').to.be.an('object');
+      });
+    language: text/javascript
+order: 220

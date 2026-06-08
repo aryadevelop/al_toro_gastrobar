@@ -1,0 +1,29 @@
+$kind: collection
+name: Al Toro – E2E-04 Walk-in invitado
+description: |-
+  **Escenario E2E-04** · Walk-in (sin reserva) armado desde cero, cuenta como INVITADO.
+  TR=WALK-IN · PO=ninguna · BR=vacío · AJ=eliminar ítem de carta en el cierre · PU=invitado (sin puntos) · MP=EFECTIVO.
+
+  **Pre-condición:** NO requiere seed. La visita walk-in se crea por API (`POST /api/mesas` con `reservaId=null`).
+  **Cliente:** ninguno — la visita NO tiene cliente asociado (invitado). Por eso NO se otorgan puntos al cerrar.
+  **Token:** cada paso hace login autónomo e inyecta `Authorization: Bearer <token>` con
+  `pm.request.headers.upsert` dentro del callback.
+  La asignación de mesa no tiene restricción horaria.
+
+  **Secuencia (los requests comparten `tmp*` y deben correr en orden):**
+  | Orden | Rol | Paso | Aserción |
+  |-------|-----|------|----------|
+  | 100 | MESERO | Asignar mesa walk-in (`reservaId=null`) | 201; captura `tmpVisitaId` |
+  | 110 | MESERO | Agregar Hamburguesa (36) al borrador | 200; captura `tmpComandaCocinaId` (de la respuesta) |
+  | 120 | MESERO | Agregar Picanha (10) al borrador | 200 |
+  | 130 | MESERO | Obtener borrador | 200; ≥2 platos; captura `tmpComandaCocinaId`, `tmpItemEliminar` (un comandaItemId) |
+  | 140 | MESERO | Enviar comanda COCINA | 200 |
+  | 150 | COCINERO | Iniciar preparación | EN_PREPARACION |
+  | 160 | COCINERO | Marcar listo | LISTO |
+  | 170 | CAJERO | Cuenta preliminar | `clienteId=null` (invitado); captura `tmpTotalAntes`, `tmpItemsAntes` |
+  | 180 | CAJERO | Eliminar un ítem de la cuenta (`eliminados:[tmpItemEliminar]`) | 200 |
+  | 190 | CAJERO | Cuenta tras eliminar | ítem ya no está; `totalAPagar` < `tmpTotalAntes` |
+  | 200 | CAJERO | Cerrar cuenta (EFECTIVO) | 201; cierra como invitado (sin cliente) |
+
+  **Login autónomo por rol** en cada `beforeRequest` (emails de entorno + `passwordValida`).
+  **Aserción clave:** la venta cierra SIN cliente (invitado) → NO se otorga punto de lealtad.

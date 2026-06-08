@@ -1,0 +1,32 @@
+$kind: http-request
+name: 80-21 Obtener mapa mesas zona especifica – CAJERO
+description: Obtiene el mapa filtrado por una zona específica (zonaId=1, rol CAJERO)
+url: "{{baseUrl}}/api/mesas?zonaId=1"
+method: GET
+headers:
+  Authorization: Bearer {{tmpCajeroToken}}
+scripts:
+  - type: beforeRequest
+    code: |-
+      pm.sendRequest({
+        url: '{{baseUrl}}/api/auth/login',
+        method: 'POST',
+        header: { 'Content-Type': 'application/json' },
+        body: {
+          mode: 'raw',
+          raw: JSON.stringify({
+            email: 'cajero1@altoro.com',
+            password: 'Al.Toro2026!',
+            forceSessionOverride: true
+          })
+        }
+      }, (err, res) => {
+        if (!err && res && res.code === 200) {
+          pm.environment.set('tmpCajeroToken', res.json().accessToken);
+        }
+      });
+    language: text/javascript
+  - type: afterResponse
+    code: pm.environment.unset('tmpCajeroToken');
+    language: text/javascript
+order: 8210

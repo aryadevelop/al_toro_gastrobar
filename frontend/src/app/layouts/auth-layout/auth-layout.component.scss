@@ -1,0 +1,123 @@
+﻿.auth-layout {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+}
+
+.auth-panel {
+  display: none;
+  background: linear-gradient(160deg, #0A0A0A 0%, #1A1A1A 58%, #0A0A0A 100%);
+  color: #FFFFFF;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding: 3rem 2rem;
+  position: relative;
+
+  &::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: repeating-linear-gradient(145deg, rgba(255, 255, 255, 0.04) 0 2px, rgba(255, 255, 255, 0) 2px 10px);
+    opacity: 0.28;
+    pointer-events: none;
+  }
+
+  &::after {
+    content: '';
+    position: absolute;
+    right: 0;
+    top: 15%;
+    height: 70%;
+    width: 3px;
+    background: linear-gradient(180deg, transparent, #6F4E37 50%, transparent);
+    border-radius: 2px;
+  }
+}
+
+.auth-panel__content {
+  text-align: center;
+  position: relative;
+  z-index: 1;
+}
+
+.logo-img {
+  display: block;
+  width: 100%;
+  max-width: 280px;
+  height: auto;
+  object-fit: contain;
+}
+
+.logo-img--desktop {
+  margin: 0 auto 1.4rem;
+}
+
+.logo-img--mobile {
+  max-width: 190px;
+  margin: 0 auto;
+}
+
+.brand-tagline {
+  margin-top: 1rem;
+  color: rgba(255, 255, 255, 0.5);
+  font-size: 0.9rem;
+  max-width: 28ch;
+}
+
+.auth-panel__footer {
+  position: absolute;
+  bottom: 1.5rem;
+  font-size: 0.72rem;
+  color: rgba(255, 255, 255, 0.25);
+  margin: 0;
+  z-index: 1;
+}
+
+.auth-content {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 1rem;
+  background: radial-gradient(circle at 70% 30%, #ffffff, #FFFFFF 60%);
+}
+
+.auth-form-wrapper {
+  width: 100%;
+  max-width: 410px;
+}
+
+.mobile-brand {
+  display: block;
+  text-align: center;
+  margin-bottom: 1.25rem;
+}
+
+@media (min-width: 769px) {
+  .auth-layout {
+    grid-template-columns: 1fr 1.1fr;
+  }
+
+  .auth-panel {
+    display: flex;
+  }
+
+  .mobile-brand {
+    display: none;
+  }
+
+  .auth-content {
+    padding: 2rem;
+  }
+}
+
+@media (max-width: 375px) {
+  .auth-content {
+    padding: 0.8rem;
+  }
+
+  .auth-form-wrapper {
+    max-width: 100%;
+  }
+}
+
