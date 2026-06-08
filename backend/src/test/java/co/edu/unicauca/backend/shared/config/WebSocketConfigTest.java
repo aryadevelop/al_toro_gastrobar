@@ -7,6 +7,7 @@ import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.springframework.messaging.simp.config.MessageBrokerRegistry;
+import org.springframework.messaging.simp.config.SimpleBrokerRegistration;
 import org.springframework.web.socket.config.annotation.StompEndpointRegistry;
 import org.springframework.web.socket.config.annotation.StompWebSocketEndpointRegistration;
 
@@ -85,11 +86,21 @@ class WebSocketConfigTest {
     @DisplayName("configureMessageBroker")
     class ConfigureMessageBroker {
 
+        private MessageBrokerRegistry registry;
+        private SimpleBrokerRegistration brokerRegistration;
+
+        @BeforeEach
+        void setUpRegistry() {
+            registry = mock(MessageBrokerRegistry.class);
+            brokerRegistration = mock(SimpleBrokerRegistration.class);
+            when(registry.enableSimpleBroker("/topic")).thenReturn(brokerRegistration);
+            when(brokerRegistration.setHeartbeatValue(any())).thenReturn(brokerRegistration);
+            when(brokerRegistration.setTaskScheduler(any())).thenReturn(brokerRegistration);
+        }
+
         @Test
         @DisplayName("Habilita broker simple con destino /topic")
         void habilitaBrokerSimpleConTopic() {
-            MessageBrokerRegistry registry = mock(MessageBrokerRegistry.class);
-
             config.configureMessageBroker(registry);
 
             verify(registry).enableSimpleBroker("/topic");
@@ -98,8 +109,6 @@ class WebSocketConfigTest {
         @Test
         @DisplayName("Establece /app como prefijo de destino para la aplicación")
         void establecePrefijoApp() {
-            MessageBrokerRegistry registry = mock(MessageBrokerRegistry.class);
-
             config.configureMessageBroker(registry);
 
             verify(registry).setApplicationDestinationPrefixes("/app");
@@ -108,8 +117,6 @@ class WebSocketConfigTest {
         @Test
         @DisplayName("Solo realiza exactamente dos operaciones sobre el registry")
         void soloDosSolicitudesAlRegistry() {
-            MessageBrokerRegistry registry = mock(MessageBrokerRegistry.class);
-
             config.configureMessageBroker(registry);
 
             verify(registry, times(1)).enableSimpleBroker("/topic");

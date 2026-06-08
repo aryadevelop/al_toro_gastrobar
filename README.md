@@ -317,6 +317,6 @@ Antes de realizar el primer commit, cada miembro del equipo debe leer y seguir e
 | Nombre | Rol en Scrum |
 |--------|--------------|
 | Paula Andrea Muñoz Delgado | Scrum Master · Desarrollador · Analista |
-| Adrián Camilo Bergaño Ortega | Desarrollador |
+| Adrián Camilo Bergaño Ortega | Desarrollador · Analista |
 | Yeixón Julián Gembuel Ciclos | Desarrollador · Tester |
 | Rubeiro Romero | Desarrollador · Tester |
