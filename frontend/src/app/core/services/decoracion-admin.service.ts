@@ -6,7 +6,8 @@ import {
   ApiEnvelope, 
   BackendDecoracionAdminResponse, 
   BackendCrearDecoracionRequest, 
-  BackendActualizarDecoracionRequest 
+  BackendActualizarDecoracionRequest,
+  BackendCambioEstadoDecoracionRequest
 } from '../models/api.models';
 
 @Injectable({
@@ -39,5 +40,10 @@ export class DecoracionAdminService {
 
   eliminarImagenDecoracion(id: number): Observable<ApiEnvelope<void>> {
     return this.http.delete<ApiEnvelope<void>>(API_PATHS.adminDecoraciones.eliminarImagen(id));
+  }
+
+  cambiarEstado(id: number, estado: string): Observable<ApiEnvelope<BackendDecoracionAdminResponse>> {
+    const payload: BackendCambioEstadoDecoracionRequest = { estado };
+    return this.http.patch<ApiEnvelope<BackendDecoracionAdminResponse>>(API_PATHS.adminDecoraciones.cambiarEstado(id), payload);
   }
 }
