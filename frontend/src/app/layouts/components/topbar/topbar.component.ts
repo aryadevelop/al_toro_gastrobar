@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
 import { Router } from '@angular/router';
 import { AuthService } from '../../../core/services/auth.service';
@@ -10,14 +10,17 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
   standalone: true,
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
-    <header class="topbar card" [class.topbar--cliente]="isClienteRole">
-      <div class="topbar__left">
-        <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="topbar-logo" />
-        <span class="topbar-user" *ngIf="authService.currentUser()?.fullName as fullName">{{ fullName }}</span>
-      </div>
+    <div class="topbar-wrapper">
+      <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="topbar-logo" />
+      
+      <header class="topbar card" [class.topbar--cliente]="isClienteRole">
+        <div class="topbar__left">
+          <span class="topbar-user" *ngIf="authService.currentUser()?.fullName as fullName">{{ fullName }}</span>
+        </div>
 
-      <button type="button" class="btn-secondary" (click)="onLogout()">Cerrar sesión</button>
-    </header>
+        <button type="button" class="btn-secondary" (click)="onLogout()">Cerrar sesión</button>
+      </header>
+    </div>
 
     <article class="topbar-flash card" *ngIf="flashMessage()">
       <p>{{ flashMessage() }}</p>
@@ -39,6 +42,8 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
       message="¿Deseas cerrar sesión?"
       cancelLabel="No"
       confirmLabel="Sí, cerrar sesión"
+      cancelBtnClass="btn-outline-white"
+      confirmBtnClass="btn-black"
       (cancel)="showLogoutDialog.set(false)"
       (confirm)="onConfirmLogout()"
     ></app-confirm-dialog>

@@ -131,7 +131,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       }
 
       .badge {
-        border: 1px solid rgba(111, 78, 55, 0.45);
+        border: 1px solid rgba(211, 47, 47, 0.45);
         border-radius: 999px;
         padding: 0.2rem 0.6rem;
         font-size: 0.76rem;
@@ -187,9 +187,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .note-box {
         margin: 0;
-        border: 1px solid rgba(111, 78, 55, 0.35);
+        border: 1px solid rgba(211, 47, 47, 0.35);
         border-radius: 8px;
-        background: rgba(111, 78, 55, 0.08);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         padding: 0.55rem 0.65rem;
         font-size: 0.84rem;

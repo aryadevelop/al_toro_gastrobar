@@ -86,7 +86,7 @@ interface ZonaGroup {
             <div class="reserva-card-actions">
               <button class="card-btn" (click)="verDetalle(r.id)">&#128065; Ver</button>
               <button
-                class="card-btn"
+                class="card-btn card-btn-white"
                 [class.card-btn-disabled]="r.status !== 'CONFIRMED'"
                 (click)="onMarcarLlegada(r)"
               >
@@ -252,9 +252,18 @@ interface ZonaGroup {
         white-space: nowrap;
       }
       .card-btn:hover { background: var(--surface); }
+      .card-btn-white {
+        background: #ffffff;
+        color: #000000;
+        border-color: #ffffff;
+      }
+      .card-btn-white:hover {
+        background: #e0e0e0;
+        color: #000000;
+      }
       .card-btn.card-btn-disabled {
         opacity: 0.6;
-        background: #f4f1ed;
+        cursor: not-allowed;
       }
       .card-btn-danger {
         color: #8a2a2a;

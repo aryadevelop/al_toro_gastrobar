@@ -28,7 +28,7 @@
 .spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(111, 78, 55, 0.18);
+  border: 3px solid rgba(211, 47, 47, 0.18);
   border-top-color: var(--secondary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -93,8 +93,8 @@
      eventos de click llegaran a los botones dentro de las tarjetas cuando
      el navegador calculaba el hit-testing sobre el elemento recortado. */
   overflow: visible;
-  background: rgba(241, 223, 205, 0.3);
-  border: 1px solid rgba(111, 78, 55, 0.1);
+  background: #ffffff;
+  border: 1px solid rgba(211, 47, 47, 0.1);
 }
 
 .column-header {
@@ -129,8 +129,9 @@
 
 /* Column header colors */
 .pendiente-header {
-  background: linear-gradient(135deg, #d4a76a 0%, #c8903c 100%);
+  background: linear-gradient(135deg, #fbc02d 0%, #ffeb3b 100%);
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .pendiente-header .column-badge {
@@ -138,7 +139,7 @@
 }
 
 .preparacion-header {
-  background: linear-gradient(135deg, #b85c38 0%, #a04422 100%);
+  background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);
   color: #fff;
 }
 
@@ -147,7 +148,7 @@
 }
 
 .listo-header {
-  background: linear-gradient(135deg, #5a7d3a 0%, #486a2d 100%);
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
   color: #fff;
 }
 
@@ -172,7 +173,7 @@
 }
 
 .column-body::-webkit-scrollbar-thumb {
-  background: rgba(111, 78, 55, 0.25);
+  background: rgba(211, 47, 47, 0.25);
   border-radius: 99px;
 }
 
@@ -204,8 +205,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.6rem 0.85rem;
-  background: rgba(111, 78, 55, 0.08);
-  border-bottom: 1px solid rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.08);
+  border-bottom: 1px solid rgba(211, 47, 47, 0.1);
 }
 
 .comanda-mesa {
@@ -223,13 +224,15 @@
 }
 
 .estacion-cocina {
-  background: rgba(184, 92, 56, 0.15);
-  color: #8b3a1e;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estacion-barra {
-  background: rgba(56, 107, 184, 0.15);
-  color: #1e4f8b;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .comanda-card__body {
@@ -260,21 +263,21 @@
   margin-top: 0.25rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #b85c38;
-  background: rgba(184, 92, 56, 0.08);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.2);
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
   width: fit-content;
 }
 
 .comanda-tiempo.prep-time {
-  color: #a04422;
-  background: rgba(160, 68, 34, 0.1);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .comanda-tiempo.listo-time {
-  color: #486a2d;
-  background: rgba(90, 125, 58, 0.1);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .comanda-notas {
@@ -284,7 +287,7 @@
   opacity: 0.85;
   font-style: italic;
   padding: 0.3rem 0.5rem;
-  background: rgba(111, 78, 55, 0.06);
+  background: rgba(211, 47, 47, 0.06);
   border-radius: 6px;
 }
 
@@ -293,7 +296,7 @@
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.6rem 0.85rem 0.75rem;
-  border-top: 1px solid rgba(111, 78, 55, 0.08);
+  border-top: 1px solid rgba(211, 47, 47, 0.08);
   /* [FIX CLICKS] Asegura que los botones de acción siempre reciban eventos */
   position: relative;
   z-index: 1;
@@ -301,13 +304,13 @@
 
 .actions-secondary {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.6rem;
+  justify-content: center;
 }
 
-.actions-secondary .btn-secondary {
-  flex: 1;
-  font-size: 0.78rem;
-  padding: 0.4rem 0.5rem;
+.actions-secondary .btn-white {
+  font-size: 0.8rem;
+  padding: 0.45rem 0.7rem;
 }
 
 /* ── Buttons ────────────────────────────────────── */
@@ -342,18 +345,54 @@
 }
 
 .btn-notify {
-  border: 1px solid rgba(212, 167, 106, 0.5);
+  border: 1px solid #ffffff;
   border-radius: 10px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
   font-weight: 600;
-  background: rgba(212, 167, 106, 0.12);
-  color: #8b5e3c;
+  background: transparent;
+  color: #ffffff;
   font-size: 0.8rem;
+  transition: all 0.2s;
 }
 
 .btn-notify:hover {
-  background: rgba(212, 167, 106, 0.22);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-black {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: #000000;
+  color: #ffffff;
+  transition: all 0.2s;
+}
+
+.btn-black:hover {
+  background: #222222;
+}
+
+.btn-black:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-white {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: #ffffff;
+  color: #000000;
+  transition: all 0.2s;
+}
+
+.btn-white:hover {
+  background: #e0e0e0;
 }
 
 /* ── Empty column ───────────────────────────────── */
@@ -422,8 +461,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.2rem;
-  border-bottom: 1px solid rgba(111, 78, 55, 0.15);
-  background: rgba(111, 78, 55, 0.06);
+  border-bottom: 1px solid rgba(211, 47, 47, 0.15);
+  background: rgba(211, 47, 47, 0.06);
 }
 
 .detalle-panel__header h2 {
@@ -435,7 +474,7 @@
   width: 34px;
   height: 34px;
   border: 0;
-  background: rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.1);
   border-radius: 8px;
   cursor: pointer;
   font-size: 1.1rem;
@@ -447,7 +486,7 @@
 }
 
 .btn-cerrar:hover {
-  background: rgba(111, 78, 55, 0.2);
+  background: rgba(211, 47, 47, 0.2);
 }
 
 .detalle-panel__loading {
@@ -480,7 +519,7 @@
 }
 
 .detalle-panel__body::-webkit-scrollbar-thumb {
-  background: rgba(111, 78, 55, 0.2);
+  background: rgba(211, 47, 47, 0.2);
   border-radius: 99px;
 }
 
@@ -520,13 +559,15 @@
 }
 
 .estacion-cocina {
-  background: rgba(184, 92, 56, 0.15);
-  color: #8b3a1e;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estacion-barra {
-  background: rgba(56, 107, 184, 0.15);
-  color: #1e4f8b;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estado-pendiente {
@@ -556,7 +597,7 @@
   font-style: italic;
   color: var(--muted);
   padding: 0.45rem 0.65rem;
-  background: rgba(111, 78, 55, 0.06);
+  background: rgba(211, 47, 47, 0.06);
   border-radius: 8px;
 }
 
@@ -579,8 +620,8 @@
   gap: 0.6rem;
   padding: 0.45rem 0.6rem;
   border-radius: 8px;
-  background: rgba(111, 78, 55, 0.04);
-  border: 1px solid rgba(111, 78, 55, 0.08);
+  background: rgba(211, 47, 47, 0.04);
+  border: 1px solid rgba(211, 47, 47, 0.08);
 }
 
 .detalle-item-qty {
@@ -626,7 +667,7 @@
   font-size: 0.7rem;
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
-  background: rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.1);
   color: var(--secondary);
   font-weight: 500;
 }
@@ -634,8 +675,8 @@
 /* Footer */
 .detalle-panel__footer {
   padding: 0.85rem 1.2rem;
-  border-top: 1px solid rgba(111, 78, 55, 0.12);
-  background: rgba(111, 78, 55, 0.04);
+  border-top: 1px solid rgba(211, 47, 47, 0.12);
+  background: rgba(211, 47, 47, 0.04);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -677,7 +718,7 @@
     height: 8px;
   }
   .board-columns::-webkit-scrollbar-thumb {
-    background: rgba(111, 78, 55, 0.4);
+    background: rgba(211, 47, 47, 0.4);
     border-radius: 4px;
   }
 

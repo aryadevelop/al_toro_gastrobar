@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { HttpErrorResponse } from '@angular/common/http';
 import { Component, signal } from '@angular/core';
 import { FormBuilder, ReactiveFormsModule, Validators } from '@angular/forms';
@@ -110,12 +110,12 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
         margin: 0;
         font-size: 1.6rem;
         font-weight: 700;
-        color: var(--text);
+        color: #000000;
       }
 
       .login-header p {
         margin: 0.4rem 0 0;
-        color: var(--muted);
+        color: #333333;
         font-size: 0.9rem;
       }
 
@@ -132,7 +132,12 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
       .form-group label {
         font-size: 0.88rem;
         font-weight: 600;
-        color: var(--text);
+        color: #000000;
+      }
+
+      .input-field {
+        color: #000000;
+        background: #ffffff;
       }
 
       .auth-error {
@@ -141,8 +146,8 @@ import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/con
         gap: 0.6rem;
         padding: 0.75rem 0.9rem;
         border-radius: 10px;
-        background: rgba(111, 78, 55, 0.07);
-        border: 1px solid rgba(111, 78, 55, 0.2);
+        background: rgba(211, 47, 47, 0.07);
+        border: 1px solid rgba(211, 47, 47, 0.2);
       }
 
       .auth-error__dot {

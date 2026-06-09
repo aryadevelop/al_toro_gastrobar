@@ -24,7 +24,7 @@ import { Mesa } from '../../../core/models/domain.models';
       }
 
       .occupied {
-        border-color: #6F4E37;
+        border-color: var(--primary);
       }
 
       .reserved {

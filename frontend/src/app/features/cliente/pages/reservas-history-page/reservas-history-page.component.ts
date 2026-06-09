@@ -25,10 +25,6 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
 
       <app-page-header title="Historial de visitas" subtitle="Tus visitas y reservas futuras"></app-page-header>
 
-      <div class="history-tabs">
-        <a class="tab-link" routerLink="/app/cliente">Dashboard</a>
-        <span class="tab-link active">Historial</span>
-      </div>
 
       <article class="card points-card">
         <h3>Puntos acumulados: {{ points() }}</h3>
@@ -159,32 +155,13 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
   styles: [
     `
       .flash-toast {
-        border: 1px solid #6F4E37;
-        background: rgba(111, 78, 55, 0.1);
+        border: 1px solid var(--primary);
+        background: rgba(211, 47, 47, 0.1);
         color: #4d3323;
         padding: 0.7rem 0.9rem;
         font-weight: 700;
       }
 
-      .history-tabs {
-        display: flex;
-        gap: 0.45rem;
-        align-items: center;
-      }
-
-      .tab-link {
-        border: 1px solid rgba(111, 78, 55, 0.7);
-        border-radius: 8px;
-        padding: 0.34rem 0.6rem;
-        font-size: 0.8rem;
-        color: #ffffff;
-        background: #6F4E37;
-      }
-
-      .tab-link.active {
-        background: #5b3f2c;
-        color: #ffffff;
-      }
 
       .points-card {
         padding: 0.4rem 0.6rem;
@@ -290,7 +267,7 @@ const WHATSAPP_COMPANY_NUMBER = '573001112233';
       }
 
       .btn-close:hover {
-        background: rgba(111, 78, 55, 0.15);
+        background: rgba(211, 47, 47, 0.15);
       }
 
       .detail-modal-body {

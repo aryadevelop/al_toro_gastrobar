@@ -440,28 +440,28 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       }
 
       .floating-warning {
-        border: 1px solid #6F4E37;
-        background: rgba(111, 78, 55, 0.12);
+        border: 1px solid var(--primary);
+        background: rgba(211, 47, 47, 0.12);
         color: #4d3323;
         font-weight: 700;
       }
 
       .availability-warning {
         margin: 0 0 0.85rem;
-        border: 1px solid #6F4E37;
+        border: 1px solid var(--primary);
         border-radius: 8px;
         padding: 0.6rem 0.75rem;
-        background: rgba(111, 78, 55, 0.1);
+        background: rgba(211, 47, 47, 0.1);
         color: #4d3323;
         font-size: 0.86rem;
       }
 
       .context-info {
         margin: 0 0 0.85rem;
-        border: 1px solid rgba(111, 78, 55, 0.35);
+        border: 1px solid rgba(211, 47, 47, 0.35);
         border-radius: 8px;
         padding: 0.6rem 0.75rem;
-        background: rgba(111, 78, 55, 0.08);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         font-size: 0.84rem;
       }
@@ -528,10 +528,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .zone-lock-message {
         margin: 0;
-        border: 1px solid rgba(111, 78, 55, 0.35);
+        border: 1px solid rgba(211, 47, 47, 0.35);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(111, 78, 55, 0.08);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         font-size: 0.82rem;
       }
@@ -551,10 +551,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .romantic-note {
         margin: 0;
-        border: 1px solid rgba(111, 78, 55, 0.35);
+        border: 1px solid rgba(211, 47, 47, 0.35);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(111, 78, 55, 0.08);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         font-size: 0.82rem;
       }
@@ -578,7 +578,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       }
 
       .tab-btn {
-        border: 1px solid rgba(111, 78, 55, 0.6);
+        border: 1px solid rgba(211, 47, 47, 0.6);
         background: #ffffff;
         color: #5b3f2c;
         border-radius: 8px;
@@ -588,7 +588,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       }
 
       .tab-btn.active {
-        background: #6F4E37;
+        background: var(--primary);
         color: #ffffff;
       }
 
@@ -601,8 +601,8 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         margin: 0;
         padding: 0.5rem 0.6rem;
         border-radius: 8px;
-        border: 1px solid rgba(111, 78, 55, 0.35);
-        background: rgba(111, 78, 55, 0.08);
+        border: 1px solid rgba(211, 47, 47, 0.35);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         font-size: 0.82rem;
       }
@@ -691,9 +691,9 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       }
 
       .qty-btn {
-        border: 1px solid rgba(111, 78, 55, 0.68);
+        border: 1px solid rgba(211, 47, 47, 0.68);
         border-radius: 8px;
-        background: #6F4E37;
+        background: var(--primary);
         color: #ffffff;
         min-height: 30px;
         cursor: pointer;
@@ -842,10 +842,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .summary-note {
         margin: 0;
-        border: 1px solid rgba(111, 78, 55, 0.36);
+        border: 1px solid rgba(211, 47, 47, 0.36);
         border-radius: 8px;
         padding: 0.45rem 0.55rem;
-        background: rgba(111, 78, 55, 0.08);
+        background: rgba(211, 47, 47, 0.08);
         color: #4d3323;
         font-size: 0.8rem;
       }

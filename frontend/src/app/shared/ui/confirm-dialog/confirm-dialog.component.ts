@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, EventEmitter, Input, Output } from '@angular/core';
 
 @Component({
@@ -11,8 +11,8 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
         <h3>{{ title }}</h3>
         <p>{{ message }}</p>
         <div class="actions">
-          <button type="button" class="btn-secondary" (click)="cancel.emit()">{{ cancelLabel }}</button>
-          <button type="button" class="btn-danger" (click)="confirm.emit()">{{ confirmLabel }}</button>
+          <button type="button" [ngClass]="cancelBtnClass" (click)="cancel.emit()">{{ cancelLabel }}</button>
+          <button type="button" [ngClass]="confirmBtnClass" (click)="confirm.emit()">{{ confirmLabel }}</button>
         </div>
       </div>
     </section>
@@ -47,6 +47,8 @@ export class ConfirmDialogComponent {
   @Input() message = '¿Deseas continuar?';
   @Input() cancelLabel = 'Cancelar';
   @Input() confirmLabel = 'Confirmar';
+  @Input() cancelBtnClass = 'btn-secondary';
+  @Input() confirmBtnClass = 'btn-danger';
   @Output() readonly confirm = new EventEmitter<void>();
   @Output() readonly cancel = new EventEmitter<void>();
 }

@@ -1,22 +1,22 @@
 :root {
-  --bg: #ffffff;
-  --surface: #f1dfcd;
-  --surface-alt: #c8a27f;
-  --primary: #0A0A0A;
-  --primary-strong: #1A1A1A;
-  --secondary: #6F4E37;
-  --secondary-soft: rgba(111, 78, 55, 0.16);
-  --accent: #d6b08a;
-  --accent-strong: #6F4E37;
-  --accent-soft-bg: #6F4E37;
-  --accent-soft: #a0a0a0;
-  --text: #000000;
-  --muted: #000000;
-  --danger: #6F4E37;
-  --success: #333333;
+  --bg: #080000;
+  --surface: #b51212;
+  --surface-alt: #ff4d4d;
+  --primary: #e63946;
+  --primary-strong: #c22935;
+  --secondary: #b32d36;
+  --secondary-soft: rgba(230, 57, 70, 0.15);
+  --accent: #f87171;
+  --accent-strong: #e63946;
+  --accent-soft-bg: rgba(230, 57, 70, 0.1);
+  --accent-soft: #ffcdd2;
+  --text: #f8f9fa;
+  --muted: #e0c3c3;
+  --danger: #d90429;
+  --success: #2e7d32;
   --radius-md: 12px;
   --radius-lg: 18px;
-  --shadow-sm: 0 8px 24px rgba(10, 10, 10, 0.14);
+  --shadow-sm: 0 8px 24px rgba(0, 0, 0, 0.4);
 }
 
 * {
@@ -27,10 +27,17 @@ html,
 body {
   margin: 0;
   padding: 0;
-  font-family: 'Manrope', 'Segoe UI', sans-serif;
+  font-family: 'Playfair Display', 'Montserrat', Georgia, serif;
   background-color: var(--bg);
   background-image: none;
   color: var(--text);
+  line-height: 1.6;
+}
+
+h1, h2, h3, h4, h5, h6, .page-title, .section-title {
+  font-family: 'Playfair Display', Georgia, serif;
+  font-weight: 600;
+  letter-spacing: 0.5px;
 }
 
 button,
@@ -50,11 +57,11 @@ a:hover {
 }
 
 .card {
-  background: var(--surface);
-  background-image: linear-gradient(90deg, rgba(111, 78, 55, 0.16) 0 3px, transparent 3px);
+  background: linear-gradient(135deg, var(--surface) 0%, var(--surface) 70%, var(--surface-alt) 100%);
+  color: #ffffff;
   border-radius: var(--radius-md);
   box-shadow: var(--shadow-sm);
-  border: 1px solid rgba(92, 58, 33, 0.24);
+  border: 1px solid rgba(230, 57, 70, 0.2);
 }
 
 .page-grid {
@@ -95,15 +102,29 @@ a:hover {
   width: 100%;
   padding: 0.55rem 0.75rem;
   border-radius: 9px;
-  border: 1px solid rgba(10, 10, 10, 0.2);
-  background: #fffaf5;
+  border: 1px solid rgba(230, 57, 70, 0.4);
+  background: #1f0707;
+  color: #ffffff;
   transition: border-color 0.2s ease, box-shadow 0.2s ease;
 }
 
 .input-field:focus {
   outline: 0;
-  border-color: rgba(111, 78, 55, 0.52);
+  border-color: var(--primary);
   box-shadow: 0 0 0 3px var(--secondary-soft);
+}
+
+/* Iconos de calendario en tema oscuro */
+input[type="date"]::-webkit-calendar-picker-indicator,
+input[type="time"]::-webkit-calendar-picker-indicator {
+  filter: invert(1);
+  cursor: pointer;
+  opacity: 0.8;
+}
+
+input[type="date"]::-webkit-calendar-picker-indicator:hover,
+input[type="time"]::-webkit-calendar-picker-indicator:hover {
+  opacity: 1;
 }
 
 .error-text {
@@ -123,28 +144,68 @@ a:hover {
 }
 
 .btn-primary {
-  background: #6F4E37;
-  box-shadow: 0 8px 18px rgba(111, 78, 55, 0.3);
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+  box-shadow: 0 6px 16px rgba(211, 47, 47, 0.25);
   color: #ffffff;
+  transition: all 0.3s ease;
 }
 
 .btn-primary:hover {
-  filter: saturate(1.08);
+  background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(211, 47, 47, 0.35);
 }
 
 .btn-secondary {
-  background: #8A654A;
+  background: transparent;
   color: #ffffff;
-  border: 1px solid rgba(111, 78, 55, 0.72);
+  border: 1px solid rgba(255, 255, 255, 0.6);
+  transition: all 0.3s ease;
 }
 
 .btn-secondary:hover {
-  background: #6F4E37;
+  background: rgba(255, 255, 255, 0.15);
+  color: #ffffff;
+  border-color: #ffffff;
 }
 
 .btn-danger {
-  background: #5B3F2C;
-  color: var(--surface);
+  background: var(--danger);
+  color: #ffffff;
+  border: none;
+  transition: all 0.3s ease;
+}
+
+.btn-black {
+  background: #000000;
+  color: #ffffff;
+  border: none;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-black:hover {
+  background: #222222;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
+}
+
+.btn-outline-white {
+  background: transparent;
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.7);
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  transition: all 0.3s ease;
+}
+
+.btn-outline-white:hover {
+  background: rgba(255, 255, 255, 0.15);
+  border-color: #ffffff;
 }
 
 .section-title {
@@ -156,7 +217,7 @@ a:hover {
 
 .input-error {
   border-color: var(--danger) !important;
-  box-shadow: 0 0 0 3px rgba(111, 78, 55, 0.14);
+  box-shadow: 0 0 0 3px rgba(211, 47, 47, 0.14);
 }
 
 .cliente-compact {
