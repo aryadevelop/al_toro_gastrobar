@@ -127,4 +127,6 @@ export const API_PATHS = {
 
     inventarioMovimientos: `${API}/inventario/movimientos`,
     inventarioBuscar: (query: string) => `${API}/inventario/buscar?q=${query}`,
+    
+    adminDashboard: `${API}/ventas/dashboard`,
 } as const;

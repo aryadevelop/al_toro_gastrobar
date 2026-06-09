@@ -4,6 +4,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 import { DecoracionAdminService } from '../../../../core/services/decoracion-admin.service';
 import { BackendDecoracionAdminResponse } from '../../../../core/models/api.models';
 import { DecoracionFormModalComponent } from '../../components/decoracion-form-modal/decoracion-form-modal.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-decoraciones-page',
@@ -35,7 +36,7 @@ import { DecoracionFormModalComponent } from '../../components/decoracion-form-m
             <tbody>
               <tr *ngFor="let dec of decoraciones()">
                 <td>
-                  <img *ngIf="dec.decoracionImagenUrl" [src]="dec.decoracionImagenUrl" alt="Decoración" class="thumb-img">
+                  <img *ngIf="dec.decoracionImagenUrl" [src]="getImageUrl(dec.decoracionImagenUrl)" alt="Decoración" class="thumb-img">
                   <span *ngIf="!dec.decoracionImagenUrl" class="no-img">Sin imagen</span>
                 </td>
                 <td>{{ dec.decoracionNombre }}</td>
@@ -127,6 +128,13 @@ export class DecoracionesPageComponent implements OnInit {
 
   ngOnInit(): void {
     this.cargarDecoraciones();
+  }
+
+  getImageUrl(path: string | null): string {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
+    return `${base}${path}`;
   }
 
   cargarDecoraciones(): void {
