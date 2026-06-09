@@ -134,7 +134,8 @@ export class DecoracionesPageComponent implements OnInit {
     if (!path) return '';
     if (path.startsWith('http')) return path;
     const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
-    return `${base}${path}`;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
   }
 
   cargarDecoraciones(): void {

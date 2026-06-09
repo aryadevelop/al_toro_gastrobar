@@ -9,6 +9,7 @@ import { AuthService } from '../../../../core/services/auth.service';
 import { ProductCatalogService } from '../../../../core/services/product-catalog.service';
 import { ReservationDetailData, ReservationService } from '../../../../core/services/reservation.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+import { environment } from '../../../../../environments/environment';
 
 interface DecorationOption {
   id: string;
@@ -1748,7 +1749,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
           availability.decorations.map((item) => ({
             id: item.id,
             name: item.name,
-            imageUrl: this.toOptionImage(`decor-${item.id}`),
+            imageUrl: this.getImageUrl(item.imageUrl),
             compatibleZoneIds: item.compatibleZoneIds ?? [],
             fixedZoneId:
               item.allowZoneSelection === false && (item.compatibleZoneIds?.length ?? 0) === 1
@@ -1761,7 +1762,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
           availability.zones.map((item) => ({
             id: item.id,
             name: item.name,
-            imageUrl: this.toOptionImage(`zona-${item.id}`),
+            imageUrl: this.getImageUrl(item.imageUrl),
           }))
         );
 
@@ -2166,8 +2167,11 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
       : this.reservationHours[0].value;
   }
 
-  private toOptionImage(seed: string): string {
-    return `https://picsum.photos/seed/${seed}/360/220`;
+  private getImageUrl(path: string | null | undefined): string {
+    if (!path) return 'assets/images/placeholder.png';
+    if (path.startsWith('http')) return path;
+    const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
+    return `${base}${path}`;
   }
 
   private showFloating(message: string): void {
