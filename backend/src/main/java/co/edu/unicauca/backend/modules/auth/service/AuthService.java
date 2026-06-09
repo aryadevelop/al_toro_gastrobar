@@ -362,6 +362,7 @@ public class AuthService {
 
     private boolean enviarCorreoBienvenidaCliente(String correo, String nombre) {
         try {
+            log.info("Iniciando envío de correo de bienvenida a: {}", correo);
             SimpleMailMessage mail = new SimpleMailMessage();
             mail.setFrom(mailFrom);
             mail.setTo(correo);
@@ -372,7 +373,9 @@ public class AuthService {
                     "Si tienes alguna duda, contáctanos.\n\n" +
                     "Saludos,\n" +
                     "Al Toro Gastrobar");
+            log.info("Llamando mailSender.send() desde: {}", mailFrom);
             mailSender.send(mail);
+            log.info("Correo enviado exitosamente a: {}", correo);
             return true;
         } catch (Exception ex) {
             log.warn("No se pudo enviar correo de bienvenida al cliente {}", correo, ex);
