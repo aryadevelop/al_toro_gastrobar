@@ -2171,7 +2171,8 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     if (!path) return 'assets/images/placeholder.png';
     if (path.startsWith('http')) return path;
     const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
-    return `${base}${path}`;
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
   }
 
   private showFloating(message: string): void {
