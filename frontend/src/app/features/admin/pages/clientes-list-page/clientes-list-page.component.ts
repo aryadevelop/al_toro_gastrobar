@@ -8,11 +8,12 @@ import {
   EstadoClienteFiltro,
 } from '../../../../core/services/cliente-ventas-admin.service';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
+import { RouterLink } from '@angular/router';
 
 @Component({
   selector: 'app-clientes-list-page',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent],
+  imports: [CommonModule, ReactiveFormsModule, PageHeaderComponent, RouterLink],
   template: `
     <section class="page-grid">
       <app-page-header title="Clientes" subtitle="Consulta y segmentación de clientes"></app-page-header>
@@ -107,21 +108,26 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
             </thead>
             <tbody>
               <tr *ngFor="let cliente of clientes()">
-                <td>{{ cliente.nombre }}</td>
-                <td>{{ cliente.correoElectronico }}</td>
-                <td>{{ cliente.telefono }}</td>
-                <td>{{ cliente.totalVisitas }}</td>
-                <td>{{ formatMoney(cliente.totalGastado) }}</td>
-                <td>{{ cliente.puntosAcumulados }}</td>
-                <td>
+                <td data-label="Nombres y apellidos">{{ cliente.nombre }}</td>
+                <td data-label="Correo electrónico">{{ cliente.correoElectronico }}</td>
+                <td data-label="Teléfono">{{ cliente.telefono }}</td>
+                <td data-label="Total visitas">{{ cliente.totalVisitas }}</td>
+                <td data-label="Total gastado">{{ formatMoney(cliente.totalGastado) }}</td>
+                <td data-label="Puntos acumulados">{{ cliente.puntosAcumulados }}</td>
+                <td data-label="Estado">
                   <span class="badge" [class.badge-active]="isEstadoActivo(cliente.estado)">
                     {{ formatEstado(cliente.estado) }}
                   </span>
                 </td>
-                <td>
+                <td data-label="Cliente frecuente">
                   <span class="badge" [class.badge-frequent]="cliente.clienteFrecuente">
                     {{ cliente.clienteFrecuente ? 'Frecuente' : 'No' }}
                   </span>
+                </td>
+                <td data-label="Detalle">
+                  <a class="btn-secondary" [routerLink]="['/app/admin/cliente-historial', cliente.clienteId]">
+                    Ver historial
+                  </a>
                 </td>
               </tr>
             </tbody>

@@ -54,9 +54,9 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         </section>
 
         <section class="grid-2">
-          <article class="card data-card">
+          <article class="card data-card" *ngIf="data.ventasPorMetodo.length > 0">
             <div class="section-head">
-              <h3>Desglose por metodo de pago</h3>
+              <h3>Desglose por método de pago</h3>
             </div>
             <ng-container *ngIf="hasVentas(); else ventasEmpty">
               <div class="list-grid">
@@ -69,7 +69,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
             </ng-container>
           </article>
 
-          <article class="card data-card">
+          <article class="card data-card" *ngIf="data.ventasPorZona.length > 0">
             <div class="section-head">
               <h3>Ventas por zona</h3>
             </div>
@@ -88,7 +88,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         <section class="grid-2">
           <article class="card data-card">
             <div class="section-head">
-              <h3>Top 3 platos mas vendidos</h3>
+              <h3>Top 3 platos más vendidos</h3>
             </div>
             <ng-container *ngIf="hasVentas(); else ventasEmpty">
               <div class="list-grid">
@@ -103,12 +103,12 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
 
           <article class="card data-card">
             <div class="section-head">
-              <h3>Ingresos menu especial vs carta</h3>
+              <h3>Ingresos menú especial vs carta</h3>
             </div>
             <ng-container *ngIf="hasVentas(); else ventasEmpty">
               <div class="list-grid">
                 <div class="list-row">
-                  <span>Menu especial</span>
+                  <span>Menú especial</span>
                   <span>{{ data.menuEspecialVsCarta.menuEspecial | currency:'COP':'symbol':'1.0-0' }}</span>
                   <span class="muted">
                     {{ formatPercent(data.menuEspecialVsCarta.menuEspecial, data.ventasDelDia.totalVentas) }}
@@ -124,7 +124,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
           </article>
         </section>
 
-        <article class="card data-card">
+        <article class="card data-card" *ngIf="data.rendimientoMeseros.length > 0">
           <div class="section-head">
             <h3>Rendimiento por mesero</h3>
           </div>
@@ -141,11 +141,11 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
               </thead>
               <tbody>
                 <tr *ngFor="let mesero of data.rendimientoMeseros">
-                  <td>{{ mesero.mesero }}</td>
-                  <td>{{ mesero.mesasAtendidas }}</td>
-                  <td>{{ mesero.totalFacturado | currency:'COP':'symbol':'1.0-0' }}</td>
-                  <td>{{ mesero.promedioPorMesa | currency:'COP':'symbol':'1.0-0' }}</td>
-                  <td>{{ mesero.mesasActivas }}</td>
+                  <td data-label="Mesero">{{ mesero.mesero }}</td>
+                  <td data-label="Mesas atendidas">{{ mesero.mesasAtendidas }}</td>
+                  <td data-label="Total facturado">{{ mesero.totalFacturado | currency:'COP':'symbol':'1.0-0' }}</td>
+                  <td data-label="Promedio por mesa">{{ mesero.promedioPorMesa | currency:'COP':'symbol':'1.0-0' }}</td>
+                  <td data-label="Mesas activas">{{ mesero.mesasActivas }}</td>
                 </tr>
               </tbody>
             </table>
@@ -153,9 +153,9 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         </article>
 
         <section class="grid-2">
-          <article class="card data-card">
+          <article class="card data-card" *ngIf="data.pedidosProduccion.pedidos.length > 0">
             <div class="section-head">
-              <h3>Pedidos en produccion</h3>
+              <h3>Pedidos en producción</h3>
               <div class="section-meta">
                 <span>{{ data.pedidosProduccion.totalActivos }} pedidos en cocina</span>
                 <span>Tiempo promedio: {{ data.pedidosProduccion.promedioMinutos }} min</span>
@@ -177,7 +177,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
             </div>
           </article>
 
-          <article class="card data-card">
+          <article class="card data-card" *ngIf="data.pedidosListos.length > 0">
             <div class="section-head">
               <h3>Pedidos listos para servir</h3>
             </div>
@@ -187,41 +187,43 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
                   <strong>{{ pedido.cliente }}</strong>
                   <p class="muted">Mesa {{ pedido.mesa }}</p>
                 </div>
-                <p class="muted">{{ pedido.items.join(', ') }}</p>
+                <p class="muted" *ngIf="pedido.items && pedido.items.length > 0">{{ pedido.items.join(', ') }}</p>
               </article>
             </div>
           </article>
         </section>
 
         <section class="grid-2">
-          <article class="card data-card">
+          <article class="card data-card" *ngIf="data.personalTurno.grupos.length > 0">
             <div class="section-head">
               <h3>Personal en turno</h3>
             </div>
             <p class="muted" style="margin-top: 0;">{{ data.personalTurno.resumen }}</p>
             <div class="list-stack">
               <article class="personal-group" *ngFor="let grupo of data.personalTurno.grupos">
-                <div class="personal-head">
-                  <strong>{{ grupo.rol }}</strong>
-                  <span class="badge">{{ grupo.total }}</span>
-                </div>
-                <div class="list-grid">
-                  <div class="list-row" *ngFor="let persona of grupo.personal">
-                    <span>{{ persona.nombre }}</span>
-                    <span class="muted" *ngIf="persona.mesasActivas !== undefined">Mesas activas: {{ persona.mesasActivas }}</span>
+                <ng-container *ngIf="grupo.total > 0">
+                  <div class="personal-head">
+                    <strong>{{ grupo.rol }}</strong>
+                    <span class="badge">{{ grupo.total }}</span>
                   </div>
-                </div>
+                  <div class="list-grid">
+                    <div class="list-row" *ngFor="let persona of grupo.personal">
+                      <span>{{ persona.nombre }}</span>
+                      <span class="muted" *ngIf="persona.mesasActivas !== undefined">Mesas activas: {{ persona.mesasActivas }}</span>
+                    </div>
+                  </div>
+                </ng-container>
               </article>
             </div>
           </article>
 
           <article class="card data-card">
             <div class="section-head">
-              <h3>Ocupacion actual</h3>
+              <h3>Ocupación actual</h3>
             </div>
             <div class="list-grid">
               <div class="list-row">
-                <span>Ocupacion actual (con check-in)</span>
+                <span>Ocupación actual (con check-in)</span>
                 <span>{{ data.ocupacion.ocupadas }} mesas</span>
               </div>
               <div class="list-row">

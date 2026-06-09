@@ -1,6 +1,8 @@
 import { CommonModule } from '@angular/common';
 import { Component, signal } from '@angular/core';
-import { RouterOutlet } from '@angular/router';
+import { RouterOutlet, Router, NavigationEnd } from '@angular/router';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { filter } from 'rxjs';
 import { MobileHeaderComponent } from '../components/mobile-header/mobile-header.component';
 import { SidebarComponent } from '../components/sidebar/sidebar.component';
 import { TopbarComponent } from '../components/topbar/topbar.component';
@@ -19,7 +21,7 @@ import { TopbarComponent } from '../components/topbar/topbar.component';
         <app-mobile-header (menuToggle)="showMobileMenu.set(!showMobileMenu())"></app-mobile-header>
 
         <div class="mobile-menu" *ngIf="showMobileMenu()">
-          <app-sidebar></app-sidebar>
+          <app-sidebar (itemClicked)="showMobileMenu.set(false)"></app-sidebar>
         </div>
 
         <app-topbar></app-topbar>
@@ -34,4 +36,13 @@ import { TopbarComponent } from '../components/topbar/topbar.component';
 })
 export class AppLayoutComponent {
   readonly showMobileMenu = signal(false);
+
+  constructor(private router: Router) {
+    this.router.events.pipe(
+      filter(event => event instanceof NavigationEnd),
+      takeUntilDestroyed()
+    ).subscribe(() => {
+      this.showMobileMenu.set(false);
+    });
+  }
 }

@@ -4,6 +4,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 import { DecoracionAdminService } from '../../../../core/services/decoracion-admin.service';
 import { BackendDecoracionAdminResponse } from '../../../../core/models/api.models';
 import { DecoracionFormModalComponent } from '../../components/decoracion-form-modal/decoracion-form-modal.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-decoraciones-page',
@@ -34,18 +35,18 @@ import { DecoracionFormModalComponent } from '../../components/decoracion-form-m
             </thead>
             <tbody>
               <tr *ngFor="let dec of decoraciones()">
-                <td>
-                  <img *ngIf="dec.decoracionImagenUrl" [src]="dec.decoracionImagenUrl" alt="Decoración" class="thumb-img">
+                <td data-label="Imagen">
+                  <img *ngIf="dec.decoracionImagenUrl" [src]="getImageUrl(dec.decoracionImagenUrl)" alt="Decoración" class="thumb-img">
                   <span *ngIf="!dec.decoracionImagenUrl" class="no-img">Sin imagen</span>
                 </td>
-                <td>{{ dec.decoracionNombre }}</td>
-                <td>{{ dec.decoracionCostoAdicional !== null ? (dec.decoracionCostoAdicional | currency:'COP') : 'Gratis' }}</td>
-                <td>
+                <td data-label="Nombre">{{ dec.decoracionNombre }}</td>
+                <td data-label="Costo Adicional">{{ dec.decoracionCostoAdicional !== null ? (dec.decoracionCostoAdicional | currency:'COP') : 'Gratis' }}</td>
+                <td data-label="Estado">
                   <span class="badge" [class.badge-success]="dec.decoracionEstado === 'ACTIVO'" [class.badge-danger]="dec.decoracionEstado !== 'ACTIVO'">
                     {{ dec.decoracionEstado }}
                   </span>
                 </td>
-                <td>
+                <td data-label="Acciones">
                   <div class="btn-group">
                     <button class="btn-secondary btn-sm" (click)="abrirModalEditar(dec)">Editar / Imagen</button>
                     <button class="btn-warning btn-sm" (click)="cambiarEstado(dec)">Cambiar Estado</button>
@@ -129,6 +130,14 @@ export class DecoracionesPageComponent implements OnInit {
     this.cargarDecoraciones();
   }
 
+  getImageUrl(path: string | null): string {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
+  }
+
   cargarDecoraciones(): void {
     this.decoracionService.listarDecoraciones().subscribe({
       next: (res) => {
@@ -169,7 +178,7 @@ export class DecoracionesPageComponent implements OnInit {
     if (confirm('¿Desea cambiar el estado de "' + dec.decoracionNombre + '" a ' + nuevoEstado + '?')) {
       this.decoracionService.cambiarEstado(dec.decoracionId, nuevoEstado).subscribe({
         next: () => this.cargarDecoraciones(),
-        error: (err) => alert(err.error?.message || 'Error al cambiar estado')
+        error: (err: any) => alert(err.error?.message || 'Error al cambiar estado')
       });
     }
   }

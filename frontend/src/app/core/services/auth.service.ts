@@ -5,6 +5,7 @@ import { Observable, catchError, finalize, map, of, switchMap, throwError } from
 import { API_PATHS } from '../config/api-paths';
 import { ROLE_LANDING_ROUTE } from '../config/role-routes';
 import { StorageService } from './storage.service';
+import { Router } from '@angular/router';
 import { Role, User } from '../models/domain.models';
 import {
   AuthResponse,
@@ -26,6 +27,7 @@ type AuthApiResponse = Omit<AuthResponse, 'user'> & { user: BackendAuthUser | Us
 export class AuthService {
   private readonly http = inject(HttpClient);
   private readonly storageService = inject(StorageService);
+  private readonly router = inject(Router);
 
   private readonly currentUserState = signal<User | null>(
     this.storageService.getSessionUser()
@@ -156,6 +158,7 @@ export class AuthService {
 
   forceLogout(): void {
     this.clearSession();
+    this.router.navigate(['/auth/login']);
   }
 
   getAccessToken(): string | null {

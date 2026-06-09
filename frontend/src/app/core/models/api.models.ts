@@ -719,3 +719,47 @@ export interface BackendCambioEstadoDecoracionRequest {
   estado: string;
 }
 
+// ── DASHBOARD DIARIO ──
+export interface BackendMetodoPagoIngresoResponse {
+  metodoPago: string;
+  totalIngresos: number;
+}
+
+export interface BackendTipoVentaIngresoResponse {
+  tipoVenta: string;
+  totalIngresos: number;
+}
+
+export interface BackendTopProductoResponse {
+  productoId: number;
+  nombreProducto: string;
+  cantidadVendida: number;
+  totalGenerado: number;
+}
+
+export interface BackendPedidoListoResponse {
+  comandaId: number;
+  visitaId: number;
+  identificadorMesa: string;
+  nombreCliente: string;
+  estadoComanda: string;
+  horaListo: string;
+}
+
+export interface BackendDashboardDiarioResponse {
+  fecha: string;
+  totalVentasCerradas: number;
+  totalIngresos: number;
+  ingresosPorMetodoPago: BackendMetodoPagoIngresoResponse[];
+  ingresosPorTipoVenta: BackendTipoVentaIngresoResponse[];
+  productosMasVendidos: BackendTopProductoResponse[];
+  reservasActivasHoy: number;
+  personasReservadasHoy: number;
+  visitasActivas: number;
+  pedidosListos: number;
+  pedidosListosDetalle: BackendPedidoListoResponse[];
+  meserosConVisitaActiva: number;
+  bartendersConSesionActiva: number;
+  cocinerosRegistradosActivos: number;
+}
+

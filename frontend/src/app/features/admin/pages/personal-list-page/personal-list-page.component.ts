@@ -19,6 +19,10 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
   template: `
     <section class="page-grid">
       <app-page-header title="Personal" subtitle="Consulta y gestión del personal del sistema"></app-page-header>
+      
+      <div style="display: flex; justify-content: flex-end; margin-bottom: -0.5rem;">
+        <a class="btn-primary" routerLink="/app/admin/personal/new" style="background-color: #137333;">+ Nuevo empleado</a>
+      </div>
 
       <article class="card filter-card">
         <form class="filters-grid" [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
@@ -90,17 +94,17 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
             </thead>
             <tbody>
               <tr *ngFor="let empleado of empleados()">
-                <td>{{ empleado.nombre }}</td>
-                <td>{{ formatRoles(empleado.roles) }}</td>
-                <td>{{ empleado.correoElectronico }}</td>
-                <td>{{ empleado.telefono }}</td>
-                <td>
+                <td data-label="Nombres">{{ empleado.nombre }}</td>
+                <td data-label="Rol">{{ formatRoles(empleado.roles) }}</td>
+                <td data-label="Correo electrónico">{{ empleado.correoElectronico }}</td>
+                <td data-label="Teléfono">{{ empleado.telefono }}</td>
+                <td data-label="Estado">
                   <span class="badge" [class.badge-active]="isEstadoActivo(empleado.estado)">
                     {{ formatEstado(empleado.estado) }}
                   </span>
                 </td>
-                <td>{{ formatDate(empleado.fechaIngreso) }}</td>
-                <td>
+                <td data-label="Fecha de ingreso">{{ formatDate(empleado.fechaIngreso) }}</td>
+                <td data-label="Acciones">
                   <button
                     class="btn-secondary action-btn"
                     type="button"
@@ -130,26 +134,26 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
   styles: [
     `
       .filter-card {
-        padding: 0.9rem;
+        padding: 0.6rem;
       }
 
       .filters-grid {
         display: grid;
         grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.55rem 0.75rem;
+        gap: 0.4rem 0.6rem;
         align-items: end;
       }
 
       .actions-row {
         display: flex;
         justify-content: flex-end;
-        gap: 0.55rem;
+        gap: 0.4rem;
       }
 
       .state-card {
-        padding: 0.85rem;
+        padding: 0.6rem;
         display: grid;
-        gap: 0.55rem;
+        gap: 0.4rem;
       }
 
       .state-card p {
@@ -157,7 +161,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       }
 
       .table-card {
-        padding: 0.8rem;
+        padding: 0.5rem;
       }
 
       .table-wrapper {
@@ -173,9 +177,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       th,
       td {
         text-align: left;
-        padding: 0.55rem;
+        padding: 0.4rem 0.5rem;
         border-bottom: 1px solid rgba(10, 10, 10, 0.1);
-        font-size: 0.84rem;
+        font-size: 0.82rem;
       }
 
       th {
@@ -204,6 +208,41 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .success-message {
         color: #137333;
+      }
+
+      @media (max-width: 768px) {
+        table {
+          min-width: 100%;
+        }
+        thead {
+          display: none;
+        }
+        tr {
+          display: block;
+          margin-bottom: 0.8rem;
+          border: 1px solid rgba(10, 10, 10, 0.1);
+          border-radius: 8px;
+          padding: 0.4rem;
+          background: #fffaf5;
+        }
+        td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          text-align: right;
+          border-bottom: 1px solid rgba(10, 10, 10, 0.05);
+          padding: 0.35rem 0;
+        }
+        td:last-child {
+          border-bottom: 0;
+        }
+        td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          color: var(--muted);
+          text-align: left;
+          margin-right: 1rem;
+        }
       }
     `,
   ]

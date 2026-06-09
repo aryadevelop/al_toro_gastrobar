@@ -48,6 +48,8 @@ services:
     depends_on:
       postgres:
         condition: service_healthy
+    volumes:
+      - ./uploads:/app/uploads
 
 volumes:
   postgres_data:

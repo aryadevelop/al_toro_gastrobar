@@ -60,6 +60,7 @@ a:hover {
 .page-grid {
   display: grid;
   gap: 1rem;
+  min-width: 0;
 }
 
 .form-grid {
@@ -288,6 +289,64 @@ a:hover {
     left: 0 !important;
     top: 0 !important;
     z-index: 999999 !important;
+  }
+}
+
+/* ═══════════════════════════════════════════════════
+   ADMIN COMPACT VIEW & RESPONSIVE TABLES
+   ═══════════════════════════════════════════════════ */
+.filter-card, .data-card, .summary-card, .state-card {
+  padding: 0.6rem !important;
+}
+
+.table-card {
+  padding: 0.5rem !important;
+}
+
+th, td {
+  padding: 0.4rem 0.5rem !important;
+}
+
+.filters-grid {
+  gap: 0.4rem 0.6rem !important;
+}
+
+.actions-row, .state-card {
+  gap: 0.4rem !important;
+}
+
+@media (max-width: 768px) {
+  .table-wrapper table {
+    min-width: 100% !important;
+  }
+  .table-wrapper thead {
+    display: none !important;
+  }
+  .table-wrapper tr {
+    display: block !important;
+    margin-bottom: 0.8rem;
+    border: 1px solid rgba(10, 10, 10, 0.1);
+    border-radius: 8px;
+    padding: 0.4rem;
+    background: #fffaf5;
+  }
+  .table-wrapper td {
+    display: flex !important;
+    justify-content: space-between;
+    align-items: center;
+    text-align: right !important;
+    border-bottom: 1px solid rgba(10, 10, 10, 0.05) !important;
+    padding: 0.35rem 0 !important;
+  }
+  .table-wrapper td:last-child {
+    border-bottom: 0 !important;
+  }
+  .table-wrapper td::before {
+    content: attr(data-label);
+    font-weight: 600;
+    color: var(--muted);
+    text-align: left;
+    margin-right: 1rem;
   }
 }
 

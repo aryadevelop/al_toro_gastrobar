@@ -76,11 +76,11 @@
           </thead>
           <tbody>
             <tr *ngFor="let prod of filteredProducts" [ngClass]="{'estado-inactivo': prod.estado === 'INACTIVE'}">
-              <td class="fw-bold">{{ prod.nombre }}</td>
-              <td><span class="badge bg-light text-dark">{{ prod.categoria }}</span></td>
-              <td>{{ prod.precioVenta | currency }}</td>
-              <td>{{ prod.stockActual }}</td>
-              <td>
+              <td data-label="Nombre" class="fw-bold">{{ prod.nombre }}</td>
+              <td data-label="Categoría"><span class="badge bg-light text-dark">{{ prod.categoria }}</span></td>
+              <td data-label="Precio de venta">{{ prod.precioVenta | currency }}</td>
+              <td data-label="Stock actual">{{ prod.stockActual }}</td>
+              <td data-label="Estado">
                 <span *ngIf="prod.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
                 <span *ngIf="prod.estado === 'INACTIVE'" class="text-muted d-flex align-items-center gap-1">
                   <!-- Icono de pausa SVG -->
@@ -91,7 +91,7 @@
                 </span>
                 <span *ngIf="prod.estado === 'SUSPENDED'" class="badge bg-warning text-dark">Suspendido</span>
               </td>
-              <td>
+              <td data-label="Acciones">
                 <button 
                   class="btn btn-sm" 
                   [ngClass]="prod.estado === 'ACTIVE' ? 'btn-outline-warning' : 'btn-outline-success'"

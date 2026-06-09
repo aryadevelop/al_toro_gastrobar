@@ -19,13 +19,13 @@
         </thead>
         <tbody>
           <tr *ngFor="let insumo of insumos" [ngClass]="{'text-muted': insumo.estado === 'DISCONTINUED'}">
-            <td class="fw-bold">{{ insumo.nombre }}</td>
-            <td><span class="badge bg-light text-dark">{{ insumo.categoria }}</span></td>
-            <td>
+            <td data-label="Nombre" class="fw-bold">{{ insumo.nombre }}</td>
+            <td data-label="Categoría"><span class="badge bg-light text-dark">{{ insumo.categoria }}</span></td>
+            <td data-label="Estado">
               <span *ngIf="insumo.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
               <span *ngIf="insumo.estado === 'DISCONTINUED'" class="badge bg-danger">Descontinuado</span>
             </td>
-            <td>
+            <td data-label="Acciones">
               <button 
                 class="btn btn-sm" 
                 [ngClass]="insumo.estado === 'ACTIVE' ? 'btn-outline-danger' : 'btn-outline-success'"
@@ -86,10 +86,10 @@
               </thead>
               <tbody>
                 <tr *ngFor="let p of validationData.preparacionesAfectadas">
-                  <td>{{ p.nombre }}</td>
-                  <td>{{ p.estado }}</td>
-                  <td>{{ p.pedidosPendientes > 0 ? p.pedidosPendientes : '-' }}</td>
-                  <td><button class="btn btn-sm btn-link" type="button">Ver detalle</button></td>
+                  <td data-label="Preparación">{{ p.nombre }}</td>
+                  <td data-label="Estado">{{ p.estado }}</td>
+                  <td data-label="Pedidos Pend.">{{ p.pedidosPendientes > 0 ? p.pedidosPendientes : '-' }}</td>
+                  <td data-label="Acciones"><button class="btn btn-sm btn-link" type="button">Ver detalle</button></td>
                 </tr>
               </tbody>
             </table>
