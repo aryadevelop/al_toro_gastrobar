@@ -20,11 +20,13 @@ spring:
 
   # Mailtrap: intercepta emails sin enviarlos realmente
   mail:
-    host:     ${MAIL_HOST:smtp.mailtrap.io}
+    host:     ${MAIL_HOST:smtp.gmail.com}
     port:     ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:tu_usuario_mailtrap}
-    password: ${MAIL_PASSWORD:tu_password_mailtrap}
-    from: ${MAIL_FROM:notificaciones@altorogastrobar.com}
+    #username: ${MAIL_USERNAME:tu_usuario_mailtrap}
+    #password: ${MAIL_PASSWORD:tu_password_mailtrap}
+    username: ${MAIL_USERNAME:rromero@unicauca.edu.co}
+    password: ${MAIL_PASSWORD:loop dixe pwfq bxrw}
+    from: ${MAIL_FROM:rromero@unicauca.edu.co}
 
 management:
   health:

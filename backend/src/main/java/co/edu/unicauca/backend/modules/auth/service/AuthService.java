@@ -24,7 +24,11 @@ import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import co.edu.unicauca.backend.shared.security.RoleMapper;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
+import org.springframework.mail.SimpleMailMessage;
+import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.security.core.userdetails.UserDetails;
@@ -61,6 +65,7 @@ import java.util.Optional;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class AuthService {
 
     /** Mensaje genérico para no revelar si el email existe en el sistema. */
@@ -80,6 +85,10 @@ public class AuthService {
     private final EmpleadoRepository empleadoRepository;
     private final UserDetailsService userDetailsService;
     private final PasswordEncoder passwordEncoder;
+    private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.from}")
+    private String mailFrom;
 
     /**
      * Autentica al usuario y devuelve un par de tokens JWT con su perfil.
@@ -329,10 +338,18 @@ public class AuthService {
                 .build();
         usuarioRolRepository.save(rolCliente);
 
+        boolean correoEnviado = enviarCorreoBienvenidaCliente(usuario.getUsuarioEmail(), cliente.getClienteNombre());
+        String mensaje = "Tu cuenta ha sido creada. ¡Bienvenido a Al Toro Gastrobar! Estamos felices de tenerte con nosotros.";
+        if (correoEnviado) {
+            mensaje += " Se ha enviado un correo de bienvenida a tu bandeja de entrada.";
+        } else {
+            mensaje += " No se pudo enviar el correo de bienvenida.";
+        }
+
         // 7. Construye y devuelve la respuesta
         return RegisterResponse.builder()
                 .success(true)
-                .message("Cuenta creada exitosamente. Bienvenido a Al Toro Gastrobar")
+                .message(mensaje)
                 .user(RegisterResponse.UserRegistrationData.builder()
                         .id(String.valueOf(usuario.getUsuarioId()))
                         .nombre(cliente.getClienteNombre())
@@ -341,6 +358,26 @@ public class AuthService {
                         .role(RoleMapper.toFrontendRole(RolNombre.CLIENTE))
                         .build())
                 .build();
+    }
+
+    private boolean enviarCorreoBienvenidaCliente(String correo, String nombre) {
+        try {
+            SimpleMailMessage mail = new SimpleMailMessage();
+            mail.setFrom(mailFrom);
+            mail.setTo(correo);
+            mail.setSubject("Bienvenido a Al Toro Gastrobar");
+            mail.setText("Hola " + nombre + ",\n\n" +
+                    "Gracias por registrarte en Al Toro Gastrobar.\n" +
+                    "Tu cuenta se ha creado correctamente y ya puedes iniciar sesión.\n\n" +
+                    "Si tienes alguna duda, contáctanos.\n\n" +
+                    "Saludos,\n" +
+                    "Al Toro Gastrobar");
+            mailSender.send(mail);
+            return true;
+        } catch (Exception ex) {
+            log.warn("No se pudo enviar correo de bienvenida al cliente {}", correo, ex);
+            return false;
+        }
     }
 
     // -----------------------------------------------------------------------
