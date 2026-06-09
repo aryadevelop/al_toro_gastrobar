@@ -16,8 +16,13 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
     <section class="page-grid">
       <section class="admin-header">
         <h1 class="admin-title">Administrador</h1>
-        <a class="btn-primary history-btn" routerLink="/app/admin/cliente-historial">Historial de visitas</a>
       </section>
+
+      <div class="tabs-nav" *ngIf="!loading() && !errorMessage() && dashboard()">
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'ventas'" (click)="activeTab.set('ventas')">Ventas</button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'cocina'" (click)="activeTab.set('cocina')">Cocina</button>
+        <button type="button" class="tab-btn" [class.active]="activeTab() === 'operacion'" (click)="activeTab.set('operacion')">Operación</button>
+      </div>
 
       <article class="card state-card" *ngIf="loading()">
         <p>Cargando panel de control...</p>
@@ -28,9 +33,10 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
       </article>
 
       <ng-container *ngIf="dashboard() as data">
-          <article class="card state-card" *ngIf="!hasVentas()">
-          <p>No hay ventas registradas para el día de hoy</p>
-        </article>
+        <div *ngIf="activeTab() === 'ventas'" class="tab-content">
+          <article class="card state-card" *ngIf="!hasVentas()" style="margin-bottom: 1rem;">
+            <p>No hay ventas registradas para el día de hoy</p>
+          </article>
 
         <section class="summary-grid">
           <article class="card summary-card">
@@ -151,7 +157,9 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
             </table>
           </div>
         </article>
+        </div>
 
+        <div *ngIf="activeTab() === 'cocina'" class="tab-content">
         <section class="grid-2">
           <article class="card data-card" *ngIf="data.pedidosProduccion.pedidos.length > 0">
             <div class="section-head">
@@ -192,7 +200,9 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
             </div>
           </article>
         </section>
+        </div>
 
+        <div *ngIf="activeTab() === 'operacion'" class="tab-content">
         <section class="grid-2">
           <article class="card data-card" *ngIf="data.personalTurno.grupos.length > 0">
             <div class="section-head">
@@ -233,6 +243,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
             </div>
           </article>
         </section>
+        </div>
       </ng-container>
 
       <ng-template #ventasEmpty>
@@ -247,6 +258,40 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         flex-direction: column;
         gap: 0.6rem;
         margin-bottom: 1rem;
+      }
+
+      .tabs-nav {
+        display: flex;
+        gap: 0.5rem;
+        margin-bottom: 1rem;
+        border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+        padding-bottom: 0.5rem;
+        overflow-x: auto;
+      }
+
+      .tab-btn {
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        color: var(--text);
+        padding: 0.45rem 1rem;
+        border-radius: 8px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: all 0.3s ease;
+        white-space: nowrap;
+        font-size: 0.85rem;
+      }
+
+      .tab-btn.active {
+        background: var(--danger);
+        border-color: var(--danger);
+        color: #ffffff;
+      }
+
+      .tab-content {
+        display: flex;
+        flex-direction: column;
+        gap: 1rem;
       }
 
       .admin-title {
@@ -342,6 +387,11 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         background: rgba(255, 255, 255, 0.8);
         display: grid;
         gap: 0.25rem;
+        color: #000000;
+      }
+
+      .pedido-card .muted {
+        color: #444444;
       }
 
       .pedido-warn {
@@ -390,26 +440,12 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
       }
 
       .badge {
-        border: 1px solid rgba(111, 78, 55, 0.35);
-        color: #6f4e37;
+        border: 1px solid rgba(211, 47, 47, 0.35);
+        color: var(--primary);
         border-radius: 999px;
         padding: 0.1rem 0.5rem;
         font-size: 0.75rem;
         font-weight: 600;
-      }
-
-      .history-btn {
-        background: #6F4E37;
-        color: #ffffff;
-        border: 1px solid rgba(111, 78, 55, 0.7);
-        padding: 0.5rem 0.8rem;
-        border-radius: 8px;
-        text-decoration: none;
-        display: inline-flex;
-        align-items: center;
-        justify-content: center;
-        font-weight: 600;
-        width: fit-content;
       }
 
       @media (max-width: 768px) {
@@ -417,11 +453,29 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
           font-size: 1.2rem;
         }
 
-        .history-btn {
-          width: 100%;
-          padding: 0.6rem 1rem;
-          font-size: 0.9rem;
-          box-shadow: 0 2px 8px rgba(111, 78, 55, 0.3);
+        .state-card, .summary-card, .data-card {
+          padding: 0.6rem;
+        }
+
+        .summary-card strong {
+          font-size: 1.05rem;
+        }
+
+        .section-head h3 {
+          font-size: 0.95rem;
+        }
+
+        .list-row, .pedido-card p {
+          font-size: 0.78rem;
+        }
+
+        .pedido-card {
+          padding: 0.5rem;
+          gap: 0.15rem;
+        }
+
+        .grid-2, .summary-grid {
+          gap: 0.5rem;
         }
 
         table {
@@ -432,6 +486,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
   ]
 })
 export class AdminDashboardPageComponent implements OnInit {
+    readonly activeTab = signal<'ventas' | 'cocina' | 'operacion'>('ventas');
     readonly dashboard = signal<AdminDashboardData | null>(null);
     readonly loading = signal(true);
     readonly errorMessage = signal('');

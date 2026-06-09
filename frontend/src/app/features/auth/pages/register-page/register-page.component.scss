@@ -1,4 +1,4 @@
-﻿.register-shell {
+.register-shell {
   min-height: 100%;
   display: flex;
   justify-content: center;
@@ -9,18 +9,20 @@
   width: min(480px, 100%);
   padding: 0.85rem 0.9rem 0.8rem;
   border: 1px solid rgba(10, 10, 10, 0.16);
+  color: #000000;
 }
 
 h1 {
   margin: 0;
   text-align: center;
   font-size: 1.5rem;
+  color: #000000;
 }
 
 .subtitle {
   margin: 0.12rem 0 0.75rem;
   text-align: center;
-  color: var(--muted);
+  color: #333333;
   font-size: 0.9rem;
 }
 
@@ -60,16 +62,21 @@ h1 {
 }
 
 .input-invalid {
-  border-color: #6F4E37;
-  background: rgba(111, 78, 55, 0.06);
+  border-color: var(--primary);
+  background: rgba(211, 47, 47, 0.06);
+}
+
+.input-field {
+  color: #000000;
+  background: #ffffff;
 }
 
 .form-error {
   margin: 0 0 0.8rem;
   padding: 0.55rem 0.7rem;
   border-radius: 8px;
-  border: 1px solid #6F4E37;
-  background: rgba(111, 78, 55, 0.1);
+  border: 1px solid var(--primary);
+  background: rgba(211, 47, 47, 0.1);
   color: #8f1e1e;
   font-size: 0.86rem;
 }

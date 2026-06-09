@@ -28,7 +28,7 @@
 .spinner {
   width: 36px;
   height: 36px;
-  border: 3px solid rgba(111, 78, 55, 0.18);
+  border: 3px solid rgba(211, 47, 47, 0.18);
   border-top-color: var(--secondary);
   border-radius: 50%;
   animation: spin 0.7s linear infinite;
@@ -94,7 +94,7 @@
      el navegador calculaba el hit-testing sobre el elemento recortado. */
   overflow: visible;
   background: rgba(241, 223, 205, 0.3);
-  border: 1px solid rgba(111, 78, 55, 0.1);
+  border: 1px solid rgba(211, 47, 47, 0.1);
 }
 
 .column-header {
@@ -172,7 +172,7 @@
 }
 
 .column-body::-webkit-scrollbar-thumb {
-  background: rgba(111, 78, 55, 0.25);
+  background: rgba(211, 47, 47, 0.25);
   border-radius: 99px;
 }
 
@@ -204,8 +204,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 0.6rem 0.85rem;
-  background: rgba(111, 78, 55, 0.08);
-  border-bottom: 1px solid rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.08);
+  border-bottom: 1px solid rgba(211, 47, 47, 0.1);
 }
 
 .comanda-mesa {
@@ -284,7 +284,7 @@
   opacity: 0.85;
   font-style: italic;
   padding: 0.3rem 0.5rem;
-  background: rgba(111, 78, 55, 0.06);
+  background: rgba(211, 47, 47, 0.06);
   border-radius: 6px;
 }
 
@@ -293,7 +293,7 @@
   flex-direction: column;
   gap: 0.45rem;
   padding: 0.6rem 0.85rem 0.75rem;
-  border-top: 1px solid rgba(111, 78, 55, 0.08);
+  border-top: 1px solid rgba(211, 47, 47, 0.08);
   /* [FIX CLICKS] Asegura que los botones de acción siempre reciban eventos */
   position: relative;
   z-index: 1;
@@ -422,8 +422,8 @@
   align-items: center;
   justify-content: space-between;
   padding: 1rem 1.2rem;
-  border-bottom: 1px solid rgba(111, 78, 55, 0.15);
-  background: rgba(111, 78, 55, 0.06);
+  border-bottom: 1px solid rgba(211, 47, 47, 0.15);
+  background: rgba(211, 47, 47, 0.06);
 }
 
 .detalle-panel__header h2 {
@@ -435,7 +435,7 @@
   width: 34px;
   height: 34px;
   border: 0;
-  background: rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.1);
   border-radius: 8px;
   cursor: pointer;
   font-size: 1.1rem;
@@ -447,7 +447,7 @@
 }
 
 .btn-cerrar:hover {
-  background: rgba(111, 78, 55, 0.2);
+  background: rgba(211, 47, 47, 0.2);
 }
 
 .detalle-panel__loading {
@@ -480,7 +480,7 @@
 }
 
 .detalle-panel__body::-webkit-scrollbar-thumb {
-  background: rgba(111, 78, 55, 0.2);
+  background: rgba(211, 47, 47, 0.2);
   border-radius: 99px;
 }
 
@@ -556,7 +556,7 @@
   font-style: italic;
   color: var(--muted);
   padding: 0.45rem 0.65rem;
-  background: rgba(111, 78, 55, 0.06);
+  background: rgba(211, 47, 47, 0.06);
   border-radius: 8px;
 }
 
@@ -579,8 +579,8 @@
   gap: 0.6rem;
   padding: 0.45rem 0.6rem;
   border-radius: 8px;
-  background: rgba(111, 78, 55, 0.04);
-  border: 1px solid rgba(111, 78, 55, 0.08);
+  background: rgba(211, 47, 47, 0.04);
+  border: 1px solid rgba(211, 47, 47, 0.08);
 }
 
 .detalle-item-qty {
@@ -626,7 +626,7 @@
   font-size: 0.7rem;
   padding: 0.12rem 0.4rem;
   border-radius: 999px;
-  background: rgba(111, 78, 55, 0.1);
+  background: rgba(211, 47, 47, 0.1);
   color: var(--secondary);
   font-weight: 500;
 }
@@ -634,8 +634,8 @@
 /* Footer */
 .detalle-panel__footer {
   padding: 0.85rem 1.2rem;
-  border-top: 1px solid rgba(111, 78, 55, 0.12);
-  background: rgba(111, 78, 55, 0.04);
+  border-top: 1px solid rgba(211, 47, 47, 0.12);
+  background: rgba(211, 47, 47, 0.04);
 }
 
 /* ═══════════════════════════════════════════════════
@@ -677,7 +677,7 @@
     height: 8px;
   }
   .board-columns::-webkit-scrollbar-thumb {
-    background: rgba(111, 78, 55, 0.4);
+    background: rgba(211, 47, 47, 0.4);
     border-radius: 4px;
   }
 

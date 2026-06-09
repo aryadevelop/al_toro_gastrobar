@@ -15,7 +15,7 @@
         display: grid;
         gap: 0.5rem;
         padding: 1rem;
-        border: 2px dashed rgba(111, 78, 55, 0.55);
+        border: 2px dashed rgba(211, 47, 47, 0.55);
       }
     `
   ]

@@ -249,8 +249,8 @@ const confirmPasswordMatchValidator: ValidatorFn = (control: AbstractControl): V
       }
 
       .form-error {
-        border: 1px solid #6F4E37;
-        background: rgba(111, 78, 55, 0.1);
+        border: 1px solid var(--primary);
+        background: rgba(211, 47, 47, 0.1);
         color: #4d3323;
       }
 
