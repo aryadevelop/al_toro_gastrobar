@@ -12,6 +12,12 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Reservas', path: '/app/cajero/reservas', icon: 'book_online', roles: ['CAJERO'] },
   { label: 'Cierre Caja', path: '/app/cajero/cierre-caja', icon: 'point_of_sale', roles: ['CAJERO'] },
   { label: 'Administrador', path: '/app/admin', icon: 'shield', roles: ['ADMIN'] },
+  { label: 'Personal', path: '/app/admin/personal', icon: 'person', roles: ['ADMIN'] },
+  { label: 'Clientes', path: '/app/admin/clientes', icon: 'person', roles: ['ADMIN'] },
+  { label: 'Productos', path: '/app/admin/productos', icon: 'restaurant', roles: ['ADMIN'] },
+  { label: 'Insumos', path: '/app/admin/insumos', icon: 'kitchen', roles: ['ADMIN'] },
+  { label: 'Decoraciones', path: '/app/admin/decoraciones', icon: 'badge', roles: ['ADMIN'] },
+  { label: 'Ventas', path: '/app/admin/ventas', icon: 'payments', roles: ['ADMIN'] },
   { label: 'Historial visitas', path: '/app/admin/cliente-historial', icon: 'history', roles: ['ADMIN'] },
   { label: 'Ajuste inventario', path: '/app/produccion/inventario-egreso', icon: 'history', roles: ['PRODUCCION'] },
   { label: 'Mi perfil', path: '/app/profile', icon: 'badge', roles: ['ADMIN', 'CLIENTE', 'MESERO', 'PRODUCCION', 'CAJERO'] }

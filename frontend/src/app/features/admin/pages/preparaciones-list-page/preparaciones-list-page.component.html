@@ -19,13 +19,13 @@
         </thead>
         <tbody>
           <tr *ngFor="let prep of preparaciones" [ngClass]="{'text-muted': prep.estado === 'INACTIVE'}">
-            <td class="fw-bold">{{ prep.nombre }}</td>
-            <td><span class="badge bg-light text-dark">{{ prep.categoria }}</span></td>
-            <td>
+            <td data-label="Nombre" class="fw-bold">{{ prep.nombre }}</td>
+            <td data-label="Categoría"><span class="badge bg-light text-dark">{{ prep.categoria }}</span></td>
+            <td data-label="Estado">
               <span *ngIf="prep.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
               <span *ngIf="prep.estado === 'INACTIVE'" class="badge bg-secondary">Inactivo</span>
             </td>
-            <td>
+            <td data-label="Acciones">
               <button 
                 class="btn btn-sm" 
                 [ngClass]="prep.estado === 'ACTIVE' ? 'btn-outline-warning' : 'btn-outline-success'"

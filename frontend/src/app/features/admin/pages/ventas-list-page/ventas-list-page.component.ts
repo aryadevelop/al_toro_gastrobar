@@ -88,11 +88,11 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
             </thead>
             <tbody>
               <tr *ngFor="let venta of filteredVentas()">
-                <td>{{ venta.id }}</td>
-                <td>{{ venta.createdAt | date:'short':'':'es-CO' }}</td>
-                <td>{{ formatMetodoPago(venta) }}</td>
-                <td>{{ venta.total | currency:'COP':'symbol':'1.0-0' }}</td>
-                <td>
+                <td data-label="Identificador">{{ venta.id }}</td>
+                <td data-label="Fecha">{{ venta.createdAt | date:'short':'':'es-CO' }}</td>
+                <td data-label="Metodo de pago">{{ formatMetodoPago(venta) }}</td>
+                <td data-label="Total">{{ venta.total | currency:'COP':'symbol':'1.0-0' }}</td>
+                <td data-label="Detalle">
                   <a class="btn-secondary" [routerLink]="['/app/admin/ventas', venta.id]">Ver detalle</a>
                 </td>
               </tr>

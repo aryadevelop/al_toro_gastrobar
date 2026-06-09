@@ -1,5 +1,5 @@
 import { CommonModule } from '@angular/common';
-import { Component } from '@angular/core';
+import { Component, EventEmitter, Output } from '@angular/core';
 import { RouterLink, RouterLinkActive } from '@angular/router';
 import { MenuService } from '../../../core/services/menu.service';
 
@@ -8,7 +8,7 @@ import { MenuService } from '../../../core/services/menu.service';
   standalone: true,
   imports: [CommonModule, RouterLink, RouterLinkActive],
   template: `
-    <aside class="sidebar">
+    <aside class="sidebar" (click)="itemClicked.emit()">
       <div class="brand">
         <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="brand-logo" />
       </div>
@@ -19,6 +19,7 @@ import { MenuService } from '../../../core/services/menu.service';
           [routerLink]="item.path"
           routerLinkActive="active"
           class="menu-item"
+          (click)="itemClicked.emit()"
         >
           <span class="icon" aria-hidden="true">{{ getIconSymbol(item.icon) }}</span>
           <span class="menu-label">{{ item.label }}</span>
@@ -29,6 +30,8 @@ import { MenuService } from '../../../core/services/menu.service';
   styleUrls: ['./sidebar.component.scss']
 })
 export class SidebarComponent {
+  @Output() itemClicked = new EventEmitter<void>();
+
   private readonly iconSymbolByName: Record<string, string> = {
     home: '⌂',
     person: '◉',

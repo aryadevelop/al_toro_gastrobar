@@ -167,7 +167,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
             </section>
 
             <section class="form-section" *ngIf="romanticAddonAvailable()">
-              <p class="romantic-note">Zona romantica: puedes agregar petalos y velas si lo deseas.</p>
+              <p class="romantic-note">Zona romántica: puedes agregar pétalos y velas si lo deseas.</p>
               <label class="addon-check">
                 <input type="checkbox" formControlName="romanticAddon" />
                 Agregar pétalos y velas (+$20.000)

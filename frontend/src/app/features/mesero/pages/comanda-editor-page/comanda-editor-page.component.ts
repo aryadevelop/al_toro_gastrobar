@@ -85,7 +85,7 @@ interface DraftItem {
           <div class="summary-state" *ngIf="loadingItems()">Cargando items...</div>
           <div class="summary-state error" *ngIf="!loadingItems() && loadError()">{{ loadError() }}</div>
           <div class="summary-state" *ngIf="!loadingItems() && !loadError() && !itemsProduccion().length">
-            Sin productos en produccion.
+            Sin productos en producción.
           </div>
           <ul class="summary-list" *ngIf="!loadingItems() && itemsProduccion().length">
             <li *ngFor="let item of itemsProduccion()">
@@ -1103,7 +1103,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
           this.loadingItems.set(false);
         },
         error: () => {
-          this.loadError.set('No pudimos cargar los items en produccion.');
+          this.loadError.set('No pudimos cargar los items en producción.');
           this.loadingItems.set(false);
         },
       });
