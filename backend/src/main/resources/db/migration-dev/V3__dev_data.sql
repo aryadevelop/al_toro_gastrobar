@@ -83,7 +83,6 @@ INSERT INTO Usuario_Rol (usuario_id, rol_nombre, rol_estado) VALUES
 (3,  'CAJERO',    'ACTIVO'),
 -- Meseros
 (4,  'MESERO',    'ACTIVO'),
-(4,  'ADMIN',       'ACTIVO'),
 (5,  'MESERO',    'ACTIVO'),
 (6,  'MESERO',    'ACTIVO'),
 -- Cocineros

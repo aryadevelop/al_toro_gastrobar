@@ -145,6 +145,8 @@ interface AsignacionNavState {
 
       .modal-card {
         width: min(720px, 94vw);
+        max-height: 90vh;
+        overflow-y: auto;
         background: #ffffff;
         border-radius: 16px;
         padding: 1rem;

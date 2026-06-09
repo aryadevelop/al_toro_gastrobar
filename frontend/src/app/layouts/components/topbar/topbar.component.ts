@@ -42,6 +42,8 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
       message="¿Deseas cerrar sesión?"
       cancelLabel="No"
       confirmLabel="Sí, cerrar sesión"
+      cancelBtnClass="btn-outline-white"
+      confirmBtnClass="btn-black"
       (cancel)="showLogoutDialog.set(false)"
       (confirm)="onConfirmLogout()"
     ></app-confirm-dialog>

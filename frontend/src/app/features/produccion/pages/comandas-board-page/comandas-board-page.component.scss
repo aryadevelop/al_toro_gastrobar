@@ -93,7 +93,7 @@
      eventos de click llegaran a los botones dentro de las tarjetas cuando
      el navegador calculaba el hit-testing sobre el elemento recortado. */
   overflow: visible;
-  background: rgba(241, 223, 205, 0.3);
+  background: #ffffff;
   border: 1px solid rgba(211, 47, 47, 0.1);
 }
 
@@ -129,8 +129,9 @@
 
 /* Column header colors */
 .pendiente-header {
-  background: linear-gradient(135deg, #d4a76a 0%, #c8903c 100%);
+  background: linear-gradient(135deg, #fbc02d 0%, #ffeb3b 100%);
   color: #fff;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.2);
 }
 
 .pendiente-header .column-badge {
@@ -138,7 +139,7 @@
 }
 
 .preparacion-header {
-  background: linear-gradient(135deg, #b85c38 0%, #a04422 100%);
+  background: linear-gradient(135deg, #ff9800 0%, #e65100 100%);
   color: #fff;
 }
 
@@ -147,7 +148,7 @@
 }
 
 .listo-header {
-  background: linear-gradient(135deg, #5a7d3a 0%, #486a2d 100%);
+  background: linear-gradient(135deg, #4caf50 0%, #2e7d32 100%);
   color: #fff;
 }
 
@@ -223,13 +224,15 @@
 }
 
 .estacion-cocina {
-  background: rgba(184, 92, 56, 0.15);
-  color: #8b3a1e;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estacion-barra {
-  background: rgba(56, 107, 184, 0.15);
-  color: #1e4f8b;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .comanda-card__body {
@@ -260,21 +263,21 @@
   margin-top: 0.25rem;
   font-size: 0.78rem;
   font-weight: 600;
-  color: #b85c38;
-  background: rgba(184, 92, 56, 0.08);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.2);
   padding: 0.2rem 0.55rem;
   border-radius: 6px;
   width: fit-content;
 }
 
 .comanda-tiempo.prep-time {
-  color: #a04422;
-  background: rgba(160, 68, 34, 0.1);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.4);
 }
 
 .comanda-tiempo.listo-time {
-  color: #486a2d;
-  background: rgba(90, 125, 58, 0.1);
+  color: #ffffff;
+  background: rgba(0, 0, 0, 0.6);
 }
 
 .comanda-notas {
@@ -301,13 +304,13 @@
 
 .actions-secondary {
   display: flex;
-  gap: 0.4rem;
+  gap: 0.6rem;
+  justify-content: center;
 }
 
-.actions-secondary .btn-secondary {
-  flex: 1;
-  font-size: 0.78rem;
-  padding: 0.4rem 0.5rem;
+.actions-secondary .btn-white {
+  font-size: 0.8rem;
+  padding: 0.45rem 0.7rem;
 }
 
 /* ── Buttons ────────────────────────────────────── */
@@ -342,18 +345,54 @@
 }
 
 .btn-notify {
-  border: 1px solid rgba(212, 167, 106, 0.5);
+  border: 1px solid #ffffff;
   border-radius: 10px;
   padding: 0.45rem 0.75rem;
   cursor: pointer;
   font-weight: 600;
-  background: rgba(212, 167, 106, 0.12);
-  color: #8b5e3c;
+  background: transparent;
+  color: #ffffff;
   font-size: 0.8rem;
+  transition: all 0.2s;
 }
 
 .btn-notify:hover {
-  background: rgba(212, 167, 106, 0.22);
+  background: rgba(255, 255, 255, 0.15);
+}
+
+.btn-black {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.65rem 1rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: #000000;
+  color: #ffffff;
+  transition: all 0.2s;
+}
+
+.btn-black:hover {
+  background: #222222;
+}
+
+.btn-black:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+.btn-white {
+  border: 0;
+  border-radius: 10px;
+  padding: 0.4rem 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  background: #ffffff;
+  color: #000000;
+  transition: all 0.2s;
+}
+
+.btn-white:hover {
+  background: #e0e0e0;
 }
 
 /* ── Empty column ───────────────────────────────── */
@@ -520,13 +559,15 @@
 }
 
 .estacion-cocina {
-  background: rgba(184, 92, 56, 0.15);
-  color: #8b3a1e;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estacion-barra {
-  background: rgba(56, 107, 184, 0.15);
-  color: #1e4f8b;
+  background: rgba(0, 0, 0, 0.4);
+  color: #ffffff;
+  border: 1px solid rgba(255, 255, 255, 0.3);
 }
 
 .estado-pendiente {

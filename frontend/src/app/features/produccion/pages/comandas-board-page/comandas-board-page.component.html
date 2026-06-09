@@ -63,13 +63,13 @@
           </div>
 
           <div class="comanda-card__actions">
-            <button class="btn-primary btn-sm btn-block" (click)="iniciarPreparacion(comanda)"
+            <button class="btn-black btn-sm btn-block" (click)="iniciarPreparacion(comanda)"
               [disabled]="actionLoading[comanda.comandaId]">
               {{ actionLoading[comanda.comandaId] ? 'Procesando...' : 'Iniciar preparación' }}
             </button>
             <div class="actions-secondary">
-              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
-              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+              <button class="btn-white btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-white btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
             </div>
             <!-- [CAMBIADO] Eliminado 🔔 en el botón; el texto describe la acción -->
             <button class="btn-notify btn-sm btn-block" (click)="notificarCambio(comanda)">
@@ -126,13 +126,13 @@
           </div>
 
           <div class="comanda-card__actions">
-            <button class="btn-success btn-sm btn-block" (click)="marcarListo(comanda)"
+            <button class="btn-black btn-sm btn-block" (click)="marcarListo(comanda)"
               [disabled]="actionLoading[comanda.comandaId]">
               {{ actionLoading[comanda.comandaId] ? 'Procesando...' : 'Marcar como listo' }}
             </button>
             <div class="actions-secondary">
-              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
-              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+              <button class="btn-white btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-white btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
             </div>
           </div>
         </div>
@@ -186,8 +186,8 @@
 
           <div class="comanda-card__actions">
             <div class="actions-secondary">
-              <button class="btn-secondary btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
-              <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
+              <button class="btn-white btn-sm" (click)="verDetalle(comanda)">Ver detalles</button>
+              <button class="btn-white btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
             </div>
           </div>
         </div>

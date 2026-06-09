@@ -6,11 +6,12 @@ import { DecoracionAdminService } from '../../../../core/services/decoracion-adm
 import { MesaMapService } from '../../../../core/services/mesa-map.service';
 import { BackendDecoracionAdminResponse, BackendCrearDecoracionRequest, BackendActualizarDecoracionRequest } from '../../../../core/models/api.models';
 import { environment } from '../../../../../environments/environment';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-decoracion-form-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ModalBaseComponent],
+  imports: [CommonModule, ReactiveFormsModule, ModalBaseComponent, ConfirmDialogComponent],
   template: `
     <app-modal-base 
       [open]="open()" 
@@ -81,6 +82,14 @@ import { environment } from '../../../../../environments/environment';
         <div class="error-message" *ngIf="serverError()">{{ serverError() }}</div>
       </form>
     </app-modal-base>
+
+    <app-confirm-dialog
+      [open]="dialogAbierto()"
+      [title]="dialogTitulo()"
+      [message]="dialogMensaje()"
+      (cancel)="dialogAbierto.set(false)"
+      (confirm)="ejecutarAccionConfirmada()">
+    </app-confirm-dialog>
   `,
   styles: [`
     .form-container {
@@ -328,6 +337,11 @@ export class DecoracionFormModalComponent {
   readonly successMessage = signal<string | null>(null);
   readonly serverError = signal<string | null>(null);
 
+  readonly dialogAbierto = signal(false);
+  readonly dialogTitulo = signal('');
+  readonly dialogMensaje = signal('');
+  private accionConfirmacion: (() => void) | null = null;
+
   private cargarZonas(): void {
     this.mesaService.getZonasDisponibles().subscribe({
       next: (zonas) => {
@@ -403,19 +417,30 @@ export class DecoracionFormModalComponent {
     const dec = this.decoracion();
     if (!dec || !dec.decoracionId) return;
 
-    if (confirm('¿Está seguro de que desea eliminar la imagen de esta decoración?')) {
+    this.dialogTitulo.set('Eliminar Imagen');
+    this.dialogMensaje.set('¿Está seguro de que desea eliminar la imagen de esta decoración?');
+    this.accionConfirmacion = () => {
       this.isSubmitting.set(true);
       this.decoracionService.eliminarImagenDecoracion(dec.decoracionId).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.decoracion.update(d => d ? { ...d, decoracionImagenUrl: null } : null);
           this.saved.emit();
+          this.dialogAbierto.set(false);
         },
         error: (err) => {
           this.isSubmitting.set(false);
           this.serverError.set(err.error?.message || 'Error al eliminar la imagen');
+          this.dialogAbierto.set(false);
         }
       });
+    };
+    this.dialogAbierto.set(true);
+  }
+
+  ejecutarAccionConfirmada(): void {
+    if (this.accionConfirmacion) {
+      this.accionConfirmacion();
     }
   }
 
