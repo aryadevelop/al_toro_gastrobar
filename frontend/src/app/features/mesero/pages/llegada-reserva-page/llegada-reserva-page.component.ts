@@ -166,19 +166,20 @@ interface AsignacionNavState {
         font-size: 0.72rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #a0a0a0;
+        color: var(--primary);
+        font-weight: 700;
       }
 
       .modal-head h3 {
         margin: 0.2rem 0 0;
         font-size: 1.1rem;
-        color: #2c1810;
+        color: var(--primary-strong);
       }
 
       .modal-sub {
         margin: 0.2rem 0 0;
         font-size: 0.8rem;
-        color: #6b4a3a;
+        color: var(--primary);
       }
 
       .form-grid {
@@ -190,18 +191,27 @@ interface AsignacionNavState {
         display: grid;
         gap: 0.3rem;
         font-size: 0.8rem;
+        color: var(--primary-strong);
+        font-weight: 600;
       }
 
       .input-field {
-        border: 1px solid rgba(44, 24, 16, 0.2);
+        border: 1px solid rgba(230, 57, 70, 0.7);
         border-radius: 10px;
         padding: 0.45rem 0.6rem;
         font-size: 0.85rem;
       }
 
+      .input-field:focus {
+        outline: none;
+        border-color: var(--primary);
+        box-shadow: 0 0 0 3px rgba(230, 57, 70, 0.2);
+      }
+
       .zone-state {
         font-size: 0.8rem;
-        color: #6b4a3a;
+        color: var(--primary-strong);
+        font-weight: 600;
       }
 
       .zone-state.error {
@@ -220,9 +230,15 @@ interface AsignacionNavState {
         gap: 0.6rem;
         padding: 0.45rem 0.6rem;
         border-radius: 10px;
-        border: 1px solid rgba(44, 24, 16, 0.12);
+        border: 1px solid rgba(230, 57, 70, 0.55);
         font-size: 0.82rem;
         cursor: pointer;
+        transition: all 0.2s ease;
+      }
+
+      .zone-option:hover {
+        border-color: var(--primary);
+        background: rgba(230, 57, 70, 0.1);
       }
 
       .zone-name {
