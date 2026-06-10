@@ -34,9 +34,9 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
       }
 
       .tab-link.active-tab {
-        background: #000000;
-        border-color: #000000;
-        color: #ffffff;
+        background: var(--bg);
+        border-color: var(--bg);
+        color: var(--primary);
       }
     `,
   ],

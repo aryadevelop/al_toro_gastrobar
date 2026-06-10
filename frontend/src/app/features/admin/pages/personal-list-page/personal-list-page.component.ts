@@ -178,16 +178,43 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       td {
         text-align: left;
         padding: 0.4rem 0.5rem;
-        border-bottom: 1px solid rgba(10, 10, 10, 0.1);
         font-size: 0.82rem;
+      }
+
+      td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      th {
+        border-right: 1px solid rgba(181, 18, 18, 0.15);
+      }
+
+      th:last-child,
+      td:last-child {
+        border-right: none;
       }
 
       th {
         font-size: 0.8rem;
-        color: var(--muted);
+        background: var(--bg);
+        color: var(--primary);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      th:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+      }
+
+      th:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
       }
 
       .badge {
+        background: var(--bg);
         border: 1px solid rgba(196, 30, 58, 0.45);
         color: #9f1239;
         border-radius: 999px;
