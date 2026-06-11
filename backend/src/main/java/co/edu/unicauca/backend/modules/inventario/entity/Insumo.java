@@ -9,6 +9,7 @@ import jakarta.validation.constraints.*;
 import lombok.*;
 
 import java.math.BigDecimal;
+import java.time.LocalDate;
 
 /**
  * Ingrediente o preparación intermedia utilizada en las recetas del restaurante.
@@ -75,6 +76,15 @@ public class Insumo extends AuditableEntity {
     @Column(name = "tipo_insumo", nullable = false, length = 20)
     @Builder.Default
     private TipoInsumo tipoInsumo = TipoInsumo.MATERIA_PRIMA;
+
+    /** Fecha de vencimiento del insumo; nulo si no aplica. */
+    @Column(name = "insumo_fecha_vencimiento")
+    private LocalDate insumoFechaVencimiento;
+
+    /** Costo unitario actual del insumo; se actualiza al registrar un ingreso con costo. */
+    @Digits(integer = 10, fraction = 2, message = "El costo unitario debe tener máximo 10 dígitos enteros y 2 decimales")
+    @Column(name = "insumo_costo_unitario", precision = 12, scale = 2)
+    private BigDecimal insumoCosoUnitario;
 
     @Override
     public boolean equals(Object o) {

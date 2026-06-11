@@ -19,7 +19,10 @@ spring:
         format_sql: true
 
   mail:
-    
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:dummy}
+    password: ${MAIL_PASSWORD:dummy}
     properties:
       mail.smtp.auth: true
       mail.smtp.starttls.enable: true
