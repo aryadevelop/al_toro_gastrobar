@@ -71,18 +71,30 @@ type GroupMode = 'none' | 'anio' | 'mes';
       </article>
 
       <section class="page-grid" *ngIf="historial() as history">
-        <article class="card summary-card">
-          <div class="section-head">
-            <h3>Resumen del cliente</h3>
-            <span class="badge">ID {{ history.cliente.clienteId }}</span>
-          </div>
-          <div class="kv-grid">
-            <p><strong>Nombre:</strong> {{ history.cliente.nombre }}</p>
-            <p><strong>Correo:</strong> {{ history.cliente.email }}</p>
-            <p><strong>Telefono:</strong> {{ history.cliente.telefono }}</p>
-            <p><strong>Cliente desde:</strong> {{ formatDate(history.resumen.clienteDesde) }}</p>
-          </div>
-        </article>
+        <div class="top-cards-grid">
+          <article class="card summary-card">
+            <div class="section-head">
+              <h3>Resumen del cliente</h3>
+              <span class="badge">ID {{ history.cliente.clienteId }}</span>
+            </div>
+            <div class="info-grid">
+              <div class="info-item"><span class="info-label">Nombre</span><span class="info-value">{{ history.cliente.nombre }}</span></div>
+              <div class="info-item"><span class="info-label">Correo</span><span class="info-value">{{ history.cliente.email }}</span></div>
+              <div class="info-item"><span class="info-label">Teléfono</span><span class="info-value">{{ history.cliente.telefono }}</span></div>
+              <div class="info-item"><span class="info-label">Cliente desde</span><span class="info-value">{{ formatDate(history.resumen.clienteDesde) }}</span></div>
+            </div>
+          </article>
+
+          <article class="card stats-card">
+            <h3>Resumen de compras</h3>
+            <div class="info-grid">
+              <div class="info-item"><span class="info-label">Total visitas</span><span class="info-value">{{ history.resumen.totalVisitas }}</span></div>
+              <div class="info-item"><span class="info-label">Total gastado</span><span class="info-value">{{ history.resumen.totalGastado | currency:'COP':'symbol':'1.0-0' }}</span></div>
+              <div class="info-item"><span class="info-label">Promedio visita</span><span class="info-value">{{ history.resumen.promedioPorVisita | currency:'COP':'symbol':'1.0-0' }}</span></div>
+              <div class="info-item"><span class="info-label">Última visita</span><span class="info-value">{{ formatDate(history.resumen.ultimaVisita) }}</span></div>
+            </div>
+          </article>
+        </div>
 
         <article class="card highlight-box" *ngIf="history.mensajeCumpleanos">
           <p>{{ history.mensajeCumpleanos }}</p>
@@ -101,16 +113,6 @@ type GroupMode = 'none' | 'anio' | 'mes';
             </button>
           </div>
           <p class="muted" *ngIf="recordatorioMessage()">{{ recordatorioMessage() }}</p>
-        </article>
-
-        <article class="card stats-card">
-          <h3>Resumen de compras</h3>
-          <div class="kv-grid">
-            <p><strong>Total visitas:</strong> {{ history.resumen.totalVisitas }}</p>
-            <p><strong>Total gastado:</strong> {{ history.resumen.totalGastado | currency:'COP':'symbol':'1.0-0' }}</p>
-            <p><strong>Promedio por visita:</strong> {{ history.resumen.promedioPorVisita | currency:'COP':'symbol':'1.0-0' }}</p>
-            <p><strong>Ultima visita:</strong> {{ formatDate(history.resumen.ultimaVisita) }}</p>
-          </div>
         </article>
 
         <article class="card section-box">
@@ -277,15 +279,38 @@ type GroupMode = 'none' | 'anio' | 'mes';
         gap: 0.6rem;
       }
 
-      .kv-grid {
+      .top-cards-grid {
         display: grid;
-        grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
-        gap: 0.35rem 0.8rem;
+        grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
+        gap: 1rem;
       }
 
-      .kv-grid p {
-        margin: 0;
-        font-size: 0.84rem;
+      .info-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+        gap: 1rem 0.5rem;
+        margin-top: 0.5rem;
+      }
+
+      .info-item {
+        display: flex;
+        flex-direction: column;
+        gap: 0.15rem;
+      }
+
+      .info-label {
+        font-size: 0.72rem;
+        text-transform: uppercase;
+        color: rgba(255, 255, 255, 0.75);
+        font-weight: 600;
+        letter-spacing: 0.5px;
+      }
+
+      .info-value {
+        font-size: 1.05rem;
+        font-weight: 700;
+        color: #ffffff;
+        word-break: break-word;
       }
 
       .sale-card {

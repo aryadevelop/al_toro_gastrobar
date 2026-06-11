@@ -24,8 +24,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         <a class="btn-primary" routerLink="/app/admin/personal/new" style="background-color: #137333;">+ Nuevo empleado</a>
       </div>
 
-      <article class="card filter-card">
-        <form class="filters-grid" [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+      <form [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+        <article class="card filter-card">
+          <div class="filters-grid">
           <label>
             <span>Rol</span>
             <select class="input-field" formControlName="rol" (change)="applyFilters()">
@@ -50,12 +51,14 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
             <input class="input-field" type="text" formControlName="nombre" placeholder="Ej: Juan Pérez" />
           </label>
 
-          <div class="actions-row">
-            <button class="btn-secondary" type="button" (click)="clearFilters()">Limpiar</button>
-            <button class="btn-primary" type="submit">Buscar</button>
           </div>
-        </form>
-      </article>
+        </article>
+
+        <div class="actions-row" style="margin-top: 0.8rem;">
+          <button class="btn-secondary" type="button" (click)="clearFilters()">Limpiar</button>
+          <button class="btn-primary" type="submit">Buscar</button>
+        </div>
+      </form>
 
       <article class="card state-card" *ngIf="loading()">
         <p>Cargando personal...</p>
@@ -214,7 +217,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       }
 
       .badge {
-        background: var(--bg);
+        background: #ffffff;
         border: 1px solid rgba(196, 30, 58, 0.45);
         color: #9f1239;
         border-radius: 999px;
