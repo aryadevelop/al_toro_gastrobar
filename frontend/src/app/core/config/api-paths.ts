@@ -102,9 +102,9 @@ export const API_PATHS = {
         canjearPuntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/canje-puntos`,
     },
     adminProductos: {
-        listar: `${API}/admin/productos`,
-        validarEstado: (id: string | number) => `${API}/admin/productos/${id}/validar-estado`,
-        cambiarEstado: (id: string | number) => `${API}/admin/productos/${id}/estado`,
+        listar: `${API}/productos`,
+        validarEstado: (id: string | number) => `${API}/productos/${id}/estado/implicaciones`,
+        cambiarEstado: (id: string | number) => `${API}/productos/${id}/estado`,
     },
     adminPreparaciones: {
         validarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/validar-estado`,
@@ -112,8 +112,10 @@ export const API_PATHS = {
         historialEstados: (id: string | number) => `${API}/admin/preparaciones/${id}/historial-estados`,
     },
     adminInsumos: {
-        validarEstado: (id: string | number) => `${API}/admin/insumos/${id}/validar-estado`,
-        cambiarEstado: (id: string | number) => `${API}/admin/insumos/${id}/estado`,
+        listar: `${API}/inventario/insumos`,
+        detalle: (id: string | number) => `${API}/inventario/insumos/${id}`,
+        validarEstado: (id: string | number) => `${API}/inventario/insumos/${id}/estado/implicaciones`,
+        cambiarEstado: (id: string | number) => `${API}/inventario/insumos/${id}/estado`,
     },
     adminDecoraciones: {
         listar: `${API}/decoraciones`,
@@ -126,5 +128,10 @@ export const API_PATHS = {
     },
 
     inventarioMovimientos: `${API}/inventario/movimientos`,
+    inventarioMovimientosRegistro: `${API}/inventario/movimientos/registro`,
     inventarioBuscar: (query: string) => `${API}/inventario/buscar?q=${query}`,
+    inventarioMovimientosPorInsumo: (insumoId: string | number) => `${API}/inventario/movimientos?insumoId=${insumoId}`,
+    inventarioMovimientosPorProducto: (productoId: string | number) => `${API}/inventario/movimientos?productoId=${productoId}`,
+    
+    adminDashboard: `${API}/ventas/dashboard`,
 } as const;

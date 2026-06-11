@@ -25,7 +25,7 @@
       }
 
       .danger {
-        background: #6F4E37;
+        background: var(--primary);
         color: #FFFFFF;
       }
     `

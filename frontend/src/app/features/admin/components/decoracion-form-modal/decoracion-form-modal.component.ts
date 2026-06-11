@@ -5,11 +5,13 @@ import { ModalBaseComponent } from '../../../../shared/ui/modal-base/modal-base.
 import { DecoracionAdminService } from '../../../../core/services/decoracion-admin.service';
 import { MesaMapService } from '../../../../core/services/mesa-map.service';
 import { BackendDecoracionAdminResponse, BackendCrearDecoracionRequest, BackendActualizarDecoracionRequest } from '../../../../core/models/api.models';
+import { environment } from '../../../../../environments/environment';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
 
 @Component({
   selector: 'app-decoracion-form-modal',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule, ModalBaseComponent],
+  imports: [CommonModule, ReactiveFormsModule, ModalBaseComponent, ConfirmDialogComponent],
   template: `
     <app-modal-base 
       [open]="open()" 
@@ -19,111 +21,274 @@ import { BackendDecoracionAdminResponse, BackendCrearDecoracionRequest, BackendA
       <form [formGroup]="form" (ngSubmit)="guardar()" class="form-container">
         
         <div class="form-group">
-          <label for="nombre">Nombre de decoración *</label>
-          <input type="text" id="nombre" formControlName="decoracionNombre" class="form-control" placeholder="Ej: Cumpleaños Básico">
+          <label for="nombre" class="form-label">Nombre de decoración <span class="text-danger">*</span></label>
+          <input type="text" id="nombre" formControlName="decoracionNombre" class="form-control minimal-input" placeholder="Ej: Cumpleaños Básico">
           <span class="error" *ngIf="form.controls.decoracionNombre.touched && form.controls.decoracionNombre.invalid">
-            El nombre es obligatorio y máximo 100 caracteres.
+            Obligatorio (máx 100 caracteres).
           </span>
         </div>
 
         <div class="form-group">
-          <label for="costo">Costo Adicional</label>
-          <input type="number" id="costo" formControlName="decoracionCostoAdicional" class="form-control" step="0.01">
+          <label for="costo" class="form-label">Costo Adicional</label>
+          <div class="input-group">
+            <span class="input-prefix">$</span>
+            <input type="number" id="costo" formControlName="decoracionCostoAdicional" class="form-control minimal-input with-prefix" placeholder="0.00" step="1000">
+          </div>
           <span class="error" *ngIf="form.controls.decoracionCostoAdicional.touched && form.controls.decoracionCostoAdicional.invalid">
-            Debe ser un valor válido mayor a 0.
+            Valor inválido.
           </span>
         </div>
 
         <div class="form-group">
-          <label for="zonas">Zonas Disponibles</label>
-          <select multiple id="zonas" formControlName="zonaIds" class="form-control" style="min-height: 100px;">
-            <option *ngFor="let zona of zonasDisponibles()" [value]="zona.zonaId">
-              {{ zona.zonaNombre }} (Cap: {{ zona.zonaCapacidadPersonas }})
-            </option>
-          </select>
-          <small class="hint">Mantén presionado Ctrl (o Cmd) para seleccionar varias.</small>
+          <label class="form-label">Zonas Disponibles</label>
+          <div class="zonas-grid">
+            <label class="zona-checkbox" *ngFor="let zona of zonasDisponibles()">
+              <input type="checkbox" 
+                     [checked]="hasZona(zona.id)"
+                     (change)="toggleZona(zona.id, $event)">
+              <span class="zona-name">{{ zona.name }}</span>
+              <span class="zona-cap">(Cap: {{ zona.capacidadTotal }})</span>
+            </label>
+          </div>
         </div>
 
         <div class="form-group">
-          <label for="imagen">Imagen (Opcional)</label>
-          <input type="file" id="imagen" class="form-control" accept=".jpg, .png, .webp" (change)="onFileSelected($event)">
+          <label class="form-label">Imagen (Opcional)</label>
+          
+          <div class="file-upload-wrapper" [class.has-image]="imagePreview() || decoracion()?.decoracionImagenUrl">
+            <input type="file" id="imagen" class="file-input" accept=".jpg, .png, .webp" (change)="onFileSelected($event)">
+            <label for="imagen" class="file-label">
+              <span *ngIf="!(imagePreview() || decoracion()?.decoracionImagenUrl)">Haz clic para subir una foto</span>
+              <span *ngIf="imagePreview() || decoracion()?.decoracionImagenUrl">Cambiar imagen</span>
+            </label>
+          </div>
           
           <div class="preview-container" *ngIf="imagePreview() || decoracion()?.decoracionImagenUrl">
-            <img [src]="imagePreview() || decoracion()?.decoracionImagenUrl" alt="Vista previa" class="preview-img">
+            <img [src]="imagePreview() || getImageUrl(decoracion()?.decoracionImagenUrl)" alt="Vista previa" class="preview-img">
+            <button type="button" class="btn-remove-img" (click)="eliminarImagenOpcional()">Eliminar</button>
           </div>
           
           <span class="error" *ngIf="fileError()">{{ fileError() }}</span>
-          <small class="hint">Formatos permitidos: JPG, PNG, WEBP. Tamaño máximo: 5MB.</small>
         </div>
 
         <div class="actions">
-          <button type="button" class="btn-secondary" (click)="close.emit()">Cancelar</button>
-          <button type="button" class="btn-danger" *ngIf="decoracion()?.decoracionImagenUrl" (click)="eliminarImagen()">Eliminar Imagen Actual</button>
-          <button type="submit" class="btn-primary" [disabled]="form.invalid || isSubmitting() || !!fileError()">
-            {{ isSubmitting() ? 'Guardando...' : 'Guardar cambios' }}
+          <button type="button" class="btn btn-outline-secondary minimal-btn" (click)="close.emit()">Cancelar</button>
+          <button type="submit" class="btn btn-primary minimal-btn" [disabled]="form.invalid || isSubmitting() || !!fileError()">
+            {{ isSubmitting() ? 'Guardando...' : 'Guardar' }}
           </button>
         </div>
 
-        <div class="success-message" *ngIf="successMessage()">
-          {{ successMessage() }}
-        </div>
-        <div class="error" *ngIf="serverError()">
-          {{ serverError() }}
-        </div>
+        <div class="success-message" *ngIf="successMessage()">{{ successMessage() }}</div>
+        <div class="error-message" *ngIf="serverError()">{{ serverError() }}</div>
       </form>
     </app-modal-base>
+
+    <app-confirm-dialog
+      [open]="dialogAbierto()"
+      [title]="dialogTitulo()"
+      [message]="dialogMensaje()"
+      (cancel)="dialogAbierto.set(false)"
+      (confirm)="ejecutarAccionConfirmada()">
+    </app-confirm-dialog>
   `,
   styles: [`
     .form-container {
       display: flex;
       flex-direction: column;
-      gap: 1rem;
+      gap: 0.5rem;
+      padding: 0;
     }
     .form-group {
       display: flex;
       flex-direction: column;
-      gap: 0.25rem;
+      gap: 0.2rem;
     }
-    .form-control {
-      padding: 0.5rem;
-      border: 1px solid var(--border-color);
-      border-radius: var(--radius);
-      background: var(--surface-color);
-      color: var(--text-color);
-    }
-    .error {
-      color: var(--error-color);
+    .form-label {
+      font-weight: 500;
       font-size: 0.85rem;
+      color: var(--text-color, #333);
+      margin-bottom: 0.1rem;
     }
-    .hint {
-      color: var(--text-muted);
+    .text-danger { color: #dc3545; }
+    
+    .minimal-input {
+      border: 1px solid rgba(0,0,0,0.15);
+      border-radius: 6px;
+      padding: 0.3rem 0.5rem;
+      background: #ffffff;
+      font-size: 0.9rem;
+      transition: all 0.2s;
+      box-shadow: inset 0 1px 2px rgba(0,0,0,0.03);
+    }
+    .minimal-input:focus {
+      outline: none;
+      border-color: #9e7f66;
+      box-shadow: 0 0 0 3px rgba(158, 127, 102, 0.2);
+    }
+
+    .input-group {
+      position: relative;
+      display: flex;
+      align-items: center;
+    }
+    .input-prefix {
+      position: absolute;
+      left: 1rem;
+      color: #666;
+      font-weight: 500;
+      pointer-events: none;
+    }
+    .with-prefix {
+      padding-left: 2rem;
+      width: 100%;
+    }
+
+    .zonas-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(130px, 1fr));
+      gap: 0.3rem;
+      margin-top: 0;
+    }
+    .zona-checkbox {
+      display: flex;
+      align-items: center;
+      gap: 0.3rem;
+      background: #ffffff;
+      border: 1px solid rgba(0,0,0,0.1);
+      padding: 0.3rem 0.4rem;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+    .zona-checkbox:hover {
+      background: #fdfbf9;
+      border-color: #d4c4b7;
+    }
+    .zona-checkbox input[type="checkbox"] {
+      width: 1.1rem;
+      height: 1.1rem;
+      accent-color: #8c6a51;
+    }
+    .zona-name {
+      font-size: 0.85rem;
+      font-weight: 500;
+    }
+    .zona-cap {
+      font-size: 0.7rem;
+      color: #777;
+    }
+
+    .file-upload-wrapper {
+      position: relative;
+      overflow: hidden;
+      display: inline-block;
+      width: 100%;
+    }
+    .file-input {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+    .file-label {
+      display: block;
+      padding: 0.4rem;
+      border: 1px dashed rgba(0,0,0,0.2);
+      border-radius: 6px;
+      text-align: center;
+      background: #faf8f5;
+      color: #666;
       font-size: 0.8rem;
+      transition: all 0.2s;
+      margin-top: 0;
     }
+    .file-upload-wrapper:hover .file-label {
+      background: #f3eee8;
+      border-color: #9e7f66;
+    }
+    .has-image .file-label {
+      display: none;
+    }
+
     .preview-container {
-      margin-top: 0.5rem;
-      border: 1px dashed var(--border-color);
-      padding: 0.5rem;
-      border-radius: var(--radius);
+      position: relative;
+      margin-top: 0.2rem;
+      border-radius: 6px;
+      overflow: hidden;
+      background: #000;
       display: flex;
       justify-content: center;
-      background: var(--background-color);
+      align-items: center;
+      height: 90px;
     }
     .preview-img {
       max-width: 100%;
-      max-height: 200px;
-      object-fit: contain;
+      max-height: 100%;
+      object-fit: cover;
+      opacity: 0.9;
     }
+    .btn-remove-img {
+      position: absolute;
+      top: 0.5rem;
+      right: 0.5rem;
+      background: rgba(220, 53, 69, 0.9);
+      color: white;
+      border: none;
+      padding: 0.3rem 0.6rem;
+      border-radius: 4px;
+      font-size: 0.8rem;
+      cursor: pointer;
+    }
+
     .actions {
       display: flex;
       justify-content: flex-end;
-      gap: 0.5rem;
-      margin-top: 1rem;
+      gap: 0.75rem;
+      margin-top: 0;
+      padding-top: 0.3rem;
+      border-top: 1px solid rgba(0,0,0,0.05);
+    }
+    .minimal-btn {
+      padding: 0.4rem 1.2rem;
+      border-radius: 6px;
+      font-weight: 500;
+      transition: all 0.2s;
+      border: none;
+    }
+    .btn-outline-secondary {
+      background: transparent;
+      border: 1px solid rgba(0,0,0,0.2);
+      color: #555;
+    }
+    .btn-outline-secondary:hover {
+      background: #f5f5f5;
+    }
+    .btn-primary {
+      background: #8c6a51;
+      color: white;
+    }
+    .btn-primary:hover {
+      background: #73553f;
+    }
+    .btn-primary:disabled {
+      background: #ccc;
+      cursor: not-allowed;
+    }
+
+    .error, .error-message {
+      color: #dc3545;
+      font-size: 0.8rem;
+      margin-top: 0.2rem;
     }
     .success-message {
-      color: var(--success-color);
+      color: #28a745;
       font-weight: 500;
       text-align: center;
       margin-top: 0.5rem;
+      font-size: 0.9rem;
     }
   `]
 })
@@ -172,12 +337,25 @@ export class DecoracionFormModalComponent {
   readonly successMessage = signal<string | null>(null);
   readonly serverError = signal<string | null>(null);
 
+  readonly dialogAbierto = signal(false);
+  readonly dialogTitulo = signal('');
+  readonly dialogMensaje = signal('');
+  private accionConfirmacion: (() => void) | null = null;
+
   private cargarZonas(): void {
     this.mesaService.getZonasDisponibles().subscribe({
       next: (zonas) => {
         this.zonasDisponibles.set(zonas);
       }
     });
+  }
+
+  getImageUrl(path: string | undefined | null): string {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
   }
 
   onFileSelected(event: Event): void {
@@ -239,19 +417,57 @@ export class DecoracionFormModalComponent {
     const dec = this.decoracion();
     if (!dec || !dec.decoracionId) return;
 
-    if (confirm('¿Está seguro de que desea eliminar la imagen de esta decoración?')) {
+    this.dialogTitulo.set('Eliminar Imagen');
+    this.dialogMensaje.set('¿Está seguro de que desea eliminar la imagen de esta decoración?');
+    this.accionConfirmacion = () => {
       this.isSubmitting.set(true);
       this.decoracionService.eliminarImagenDecoracion(dec.decoracionId).subscribe({
         next: () => {
           this.isSubmitting.set(false);
           this.decoracion.update(d => d ? { ...d, decoracionImagenUrl: null } : null);
           this.saved.emit();
+          this.dialogAbierto.set(false);
         },
         error: (err) => {
           this.isSubmitting.set(false);
           this.serverError.set(err.error?.message || 'Error al eliminar la imagen');
+          this.dialogAbierto.set(false);
         }
       });
+    };
+    this.dialogAbierto.set(true);
+  }
+
+  ejecutarAccionConfirmada(): void {
+    if (this.accionConfirmacion) {
+      this.accionConfirmacion();
+    }
+  }
+
+  eliminarImagenOpcional(): void {
+    if (this.selectedFile()) {
+      this.clearFile();
+    } else if (this.decoracion()?.decoracionImagenUrl) {
+      this.eliminarImagen();
+    }
+  }
+
+  hasZona(id: string): boolean {
+    const ids = this.form.controls.zonaIds.value || [];
+    return ids.includes(Number(id));
+  }
+
+  toggleZona(idStr: string, event: Event): void {
+    const id = Number(idStr);
+    const checked = (event.target as HTMLInputElement).checked;
+    const current = this.form.controls.zonaIds.value || [];
+    
+    if (checked) {
+      if (!current.includes(id)) {
+        this.form.controls.zonaIds.setValue([...current, id]);
+      }
+    } else {
+      this.form.controls.zonaIds.setValue(current.filter(x => x !== id));
     }
   }
 

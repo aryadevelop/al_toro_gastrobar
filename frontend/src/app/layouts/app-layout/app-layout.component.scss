@@ -1,4 +1,4 @@
-﻿.app-layout {
+.app-layout {
   display: grid;
   grid-template-columns: 260px 1fr;
   min-height: 100vh;
@@ -6,11 +6,13 @@
 
 .content-wrapper {
   padding: 1rem;
+  min-width: 0; /* Permite overflow en el grid */
 }
 
 .page-container {
   display: grid;
   gap: 1rem;
+  min-width: 0; /* Permite overflow en el grid */
 }
 
 .mobile-menu {
@@ -29,7 +31,7 @@
   .mobile-menu {
     display: block;
     margin-bottom: 1rem;
-    border-left: 3px solid rgba(111, 78, 55, 0.55);
+    border-left: 3px solid rgba(211, 47, 47, 0.55);
     padding-left: 0.35rem;
 
     app-sidebar {

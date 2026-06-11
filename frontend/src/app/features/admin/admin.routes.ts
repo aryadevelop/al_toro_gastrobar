@@ -34,11 +34,19 @@ export const ADMIN_ROUTES: Routes = [
     loadComponent: () => import('./pages/producto-form-page/producto-form-page.component').then((m) => m.ProductoFormPageComponent)
   },
   {
+    path: 'productos/:id',
+    loadComponent: () => import('./pages/producto-form-page/producto-form-page.component').then((m) => m.ProductoFormPageComponent)
+  },
+  {
     path: 'insumos',
     loadComponent: () => import('./pages/insumos-list-page/insumos-list-page.component').then((m) => m.InsumosListPageComponent)
   },
   {
     path: 'insumos/new',
+    loadComponent: () => import('./pages/insumo-form-page/insumo-form-page.component').then((m) => m.InsumoFormPageComponent)
+  },
+  {
+    path: 'insumos/:id',
     loadComponent: () => import('./pages/insumo-form-page/insumo-form-page.component').then((m) => m.InsumoFormPageComponent)
   },
   {

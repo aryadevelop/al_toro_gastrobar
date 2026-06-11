@@ -1,4 +1,4 @@
-﻿import { CommonModule } from '@angular/common';
+import { CommonModule } from '@angular/common';
 import { Component, OnInit, signal } from '@angular/core';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { Pago, Reserva, ReservaPreorderItem } from '../../../../core/models/domain.models';
@@ -12,7 +12,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
   imports: [CommonModule, RouterLink, PageHeaderComponent],
   template: `
     <section class="page-grid cliente-compact">
-      <app-page-header title="Detalle de visita" subtitle="Informacion completa de la reserva y su consumo"></app-page-header>
+      <app-page-header title="Detalle de visita" subtitle="Información completa de la reserva y su consumo"></app-page-header>
 
       <article class="card detail-card" *ngIf="reservation(); else notFound">
         <p><strong>Fecha y hora:</strong> {{ formatReservationDateTime() }}</p>

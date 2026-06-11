@@ -85,7 +85,7 @@ interface DraftItem {
           <div class="summary-state" *ngIf="loadingItems()">Cargando items...</div>
           <div class="summary-state error" *ngIf="!loadingItems() && loadError()">{{ loadError() }}</div>
           <div class="summary-state" *ngIf="!loadingItems() && !loadError() && !itemsProduccion().length">
-            Sin productos en produccion.
+            Sin productos en producción.
           </div>
           <ul class="summary-list" *ngIf="!loadingItems() && itemsProduccion().length">
             <li *ngFor="let item of itemsProduccion()">
@@ -302,8 +302,7 @@ interface DraftItem {
     `
       :host {
         display: block;
-        color: #333333;
-        font-family: 'Manrope', 'Montserrat', 'Segoe UI', sans-serif;
+        font-family: 'Playfair Display', 'Montserrat', 'Segoe UI', sans-serif;
       }
 
       .comanda-shell {
@@ -313,8 +312,7 @@ interface DraftItem {
       .comanda-card {
         padding: 1rem;
         max-width: 980px;
-        background: radial-gradient(circle at top right, rgba(232, 213, 183, 0.35), #ffffff 60%);
-        border: 1px solid rgba(44, 24, 16, 0.1);
+        /* Fondo manejado por la clase global .card */
       }
 
       .comanda-head {
@@ -330,17 +328,16 @@ interface DraftItem {
         font-size: 0.75rem;
         text-transform: uppercase;
         letter-spacing: 0.08em;
-        color: #a0a0a0;
+        color: rgba(255, 255, 255, 0.7);
       }
 
       .comanda-title {
         margin: 0.2rem 0 0;
         font-size: 1.2rem;
-        color: #2c1810;
       }
 
       .comanda-summary {
-        background: rgba(44, 24, 16, 0.05);
+        background: rgba(0, 0, 0, 0.2);
         border-radius: 12px;
         padding: 0.75rem;
         margin: 1rem 0;
@@ -349,16 +346,15 @@ interface DraftItem {
       .comanda-summary h4 {
         margin: 0 0 0.5rem;
         font-size: 0.9rem;
-        color: #2c1810;
       }
 
       .summary-state {
         font-size: 0.85rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.8);
       }
 
       .summary-state.error {
-        color: #c41e3a;
+        color: #ffcccc;
       }
 
       .summary-list {
@@ -377,34 +373,41 @@ interface DraftItem {
         padding: 0.45rem 0.6rem;
         border-radius: 10px;
         background: #ffffff;
-        border: 1px solid rgba(44, 24, 16, 0.08);
+        color: var(--text);
+        border: 1px solid rgba(0, 0, 0, 0.1);
       }
 
       .item-name {
         margin: 0;
         font-size: 0.85rem;
         font-weight: 600;
+        color: var(--text);
       }
 
       .item-sub {
         margin: 0.15rem 0 0;
         font-size: 0.75rem;
-        color: #a0a0a0;
+        color: var(--text-muted);
       }
 
       .item-qty {
         font-weight: 700;
-        color: #c41e3a;
+        color: var(--primary);
       }
 
       .btn-outline {
-        border: 1px solid rgba(44, 24, 16, 0.25);
-        background: #ffffff;
-        color: #2c1810;
+        border: 1px solid rgba(255, 255, 255, 0.6);
+        background: transparent;
+        color: #ffffff;
         border-radius: 999px;
         padding: 0.35rem 0.9rem;
         font-size: 0.78rem;
         cursor: pointer;
+        transition: background 0.2s;
+      }
+
+      .btn-outline:hover {
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .btn-primary {
@@ -440,20 +443,23 @@ interface DraftItem {
         list-style: none;
         margin: 0;
         padding: 0;
-        border: 1px solid rgba(44, 24, 16, 0.16);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 12px;
         max-height: 220px;
         overflow: auto;
+        background: #ffffff;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
       }
 
       .suggestions li + li {
-        border-top: 1px solid rgba(44, 24, 16, 0.08);
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
       }
 
       .suggestions button {
         width: 100%;
         border: none;
         background: transparent;
+        color: var(--text);
         padding: 0.55rem 0.75rem;
         display: flex;
         justify-content: space-between;
@@ -461,10 +467,14 @@ interface DraftItem {
         cursor: pointer;
       }
 
+      .suggestions button:hover {
+        background: rgba(0, 0, 0, 0.03);
+      }
+
       .suggestions-empty {
         margin: 0;
         font-size: 0.78rem;
-        color: #6b7280;
+        color: var(--text-muted);
       }
 
       .totals-grid {
@@ -475,10 +485,11 @@ interface DraftItem {
       }
 
       .totals-box {
-        border: 1px solid rgba(44, 24, 16, 0.12);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 10px;
         padding: 0.65rem;
-        background: #fff;
+        background: #ffffff;
+        color: var(--text);
       }
 
       .totals-box h4 {
@@ -499,15 +510,17 @@ interface DraftItem {
 
       .draft-section h4 {
         margin: 0;
+        color: var(--text);
       }
 
       .draft-item {
-        border: 1px solid rgba(44, 24, 16, 0.15);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 10px;
         padding: 0.62rem;
         display: grid;
         gap: 0.45rem;
-        background: #fff;
+        background: #ffffff;
+        color: var(--text);
       }
 
       .draft-item--mod {
@@ -535,16 +548,20 @@ interface DraftItem {
       }
 
       .qty-controls button {
-        border: 1px solid rgba(44, 24, 16, 0.2);
-        background: #fff;
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        background: transparent;
+        color: var(--text);
         border-radius: 8px;
         width: 28px;
         height: 28px;
+        cursor: pointer;
       }
 
       .qty-controls input {
         width: 72px;
-        border: 1px solid rgba(44, 24, 16, 0.2);
+        border: 1px solid rgba(0, 0, 0, 0.2);
+        background: transparent;
+        color: var(--text);
         border-radius: 8px;
         text-align: center;
         padding: 0.28rem;
@@ -598,19 +615,19 @@ interface DraftItem {
       .comanda-meta {
         margin: 0 0 0.8rem;
         font-size: 0.78rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
       }
 
       .save-note {
         margin: 0;
-        color: #2e7d32;
+        color: #4caf50;
         font-size: 0.85rem;
       }
 
       .action-hint {
         margin: 0.35rem 0 0;
         font-size: 0.78rem;
-        color: #6b7280;
+        color: rgba(255, 255, 255, 0.7);
       }
 
       .integration-note {
@@ -1103,7 +1120,7 @@ export class ComandaEditorPageComponent implements OnInit, OnDestroy {
           this.loadingItems.set(false);
         },
         error: () => {
-          this.loadError.set('No pudimos cargar los items en produccion.');
+          this.loadError.set('No pudimos cargar los items en producción.');
           this.loadingItems.set(false);
         },
       });

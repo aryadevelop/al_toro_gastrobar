@@ -223,9 +223,9 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       }
 
       .tab-btn.tab-active {
-        background: #8b5e3c;
+        background: var(--primary);
         color: #fff;
-        border-color: #8b5e3c;
+        border-color: var(--primary);
       }
 
       .zone-section {
@@ -264,21 +264,23 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
         padding: 0.7rem;
         display: grid;
         gap: 0.55rem;
+        background: #ffffff;
+        color: var(--text);
       }
 
       .state-attended {
         border-color: rgba(41, 98, 150, 0.45);
-        background: rgba(41, 98, 150, 0.06);
+        background: #f0f7ff;
       }
 
       .state-prep {
         border-color: rgba(46, 125, 50, 0.45);
-        background: rgba(46, 125, 50, 0.07);
+        background: #f0fdf4;
       }
 
       .state-wait {
         border-color: rgba(107, 114, 128, 0.55);
-        background: rgba(107, 114, 128, 0.09);
+        background: #f3f4f6;
       }
 
       .mesa-top {
@@ -385,7 +387,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
       .btn-link {
         border: none;
         background: none;
-        color: #8b5e3c;
+        color: var(--primary);
         font-weight: 600;
         padding: 0;
         cursor: pointer;
@@ -393,7 +395,7 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 
       .btn-primary {
         border: none;
-        background: #8b5e3c;
+        background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
         color: #fff;
         border-radius: 999px;
         padding: 0.35rem 0.8rem;

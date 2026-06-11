@@ -21,15 +21,22 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
     `
       .tab-link {
         text-decoration: none;
-        color: inherit;
+        color: #ffffff;
         padding: 0.65rem 1rem;
         border-radius: 999px;
-        background: rgba(0,0,0,0.05);
+        background: transparent;
+        border: 1px solid rgba(255, 255, 255, 0.4);
+        transition: all 0.2s ease;
+      }
+
+      .tab-link:hover {
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .tab-link.active-tab {
-        background: #8b5e3c;
-        color: #fff;
+        background: var(--bg);
+        border-color: var(--bg);
+        color: var(--primary);
       }
     `,
   ],

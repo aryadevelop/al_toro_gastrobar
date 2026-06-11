@@ -4,11 +4,13 @@ import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-head
 import { DecoracionAdminService } from '../../../../core/services/decoracion-admin.service';
 import { BackendDecoracionAdminResponse } from '../../../../core/models/api.models';
 import { DecoracionFormModalComponent } from '../../components/decoracion-form-modal/decoracion-form-modal.component';
+import { ConfirmDialogComponent } from '../../../../shared/ui/confirm-dialog/confirm-dialog.component';
+import { environment } from '../../../../../environments/environment';
 
 @Component({
   selector: 'app-decoraciones-page',
   standalone: true,
-  imports: [CommonModule, PageHeaderComponent, DecoracionFormModalComponent],
+  imports: [CommonModule, PageHeaderComponent, DecoracionFormModalComponent, ConfirmDialogComponent],
   template: `
     <section class="page-grid">
       <app-page-header 
@@ -34,18 +36,18 @@ import { DecoracionFormModalComponent } from '../../components/decoracion-form-m
             </thead>
             <tbody>
               <tr *ngFor="let dec of decoraciones()">
-                <td>
-                  <img *ngIf="dec.decoracionImagenUrl" [src]="dec.decoracionImagenUrl" alt="Decoración" class="thumb-img">
+                <td data-label="Imagen">
+                  <img *ngIf="dec.decoracionImagenUrl" [src]="getImageUrl(dec.decoracionImagenUrl)" alt="Decoración" class="thumb-img">
                   <span *ngIf="!dec.decoracionImagenUrl" class="no-img">Sin imagen</span>
                 </td>
-                <td>{{ dec.decoracionNombre }}</td>
-                <td>{{ dec.decoracionCostoAdicional !== null ? (dec.decoracionCostoAdicional | currency:'COP') : 'Gratis' }}</td>
-                <td>
+                <td data-label="Nombre">{{ dec.decoracionNombre }}</td>
+                <td data-label="Costo Adicional">{{ dec.decoracionCostoAdicional !== null ? (dec.decoracionCostoAdicional | currency:'COP') : 'Gratis' }}</td>
+                <td data-label="Estado">
                   <span class="badge" [class.badge-success]="dec.decoracionEstado === 'ACTIVO'" [class.badge-danger]="dec.decoracionEstado !== 'ACTIVO'">
                     {{ dec.decoracionEstado }}
                   </span>
                 </td>
-                <td>
+                <td data-label="Acciones">
                   <div class="btn-group">
                     <button class="btn-secondary btn-sm" (click)="abrirModalEditar(dec)">Editar / Imagen</button>
                     <button class="btn-warning btn-sm" (click)="cambiarEstado(dec)">Cambiar Estado</button>
@@ -71,6 +73,14 @@ import { DecoracionFormModalComponent } from '../../components/decoracion-form-m
       (close)="cerrarModal()"
       (saved)="cargarDecoraciones()">
     </app-decoracion-form-modal>
+
+    <app-confirm-dialog
+      [open]="dialogAbierto()"
+      [title]="dialogTitulo()"
+      [message]="dialogMensaje()"
+      (cancel)="dialogAbierto.set(false)"
+      (confirm)="ejecutarAccionConfirmada()">
+    </app-confirm-dialog>
   `,
   styles: [`
     .actions-bar {
@@ -125,8 +135,21 @@ export class DecoracionesPageComponent implements OnInit {
   readonly modalAbierto = signal(false);
   readonly decoracionEditando = signal<BackendDecoracionAdminResponse | null>(null);
 
+  readonly dialogAbierto = signal(false);
+  readonly dialogTitulo = signal('');
+  readonly dialogMensaje = signal('');
+  private accionConfirmacion: (() => void) | null = null;
+
   ngOnInit(): void {
     this.cargarDecoraciones();
+  }
+
+  getImageUrl(path: string | null): string {
+    if (!path) return '';
+    if (path.startsWith('http')) return path;
+    const base = environment.apiBaseUrl.replace(/\/api\/?$/, '');
+    const cleanPath = path.startsWith('/') ? path : '/' + path;
+    return `${base}${cleanPath}`;
   }
 
   cargarDecoraciones(): void {
@@ -156,21 +179,45 @@ export class DecoracionesPageComponent implements OnInit {
   }
 
   eliminar(dec: BackendDecoracionAdminResponse): void {
-    if (confirm('¿Está seguro de que desea eliminar la decoración "' + dec.decoracionNombre + '"?')) {
+    this.dialogTitulo.set('Eliminar Decoración');
+    this.dialogMensaje.set('¿Está seguro de que desea eliminar la decoración "' + dec.decoracionNombre + '"?');
+    this.accionConfirmacion = () => {
       this.decoracionService.eliminarDecoracion(dec.decoracionId).subscribe({
-        next: () => this.cargarDecoraciones(),
-        error: (err) => alert(err.error?.message || 'Error al eliminar la decoración')
+        next: () => {
+          this.cargarDecoraciones();
+          this.dialogAbierto.set(false);
+        },
+        error: (err) => {
+          alert(err.error?.message || 'Error al eliminar la decoración');
+          this.dialogAbierto.set(false);
+        }
       });
-    }
+    };
+    this.dialogAbierto.set(true);
   }
 
   cambiarEstado(dec: BackendDecoracionAdminResponse): void {
     const nuevoEstado = dec.decoracionEstado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
-    if (confirm('¿Desea cambiar el estado de "' + dec.decoracionNombre + '" a ' + nuevoEstado + '?')) {
+    this.dialogTitulo.set('Cambiar Estado');
+    this.dialogMensaje.set('¿Desea cambiar el estado de "' + dec.decoracionNombre + '" a ' + nuevoEstado + '?');
+    this.accionConfirmacion = () => {
       this.decoracionService.cambiarEstado(dec.decoracionId, nuevoEstado).subscribe({
-        next: () => this.cargarDecoraciones(),
-        error: (err) => alert(err.error?.message || 'Error al cambiar estado')
+        next: () => {
+          this.cargarDecoraciones();
+          this.dialogAbierto.set(false);
+        },
+        error: (err: any) => {
+          alert(err.error?.message || 'Error al cambiar estado');
+          this.dialogAbierto.set(false);
+        }
       });
+    };
+    this.dialogAbierto.set(true);
+  }
+
+  ejecutarAccionConfirmada(): void {
+    if (this.accionConfirmacion) {
+      this.accionConfirmacion();
     }
   }
 }

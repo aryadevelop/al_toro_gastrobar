@@ -21,9 +21,5 @@ export const CAJERO_ROUTES: Routes = [
   {
     path: 'pago-cierre',
     loadComponent: () => import('./pages/pago-cierre-page/pago-cierre-page.component').then((m) => m.PagoCierrePageComponent)
-  },
-  {
-    path: 'cierre-caja',
-    loadComponent: () => import('./pages/cierre-caja-page/cierre-caja-page.component').then((m) => m.CierreCajaPageComponent)
   }
 ];

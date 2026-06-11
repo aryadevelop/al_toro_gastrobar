@@ -1,8 +1,8 @@
-﻿.sidebar {
+.sidebar {
   height: 100vh;
   position: sticky;
   top: 0;
-  background: linear-gradient(180deg, #0A0A0A 0%, #1A1A1A 62%, #6F4E37 100%);
+  background: linear-gradient(160deg, #000000 0%, #110000 45%, var(--surface) 100%);
   color: #FFFFFF;
   padding: 1.25rem;
   display: flex;
@@ -57,8 +57,8 @@
 
 .menu-item.active,
 .menu-item:hover {
-  background: rgba(111, 78, 55, 0.2);
-  border-left-color: #6F4E37;
+  background: rgba(255, 255, 255, 0.15);
+  border-left-color: #ffcdd2;
 }
 
 .icon {

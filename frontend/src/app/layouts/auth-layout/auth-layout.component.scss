@@ -30,7 +30,7 @@
     top: 15%;
     height: 70%;
     width: 3px;
-    background: linear-gradient(180deg, transparent, #6F4E37 50%, transparent);
+    background: linear-gradient(180deg, transparent, var(--primary) 50%, transparent);
     border-radius: 2px;
   }
 }

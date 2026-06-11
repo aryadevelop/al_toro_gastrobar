@@ -1,11 +1,24 @@
-﻿.topbar {
-  padding: 1rem;
+.topbar-wrapper {
+  display: flex;
+  align-items: center;
+  gap: 1.5rem;
   margin-bottom: 1rem;
+}
+
+.topbar-logo {
+  display: block;
+  width: clamp(86px, 25vw, 132px);
+  height: auto;
+  flex-shrink: 0;
+}
+
+.topbar {
+  flex: 1;
+  padding: 1rem;
   display: flex;
   justify-content: space-between;
   align-items: center;
   gap: 0.8rem;
-  border-bottom: 2px solid rgba(111, 78, 55, 0.28);
 
   .topbar__left {
     display: flex;
@@ -14,17 +27,10 @@
     min-width: 0;
   }
 
-  .topbar-logo {
-    display: block;
-    width: clamp(86px, 25vw, 132px);
-    height: auto;
-    flex-shrink: 0;
-  }
-
   .topbar-user {
     font-size: 0.95rem;
     font-weight: 600;
-    color: #6F4E37;
+    color: #ffffff;
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
@@ -66,11 +72,16 @@
 }
 
 @media (max-width: 960px) {
-  .topbar {
-    .topbar-logo {
-      display: none;
-    }
+  .topbar-logo {
+    display: none !important;
+  }
 
+  .topbar-wrapper {
+    gap: 0;
+    margin-bottom: 0;
+  }
+
+  .topbar {
     .topbar__left {
       gap: 0.35rem;
     }

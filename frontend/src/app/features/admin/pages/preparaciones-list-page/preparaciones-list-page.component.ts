@@ -45,7 +45,22 @@ export class PreparacionesListPageComponent implements OnInit {
     });
   }
 
+  // Alertas de UI
+  alertMessage: string | null = null;
+  alertType: 'warning' | 'info' | 'error' | null = null;
+
+  showAlert(message: string, type: 'warning' | 'info' | 'error'): void {
+    this.alertMessage = message;
+    this.alertType = type;
+  }
+
+  clearAlert(): void {
+    this.alertMessage = null;
+    this.alertType = null;
+  }
+
   abrirModalEstado(prep: any) {
+    this.clearAlert();
     this.selectedPrep = prep;
     this.stateChangeReason = '';
     this.validationData = null;
@@ -78,7 +93,7 @@ export class PreparacionesListPageComponent implements OnInit {
     const nuevoEstado = this.selectedPrep.estado === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
     
     const req: BackendCambiarEstadoRequest = {
-      nuevoEstado,
+      estado: nuevoEstado,
       motivo: this.stateChangeReason || undefined,
       notificarClientes
     };
@@ -86,15 +101,17 @@ export class PreparacionesListPageComponent implements OnInit {
     this.preparacionAdminService.cambiarEstado(this.selectedPrep.id, req).subscribe({
       next: () => {
         if (nuevoEstado === 'INACTIVE') {
-          window.alert('Preparación desactivada correctamente.');
+          this.showAlert('Preparación desactivada correctamente.', 'info');
         } else {
-          window.alert('Preparación activada correctamente.');
+          this.showAlert('Preparación activada correctamente.', 'info');
         }
         this.cerrarModal();
         this.cargarPreparaciones();
       },
-      error: () => {
-        window.alert('Error al cambiar el estado de la preparación.');
+      error: (err) => {
+        const errorMsg = err?.error?.message || 'Error al cambiar el estado de la preparación.';
+        this.showAlert(errorMsg, 'error');
+        this.cerrarModal();
       }
     });
   }

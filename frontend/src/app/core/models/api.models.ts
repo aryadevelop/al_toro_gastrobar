@@ -634,11 +634,21 @@ export interface BackendCerrarCuentaRequest {
 
 export interface BackendProductoAdminItem {
   productoId: number;
-  nombre: string;
-  categoria: string;
-  precioVenta: number;
+  productoNombre: string;
+  categoriaNombre: string;
+  productoPrecio: number;
   stockActual: number;
-  estado: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DISCONTINUED';
+  productoEstado: 'ACTIVO' | 'INACTIVO';
+}
+
+/** Respuesta del listado de productos de inventario (GET /api/productos). */
+export interface BackendProductoInventarioResponse {
+  productoId: number;
+  productoNombre: string;
+  categoriaNombre: string;
+  productoPrecio: number;
+  stockActual: number | null;
+  productoEstado: string;
 }
 
 /* ── Gestión de Estados (Admin) ── */
@@ -670,7 +680,7 @@ export interface BackendEstadoHistorial {
 }
 
 export interface BackendCambiarEstadoRequest {
-  nuevoEstado: string;
+  estado: string;
   motivo?: string;
   notificarClientes?: boolean;
   accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
@@ -692,6 +702,30 @@ export interface BackendInventarioMovimientoRequest {
   proveedor?: string;
   numeroFactura?: string;
   observaciones?: string;
+  /** Fecha y hora del movimiento en ISO-8601; nulo → usa fecha/hora del servidor. */
+  fecha?: string | null;
+}
+
+export interface BackendInsumoDetalleResponse {
+  insumoId: number;
+  insumoNombre: string;
+  insumoUnidad: string;
+  insumoStockActual: number;
+  insumoEstado: string;
+  tipoInsumo: string;
+  insumoCosoUnitario?: number | null;
+  insumoFechaVencimiento?: string | null;
+  vencimientoProximo?: boolean | null;
+}
+
+export interface BackendMovimientoHistorialItem {
+  movimientoId: number;
+  tipo: string;
+  cantidad: number;
+  movimientoFechaHora: string;
+  observaciones?: string | null;
+  productoId?: number | null;
+  insumoId?: number | null;
 }
 
 export interface BackendDecoracionAdminResponse {
@@ -717,5 +751,49 @@ export interface BackendActualizarDecoracionRequest {
 
 export interface BackendCambioEstadoDecoracionRequest {
   estado: string;
+}
+
+// ── DASHBOARD DIARIO ──
+export interface BackendMetodoPagoIngresoResponse {
+  metodoPago: string;
+  totalIngresos: number;
+}
+
+export interface BackendTipoVentaIngresoResponse {
+  tipoVenta: string;
+  totalIngresos: number;
+}
+
+export interface BackendTopProductoResponse {
+  productoId: number;
+  nombreProducto: string;
+  cantidadVendida: number;
+  totalGenerado: number;
+}
+
+export interface BackendPedidoListoResponse {
+  comandaId: number;
+  visitaId: number;
+  identificadorMesa: string;
+  nombreCliente: string;
+  estadoComanda: string;
+  horaListo: string;
+}
+
+export interface BackendDashboardDiarioResponse {
+  fecha: string;
+  totalVentasCerradas: number;
+  totalIngresos: number;
+  ingresosPorMetodoPago: BackendMetodoPagoIngresoResponse[];
+  ingresosPorTipoVenta: BackendTipoVentaIngresoResponse[];
+  productosMasVendidos: BackendTopProductoResponse[];
+  reservasActivasHoy: number;
+  personasReservadasHoy: number;
+  visitasActivas: number;
+  pedidosListos: number;
+  pedidosListosDetalle: BackendPedidoListoResponse[];
+  meserosConVisitaActiva: number;
+  bartendersConSesionActiva: number;
+  cocinerosRegistradosActivos: number;
 }
 

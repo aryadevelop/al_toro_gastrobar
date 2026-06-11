@@ -1,6 +1,49 @@
 <section class="page-grid">
-  <app-page-header title="Productos de Venta Directa" subtitle="Módulo de Inventario"></app-page-header>
+  <div class="d-flex justify-content-between align-items-center mb-1">
+    <app-page-header title="Productos de Venta Directa" subtitle="Módulo de Inventario"></app-page-header>
+    
+    <button class="btn btn-create" (click)="crearPrimerProducto()">
+      <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" fill="currentColor" class="bi bi-plus-circle" viewBox="0 0 16 16">
+        <path d="M8 15A7 7 0 1 1 8 1a7 7 0 0 1 0 14zm0 1A8 8 0 1 0 8 0a8 8 0 0 0 0 16z"/>
+        <path d="M8 4a.5.5 0 0 1 .5.5v3h3a.5.5 0 0 1 0 1h-3v3a.5.5 0 0 1-1 0v-3h-3a.5.5 0 0 1 0-1h3v-3A.5.5 0 0 1 8 4z"/>
+      </svg>
+      Crear Producto
+    </button>
+  </div>
   
+  <!-- Controles de Filtro y Búsqueda fuera de la tarjeta -->
+  <div class="controls-row mb-4 px-2" *ngIf="!isLoading && !isInitialEmptyState">
+    
+    <!-- Búsqueda -->
+    <div class="search-group flex-grow-1">
+      <div class="custom-search">
+        <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-search search-icon" viewBox="0 0 16 16">
+          <path d="M11.742 10.344a6.5 6.5 0 1 0-1.397 1.398h-.001c.03.04.062.078.098.115l3.85 3.85a1 1 0 0 0 1.415-1.414l-3.85-3.85a1.007 1.007 0 0 0-.115-.1zM12 6.5a5.5 5.5 0 1 1-11 0 5.5 5.5 0 0 1 11 0z"/>
+        </svg>
+        <input 
+          type="text" 
+          class="form-control" 
+          placeholder="Buscar producto por nombre..." 
+          [(ngModel)]="searchQuery"
+          (keyup)="onSearch()"
+        >
+        <button class="clear-btn" type="button" (click)="onClearSearch()" *ngIf="searchQuery" title="Limpiar búsqueda">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-x-circle-fill" viewBox="0 0 16 16">
+            <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM5.354 4.646a.5.5 0 1 0-.708.708L7.293 8l-2.647 2.646a.5.5 0 0 0 .708.708L8 8.707l2.646 2.647a.5.5 0 0 0 .708-.708L8.707 8l2.647-2.646a.5.5 0 0 0-.708-.708L8 7.293 5.354 4.646z"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <!-- Filtro de Categoría -->
+    <div class="filter-group">
+      <select class="form-select" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
+        <option value="ALL">Todas las categorías</option>
+        <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
+      </select>
+    </div>
+  </div>
+
   <article class="card p-4">
     
     <!-- Cargando -->
@@ -19,38 +62,6 @@
     <!-- Vista Principal -->
     <div *ngIf="!isLoading && !isInitialEmptyState">
       
-      <!-- Controles de Filtro y Búsqueda -->
-      <div class="controls-row mb-4">
-        
-        <!-- Búsqueda -->
-        <div class="search-group flex-grow-1">
-          <div class="input-group">
-            <input 
-              type="text" 
-              class="form-control" 
-              placeholder="Buscar por nombre..." 
-              [(ngModel)]="searchQuery"
-              (keyup)="onSearch()"
-            >
-            <button class="btn btn-outline-secondary" type="button" (click)="onClearSearch()" *ngIf="searchQuery" title="Limpiar búsqueda">
-              &times;
-            </button>
-          </div>
-        </div>
-
-        <!-- Filtro de Categoría -->
-        <div class="filter-group">
-          <select class="form-select" [(ngModel)]="selectedCategory" (change)="onCategoryChange()">
-            <option value="ALL">Todas las categorías</option>
-            <option *ngFor="let cat of categories" [value]="cat">{{ cat }}</option>
-          </select>
-        </div>
-
-        <!-- Botón Crear (Opcional si se requiere siempre accesible) -->
-        <div class="actions-group ms-auto">
-          <button class="btn btn-primary" (click)="crearPrimerProducto()">+ Crear Producto</button>
-        </div>
-      </div>
 
       <!-- Alertas de Filtro / Búsqueda -->
       <div *ngIf="alertMessage" class="alert mb-4" [ngClass]="{
@@ -75,28 +86,32 @@
             </tr>
           </thead>
           <tbody>
-            <tr *ngFor="let prod of filteredProducts" [ngClass]="{'estado-inactivo': prod.estado === 'INACTIVE'}">
-              <td class="fw-bold">{{ prod.nombre }}</td>
-              <td><span class="badge bg-light text-dark">{{ prod.categoria }}</span></td>
-              <td>{{ prod.precioVenta | currency }}</td>
-              <td>{{ prod.stockActual }}</td>
-              <td>
-                <span *ngIf="prod.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
-                <span *ngIf="prod.estado === 'INACTIVE'" class="text-muted d-flex align-items-center gap-1">
+            <tr *ngFor="let prod of filteredProducts" [ngClass]="{'estado-inactivo': prod.productoEstado === 'INACTIVO'}">
+              <td data-label="Nombre" class="fw-bold">{{ prod.productoNombre }}</td>
+              <td data-label="Categoría"><span class="badge bg-light text-dark">{{ prod.categoriaNombre }}</span></td>
+              <td data-label="Precio de venta">{{ prod.productoPrecio | currency }}</td>
+              <td data-label="Stock actual">{{ prod.stockActual }}</td>
+              <td data-label="Estado">
+                <span *ngIf="prod.productoEstado === 'ACTIVO'" class="badge bg-success">Activo</span>
+                <span *ngIf="prod.productoEstado === 'INACTIVO'" class="text-muted d-flex align-items-center gap-1">
                   <!-- Icono de pausa SVG -->
                   <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" fill="currentColor" class="bi bi-pause-circle-fill" viewBox="0 0 16 16">
                     <path d="M16 8A8 8 0 1 1 0 8a8 8 0 0 1 16 0zM6.25 5C5.56 5 5 5.56 5 6.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C7.5 5.56 6.94 5 6.25 5zm3.5 0c-.69 0-1.25.56-1.25 1.25v3.5a1.25 1.25 0 1 0 2.5 0v-3.5C11 5.56 10.44 5 9.75 5z"/>
                   </svg>
                   Inactivo
                 </span>
-                <span *ngIf="prod.estado === 'SUSPENDED'" class="badge bg-warning text-dark">Suspendido</span>
               </td>
-              <td>
-                <button 
-                  class="btn btn-sm" 
-                  [ngClass]="prod.estado === 'ACTIVE' ? 'btn-outline-warning' : 'btn-outline-success'"
+              <td data-label="Acciones" class="d-flex gap-2">
+                <a
+                  [routerLink]="['/app/admin/productos', prod.productoId]"
+                  class="btn btn-sm btn-outline-info">
+                  Ver detalle
+                </a>
+                <button
+                  class="btn btn-sm"
+                  [ngClass]="prod.productoEstado === 'ACTIVO' ? 'btn-outline-warning' : 'btn-outline-success'"
                   (click)="abrirModalEstado(prod)">
-                  {{ prod.estado === 'ACTIVE' ? 'Suspender' : 'Reactivar' }}
+                  {{ prod.productoEstado === 'ACTIVO' ? 'Suspender' : 'Reactivar' }}
                 </button>
               </td>
             </tr>
@@ -110,7 +125,7 @@
   <!-- Modal de Cambio de Estado -->
   <app-modal-base 
     [open]="isModalOpen" 
-    [title]="selectedProductForStateChange?.estado === 'ACTIVE' ? 'Suspender Producto' : 'Reactivar Producto'"
+    [title]="selectedProductForStateChange?.productoEstado === 'ACTIVO' ? 'Suspender Producto' : 'Reactivar Producto'"
     (close)="cerrarModal()">
     
     <div *ngIf="isValidatingState" class="text-center py-4">
@@ -121,8 +136,8 @@
     <div *ngIf="!isValidatingState && selectedProductForStateChange">
       <p>
         ¿Estás seguro de que deseas 
-        <strong>{{ selectedProductForStateChange.estado === 'ACTIVE' ? 'suspender' : 'reactivar' }}</strong> 
-        el producto "{{ selectedProductForStateChange.nombre }}"?
+        <strong>{{ selectedProductForStateChange.productoEstado === 'ACTIVO' ? 'suspender' : 'reactivar' }}</strong> 
+        el producto "{{ selectedProductForStateChange.productoNombre }}"?
       </p>
 
       <div class="form-group mb-3">
@@ -139,12 +154,12 @@
       <div class="d-flex justify-content-end gap-2 mt-4">
         <button class="btn btn-secondary" (click)="cerrarModal()">Cancelar</button>
         
-        <ng-container *ngIf="selectedProductForStateChange.estado === 'ACTIVE' && validationData?.tieneReservasFuturas">
+        <ng-container *ngIf="selectedProductForStateChange.productoEstado === 'ACTIVO' && validationData?.tieneReservasFuturas">
           <button class="btn btn-warning" (click)="confirmarCambioEstado(false)">Desactivar sin notificar</button>
           <button class="btn btn-danger" (click)="confirmarCambioEstado(true)">Notificar y desactivar</button>
         </ng-container>
 
-        <ng-container *ngIf="selectedProductForStateChange.estado !== 'ACTIVE' || !validationData?.tieneReservasFuturas">
+        <ng-container *ngIf="selectedProductForStateChange.productoEstado !== 'ACTIVO' || !validationData?.tieneReservasFuturas">
           <button class="btn btn-primary" (click)="confirmarCambioEstado()">Confirmar</button>
         </ng-container>
       </div>

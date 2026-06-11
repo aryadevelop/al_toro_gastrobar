@@ -242,8 +242,8 @@ type GroupMode = 'none' | 'anio' | 'mes';
       }
 
       .highlight-box {
-        border: 1px solid rgba(111, 78, 55, 0.4);
-        background: rgba(111, 78, 55, 0.08);
+        border: 1px solid rgba(211, 47, 47, 0.4);
+        background: rgba(211, 47, 47, 0.08);
         padding: 0.75rem;
       }
 
@@ -309,7 +309,7 @@ type GroupMode = 'none' | 'anio' | 'mes';
       }
 
       .badge {
-        border: 1px solid rgba(111, 78, 55, 0.45);
+        border: 1px solid rgba(211, 47, 47, 0.45);
         border-radius: 999px;
         padding: 0.2rem 0.6rem;
         font-size: 0.76rem;
@@ -390,7 +390,7 @@ export class ClienteHistorialPageComponent implements OnInit {
   }
 
   onBack(): void {
-    this.router.navigate(['/app/admin/dashboard']);
+    this.router.navigate(['/app/admin']);
   }
 
   searchPlaceholder(): string {

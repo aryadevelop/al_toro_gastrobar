@@ -45,9 +45,7 @@ interface ActiveVisitCacheEntry {
         </div>
       </section>
 
-      <article class="card points-card">
-        <h3>Puntos acumulados: {{ points() }}</h3>
-      </article>
+
 
       <section class="metrics-grid">
         <article class="card metric-card" *ngFor="let metric of metrics">
@@ -59,7 +57,7 @@ interface ActiveVisitCacheEntry {
       <section class="page-grid">
         <div class="reservas-head">
           <h2 class="section-title">Reservas futuras</h2>
-          <a class="history-tab" routerLink="/app/cliente/reservas/history" fragment="historial">Historial</a>
+          <a class="btn-danger" routerLink="/app/cliente/reservas/history" fragment="historial">Ver Historial</a>
         </div>
 
         <article class="card future-card" *ngFor="let reservation of reservasFuturas">
@@ -246,8 +244,8 @@ interface ActiveVisitCacheEntry {
   styles: [
     `
       .flash-toast {
-        border: 1px solid #6F4E37;
-        background: rgba(111, 78, 55, 0.1);
+        border: 1px solid var(--primary);
+        background: rgba(211, 47, 47, 0.1);
         color: #4d3323;
         padding: 0.7rem 0.9rem;
         font-weight: 700;
@@ -261,7 +259,7 @@ interface ActiveVisitCacheEntry {
         max-width: 420px;
         margin: 0 auto;
         z-index: 1100;
-        border: 1px solid rgba(111, 78, 55, 0.35);
+        border: 1px solid rgba(211, 47, 47, 0.35);
         background: #fff7f0;
         color: #4d3323;
         padding: 0.7rem 0.9rem;
@@ -296,24 +294,6 @@ interface ActiveVisitCacheEntry {
         border-radius: 8px;
       }
 
-      .points-card {
-        padding: 0.4rem 0.6rem;
-        display: grid;
-        gap: 0.15rem;
-      }
-
-      .points-card h3 {
-        margin: 0;
-          font-size: 0.95rem;
-      }
-
-      .points-info {
-        margin: 0;
-        font-size: 0.78rem;
-        color: var(--muted);
-        opacity: 0.75;
-        line-height: 1.35;
-      }
 
       .metrics-grid {
         display: grid;
@@ -337,7 +317,7 @@ interface ActiveVisitCacheEntry {
       }
 
       .metric-card p {
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.85);
         font-size: 0.7rem;
         opacity: 0.95;
       }
@@ -356,14 +336,6 @@ interface ActiveVisitCacheEntry {
         gap: 0.5rem;
       }
 
-      .history-tab {
-        border: 1px solid rgba(111, 78, 55, 0.7);
-        border-radius: 8px;
-        padding: 0.35rem 0.6rem;
-        font-size: 0.8rem;
-        color: #ffffff;
-        background: #6F4E37;
-      }
 
       .future-card {
         padding: 0.72rem 0.84rem;
@@ -403,7 +375,7 @@ interface ActiveVisitCacheEntry {
 
       .empty-state {
         margin: 0;
-        color: var(--muted);
+        color: #ffffff;
         font-size: 0.86rem;
       }
 
@@ -450,7 +422,7 @@ interface ActiveVisitCacheEntry {
       }
 
       .btn-close:hover {
-        background: rgba(111, 78, 55, 0.15);
+        background: rgba(211, 47, 47, 0.15);
       }
 
       .detail-modal-body {
@@ -506,8 +478,8 @@ interface ActiveVisitCacheEntry {
       }
 
       .closed-banner {
-        background: rgba(111, 78, 55, 0.15);
-        border: 1px solid #6F4E37;
+        background: rgba(211, 47, 47, 0.15);
+        border: 1px solid var(--primary);
         border-radius: 8px;
         padding: 0.55rem 0.7rem;
         font-weight: 700;
@@ -884,9 +856,10 @@ export class ClienteDashboardComponent implements OnInit, OnDestroy {
       this.reservasFuturas = orderedFuture;
 
       this.metrics = [
+        { id: 'cm-p', label: 'Puntos acumulados', value: currentPoints, tone: 'neutral' },
         { id: 'cm-1', label: 'Reservas futuras', value: orderedFuture.length, tone: 'neutral' },
-        { id: 'cm-2', label: 'Pendientes', value: pending, tone: pending > 0 ? 'success' : 'neutral' },
-        { id: 'cm-3', label: 'Confirmadas', value: confirmed, tone: 'neutral' }
+        { id: 'cm-2', label: 'Reservas pendientes', value: pending, tone: pending > 0 ? 'success' : 'neutral' },
+        { id: 'cm-3', label: 'Reservas confirmadas', value: confirmed, tone: 'neutral' }
       ];
     });
   }

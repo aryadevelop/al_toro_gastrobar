@@ -17,8 +17,8 @@
         align-items: center;
         padding: 0.8rem;
         margin-bottom: 1rem;
-        border-bottom: 2px solid rgba(111, 78, 55, 0.26);
-        background-image: linear-gradient(90deg, rgba(111, 78, 55, 0.07) 0 3px, transparent 3px);
+        border-bottom: 2px solid rgba(211, 47, 47, 0.26);
+        background-image: linear-gradient(90deg, rgba(211, 47, 47, 0.07) 0 3px, transparent 3px);
       }
 
       .mobile-logo {

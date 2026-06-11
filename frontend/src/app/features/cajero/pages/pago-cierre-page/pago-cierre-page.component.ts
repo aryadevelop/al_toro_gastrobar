@@ -88,6 +88,18 @@ interface ItemAjusteLocal {
           </div>
         </div>
 
+        <!-- ─── Modal de Éxito al Pagar (CA-12) ─── -->
+        <div class="modal-overlay" *ngIf="cuentaCerrada()">
+          <div class="modal-box exito-modal text-center">
+            <div class="exito-icono">✅</div>
+            <h2 class="exito-titulo">Pago registrado correctamente</h2>
+            <p class="modal-desc mb-4">La venta ha sido registrada. El estado de la mesa ha cambiado a "Cerrada".</p>
+            <button class="btn-primary btn-bloque" type="button" (click)="irAMapa()">
+              Volver al mapa de mesas
+            </button>
+          </div>
+        </div>
+
         <!-- ════ GRID PRINCIPAL ════ -->
         <div class="cuenta-grid">
 
@@ -467,15 +479,7 @@ interface ItemAjusteLocal {
               </div>
             </article>
 
-            <!-- ─── Cuenta cerrada (CA-12) ─── -->
-            <article class="card seccion exito-card" *ngIf="cuentaCerrada()">
-              <div class="exito-icono">✅</div>
-              <h2>Pago registrado correctamente</h2>
-              <p>La venta ha sido registrada. El estado de la mesa ha cambiado a "Cerrada".</p>
-              <button class="btn-primary btn-bloque" type="button" (click)="irAMapa()">
-                Volver al mapa de mesas
-              </button>
-            </article>
+            <!-- (La tarjeta de éxito original se movió a un modal principal) -->
           </div>
         </div>
       </ng-container>
@@ -497,7 +501,7 @@ interface ItemAjusteLocal {
       .spinner {
         width: 32px; height: 32px;
         border: 3px solid rgba(111,78,55,.2);
-        border-top-color: #6f4e37;
+        border-top-color: var(--primary);
         border-radius: 50%;
         animation: spin .8s linear infinite;
       }
@@ -565,12 +569,18 @@ interface ItemAjusteLocal {
 
       /* ─── Secciones / cards ─── */
       .seccion { padding: 1rem; display: grid; gap: .75rem; }
+      .card.seccion {
+        background: #ffd5dc; /* Tono rojo claro pastel como el de la tabla */
+        color: var(--text);
+        border: 1px solid rgba(217, 4, 41, 0.18);
+        box-shadow: 0 8px 30px rgba(217, 4, 41, 0.1);
+      }
       .seccion + .seccion { margin-top: .75rem; }
       .seccion-titulo {
         margin: 0; font-size: .9rem; font-weight: 700;
         text-transform: uppercase; letter-spacing: .04em;
-        color: #6f4e37;
-        border-left: 3px solid #6f4e37; padding-left: .45rem;
+        color: var(--primary);
+        border-left: 3px solid var(--primary); padding-left: .45rem;
       }
       .seccion-head { display: flex; justify-content: space-between; align-items: center; }
 
@@ -580,16 +590,16 @@ interface ItemAjusteLocal {
         display: flex; justify-content: space-between;
         align-items: center; gap: .5rem; min-height: 28px;
       }
-      .info-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; }
+      .info-label { font-size: .75rem; color: #000000; text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; font-weight: 600; }
       .info-valor { font-size: .88rem; font-weight: 600; text-align: right; }
-      .info-valor.correo { font-size: .82rem; font-weight: 400; color: #6f4e37; }
+      .info-valor.correo { font-size: .82rem; font-weight: 400; color: var(--primary); }
       .info-valor.muted { font-weight: 400; color: var(--muted); }
 
       /* ─── Puntos ─── */
       .puntos-fila { flex-wrap: wrap; gap: .4rem; }
       .puntos-badge {
         display: inline-block;
-        background: rgba(111,78,55,.1); color: #6f4e37;
+        background: rgba(111,78,55,.1); color: var(--primary);
         border-radius: 999px; padding: .1rem .5rem;
         font-size: .8rem; font-weight: 700; margin-left: .35rem;
       }
@@ -649,7 +659,7 @@ interface ItemAjusteLocal {
         background: rgba(111,78,55,.08);
         border: 1px solid rgba(111,78,55,.2);
         border-radius: 10px;
-        padding: .55rem .75rem; font-size: .8rem; color: #6f4e37;
+        padding: .55rem .75rem; font-size: .8rem; color: var(--primary);
         display: flex; justify-content: space-between; align-items: center;
         flex-wrap: wrap; gap: .3rem;
       }
@@ -678,7 +688,7 @@ interface ItemAjusteLocal {
         border: 1px solid rgba(10,10,10,.2);
         background: #fff; border-radius: 6px; cursor: pointer;
         font-size: 1rem; display: grid; place-items: center;
-        font-weight: 700; color: #6f4e37;
+        font-weight: 700; color: var(--primary);
         transition: background .15s;
       }
       .qty-btn:disabled { opacity: .35; cursor: not-allowed; }
@@ -688,7 +698,7 @@ interface ItemAjusteLocal {
         border: 1px solid rgba(10,10,10,.2);
         border-radius: 6px; padding: .2rem .3rem; font-size: .84rem; background: #fffaf5;
       }
-      .qty-input:focus { outline: none; border-color: #6f4e37; }
+      .qty-input:focus { outline: none; border-color: var(--primary); }
       .precio-ctrl { display: flex; flex-direction: column; gap: .15rem; }
       .precio-label { font-size: .68rem; color: var(--muted); text-transform: uppercase; }
       .precio-input { width: 90px !important; padding: .2rem .35rem !important; font-size: .82rem !important; }
@@ -729,7 +739,7 @@ interface ItemAjusteLocal {
       .resumen-card { position: sticky; top: 1rem; }
       .resumen-fila { display: flex; justify-content: space-between; font-size: .85rem; padding: .2rem 0; }
       .resumen-total { font-weight: 700; font-size: 1rem; border-top: 1px solid rgba(10,10,10,.12); padding-top: .45rem; margin-top: .2rem; }
-      .resumen-saldo { font-weight: 700; color: #6f4e37; }
+      .resumen-saldo { font-weight: 700; color: var(--primary); }
       .valor-verde { color: #166534; font-weight: 600; }
 
       /* ─── Descuento (CA-11) ─── */
@@ -749,19 +759,20 @@ interface ItemAjusteLocal {
         font-size: .8rem; font-weight: 600;
         transition: all .15s;
       }
-      .metodo-btn.metodo-activo { background: #6f4e37; color: #fff; border-color: #6f4e37; }
+      .metodo-btn.metodo-activo { background: var(--primary); color: #fff; border-color: var(--primary); }
       .pago-acciones { display: grid; gap: .4rem; margin-top: .35rem; }
 
-      /* ─── Éxito (CA-12) ─── */
-      .exito-card { text-align: center; padding: 1.5rem 1rem; }
-      .exito-icono { font-size: 2.5rem; margin-bottom: .5rem; }
-      .exito-card h2 { margin: 0 0 .4rem; font-size: 1rem; color: #166534; }
-      .exito-card p { margin: 0 0 .8rem; font-size: .84rem; color: var(--muted); }
+      /* ─── Éxito Modal (CA-12) ─── */
+      .exito-modal { align-items: center; text-align: center; }
+      .exito-icono { font-size: 3.5rem; margin-bottom: .2rem; }
+      .exito-titulo { margin: 0; font-size: 1.15rem; color: #166534; font-weight: 800; }
+      .mb-4 { margin-bottom: 1rem; }
+      .text-center { text-align: center; }
 
       /* ─── Botones utilitarios ─── */
       .btn-ajuste {
         border: 1px solid rgba(111,78,55,.35);
-        background: rgba(111,78,55,.07); color: #6f4e37;
+        background: rgba(111,78,55,.07); color: var(--primary);
         border-radius: 999px; padding: .3rem .7rem;
         font-size: .76rem; font-weight: 600; cursor: pointer;
         transition: background .15s;
@@ -770,7 +781,7 @@ interface ItemAjusteLocal {
       .btn-sm { padding: .3rem .65rem !important; font-size: .78rem !important; }
       .btn-bloque { width: 100%; }
       .btn-link-small {
-        border: none; background: none; color: #6f4e37;
+        border: none; background: none; color: var(--primary);
         font-size: .78rem; font-weight: 600; cursor: pointer;
         padding: 0; text-decoration: underline;
       }

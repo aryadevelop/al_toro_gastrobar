@@ -72,7 +72,7 @@
               <button class="btn-secondary btn-sm" (click)="imprimirComanda(comanda)">🖨️ Imprimir</button>
             </div>
             <!-- [CAMBIADO] Eliminado 🔔 en el botón; el texto describe la acción -->
-            <button class="btn-notify btn-sm btn-block" (click)="notificarCambio(comanda)">
+            <button class="btn-secondary btn-sm btn-block" style="margin-top: 0.5rem" (click)="notificarCambio(comanda)">
               Notificar cambio
             </button>
           </div>
@@ -126,7 +126,7 @@
           </div>
 
           <div class="comanda-card__actions">
-            <button class="btn-success btn-sm btn-block" (click)="marcarListo(comanda)"
+            <button class="btn-primary btn-sm btn-block" (click)="marcarListo(comanda)"
               [disabled]="actionLoading[comanda.comandaId]">
               {{ actionLoading[comanda.comandaId] ? 'Procesando...' : 'Marcar como listo' }}
             </button>

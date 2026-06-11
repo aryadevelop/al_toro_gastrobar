@@ -17,6 +17,8 @@ import co.edu.unicauca.backend.shared.exception.BusinessException;
 import co.edu.unicauca.backend.shared.exception.ErrorCode;
 import jakarta.transaction.Transactional;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.HttpStatus;
 import org.springframework.mail.SimpleMailMessage;
 import org.springframework.mail.javamail.JavaMailSender;
@@ -35,6 +37,7 @@ import java.util.stream.Collectors;
 @Service
 @RequiredArgsConstructor
 @Transactional
+@Slf4j
 public class EmpleadoService {
 
     private final UsuarioRepository usuarioRepository;
@@ -44,6 +47,9 @@ public class EmpleadoService {
     private final SesionRepository sesionRepository;
     private final PasswordEncoder passwordEncoder;
     private final JavaMailSender mailSender;
+
+    @Value("${spring.mail.from}")
+    private String mailFrom;
 
     public EmpleadoResponse crearEmpleado(CrearEmpleadoRequest request) {
         validarPassword(request.getPassword(), request.getPasswordConfirmacion());
@@ -315,7 +321,9 @@ public class EmpleadoService {
 
     private boolean enviarCorreoBienvenida(CrearEmpleadoRequest request, String correo) {
         try {
+            log.info("Iniciando envío de correo de bienvenida a: {}", correo);
             SimpleMailMessage mail = new SimpleMailMessage();
+            mail.setFrom(mailFrom);
             mail.setTo(correo);
             mail.setSubject("Bienvenido a Al Toro Gastrobar");
             mail.setText("Hola " + request.getNombre() + ",\n\n" +
@@ -324,9 +332,12 @@ public class EmpleadoService {
                     "Por seguridad, tu contraseña temporal fue registrada en el sistema.\n\n" +
                     "Por favor cambia tu contraseña en el primer inicio de sesión.\n\n" +
                     "Saludos,\nAl Toro Gastrobar");
+            log.info("Llamando mailSender.send() desde: {}", mailFrom);
             mailSender.send(mail);
+            log.info("Correo enviado exitosamente a: {}", correo);
             return true;
         } catch (Exception ex) {
+            log.warn("No se pudo enviar correo de bienvenida al empleado {}", correo, ex);
             return false;
         }
     }

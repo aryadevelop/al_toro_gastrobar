@@ -60,7 +60,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     this.error = '';
     this.produccionService.obtenerTablero().subscribe({
       next: (data) => {
-        this.tablero = data;
+        this.tablero = this.filtrarPorHoy(data);
         this.actualizarListosAgrupados();
         this.loading = false;
         this.suscribirAEstaciones(data.estaciones);
@@ -84,7 +84,7 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
         const sub = this.wsService.subscribe<any>(topic).subscribe(() => {
           // Recarga silenciosa para mantener los datos actualizados
           this.produccionService.obtenerTablero().subscribe((data) => {
-            this.tablero = data;
+            this.tablero = this.filtrarPorHoy(data);
             this.actualizarListosAgrupados();
           });
         });
@@ -159,6 +159,24 @@ export class ComandasBoardPageComponent implements OnInit, OnDestroy {
     }
 
     this.listosAgrupadosData = Array.from(map.values());
+  }
+
+  private filtrarPorHoy(data: BackendTableroProduccion): BackendTableroProduccion {
+    const today = new Date();
+    const isToday = (dateString: string | null | undefined) => {
+      if (!dateString) return false;
+      const d = new Date(dateString);
+      return d.getDate() === today.getDate() &&
+             d.getMonth() === today.getMonth() &&
+             d.getFullYear() === today.getFullYear();
+    };
+
+    return {
+      ...data,
+      pendientes: data.pendientes.filter(c => isToday(c.createdAt)),
+      enPreparacion: data.enPreparacion.filter(c => isToday(c.createdAt)),
+      listos: data.listos.filter(c => isToday(c.createdAt))
+    };
   }
 
   verDetalle(comanda: any): void {
