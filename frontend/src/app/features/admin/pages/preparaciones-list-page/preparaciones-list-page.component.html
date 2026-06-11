@@ -7,6 +7,15 @@
       <p class="mt-2 text-secondary">Cargando preparaciones...</p>
     </div>
 
+    <!-- Alertas de UI -->
+    <div *ngIf="alertMessage" class="alert mb-4" [ngClass]="{
+      'alert-warning': alertType === 'warning',
+      'alert-info': alertType === 'info',
+      'alert-danger': alertType === 'error'
+    }">
+      {{ alertMessage }}
+    </div>
+
     <div class="table-responsive" *ngIf="!isLoading && preparaciones.length > 0">
       <table class="table table-hover align-middle">
         <thead>
@@ -63,8 +72,7 @@
 
         <!-- Advertencia si hay reservas futuras -->
         <div *ngIf="validationData?.tieneReservasFuturas" class="alert alert-warning">
-          <strong>⚠️ Atención:</strong> Esta preparación está incluida en <strong>{{ validationData?.cantidadReservas }}</strong> reservas futuras. 
-          ¿Deseas notificar a los clientes sobre el cambio?
+          Esta preparación está incluida en <strong>{{ validationData?.cantidadReservas }}</strong> reservas futuras. ¿Deseas notificar a los clientes sobre el cambio?
         </div>
       </div>
       

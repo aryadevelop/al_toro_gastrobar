@@ -7,36 +7,52 @@
       <p class="mt-2 text-secondary">Cargando insumos...</p>
     </div>
 
-    <div class="table-responsive" *ngIf="!isLoading && insumos.length > 0">
-      <table class="table table-hover align-middle">
-        <thead>
-          <tr>
-            <th>Nombre</th>
-            <th>Categoría</th>
-            <th>Estado</th>
-            <th>Acciones</th>
-          </tr>
-        </thead>
-        <tbody>
-          <tr *ngFor="let insumo of insumos" [ngClass]="{'text-muted': insumo.estado === 'DISCONTINUED'}">
-            <td data-label="Nombre" class="fw-bold">{{ insumo.nombre }}</td>
-            <td data-label="Categoría"><span class="badge bg-light text-dark">{{ insumo.categoria }}</span></td>
-            <td data-label="Estado">
-              <span *ngIf="insumo.estado === 'ACTIVE'" class="badge bg-success">Activo</span>
-              <span *ngIf="insumo.estado === 'DISCONTINUED'" class="badge bg-danger">Descontinuado</span>
-            </td>
-            <td data-label="Acciones">
-              <button 
-                class="btn btn-sm" 
-                [ngClass]="insumo.estado === 'ACTIVE' ? 'btn-outline-danger' : 'btn-outline-success'"
-                (click)="abrirModalEstado(insumo)">
-                {{ insumo.estado === 'ACTIVE' ? 'Descontinuar' : 'Reactivar' }}
-              </button>
-            </td>
-          </tr>
-        </tbody>
-      </table>
+    <!-- Alertas de UI -->
+    <div *ngIf="alertMessage" class="alert mb-4" [ngClass]="{
+      'alert-warning': alertType === 'warning',
+      'alert-info': alertType === 'info',
+      'alert-danger': alertType === 'error'
+    }">
+      {{ alertMessage }}
     </div>
+
+      <div class="table-responsive" *ngIf="!isLoading && insumos.length > 0">
+        <table class="table table-hover align-middle">
+          <thead>
+            <tr>
+              <th>Nombre</th>
+              <th>Unidad</th>
+              <th>Stock</th>
+              <th>Estado</th>
+              <th>Acciones</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr *ngFor="let insumo of insumos" [ngClass]="{'text-muted': insumo.insumoEstado === 'DISCONTINUO'}">
+              <td data-label="Nombre" class="fw-bold">{{ insumo.insumoNombre }}</td>
+              <td data-label="Unidad"><span class="badge bg-light text-dark">{{ insumo.insumoUnidad }}</span></td>
+              <td data-label="Stock">{{ insumo.insumoStockActual }}</td>
+              <td data-label="Estado">
+                <span *ngIf="insumo.insumoEstado === 'ACTIVO'" class="badge bg-success">Activo</span>
+                <span *ngIf="insumo.insumoEstado !== 'ACTIVO'" class="badge bg-danger">Inactivo</span>
+              </td>
+              <td data-label="Acciones" class="d-flex gap-2">
+                <a
+                  [routerLink]="['/app/admin/insumos', insumo.insumoId]"
+                  class="btn btn-sm btn-outline-info">
+                  Ver detalle
+                </a>
+                <button
+                  class="btn btn-sm"
+                  [ngClass]="insumo.insumoEstado === 'ACTIVO' ? 'btn-outline-danger' : 'btn-outline-success'"
+                  (click)="abrirModalEstado(insumo)">
+                  {{ insumo.insumoEstado === 'ACTIVO' ? 'Descontinuar' : 'Reactivar' }}
+                </button>
+              </td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
 
     <div *ngIf="!isLoading && insumos.length === 0" class="text-center py-5">
       <p class="text-muted">No hay insumos registrados.</p>
@@ -44,9 +60,9 @@
   </article>
 
   <!-- Modal de Cambio de Estado para Insumos -->
-  <app-modal-base 
-    [open]="isModalOpen" 
-    [title]="selectedInsumo?.estado === 'ACTIVE' ? 'Descontinuar Insumo' : 'Reactivar Insumo'"
+  <app-modal-base
+    [open]="isModalOpen"
+    [title]="selectedInsumo?.insumoEstado === 'ACTIVO' ? 'Descontinuar Insumo' : 'Reactivar Insumo'"
     (close)="cerrarModal()">
     
     <div *ngIf="isValidatingState" class="text-center py-4">
@@ -56,9 +72,9 @@
 
     <div *ngIf="!isValidatingState && selectedInsumo && validationData">
       <!-- MODO DESCONTINUAR -->
-      <ng-container *ngIf="selectedInsumo.estado === 'ACTIVE'">
+      <ng-container *ngIf="selectedInsumo.insumoEstado === 'ACTIVO'">
         
-        <p>El insumo <strong>{{ selectedInsumo.nombre }}</strong> será descontinuado.</p>
+      <p>El insumo <strong>{{ selectedInsumo.insumoNombre }}</strong> será descontinuado.</p>
         
         <div *ngIf="validationData.preparacionesAfectadas.length > 0">
           <p>Se usaba en <strong>{{ validationData.preparacionesAfectadas.length }}</strong> preparaciones. ¿Qué deseas hacer con ellas?</p>
@@ -68,9 +84,8 @@
             Desactivarlas afectará estas reservas.
           </div>
 
-          <div *ngIf="tieneOtrasDescontinuadas" class="alert alert-danger">
-            <strong>⚠️ Peligro:</strong> Hay preparaciones que ya tienen otros insumos descontinuados. 
-            Se recomienda revisar la preparación completa.
+          <div *ngIf="tieneOtrasDescontinuadas" class="alert alert-warning">
+            ⚠️ Esta preparación ya tiene otros insumos descontinuados. Se recomienda revisar la preparación completa.
           </div>
 
           <!-- Lista de preparaciones afectadas -->
@@ -114,12 +129,11 @@
       </ng-container>
 
       <!-- MODO REACTIVAR -->
-      <ng-container *ngIf="selectedInsumo.estado !== 'ACTIVE'">
+      <ng-container *ngIf="selectedInsumo.insumoEstado !== 'ACTIVO'">
         <p>Este insumo se usaba en <strong>{{ validationData.preparacionesAfectadas.length }}</strong> preparaciones afectadas. ¿Qué deseas hacer?</p>
 
         <div *ngIf="tieneOtrasDescontinuadas" class="alert alert-warning">
-          <strong>⚠️ Atención:</strong> Algunas preparaciones aún tienen otros insumos descontinuados. 
-          No se reactivarán automáticamente. Revisa cada preparación individualmente.
+          ⚠️ Algunas preparaciones aún tienen otros insumos descontinuados. No se reactivarán automáticamente. Revisa cada preparación individualmente.
           <ul>
             <ng-container *ngFor="let p of validationData.preparacionesAfectadas">
               <li *ngIf="p.otrosInsumosDescontinuados">{{ p.nombre }}</li>

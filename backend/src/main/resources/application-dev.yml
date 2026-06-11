@@ -18,13 +18,18 @@ spring:
       hibernate:
         format_sql: true
 
-  # Mailtrap: intercepta emails sin enviarlos realmente
   mail:
-    host:     ${MAIL_HOST:smtp.mailtrap.io}
-    port:     ${MAIL_PORT:587}
-    username: ${MAIL_USERNAME:tu_usuario_mailtrap}
-    password: ${MAIL_PASSWORD:tu_password_mailtrap}
-    from: ${MAIL_FROM:notificaciones@altorogastrobar.com}
+    host: ${MAIL_HOST:sandbox.smtp.mailtrap.io}
+    port: ${MAIL_PORT:2525}
+    username: ${MAIL_USERNAME:dummy}
+    password: ${MAIL_PASSWORD:dummy}
+    properties:
+      mail.smtp.auth: true
+      mail.smtp.starttls.enable: true
+      mail.smtp.starttls.required: true
+      mail.smtp.starttls.protocols: TLSv1.2
+      mail.smtp.ssl.checkserveridentity: false
+      mail.smtp.ssl.trust: "*"
 
 management:
   health:
@@ -44,3 +49,6 @@ logging:
     root: INFO
     co.edu.unicauca: DEBUG
     org.springframework.security: DEBUG
+    org.springframework.mail: DEBUG
+    javax.mail: DEBUG
+    com.sun.mail: DEBUG
