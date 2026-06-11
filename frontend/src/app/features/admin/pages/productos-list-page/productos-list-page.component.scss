@@ -1,37 +1,226 @@
 .controls-row {
   display: flex;
   flex-wrap: wrap;
-  gap: 1rem;
+  gap: 1.5rem;
   align-items: center;
+  justify-content: space-between;
 
   .search-group {
+    flex: 1;
     max-width: 400px;
+    
+    .custom-search {
+      position: relative;
+      display: flex;
+      align-items: center;
+      background-color: #ffffff;
+      border: 1px solid #ffb3bf; /* Delineado rojizo */
+      border-radius: 25px;
+      box-shadow: 0 4px 12px rgba(217, 4, 41, 0.12); /* Sombrita roja permanente */
+      transition: all 0.3s ease;
+      
+      &:focus-within {
+        border-color: #d90429;
+        box-shadow: 0 4px 20px rgba(217, 4, 41, 0.2);
+        background-color: #fffafb;
+      }
+
+      .search-icon {
+        position: absolute;
+        left: 1rem;
+        color: #ff8fa3;
+        pointer-events: none;
+      }
+
+      .form-control {
+        border: none;
+        background: transparent;
+        padding: 0.7rem 2.5rem; /* Espacio para iconos izquierdo y derecho */
+        font-size: 0.95rem;
+        width: 100%;
+        color: #2b2d42;
+        
+        &:focus {
+          box-shadow: none;
+          outline: none;
+        }
+        
+        &::placeholder {
+          color: #a0aec0;
+        }
+      }
+
+      .clear-btn {
+        position: absolute;
+        right: 0.5rem;
+        background: transparent;
+        border: none;
+        color: #ffb3bf;
+        padding: 0.5rem;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        cursor: pointer;
+        transition: color 0.2s;
+        
+        &:hover {
+          color: #d90429;
+        }
+      }
+    }
   }
 
   .filter-group {
     min-width: 250px;
+    
+    .form-select {
+      border: 1px solid #ffb3bf; /* Delineado rojizo haciendo juego */
+      border-radius: 20px;
+      padding: 0.6rem 1.2rem;
+      font-size: 0.9rem;
+      box-shadow: 0 4px 12px rgba(217, 4, 41, 0.12); /* Sombrita roja permanente */
+      background-color: #ffffff;
+      cursor: pointer;
+      transition: all 0.3s ease;
+      &:focus {
+        box-shadow: 0 4px 20px rgba(217, 4, 41, 0.2);
+        border-color: #d90429;
+        background-color: #fffafb;
+      }
+    }
+  }
+
+  .actions-group {
+    margin-left: auto;
   }
 }
 
+.btn-create {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  background: linear-gradient(135deg, var(--primary) 0%, var(--primary-strong) 100%);
+  color: #ffffff;
+  border: none;
+  border-radius: 20px;
+  padding: 0.6rem 1.4rem;
+  font-weight: 600;
+  font-size: 0.95rem;
+  box-shadow: 0 4px 15px rgba(217, 4, 41, 0.25);
+  transition: all 0.3s ease;
+  
+  &:hover {
+    background: linear-gradient(135deg, var(--secondary) 0%, var(--primary) 100%);
+    transform: translateY(-2px);
+    box-shadow: 0 6px 20px rgba(217, 4, 41, 0.35);
+    color: #ffffff;
+  }
+  
+  svg {
+    margin-bottom: 2px; /* Alineación óptica del icono */
+  }
+}
+
+.table-responsive {
+  border-radius: 16px;
+  overflow: hidden;
+  box-shadow: 0 8px 30px rgba(217, 4, 41, 0.1);
+  border: 1px solid rgba(217, 4, 41, 0.18);
+  background-color: #ffd5dc; /* Tono rojizo más evidente */
+}
+
 .table {
+  margin-bottom: 0;
+  background-color: transparent; /* Permite que el fondo rojizo del contenedor se vea */
+
   th {
-    font-weight: 600;
-    color: var(--color-text-secondary);
-    border-bottom: 2px solid var(--color-border);
+    font-weight: 700;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+    color: #6a0d19; /* Rojo muy oscuro para alto contraste */
+    background-color: #ffb3c1; /* Encabezado rojo/rosado más fuerte */
+    border-bottom: 2px solid #ff9ea7;
+    padding: 1.2rem 1rem;
+    border-top: none;
   }
 
   td {
     vertical-align: middle;
-    color: var(--color-text-primary);
+    color: #311116; /* Texto casi negro/rojizo para no perder legibilidad */
+    padding: 1.2rem 1rem;
+    border-bottom: 1px solid #ffc2cd;
+    transition: background-color 0.2s ease, transform 0.2s ease;
+    background-color: #ffd5dc; /* Fondo rojo suave pero notorio */
   }
 
-  /* Requerimiento: producto con texto gris cuando está inactivo */
+  tr {
+    transition: box-shadow 0.2s ease, transform 0.2s ease;
+  }
+
+  tr:hover td {
+    background-color: #ffc2cf; /* Hover mucho más notorio */
+  }
+
+  .badge {
+    padding: 0.45rem 0.85rem;
+    border-radius: 20px;
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.3px;
+    
+    &.bg-light {
+      background-color: #f1f5f9 !important;
+      color: #475569 !important;
+      border: 1px solid #e2e8f0;
+    }
+    &.bg-success {
+      background-color: #ecfdf5 !important;
+      color: #065f46 !important;
+      border: 1px solid #a7f3d0;
+    }
+  }
+
+  /* Producto inactivo */
   tr.estado-inactivo {
     td {
-      color: #6c757d; /* Bootstrap text-muted equivalent */
-      
+      color: #925861; /* Tono deshabilitado ajustado al nuevo fondo */
+      background-color: #ffe1e6; /* Fondo inactivo levemente diferenciado */
       .badge {
         opacity: 0.7;
+      }
+    }
+  }
+
+  /* Botones de acción estéticos */
+  .btn-sm {
+    border-radius: 8px;
+    padding: 0.4rem 0.8rem;
+    font-size: 0.8rem;
+    font-weight: 600;
+    transition: all 0.2s ease;
+    
+    &.btn-outline-warning {
+      color: #b45309;
+      border: 1px solid #fcd34d;
+      background-color: #fffbeb;
+      &:hover {
+        background-color: #fef3c7;
+        border-color: #fbbf24;
+        color: #92400e;
+        transform: translateY(-2px);
+      }
+    }
+
+    &.btn-outline-success {
+      color: #047857;
+      border: 1px solid #6ee7b7;
+      background-color: #ecfdf5;
+      &:hover {
+        background-color: #d1fae5;
+        border-color: #34d399;
+        color: #065f46;
+        transform: translateY(-2px);
       }
     }
   }
