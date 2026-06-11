@@ -8,6 +8,7 @@ export interface CartaCatalogItem {
   productId: string;
   productName: string;
   category: 'Platos' | 'Bebidas';
+  subCategory: string;
   description: string;
   unitPrice: number;
 }
@@ -40,6 +41,7 @@ export class ProductCatalogService {
                 productId: String(product.productoId),
                 productName: product.productoNombre,
                 category: this.mapCategory(category.categoriaNombre, product.productoCategoria),
+                subCategory: category.categoriaNombre,
                 description: product.productoDescripcion ?? 'Preparación disponible en la carta del día.',
                 unitPrice: Number(product.productoPrecio),
               }))
@@ -63,6 +65,7 @@ export class ProductCatalogService {
             productId: String(product.productoId),
             productName: product.productoNombre,
             category: product.productoCategoria === 'BEBIDA' ? 'Bebidas' : 'Platos' as 'Platos' | 'Bebidas',
+            subCategory: 'Búsqueda',
             description: '',
             unitPrice: Number(product.productoPrecio),
           }))
