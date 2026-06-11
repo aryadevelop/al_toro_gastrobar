@@ -40,6 +40,7 @@ spring:
 
   # Propiedades SMTP comunes, host y credenciales las define cada perfil
   mail:
+    from: ${MAIL_FROM:noreply@altorogastrobar.com}
     properties:
       mail:
         smtp:

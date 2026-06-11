@@ -196,4 +196,19 @@ public class ProductoService {
                 .map(producto -> productoMapper.toBusquedaResponse(producto, obtenerStockInventario(producto)))
                 .collect(Collectors.toList());
     }
+
+    /**
+     * Retorna el detalle de un producto por su ID para el panel de administración.
+     *
+     * @param productoId identificador del producto
+     * @return DTO con los datos del producto y su stock actual
+     * @throws BusinessException si el producto no existe
+     */
+    @Transactional(readOnly = true)
+    public ProductoInventarioResponse obtenerProductoPorId(Long productoId) {
+        Producto producto = productoRepository.findById(productoId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ENTITY_NOT_FOUND,
+                        "Producto no encontrado: " + productoId));
+        return productoMapper.toInventarioResponse(producto, obtenerStockInventario(producto));
+    }
 }

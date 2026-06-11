@@ -641,6 +641,16 @@ export interface BackendProductoAdminItem {
   productoEstado: 'ACTIVO' | 'INACTIVO';
 }
 
+/** Respuesta del listado de productos de inventario (GET /api/productos). */
+export interface BackendProductoInventarioResponse {
+  productoId: number;
+  productoNombre: string;
+  categoriaNombre: string;
+  productoPrecio: number;
+  stockActual: number | null;
+  productoEstado: string;
+}
+
 /* ── Gestión de Estados (Admin) ── */
 
 export interface BackendValidacionCambioEstado {
@@ -670,7 +680,7 @@ export interface BackendEstadoHistorial {
 }
 
 export interface BackendCambiarEstadoRequest {
-  nuevoEstado: string;
+  estado: string;
   motivo?: string;
   notificarClientes?: boolean;
   accionPreparacionesAfectadas?: 'DESACTIVAR' | 'MANTENER' | 'REACTIVAR' | 'MANTENER_INACTIVAS';
@@ -692,6 +702,30 @@ export interface BackendInventarioMovimientoRequest {
   proveedor?: string;
   numeroFactura?: string;
   observaciones?: string;
+  /** Fecha y hora del movimiento en ISO-8601; nulo → usa fecha/hora del servidor. */
+  fecha?: string | null;
+}
+
+export interface BackendInsumoDetalleResponse {
+  insumoId: number;
+  insumoNombre: string;
+  insumoUnidad: string;
+  insumoStockActual: number;
+  insumoEstado: string;
+  tipoInsumo: string;
+  insumoCosoUnitario?: number | null;
+  insumoFechaVencimiento?: string | null;
+  vencimientoProximo?: boolean | null;
+}
+
+export interface BackendMovimientoHistorialItem {
+  movimientoId: number;
+  tipo: string;
+  cantidad: number;
+  movimientoFechaHora: string;
+  observaciones?: string | null;
+  productoId?: number | null;
+  insumoId?: number | null;
 }
 
 export interface BackendDecoracionAdminResponse {
