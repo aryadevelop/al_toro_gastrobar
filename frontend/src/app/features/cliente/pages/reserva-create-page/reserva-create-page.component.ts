@@ -35,6 +35,7 @@ interface CartaItemState {
   productId: string;
   productName: string;
   category: 'Platos' | 'Bebidas';
+  subCategory?: string;
   description: string;
   unitPrice: number;
   quantity: number;
@@ -239,74 +240,88 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
                   </button>
 
                   <ng-container *ngIf="isCartaListExpanded()">
-                    <article class="preorder-item-card" *ngFor="let item of visibleCartaItems()">
-                      <div class="item-head">
-                        <div class="item-title-block">
-                          <strong>{{ item.productName }}</strong>
-                          <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
+                    <div class="sub-category-tabs" *ngIf="availableSubCategories().length > 0">
+                      <button
+                        *ngFor="let sub of availableSubCategories()"
+                        type="button"
+                        class="tab-btn sub-tab-btn"
+                        [class.active]="currentSubCategory() === sub"
+                        (click)="setSubCategory(sub)"
+                      >
+                        {{ sub }}
+                      </button>
+                    </div>
+
+                    <div class="subcategory-group">
+                      <article class="preorder-item-card" *ngFor="let item of visibleItemsForCurrentSubCategory()">
+                        <div class="item-head">
+                          <div class="item-title-block">
+                            <strong>{{ item.productName }}</strong>
+                            <span>{{ item.unitPrice | currency:'COP':'symbol':'1.0-0' }}</span>
+                          </div>
+                          <button
+                            type="button"
+                            class="btn-secondary compact-toggle"
+                            (click)="toggleCartaItemExpand(item.productId)"
+                          >
+                            {{ isCartaItemExpanded(item.productId) ? 'Ocultar' : 'Detalles' }}
+                          </button>
                         </div>
-                        <button
-                          type="button"
-                          class="btn-secondary compact-toggle"
-                          (click)="toggleCartaItemExpand(item.productId)"
-                        >
-                          {{ isCartaItemExpanded(item.productId) ? 'Ocultar' : 'Detalles' }}
-                        </button>
-                      </div>
 
-                      <div class="qty-controls">
-                        <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
-                        <input
-                          class="input-field qty-input"
-                          type="number"
-                          min="0"
-                          max="250"
-                          [value]="item.quantity"
-                          (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
-                        />
-                        <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
-                      </div>
+                        <div class="qty-controls">
+                          <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, -1)">-</button>
+                          <input
+                            class="input-field qty-input"
+                            type="number"
+                            min="0"
+                            max="250"
+                            [value]="item.quantity"
+                            (input)="setCartaItemQuantity(item.productId, $any($event.target).value)"
+                          />
+                          <button type="button" class="qty-btn" (click)="changeCartaItemQuantity(item.productId, 1)">+</button>
+                        </div>
 
-                      <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
+                        <small class="subtotal">Subtotal: {{ getCartaItemSubtotal(item) | currency:'COP':'symbol':'1.0-0' }}</small>
 
-                      <div class="item-extra" *ngIf="isCartaItemExpanded(item.productId)">
-                        <p>{{ item.description }}</p>
+                        <div class="item-extra" *ngIf="isCartaItemExpanded(item.productId)">
+                          <p>{{ item.description }}</p>
 
-                        <ng-container *ngIf="item.category === 'Platos'">
-                          <div class="modification-editor">
-                            <input
-                              class="input-field"
-                              type="text"
-                              [value]="item.modificationDraft"
-                              placeholder="modificaciones (opcional)"
-                              (input)="setCartaModificationDraft(item.productId, $any($event.target).value)"
-                            />
-                            <button type="button" class="btn-secondary" (click)="addCartaModification(item.productId)">Añadir</button>
-                          </div>
+                          <ng-container *ngIf="item.category === 'Platos'">
+                            <div class="modification-editor">
+                              <input
+                                class="input-field"
+                                type="text"
+                                [value]="item.modificationDraft"
+                                placeholder="modificaciones (opcional)"
+                                (input)="setCartaModificationDraft(item.productId, $any($event.target).value)"
+                              />
+                              <button type="button" class="btn-secondary" (click)="addCartaModification(item.productId)">Añadir</button>
+                            </div>
 
-                          <div class="modification-list" *ngIf="item.modifications.length > 0">
-                            <article class="modification-item" *ngFor="let mod of item.modifications">
-                              <div>
-                                <strong>{{ mod.text }}</strong>
-                                <small>Costo por definir por el cajero al cerrar la cuenta</small>
-                              </div>
-                              <div class="qty-controls">
-                                <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, -1)">-</button>
-                                <input
-                                  class="input-field qty-input"
-                                  type="number"
-                                  min="0"
-                                  max="250"
-                                  [value]="mod.quantity"
-                                  (input)="setCartaModificationQuantity(item.productId, mod.id, $any($event.target).value)"
-                                />
-                                <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, 1)">+</button>
-                              </div>
-                            </article>
-                          </div>
-                        </ng-container>
-                      </div>
-                    </article>
+                            <div class="modification-list" *ngIf="item.modifications.length > 0">
+                              <article class="modification-item" *ngFor="let mod of item.modifications">
+                                <div>
+                                  <strong>{{ mod.text }}</strong>
+                                  <small>Costo por definir por el cajero al cerrar la cuenta</small>
+                                </div>
+                                <div class="qty-controls">
+                                  <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, -1)">-</button>
+                                  <input
+                                    class="input-field qty-input"
+                                    type="number"
+                                    min="0"
+                                    max="250"
+                                    [value]="mod.quantity"
+                                    (input)="setCartaModificationQuantity(item.productId, mod.id, $any($event.target).value)"
+                                  />
+                                  <button type="button" class="qty-btn" (click)="changeCartaModificationQuantity(item.productId, mod.id, 1)">+</button>
+                                </div>
+                              </article>
+                            </div>
+                          </ng-container>
+                        </div>
+                      </article>
+                    </div>
 
                     <p class="special-menu-hint" *ngIf="visibleCartaItems().length === 0">
                       No hay productos disponibles en esta categoría.
@@ -458,10 +473,10 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .context-info {
         margin: 0 0 0.85rem;
-        border: 1px solid rgba(211, 47, 47, 0.35);
+        border: 1px solid rgba(10, 10, 10, 0.1);
         border-radius: 8px;
         padding: 0.6rem 0.75rem;
-        background: rgba(211, 47, 47, 0.08);
+        background: #ffffff;
         color: #4d3323;
         font-size: 0.84rem;
       }
@@ -601,8 +616,8 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         margin: 0;
         padding: 0.5rem 0.6rem;
         border-radius: 8px;
-        border: 1px solid rgba(211, 47, 47, 0.35);
-        background: rgba(211, 47, 47, 0.08);
+        border: 1px solid rgba(10, 10, 10, 0.1);
+        background: #ffffff;
         color: #4d3323;
         font-size: 0.82rem;
       }
@@ -623,6 +638,25 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         gap: 0.4rem;
         flex-wrap: wrap;
       }
+      
+      .subcategory-group {
+        display: grid;
+        gap: 0.4rem;
+      }
+      
+      .sub-category-tabs {
+        display: flex;
+        gap: 0.4rem;
+        flex-wrap: wrap;
+        margin-top: 0.5rem;
+        margin-bottom: 0.5rem;
+      }
+      
+      .sub-tab-btn {
+        font-size: 0.75rem;
+        padding: 0.3rem 0.6rem;
+        border-radius: 6px;
+      }
 
       .menu-category {
         display: grid;
@@ -641,6 +675,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         border-radius: 10px;
         padding: 0.55rem;
         background: #ffffff;
+        color: var(--text);
       }
 
       .item-head {
@@ -657,6 +692,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .item-head strong {
         font-size: 0.84rem;
+        color: var(--text);
       }
 
       .item-head span {
@@ -958,6 +994,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
   readonly showSummary = signal(false);
   readonly activePreorderTab = signal<'carta' | 'especial'>('carta');
   readonly activeCartaCategory = signal<'Platos' | 'Bebidas'>('Platos');
+  readonly activeSubCategory = signal<string | null>(null);
   readonly isCartaListExpanded = signal(false);
   readonly expandedSpecialMenuId = signal<string | null>(null);
   readonly expandedCartaItems = signal<Record<string, boolean>>({});
@@ -1210,6 +1247,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     }
 
     this.activeCartaCategory.set(category);
+    this.activeSubCategory.set(null);
     this.isCartaListExpanded.set(false);
   }
 
@@ -1219,6 +1257,28 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
 
   visibleCartaItems(): CartaItemState[] {
     return this.cartaItemsByCategory(this.activeCartaCategory());
+  }
+
+  availableSubCategories(): string[] {
+    const visible = this.visibleCartaItems();
+    const subs = Array.from(new Set(visible.map((i) => i.subCategory || 'Otros')));
+    return subs.sort();
+  }
+
+  currentSubCategory(): string {
+    const active = this.activeSubCategory();
+    if (active) return active;
+    const subs = this.availableSubCategories();
+    return subs.length > 0 ? subs[0] : 'Otros';
+  }
+
+  setSubCategory(sub: string): void {
+    this.activeSubCategory.set(sub);
+  }
+
+  visibleItemsForCurrentSubCategory(): CartaItemState[] {
+    const sub = this.currentSubCategory();
+    return this.visibleCartaItems().filter((i) => (i.subCategory || 'Otros') === sub);
   }
 
   selectedCartaItemsCount(category: 'Platos' | 'Bebidas'): number {
@@ -1899,6 +1959,7 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
           productId: item.productId,
           productName: item.productName,
           category: item.category,
+          subCategory: item.subCategory,
           description: item.description,
           unitPrice: item.unitPrice,
           quantity: 0,
@@ -2190,5 +2251,3 @@ export class ReservaCreatePageComponent implements OnInit, OnDestroy {
     this.qtyLimitTimeout = setTimeout(() => this.qtyLimitWarning.set(''), 3500);
   }
 }
-
-
