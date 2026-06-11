@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { CommonModule } from '@angular/common';
 import { FormsModule } from '@angular/forms';
+import { Router, RouterLink } from '@angular/router';
 import { ProductoAdminService } from '../../../../core/services/producto-admin.service';
 import { BackendProductoAdminItem, BackendValidacionCambioEstado, BackendCambiarEstadoRequest } from '../../../../core/models/api.models';
 import { PageHeaderComponent } from '../../../../shared/ui/page-header/page-header.component';
@@ -9,7 +10,7 @@ import { ModalBaseComponent } from '../../../../shared/ui/modal-base/modal-base.
 @Component({
   selector: 'app-productos-list-page',
   standalone: true,
-  imports: [CommonModule, FormsModule, PageHeaderComponent, ModalBaseComponent],
+  imports: [CommonModule, FormsModule, RouterLink, PageHeaderComponent, ModalBaseComponent],
   templateUrl: './productos-list-page.component.html',
   styleUrls: ['./productos-list-page.component.scss']
 })
@@ -39,7 +40,10 @@ export class ProductosListPageComponent implements OnInit {
   isValidatingState = false;
   validationData: BackendValidacionCambioEstado | null = null;
 
-  constructor(private readonly productoAdminService: ProductoAdminService) {}
+  constructor(
+    private readonly productoAdminService: ProductoAdminService,
+    private readonly router: Router
+  ) {}
 
   ngOnInit(): void {
     this.cargarProductos();
@@ -126,9 +130,7 @@ export class ProductosListPageComponent implements OnInit {
   }
 
   crearPrimerProducto(): void {
-    // Aquí iría la navegación a la vista de creación de producto
-    // this.router.navigate(['/admin/productos/crear']);
-    window.alert('Navegando a la creación de producto...');
+    this.router.navigate(['/admin/productos/new']);
   }
 
   private removeAccents(str: string): string {
@@ -178,19 +180,21 @@ export class ProductosListPageComponent implements OnInit {
     const nuevoEstado = this.selectedProductForStateChange.productoEstado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
     
     const req: BackendCambiarEstadoRequest = {
-      nuevoEstado,
+      estado: nuevoEstado,
       motivo: this.stateChangeReason || undefined,
       notificarClientes
     };
 
     this.productoAdminService.cambiarEstado(this.selectedProductForStateChange.productoId, req).subscribe({
       next: () => {
-        window.alert(`Producto ${nuevoEstado === 'INACTIVO' ? 'suspendido' : 'reactivado'} correctamente.`);
+        this.showAlert(`Producto ${nuevoEstado === 'INACTIVO' ? 'suspendido' : 'reactivado'} correctamente.`, 'info');
         this.cerrarModal();
         this.cargarProductos();
       },
-      error: () => {
-        window.alert('Ocurrió un error al intentar cambiar el estado del producto.');
+      error: (err) => {
+        const errorMsg = err?.error?.message || 'Ocurrió un error al intentar cambiar el estado del producto.';
+        this.showAlert(errorMsg, 'error');
+        this.cerrarModal();
       }
     });
   }

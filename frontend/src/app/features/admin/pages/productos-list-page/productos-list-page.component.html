@@ -101,9 +101,14 @@
                   Inactivo
                 </span>
               </td>
-              <td data-label="Acciones">
-                <button 
-                  class="btn btn-sm" 
+              <td data-label="Acciones" class="d-flex gap-2">
+                <a
+                  [routerLink]="['/app/admin/productos', prod.productoId]"
+                  class="btn btn-sm btn-outline-info">
+                  Ver detalle
+                </a>
+                <button
+                  class="btn btn-sm"
                   [ngClass]="prod.productoEstado === 'ACTIVO' ? 'btn-outline-warning' : 'btn-outline-success'"
                   (click)="abrirModalEstado(prod)">
                   {{ prod.productoEstado === 'ACTIVO' ? 'Suspender' : 'Reactivar' }}
