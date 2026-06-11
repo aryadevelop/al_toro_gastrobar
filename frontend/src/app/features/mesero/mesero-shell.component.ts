@@ -24,19 +24,19 @@ import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
         color: #ffffff;
         padding: 0.65rem 1rem;
         border-radius: 999px;
-        background: rgba(255, 255, 255, 0.15);
+        background: transparent;
         border: 1px solid rgba(255, 255, 255, 0.4);
         transition: all 0.2s ease;
       }
 
       .tab-link:hover {
-        background: rgba(255, 255, 255, 0.25);
+        background: rgba(255, 255, 255, 0.1);
       }
 
       .tab-link.active-tab {
-        background: #000000;
-        border-color: #000000;
-        color: #ffffff;
+        background: var(--bg);
+        border-color: var(--bg);
+        color: var(--primary);
       }
     `,
   ],

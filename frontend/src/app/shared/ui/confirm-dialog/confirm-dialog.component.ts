@@ -30,13 +30,34 @@ import { Component, EventEmitter, Input, Output } from '@angular/core';
 
       .dialog {
         max-width: 420px;
-        padding: 1rem;
+        padding: 1.5rem;
+        background: var(--bg) !important;
+        color: #1a1a1a !important;
+        border: 2px solid var(--surface) !important;
+        border-radius: 14px;
+      }
+
+      .dialog h3 {
+        margin-top: 0;
+        color: var(--surface);
+      }
+
+      .dialog .actions button {
+        background: var(--surface) !important;
+        color: #ffffff !important;
+        border: none !important;
+      }
+
+      .dialog .actions button:hover {
+        background: #8a0d0d !important;
+        box-shadow: 0 4px 12px rgba(181, 18, 18, 0.4);
       }
 
       .actions {
         display: flex;
         justify-content: flex-end;
         gap: 0.7rem;
+        margin-top: 1rem;
       }
     `
   ]

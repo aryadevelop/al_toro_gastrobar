@@ -220,13 +220,13 @@ interface ZonaGroup {
       .reserva-meta {
         margin: 0.1rem 0 0;
         font-size: 0.78rem;
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.75);
       }
       .reserva-card-body {
         display: grid;
         gap: 0.15rem;
         font-size: 0.84rem;
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.85);
       }
       .reserva-card-body p { margin: 0; }
       .reserva-card-actions {

@@ -317,7 +317,7 @@ interface ActiveVisitCacheEntry {
       }
 
       .metric-card p {
-        color: var(--muted);
+        color: rgba(255, 255, 255, 0.85);
         font-size: 0.7rem;
         opacity: 0.95;
       }
@@ -375,7 +375,7 @@ interface ActiveVisitCacheEntry {
 
       .empty-state {
         margin: 0;
-        color: var(--muted);
+        color: #ffffff;
         font-size: 0.86rem;
       }
 

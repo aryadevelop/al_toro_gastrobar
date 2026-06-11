@@ -11,8 +11,6 @@ import { ConfirmDialogComponent } from '../../../shared/ui/confirm-dialog/confir
   imports: [CommonModule, ConfirmDialogComponent],
   template: `
     <div class="topbar-wrapper">
-      <img src="assets/images/al-toro-logo-vector.svg" alt="Al Toro Gastrobar" class="topbar-logo" />
-      
       <header class="topbar card" [class.topbar--cliente]="isClienteRole">
         <div class="topbar__left">
           <span class="topbar-user" *ngIf="authService.currentUser()?.fullName as fullName">{{ fullName }}</span>
