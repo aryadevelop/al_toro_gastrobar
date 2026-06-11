@@ -88,6 +88,18 @@ interface ItemAjusteLocal {
           </div>
         </div>
 
+        <!-- ─── Modal de Éxito al Pagar (CA-12) ─── -->
+        <div class="modal-overlay" *ngIf="cuentaCerrada()">
+          <div class="modal-box exito-modal text-center">
+            <div class="exito-icono">✅</div>
+            <h2 class="exito-titulo">Pago registrado correctamente</h2>
+            <p class="modal-desc mb-4">La venta ha sido registrada. El estado de la mesa ha cambiado a "Cerrada".</p>
+            <button class="btn-primary btn-bloque" type="button" (click)="irAMapa()">
+              Volver al mapa de mesas
+            </button>
+          </div>
+        </div>
+
         <!-- ════ GRID PRINCIPAL ════ -->
         <div class="cuenta-grid">
 
@@ -467,15 +479,7 @@ interface ItemAjusteLocal {
               </div>
             </article>
 
-            <!-- ─── Cuenta cerrada (CA-12) ─── -->
-            <article class="card seccion exito-card" *ngIf="cuentaCerrada()">
-              <div class="exito-icono">✅</div>
-              <h2>Pago registrado correctamente</h2>
-              <p>La venta ha sido registrada. El estado de la mesa ha cambiado a "Cerrada".</p>
-              <button class="btn-primary btn-bloque" type="button" (click)="irAMapa()">
-                Volver al mapa de mesas
-              </button>
-            </article>
+            <!-- (La tarjeta de éxito original se movió a un modal principal) -->
           </div>
         </div>
       </ng-container>
@@ -565,6 +569,12 @@ interface ItemAjusteLocal {
 
       /* ─── Secciones / cards ─── */
       .seccion { padding: 1rem; display: grid; gap: .75rem; }
+      .card.seccion {
+        background: #ffd5dc; /* Tono rojo claro pastel como el de la tabla */
+        color: var(--text);
+        border: 1px solid rgba(217, 4, 41, 0.18);
+        box-shadow: 0 8px 30px rgba(217, 4, 41, 0.1);
+      }
       .seccion + .seccion { margin-top: .75rem; }
       .seccion-titulo {
         margin: 0; font-size: .9rem; font-weight: 700;
@@ -580,7 +590,7 @@ interface ItemAjusteLocal {
         display: flex; justify-content: space-between;
         align-items: center; gap: .5rem; min-height: 28px;
       }
-      .info-label { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; }
+      .info-label { font-size: .75rem; color: #000000; text-transform: uppercase; letter-spacing: .03em; flex-shrink: 0; font-weight: 600; }
       .info-valor { font-size: .88rem; font-weight: 600; text-align: right; }
       .info-valor.correo { font-size: .82rem; font-weight: 400; color: var(--primary); }
       .info-valor.muted { font-weight: 400; color: var(--muted); }
@@ -752,11 +762,12 @@ interface ItemAjusteLocal {
       .metodo-btn.metodo-activo { background: var(--primary); color: #fff; border-color: var(--primary); }
       .pago-acciones { display: grid; gap: .4rem; margin-top: .35rem; }
 
-      /* ─── Éxito (CA-12) ─── */
-      .exito-card { text-align: center; padding: 1.5rem 1rem; }
-      .exito-icono { font-size: 2.5rem; margin-bottom: .5rem; }
-      .exito-card h2 { margin: 0 0 .4rem; font-size: 1rem; color: #166534; }
-      .exito-card p { margin: 0 0 .8rem; font-size: .84rem; color: var(--muted); }
+      /* ─── Éxito Modal (CA-12) ─── */
+      .exito-modal { align-items: center; text-align: center; }
+      .exito-icono { font-size: 3.5rem; margin-bottom: .2rem; }
+      .exito-titulo { margin: 0; font-size: 1.15rem; color: #166534; font-weight: 800; }
+      .mb-4 { margin-bottom: 1rem; }
+      .text-center { text-align: center; }
 
       /* ─── Botones utilitarios ─── */
       .btn-ajuste {

@@ -10,7 +10,6 @@ const MENU_ITEMS: MenuItem[] = [
   { label: 'Producción', path: '/app/produccion', icon: 'kitchen', roles: ['PRODUCCION'] },
   { label: 'Mapa Mesas', path: '/app/cajero/mapa-mesas', icon: 'grid_view', roles: ['CAJERO'] },
   { label: 'Reservas', path: '/app/cajero/reservas', icon: 'book_online', roles: ['CAJERO'] },
-  { label: 'Cierre Caja', path: '/app/cajero/cierre-caja', icon: 'point_of_sale', roles: ['CAJERO'] },
   { label: 'Administrador', path: '/app/admin', icon: 'shield', roles: ['ADMIN'] },
   { label: 'Personal', path: '/app/admin/personal', icon: 'person', roles: ['ADMIN'] },
   { label: 'Clientes', path: '/app/admin/clientes', icon: 'person', roles: ['ADMIN'] },

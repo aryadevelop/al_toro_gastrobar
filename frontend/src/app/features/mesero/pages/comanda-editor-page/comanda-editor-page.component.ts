@@ -372,25 +372,27 @@ interface DraftItem {
         gap: 0.75rem;
         padding: 0.45rem 0.6rem;
         border-radius: 10px;
-        background: rgba(0, 0, 0, 0.15);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        background: #ffffff;
+        color: var(--text);
+        border: 1px solid rgba(0, 0, 0, 0.1);
       }
 
       .item-name {
         margin: 0;
         font-size: 0.85rem;
         font-weight: 600;
+        color: var(--text);
       }
 
       .item-sub {
         margin: 0.15rem 0 0;
         font-size: 0.75rem;
-        color: rgba(255, 255, 255, 0.7);
+        color: var(--text-muted);
       }
 
       .item-qty {
         font-weight: 700;
-        color: #ffcccc;
+        color: var(--primary);
       }
 
       .btn-outline {
@@ -441,22 +443,23 @@ interface DraftItem {
         list-style: none;
         margin: 0;
         padding: 0;
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 12px;
         max-height: 220px;
         overflow: auto;
-        background: var(--bg, #080000);
+        background: #ffffff;
+        box-shadow: 0 4px 15px rgba(0,0,0,0.05);
       }
 
       .suggestions li + li {
-        border-top: 1px solid rgba(255, 255, 255, 0.1);
+        border-top: 1px solid rgba(0, 0, 0, 0.05);
       }
 
       .suggestions button {
         width: 100%;
         border: none;
         background: transparent;
-        color: #fff;
+        color: var(--text);
         padding: 0.55rem 0.75rem;
         display: flex;
         justify-content: space-between;
@@ -465,13 +468,13 @@ interface DraftItem {
       }
 
       .suggestions button:hover {
-        background: rgba(255,255,255,0.05);
+        background: rgba(0, 0, 0, 0.03);
       }
 
       .suggestions-empty {
         margin: 0;
         font-size: 0.78rem;
-        color: rgba(255, 255, 255, 0.7);
+        color: var(--text-muted);
       }
 
       .totals-grid {
@@ -482,10 +485,11 @@ interface DraftItem {
       }
 
       .totals-box {
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 10px;
         padding: 0.65rem;
-        background: rgba(0, 0, 0, 0.15);
+        background: #ffffff;
+        color: var(--text);
       }
 
       .totals-box h4 {
@@ -506,15 +510,17 @@ interface DraftItem {
 
       .draft-section h4 {
         margin: 0;
+        color: var(--text);
       }
 
       .draft-item {
-        border: 1px solid rgba(255, 255, 255, 0.2);
+        border: 1px solid rgba(0, 0, 0, 0.1);
         border-radius: 10px;
         padding: 0.62rem;
         display: grid;
         gap: 0.45rem;
-        background: rgba(0, 0, 0, 0.15);
+        background: #ffffff;
+        color: var(--text);
       }
 
       .draft-item--mod {
@@ -542,9 +548,9 @@ interface DraftItem {
       }
 
       .qty-controls button {
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(0, 0, 0, 0.2);
         background: transparent;
-        color: #fff;
+        color: var(--text);
         border-radius: 8px;
         width: 28px;
         height: 28px;
@@ -553,9 +559,9 @@ interface DraftItem {
 
       .qty-controls input {
         width: 72px;
-        border: 1px solid rgba(255, 255, 255, 0.3);
+        border: 1px solid rgba(0, 0, 0, 0.2);
         background: transparent;
-        color: #fff;
+        color: var(--text);
         border-radius: 8px;
         text-align: center;
         padding: 0.28rem;
