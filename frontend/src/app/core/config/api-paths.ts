@@ -102,9 +102,9 @@ export const API_PATHS = {
         canjearPuntos: (clienteId: string | number) => `${API}/clientes/${clienteId}/canje-puntos`,
     },
     adminProductos: {
-        listar: `${API}/admin/productos`,
-        validarEstado: (id: string | number) => `${API}/admin/productos/${id}/validar-estado`,
-        cambiarEstado: (id: string | number) => `${API}/admin/productos/${id}/estado`,
+        listar: `${API}/productos`,
+        validarEstado: (id: string | number) => `${API}/productos/${id}/estado/implicaciones`,
+        cambiarEstado: (id: string | number) => `${API}/productos/${id}/estado`,
     },
     adminPreparaciones: {
         validarEstado: (id: string | number) => `${API}/admin/preparaciones/${id}/validar-estado`,

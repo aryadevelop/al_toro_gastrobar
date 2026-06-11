@@ -19,6 +19,6 @@ export class ProductoAdminService {
   }
 
   cambiarEstado(productoId: number | string, request: import('../models/api.models').BackendCambiarEstadoRequest): Observable<ApiEnvelope<void>> {
-    return this.http.post<ApiEnvelope<void>>(API_PATHS.adminProductos.cambiarEstado(productoId), request);
+    return this.http.put<ApiEnvelope<void>>(API_PATHS.adminProductos.cambiarEstado(productoId), request);
   }
 }

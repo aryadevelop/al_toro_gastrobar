@@ -634,11 +634,11 @@ export interface BackendCerrarCuentaRequest {
 
 export interface BackendProductoAdminItem {
   productoId: number;
-  nombre: string;
-  categoria: string;
-  precioVenta: number;
+  productoNombre: string;
+  categoriaNombre: string;
+  productoPrecio: number;
   stockActual: number;
-  estado: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'DISCONTINUED';
+  productoEstado: 'ACTIVO' | 'INACTIVO';
 }
 
 /* ── Gestión de Estados (Admin) ── */

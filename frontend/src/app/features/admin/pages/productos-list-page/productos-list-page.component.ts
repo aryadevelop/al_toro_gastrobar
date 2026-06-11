@@ -70,7 +70,7 @@ export class ProductosListPageComponent implements OnInit {
   }
 
   extractCategories(): void {
-    const cats = new Set(this.allProducts.map(p => p.categoria));
+    const cats = new Set(this.allProducts.map(p => p.categoriaNombre));
     this.categories = Array.from(cats).sort();
   }
 
@@ -80,7 +80,7 @@ export class ProductosListPageComponent implements OnInit {
 
     // Filtro por categoría
     if (this.selectedCategory !== 'ALL') {
-      temp = temp.filter(p => p.categoria === this.selectedCategory);
+      temp = temp.filter(p => p.categoriaNombre === this.selectedCategory);
       if (temp.length === 0 && this.searchQuery.trim() === '') {
         this.showAlert(`No hay productos registrados en la categoría ${this.selectedCategory}`, 'info');
       }
@@ -101,7 +101,7 @@ export class ProductosListPageComponent implements OnInit {
         const normalizedQuery = this.removeAccents(q).toLowerCase();
         const beforeSearchCount = temp.length;
         
-        temp = temp.filter(p => this.removeAccents(p.nombre).toLowerCase().includes(normalizedQuery));
+        temp = temp.filter(p => this.removeAccents(p.productoNombre).toLowerCase().includes(normalizedQuery));
         
         if (temp.length === 0 && beforeSearchCount > 0) {
           this.showAlert(`No se encontraron productos con el nombre '${q}'`, 'info');
@@ -152,7 +152,7 @@ export class ProductosListPageComponent implements OnInit {
     this.validationData = null;
     this.isModalOpen = true;
 
-    if (prod.estado === 'ACTIVE') { // Validar solo al suspender
+    if (prod.productoEstado === 'ACTIVO') { // Validar solo al suspender
       this.isValidatingState = true;
       this.productoAdminService.validarCambioEstado(prod.productoId).subscribe({
         next: (res) => {
@@ -175,7 +175,7 @@ export class ProductosListPageComponent implements OnInit {
 
   confirmarCambioEstado(notificarClientes?: boolean) {
     if (!this.selectedProductForStateChange) return;
-    const nuevoEstado = this.selectedProductForStateChange.estado === 'ACTIVE' ? 'SUSPENDED' : 'ACTIVE';
+    const nuevoEstado = this.selectedProductForStateChange.productoEstado === 'ACTIVO' ? 'INACTIVO' : 'ACTIVO';
     
     const req: BackendCambiarEstadoRequest = {
       nuevoEstado,
@@ -185,7 +185,7 @@ export class ProductosListPageComponent implements OnInit {
 
     this.productoAdminService.cambiarEstado(this.selectedProductForStateChange.productoId, req).subscribe({
       next: () => {
-        window.alert(`Producto ${nuevoEstado === 'SUSPENDED' ? 'suspendido' : 'reactivado'} correctamente.`);
+        window.alert(`Producto ${nuevoEstado === 'INACTIVO' ? 'suspendido' : 'reactivado'} correctamente.`);
         this.cerrarModal();
         this.cargarProductos();
       },
