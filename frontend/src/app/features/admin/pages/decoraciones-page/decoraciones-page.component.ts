@@ -126,6 +126,54 @@ import { environment } from '../../../../../environments/environment';
       padding: 2rem;
       color: var(--text-muted);
     }
+    table {
+      width: 100%;
+      border-collapse: collapse;
+    }
+    th, td {
+      text-align: left;
+      padding: 0.6rem;
+      border-bottom: 1px solid rgba(10,10,10,0.1);
+    }
+    @media (max-width: 768px) {
+      table {
+        min-width: 100%;
+      }
+      thead {
+        display: none;
+      }
+      tr {
+        display: block;
+        margin-bottom: 0.8rem;
+        border: 1px solid rgba(10, 10, 10, 0.1);
+        border-radius: 8px;
+        padding: 0.4rem;
+        background: #fffaf5;
+        color: var(--text);
+      }
+      td {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        text-align: right;
+        border-bottom: 1px solid rgba(10, 10, 10, 0.05);
+        padding: 0.5rem 0;
+      }
+      td:last-child {
+        border-bottom: 0;
+      }
+      td::before {
+        content: attr(data-label);
+        font-weight: 600;
+        color: var(--muted);
+        text-align: left;
+        margin-right: 1rem;
+      }
+      .btn-group {
+        flex-direction: column;
+        align-items: flex-end;
+      }
+    }
   `]
 })
 export class DecoracionesPageComponent implements OnInit {

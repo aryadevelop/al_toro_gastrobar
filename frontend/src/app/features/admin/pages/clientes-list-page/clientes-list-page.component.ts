@@ -18,8 +18,9 @@ import { RouterLink } from '@angular/router';
     <section class="page-grid">
       <app-page-header title="Clientes" subtitle="Consulta y segmentación de clientes"></app-page-header>
 
-      <article class="card filter-card">
-        <form class="filters-grid" [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+      <form [formGroup]="filtersForm" (ngSubmit)="applyFilters()">
+        <article class="card filter-card">
+          <div class="filters-grid">
           <label>
             <span>Buscar por nombre</span>
             <input class="input-field" type="text" formControlName="nombre" placeholder="Ej: Juan Pérez" />
@@ -68,12 +69,14 @@ import { RouterLink } from '@angular/router';
             </select>
           </label>
 
-          <div class="actions-row">
-            <button class="btn-secondary" type="button" (click)="clearFilters()">Limpiar</button>
-            <button class="btn-primary" type="submit">Buscar</button>
           </div>
-        </form>
-      </article>
+        </article>
+
+        <div class="actions-row" style="margin-top: 0.8rem;">
+          <button class="btn-secondary" type="button" (click)="clearFilters()">Limpiar</button>
+          <button class="btn-primary" type="submit">Buscar</button>
+        </div>
+      </form>
 
       <article class="card state-card" *ngIf="loading()">
         <p>Cargando clientes...</p>
@@ -125,7 +128,7 @@ import { RouterLink } from '@angular/router';
                   </span>
                 </td>
                 <td data-label="Detalle">
-                  <a class="btn-secondary" [routerLink]="['/app/admin/cliente-historial', cliente.clienteId]">
+                  <a class="btn-secondary action-btn" [routerLink]="['/app/admin/cliente-historial']" [queryParams]="{ clienteId: cliente.clienteId }">
                     Ver historial
                   </a>
                 </td>
@@ -174,23 +177,50 @@ import { RouterLink } from '@angular/router';
       table {
         width: 100%;
         border-collapse: collapse;
-        min-width: 980px;
+        min-width: 100%;
       }
 
       th,
       td {
         text-align: left;
-        padding: 0.55rem;
-        border-bottom: 1px solid rgba(10, 10, 10, 0.1);
-        font-size: 0.84rem;
+        padding: 0.4rem 0.5rem;
+        font-size: 0.82rem;
+      }
+
+      td {
+        border-bottom: 1px solid rgba(255, 255, 255, 0.15);
+        border-right: 1px solid rgba(255, 255, 255, 0.15);
+      }
+
+      th {
+        border-right: 1px solid rgba(181, 18, 18, 0.15);
+      }
+
+      th:last-child,
+      td:last-child {
+        border-right: none;
       }
 
       th {
         font-size: 0.8rem;
-        color: var(--muted);
+        background: var(--bg);
+        color: var(--primary);
+        font-weight: 700;
+        text-transform: uppercase;
+      }
+
+      th:first-child {
+        border-top-left-radius: 8px;
+        border-bottom-left-radius: 8px;
+      }
+
+      th:last-child {
+        border-top-right-radius: 8px;
+        border-bottom-right-radius: 8px;
       }
 
       .badge {
+        background: #ffffff;
         border: 1px solid rgba(196, 30, 58, 0.45);
         color: #9f1239;
         border-radius: 999px;
@@ -207,6 +237,50 @@ import { RouterLink } from '@angular/router';
       .badge-frequent {
         border-color: rgba(133, 77, 14, 0.45);
         color: #92400e;
+      }
+
+      .action-btn {
+        padding: 0.35rem 0.55rem;
+        font-size: 0.76rem;
+        display: inline-block;
+        white-space: nowrap;
+        text-align: center;
+      }
+
+      @media (max-width: 1024px) {
+        table {
+          min-width: 100%;
+        }
+        thead {
+          display: none;
+        }
+        tr {
+          display: block;
+          margin-bottom: 0.8rem;
+          border: 1px solid rgba(10, 10, 10, 0.1);
+          border-radius: 8px;
+          padding: 0.4rem;
+          background: #fffaf5;
+          color: var(--text);
+        }
+        td {
+          display: flex;
+          justify-content: space-between;
+          align-items: center;
+          text-align: right;
+          border-bottom: 1px solid rgba(10, 10, 10, 0.05);
+          padding: 0.35rem 0;
+        }
+        td:last-child {
+          border-bottom: 0;
+        }
+        td::before {
+          content: attr(data-label);
+          font-weight: 600;
+          color: var(--muted);
+          text-align: left;
+          margin-right: 1rem;
+        }
       }
     `,
   ]
