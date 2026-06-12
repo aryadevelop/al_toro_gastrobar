@@ -92,20 +92,7 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
         </section>
 
         <section class="grid-2">
-          <article class="card data-card">
-            <div class="section-head">
-              <h3>Top 3 platos más vendidos</h3>
-            </div>
-            <ng-container *ngIf="hasVentas(); else ventasEmpty">
-              <div class="list-grid">
-                <div class="list-row" *ngFor="let plato of data.topPlatos">
-                  <span>{{ plato.nombre }}</span>
-                  <span>{{ plato.cantidad }} uds</span>
-                  <span>{{ plato.total | currency:'COP':'symbol':'1.0-0' }}</span>
-                </div>
-              </div>
-            </ng-container>
-          </article>
+
 
           <article class="card data-card">
             <div class="section-head">
@@ -326,11 +313,11 @@ import { DashboardService } from '../../../../core/services/dashboard.service';
       }
 
       .trend-up strong {
-        color: #137333;
+        color: #ffffff;
       }
 
       .trend-down strong {
-        color: #b42318;
+        color: #ffffff;
       }
 
       .grid-2 {
