@@ -132,6 +132,11 @@ input[type="time"]::-webkit-calendar-picker-indicator:hover {
   font-size: 0.8rem;
 }
 
+.card .error-text {
+  color: #ffcdd2; /* var(--accent-soft) for better contrast on red background */
+  font-weight: 600;
+}
+
 .btn-primary,
 .btn-secondary,
 .btn-danger {

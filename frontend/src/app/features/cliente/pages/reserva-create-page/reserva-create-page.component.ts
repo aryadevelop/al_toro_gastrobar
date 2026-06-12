@@ -528,6 +528,8 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         border-radius: 10px;
         padding: 0.45rem;
         background: #ffffff;
+        color: #4d3323;
+        text-align: center;
       }
 
       .option-card img {
@@ -584,7 +586,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .preorder-total {
         font-size: 0.84rem;
-        color: #4d3323;
+        color: #ffffff;
       }
 
       .preorder-tabs {
@@ -675,7 +677,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         border-radius: 10px;
         padding: 0.55rem;
         background: #ffffff;
-        color: var(--text);
+        color: #4d3323;
       }
 
       .item-head {
@@ -692,7 +694,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .item-head strong {
         font-size: 0.84rem;
-        color: var(--text);
+        color: #4d3323;
       }
 
       .item-head span {
@@ -714,7 +716,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .preorder-item-card p {
         margin: 0;
-        color: var(--muted);
+        color: #666666;
         font-size: 0.78rem;
       }
 
@@ -741,7 +743,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
       }
 
       .subtotal {
-        color: var(--muted);
+        color: #666666;
         font-size: 0.76rem;
       }
 
@@ -776,7 +778,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .modification-item small {
         font-size: 0.7rem;
-        color: var(--muted);
+        color: #666666;
       }
 
       .special-menu-grid {
@@ -791,6 +793,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
         border-radius: 10px;
         padding: 0.5rem;
         background: #ffffff;
+        color: #4d3323;
       }
 
       .special-menu-select {
@@ -811,7 +814,7 @@ const SPECIAL_MENU_OPTIONS: SpecialMenuOption[] = [];
 
       .special-menu-copy small {
         font-size: 0.76rem;
-        color: var(--muted);
+        color: #666666;
       }
 
       .special-menu-price {
