@@ -397,7 +397,7 @@ class AuthServiceTest {
             co.edu.unicauca.backend.modules.auth.dto.response.RegisterResponse response = authService.register(request);
 
             assertThat(response.getSuccess()).isTrue();
-            assertThat(response.getMessage()).contains("exitosamente");
+            assertThat(response.getMessage()).contains("Tu cuenta ha sido creada");
             assertThat(response.getUser().getEmail()).isEqualTo("nuevo@altoro.com");
             assertThat(response.getUser().getNombre()).isEqualTo("Juan Pérez");
             assertThat(response.getUser().getRole()).isEqualTo("CLIENTE");

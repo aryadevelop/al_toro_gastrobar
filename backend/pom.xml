@@ -179,7 +179,13 @@
 				<version>0.8.12</version>
 				<configuration>
 					<excludes>
-						<exclude>**/BackendApplication.*</exclude>
+						<!-- Clases sin necesidad de cobertura -->
+						<exclude>**/BackendApplication.class</exclude>
+						<exclude>**/entity/*.class</exclude>
+						<exclude>**/dto/**/*.class</exclude>
+						<exclude>**/mapper/**/*.class</exclude>
+						<exclude>**/config/**/*.class</exclude>
+						<exclude>**/bootstrap/**/*.class</exclude>
 					</excludes>
 				</configuration>
 				<executions>
